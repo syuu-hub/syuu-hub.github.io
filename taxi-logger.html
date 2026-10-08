@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>タクシー勤怠管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+  <!-- PWA関連メタデータ -->
+  <meta name="theme-color" content="#09090B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="https://placehold.co/192x192/3B82F6/FFFFFF?text=Taxi">
+  <link rel="manifest" id="manifest-link">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Noto Sans JP"', 'sans-serif'] },
+          colors: {
+            app: {
+              bg: '#09090B',
+              surface: '#18181B',
+              border: '#27272A',
+              primary: '#3B82F6',
+              success: '#10B981',
+              warning: '#F59E0B',
+              danger: '#EF4444',
+              text: '#FAFAFA',
+              muted: '#A1A1AA'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { background-color: #09090B; color: #FAFAFA; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+    
+    .bottom-sheet { transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); }
+    .bottom-sheet.open { transform: translateY(0); }
+    .backdrop { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+    .backdrop.open { opacity: 1; pointer-events: auto; }
+    ::-webkit-scrollbar { display: none; }
+
+    .simple-input {
+      background: #09090B; color: white; border: 1px solid #27272A; border-radius: 0.75rem;
+      padding: 0.875rem 1rem; width: 100%; font-size: 1.125rem; font-weight: 600; outline: none; transition: all 0.2s;
+      font-family: inherit; font-feature-settings: "tnum";
+    }
+    .simple-input:focus { border-color: #3B82F6; background: #18181B; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+    .simple-input:disabled { opacity: 0.4; background: transparent; border-style: dashed; pointer-events: none; }
+    input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.4; padding-left: 0.5rem; }
+
+    .toggle-checkbox:checked { right: 0; border-color: #3B82F6; }
+    .toggle-checkbox:checked + .toggle-label { background-color: #3B82F6; }
+    .toggle-checkbox { right: calc(100% - 1.5rem); z-index: 1; border-color: transparent; transition: all 0.3s; }
+    .toggle-label { width: 3rem; height: 1.5rem; background-color: #27272A; border-radius: 9999px; transition: all 0.3s; cursor: pointer; }
+    .toggle-knob { width: 1.1rem; height: 1.1rem; background-color: white; border-radius: 50%; position: absolute; top: 0.2rem; left: 0.2rem; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; }
+    .toggle-checkbox:checked ~ .toggle-knob { transform: translateX(1.5rem); }
+    
+    .day-chip { width: 2.2rem; height: 2.2rem; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.8rem; font-weight: 500; transition: all 0.2s; background: #18181B; color: #A1A1AA; border: 1px solid #27272A; }
+    .day-chip.active { background: #3B82F6; color: #FAFAFA; border-color: #3B82F6; font-weight: 700; }
+  </style>
+</head>
+<body class="font-sans antialiased h-screen w-screen overflow-hidden flex justify-center bg-black">
+
+  <div id="app" class="w-full max-w-md h-full bg-app-bg relative flex flex-col">
+    
+    <!-- ヘッダー -->
+    <header class="flex-shrink-0 pt-safe px-4 py-4 flex items-center justify-between z-10 w-full relative">
+      <!-- バランス用のスペーサー -->
+      <div class="w-10"></div>
+      
+      <!-- 月ナビゲーション -->
+      <div class="flex items-center bg-app-surface rounded-[25px] border border-app-border p-1 shadow-sm absolute left-1/2 transform -translate-x-1/2">
+        <button onclick="changeMonth(-1)" class="w-8 h-8 rounded-full text-app-text hover:bg-app-bg active:scale-95 transition flex items-center justify-center"><span class="material-icons-round text-[22px]">chevron_left</span></button>
+        
+        <div class="relative w-[100px] flex items-center justify-center box-border">
+          <h1 id="month-display" class="text-[13px] font-bold tracking-wider tabular-nums whitespace-nowrap text-white text-center w-full">2026年 10月</h1>
+          <input type="month" id="month-picker" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="jumpToMonth(this.value)">
+        </div>
+
+        <button onclick="changeMonth(1)" class="w-8 h-8 rounded-full text-app-text hover:bg-app-bg active:scale-95 transition flex items-center justify-center"><span class="material-icons-round text-[22px]">chevron_right</span></button>
+      </div>
+
+      <!-- 設定ボタン -->
+      <button onclick="openSettings()" class="w-10 h-10 rounded-full bg-app-surface border border-app-border text-app-muted hover:text-white active:scale-95 transition flex items-center justify-center shadow-sm shrink-0">
+        <span class="material-icons-round text-[20px]">tune</span>
+      </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto px-4">
+      <div class="min-h-full flex flex-col pt-2 pb-6">
+        
+        <!-- サマリー（労働時間と売上） -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <!-- 労働時間カード -->
+          <div onclick="openHoursPopup()" class="bg-app-surface rounded-[20px] p-3 border border-app-border shadow-sm cursor-pointer group active:scale-[0.98] transition-all flex flex-col justify-center items-center text-center hover:border-app-primary/40 min-h-[90px]">
+            <div class="text-[10px] text-app-muted font-bold tracking-wider flex items-center justify-center mb-1 w-full">
+              <span class="material-icons-round text-[14px] mr-1 text-app-primary">schedule</span> 予想労働時間
+            </div>
+            <div class="flex items-baseline justify-center w-full">
+              <span class="font-extrabold tracking-tight tabular-nums text-white leading-none" style="font-size: clamp(1.5rem, 6.5vw, 1.875rem);" id="summary-hours-total">0.0</span>
+              <span class="text-xs text-app-muted ml-1 font-medium">h</span>
+            </div>
+          </div>
+          
+          <!-- 売上カード -->
+          <div onclick="openSalesPopup()" class="bg-app-surface rounded-[20px] p-3 border border-app-border shadow-sm cursor-pointer group active:scale-[0.98] transition-all flex flex-col justify-center items-center text-center hover:border-app-success/40 min-h-[90px]">
+            <div class="text-[10px] text-app-muted font-bold tracking-wider flex items-center justify-center mb-1 w-full">
+              <span class="material-icons-round text-[14px] mr-1 text-app-success">payments</span> 現在の売上 
+            </div>
+            <div class="flex items-center justify-center w-full">
+              <span class="font-extrabold tabular-nums leading-none text-white tracking-tighter" style="font-size: clamp(1.25rem, 5.5vw, 1.75rem);" id="summary-sales">¥0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- カレンダー上部のコントロール（表示切替） -->
+        <div class="flex justify-between items-center mb-3 px-1">
+          <h2 class="text-[13px] font-bold text-white tracking-wider flex items-center">
+            <span class="material-icons-round text-[16px] mr-1.5 text-app-muted">calendar_month</span>シフトカレンダー
+          </h2>
+          <!-- 表示切替トグル -->
+          <div class="flex bg-app-surface rounded-full p-0.5 border border-app-border w-[86px] h-[36px] relative shadow-sm shrink-0">
+            <button type="button" id="disp-toggle-hours" onclick="setDisplayMode('hours')" class="flex-1 flex items-center justify-center text-[10px] font-bold text-white z-10 transition-colors">時間</button>
+            <button type="button" id="disp-toggle-sales" onclick="setDisplayMode('sales')" class="flex-1 flex items-center justify-center text-[10px] font-bold text-app-muted z-10 transition-colors">売上</button>
+            <div id="disp-indicator" class="absolute top-[2px] bottom-[2px] w-[calc(50%-2px)] left-[2px] bg-app-bg rounded-full transition-all duration-300 ease-out border border-app-border shadow-sm"></div>
+          </div>
+        </div>
+
+        <div class="bg-app-surface rounded-2xl overflow-hidden border border-app-border mb-6 shadow-sm">
+          <div class="grid grid-cols-7 bg-app-surface text-center text-[10px] font-bold text-app-muted py-2.5 border-b border-app-border uppercase tracking-widest">
+            <div class="text-app-danger/90">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="text-app-primary/90">土</div>
+          </div>
+          <div id="calendar-grid" class="grid grid-cols-7 bg-app-border gap-[1px]"></div>
+        </div>
+        
+        <!-- 凡例 -->
+        <div class="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[11px] font-medium text-app-muted bg-app-surface/50 p-2 rounded-xl border border-app-border/50">
+          <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-app-success mr-1.5 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>出勤(確定)</span>
+          <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-app-primary mr-1.5 shadow-[0_0_8px_rgba(59,130,246,0.4)]"></span>出勤(予定)</span>
+          <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-app-muted mr-1.5"></span>公休</span>
+          <span class="flex items-center"><span class="flex items-center justify-center w-3.5 h-3.5 bg-app-danger/90 rounded-full mr-1.5 shadow-sm"><span class="text-[9px] font-bold text-white leading-none">!</span></span>13連勤注意</span>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- サマリーポップアップのバックドロップ -->
+  <div id="summary-popup-backdrop" class="fixed inset-0 bg-black/80 z-50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300" onclick="closeSummaryPopups()"></div>
+
+  <!-- 労働時間詳細ポップアップ -->
+  <div id="popup-hours" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-sm bg-app-surface rounded-[24px] shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 scale-95 p-6 border border-app-border">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-lg font-bold text-white tracking-wider">労働時間内訳</h3>
+      <button onclick="closeSummaryPopups()" class="w-8 h-8 rounded-full text-app-muted hover:bg-app-bg hover:text-white active:scale-90 transition bg-app-bg border border-app-border flex items-center justify-center flex-shrink-0"><span class="material-icons-round text-[18px]">close</span></button>
+    </div>
+    
+    <div class="space-y-3">
+      <div class="bg-app-bg rounded-xl p-4 border border-app-border flex justify-between items-center">
+        <div class="flex flex-col">
+          <span class="text-[11px] text-app-muted font-bold mb-1 flex items-center"><span class="material-icons-round text-[14px] mr-1 text-app-success">check_circle</span> 実績 (確定)</span>
+        </div>
+        <div class="flex items-baseline">
+          <span class="text-3xl font-extrabold tracking-tight tabular-nums text-white" id="popup-hours-conf">0.0</span>
+          <span class="text-sm text-app-muted ml-1 font-medium">h</span>
+        </div>
+      </div>
+
+      <div class="bg-app-bg rounded-xl p-4 border border-app-border flex justify-between items-center">
+        <div class="flex flex-col">
+          <span class="text-[11px] text-app-muted font-bold mb-1 flex items-center"><span class="material-icons-round text-[14px] mr-1 text-app-primary">schedule</span> 予定</span>
+        </div>
+        <div class="flex items-baseline">
+          <span class="text-3xl font-extrabold tracking-tight tabular-nums text-white" id="popup-hours-plan">0.0</span>
+          <span class="text-sm text-app-muted ml-1 font-medium">h</span>
+        </div>
+      </div>
+
+      <div class="bg-app-surface/50 rounded-xl p-4 border border-app-border flex justify-between items-center mt-2">
+        <div class="flex flex-col">
+          <span class="text-[11px] text-app-muted font-bold mb-1 flex items-center"><span class="material-icons-round text-[14px] mr-1 text-app-warning">warning</span> 月間上限</span>
+        </div>
+        <div class="flex items-baseline">
+          <span class="text-2xl font-extrabold tracking-tight tabular-nums text-app-muted" id="summary-max-hours">288</span>
+          <span class="text-sm text-app-muted ml-1 font-medium">h</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 売上詳細ポップアップ -->
+  <div id="popup-sales-modal" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-md bg-app-surface rounded-[24px] shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 scale-95 p-6 border border-app-border max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-lg font-bold text-white tracking-wider">売上・目標管理</h3>
+      <button onclick="closeSummaryPopups()" class="w-8 h-8 rounded-full text-app-muted hover:bg-app-bg hover:text-white active:scale-90 transition bg-app-bg border border-app-border flex items-center justify-center flex-shrink-0"><span class="material-icons-round text-[18px]">close</span></button>
+    </div>
+
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-app-bg rounded-xl p-4 border border-app-border flex flex-col justify-center">
+          <div class="text-[10px] text-app-muted font-bold mb-1.5 flex items-center">
+            <span class="material-icons-round text-[14px] mr-1 text-app-warning">trending_up</span> 目標まで残り
+          </div>
+          <div class="font-extrabold text-xl tabular-nums tracking-tight text-white"><span id="popup-sales-remaining">¥0</span></div>
+          <div class="text-[10px] text-app-muted mt-1" id="popup-sales-goal-status">達成率 0%</div>
+        </div>
+
+        <div class="bg-app-bg rounded-xl p-4 border border-app-border flex flex-col justify-center">
+          <div class="text-[10px] text-app-muted font-bold mb-1.5 flex items-center">
+            <span class="material-icons-round text-[14px] mr-1 text-app-primary">bolt</span> 締め日まで必要/日
+          </div>
+          <div class="font-extrabold text-xl tabular-nums tracking-tight text-app-primary"><span id="popup-required-per-day">¥0</span></div>
+          <div class="text-[10px] text-app-muted mt-1" id="popup-remaining-days-info">残り出勤 0日</div>
+        </div>
+      </div>
+
+      <div class="bg-app-bg rounded-xl p-4 border border-app-border">
+        <div class="text-[11px] text-app-muted font-bold mb-2 flex items-center justify-between">
+          <div class="flex items-center"><span class="material-icons-round text-[15px] mr-1 text-app-success">payments</span> 期間合計</div>
+          <span id="popup-sales-period" class="text-[10px] font-medium opacity-80 tabular-nums bg-app-surface px-2 py-0.5 rounded border border-app-border"></span>
+        </div>
+        <div class="font-extrabold text-3xl tabular-nums tracking-tight text-white mt-1"><span id="popup-sales-total">¥0</span></div>
+      </div>
+
+      <div class="bg-app-primary/10 rounded-xl p-4 border border-app-primary/30">
+        <div class="text-[11px] text-app-primary font-bold mb-2 flex items-center justify-between">
+          <div class="flex items-center"><span class="material-icons-round text-[15px] mr-1">account_balance_wallet</span> 推定手取り額</div>
+          <span id="popup-commission-rate" class="text-[10px] font-bold bg-app-primary text-white px-2 py-0.5 rounded shadow-sm"></span>
+        </div>
+        <div class="font-extrabold text-3xl tabular-nums text-app-primary tracking-tight mt-1"><span id="popup-estimated-income">¥0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- エディタボトムシート（キーボード表示時でもスクロール＆ボタン操作が快適な構造） -->
+  <div id="editor-backdrop" class="backdrop fixed inset-0 bg-black/80 z-40 backdrop-blur-sm" onclick="closeEditor()"></div>
+  <div id="editor-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-app-surface rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.4)] z-50 flex flex-col max-h-[85vh]">
+    <div class="w-12 h-1.5 bg-app-border rounded-full mx-auto mt-4 mb-2 flex-shrink-0"></div>
+    
+    <div class="px-6 pt-2 pb-6 overflow-y-auto flex-1 space-y-6">
+      <div>
+        <div id="editor-status-text" class="text-[11px] font-bold tracking-widest mb-1 text-app-primary uppercase">予定</div>
+        <h2 id="editor-date-title" class="text-3xl font-extrabold text-white leading-none tabular-nums tracking-tight">6月1日 (月)</h2>
+      </div>
+
+      <div id="streak-warning-message" class="hidden bg-app-danger/10 border border-app-danger/20 rounded-xl p-3 flex items-start">
+        <span class="material-icons-round text-app-danger text-[20px] mr-2 mt-0.5">warning_amber</span>
+        <div class="text-app-danger text-xs font-medium leading-relaxed">前回の休みから <span class="font-bold tabular-nums">13日</span> 以上の連勤になります。<br>休日の取得をご検討ください。</div>
+      </div>
+
+      <!-- 編集モード用コンテナ -->
+      <div id="edit-mode-container" class="space-y-6">
+        <!-- 勤務種別トグル -->
+        <div id="work-type-toggle" class="flex bg-app-bg rounded-xl p-1 relative border border-app-border transition-opacity duration-300">
+          <button type="button" id="btn-type-work" onclick="setWorkType('work')" class="flex-1 py-3 text-sm font-bold rounded-lg transition-colors z-10">出勤</button>
+          <button type="button" id="btn-type-off" onclick="setWorkType('off')" class="flex-1 py-3 text-sm font-bold rounded-lg transition-colors z-10">公休</button>
+          <div id="type-indicator" class="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-app-surface rounded-lg transition-all duration-300 ease-out border border-app-border shadow-sm"></div>
+        </div>
+
+        <div id="time-inputs-container" class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+              <label class="block text-[11px] text-app-muted font-bold ml-1">出庫</label>
+              <input type="time" id="input-start" class="simple-input text-center" oninput="updateCalculatedHours()">
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-[11px] text-app-muted font-bold ml-1">帰庫</label>
+              <input type="time" id="input-end" class="simple-input text-center" oninput="updateCalculatedHours()">
+            </div>
+          </div>
+          
+          <div class="flex justify-between items-center bg-app-bg px-4 py-3.5 rounded-xl border border-app-border">
+            <span class="text-xs text-app-muted font-bold flex items-center"><span class="material-icons-round text-[16px] mr-1">schedule</span>自動計算</span>
+            <div class="flex items-baseline">
+              <span class="text-2xl font-extrabold text-white tabular-nums tracking-tight" id="display-calc-hours">0.0</span>
+              <span class="text-sm text-app-muted ml-1 font-medium">h</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="sales-container" class="space-y-1.5">
+          <label class="block text-[11px] text-app-muted font-bold ml-1">売上 (円)</label>
+          <input type="number" id="input-sales" min="0" class="simple-input" placeholder="0">
+        </div>
+      </div>
+
+      <!-- 閲覧専用モード用コンテナ -->
+      <div id="readonly-container" class="hidden space-y-4">
+        <div id="readonly-badge-container"></div>
+      </div>
+
+      <!-- アクションボタンエリア（余裕のある下部マージン） -->
+      <div id="action-buttons" class="pt-2 pb-6 flex space-x-3">
+        <button onclick="saveRecord(false)" class="flex-1 py-3.5 rounded-xl font-bold bg-app-bg text-app-text border border-app-border hover:bg-app-border active:scale-[0.98] transition-all">予定保存</button>
+        <button onclick="saveRecord(true)" class="flex-1 py-3.5 rounded-xl font-bold bg-app-primary text-white active:scale-[0.98] transition-all shadow-[0_4px_12px_rgba(59,130,246,0.3)] hover:bg-blue-400">確定して保存</button>
+      </div>
+
+      <div id="readonly-action-buttons" class="pt-2 pb-6 hidden">
+        <button onclick="unlockDay()" class="w-full py-4 rounded-xl font-bold bg-app-bg text-app-text border border-app-border hover:bg-app-border active:scale-[0.98] transition-all flex items-center justify-center">
+          <span class="material-icons-round text-[18px] mr-2 text-app-primary">lock_open</span>編集モードにする
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 設定ボトムシート -->
+  <div id="settings-backdrop" class="backdrop fixed inset-0 bg-black/80 z-40 backdrop-blur-sm" onclick="closeSettings()"></div>
+  <div id="settings-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-app-surface rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.4)] z-50 flex flex-col max-h-[85vh]">
+    <div class="w-12 h-1.5 bg-app-border rounded-full mx-auto mt-4 mb-2 flex-shrink-0"></div>
+    <div class="px-6 pt-2 pb-8 overflow-y-auto flex-1 space-y-6">
+      <h2 class="text-2xl font-extrabold text-white mb-2">設定</h2>
+      
+      <div class="space-y-6">
+        
+        <div class="bg-app-bg p-5 rounded-2xl border border-app-border">
+          <div class="flex items-center justify-between mb-5">
+            <span class="text-sm font-bold text-white">固定休みの自動適用</span>
+            <div class="relative inline-block w-12 h-6 align-middle select-none">
+              <input type="checkbox" id="setting-fixed-off" class="toggle-checkbox absolute block w-full h-full opacity-0 cursor-pointer" onchange="updateSettingsRealtime(); updateSettingsUI();"/>
+              <label for="setting-fixed-off" class="toggle-label block overflow-hidden h-full rounded-full cursor-pointer"></label>
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+          <div class="flex justify-between px-1" id="fixed-off-days-container">
+            <button class="day-chip text-app-danger/80" data-day="0" onclick="toggleSettingDay(0)">日</button>
+            <button class="day-chip" data-day="1" onclick="toggleSettingDay(1)">月</button>
+            <button class="day-chip" data-day="2" onclick="toggleSettingDay(2)">火</button>
+            <button class="day-chip" data-day="3" onclick="toggleSettingDay(3)">水</button>
+            <button class="day-chip" data-day="4" onclick="toggleSettingDay(4)">木</button>
+            <button class="day-chip" data-day="5" onclick="toggleSettingDay(5)">金</button>
+            <button class="day-chip text-app-primary/80" data-day="6" onclick="toggleSettingDay(6)">土</button>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+              <label class="block text-[11px] text-app-muted font-bold ml-1">目安労働時間 (h)</label>
+              <input type="number" id="setting-def-hours" step="0.5" min="0" class="simple-input" oninput="updateSettingsRealtime()">
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-[11px] text-app-muted font-bold ml-1">月間上限 (h)</label>
+              <input type="number" id="setting-max-hours" min="0" class="simple-input" oninput="updateSettingsRealtime()">
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="block text-[11px] text-app-muted font-bold ml-1">月間目標金額 (円)</label>
+            <div class="relative flex items-center">
+              <span class="absolute left-3 text-app-muted font-bold">¥</span>
+              <input type="number" id="setting-sales-goal" step="10000" min="0" placeholder="500000" class="simple-input !pl-8 !py-2.5" oninput="updateSettingsRealtime()">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <h3 class="text-[10px] text-app-muted font-bold mt-8 mb-3 uppercase tracking-widest ml-1">データ管理</h3>
+      <div class="grid grid-cols-2 gap-3 pb-6">
+        <button onclick="exportJSON()" class="py-3.5 rounded-xl font-bold bg-app-bg text-app-text border border-app-border hover:bg-app-border active:scale-95 transition flex items-center justify-center">
+          <span class="material-icons-round text-[18px] mr-1.5 text-app-muted">download</span> 書き出し
+        </button>
+        <button onclick="document.getElementById('import-file').click()" class="py-3.5 rounded-xl font-bold bg-app-bg text-app-text border border-app-border hover:bg-app-border active:scale-95 transition flex items-center justify-center">
+          <span class="material-icons-round text-[18px] mr-1.5 text-app-muted">upload</span> 読み込み
+        </button>
+        <input type="file" id="import-file" class="hidden" onchange="importJSON(event)">
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'taxishift_md3_v36_data';
+    
+    // PWA用のマニフェストを動的に設定
+    const manifest = {
+      name: "タクシー勤怠管理",
+      short_name: "タクシー勤怠",
+      start_url: ".",
+      display: "standalone",
+      background_color: "#09090B",
+      theme_color: "#09090B",
+      icons: [
+        { src: "https://placehold.co/192x192/3B82F6/FFFFFF?text=Taxi", sizes: "192x192", type: "image/png" },
+        { src: "https://placehold.co/512x512/3B82F6/FFFFFF?text=Taxi", sizes: "512x512", type: "image/png" }
+      ]
+    };
+    const manifestString = JSON.stringify(manifest);
+    document.getElementById('manifest-link').setAttribute('href', 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(manifestString));
+
+    // PWA用のService Workerを動的に登録（インストーラブルにするため）
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          self.addEventListener('install', (e) => { self.skipWaiting(); });
+          self.addEventListener('activate', (e) => { e.waitUntil(clients.claim()); });
+          self.addEventListener('fetch', (e) => { });
+        `;
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+        navigator.serviceWorker.register(swUrl).catch(err => {
+          console.log('1ファイル構成のためSW登録をスキップします (通常の動作に影響はありません):', err);
+        });
+      });
+    }
+
+    let state = {
+      currentYear: new Date().getFullYear(),
+      currentMonth: new Date().getMonth() + 1,
+      config: { maxHours: 288, fixedOffEnabled: false, fixedOffDays: [], defaultHours: 11.0, displayMode: 'hours', salesGoal: 500000 },
+      records: {}
+    };
+
+    let editingDateStr = null;
+
+    function init() { loadData(); renderAll(); }
+
+    function loadData() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          state.config = { ...state.config, ...(parsed.config || {}) };
+          state.records = parsed.records || {};
+        } catch(e) {}
+      }
+      updateSettingsUI();
+      updateDisplayModeUI(); 
+    }
+
+    function updateSettingsUI() {
+      document.getElementById('setting-max-hours').value = state.config.maxHours;
+      document.getElementById('setting-fixed-off').checked = state.config.fixedOffEnabled;
+      document.getElementById('fixed-off-days-container').style.opacity = state.config.fixedOffEnabled ? '1' : '0.5';
+      document.getElementById('fixed-off-days-container').style.pointerEvents = state.config.fixedOffEnabled ? 'auto' : 'none';
+      document.getElementById('setting-def-hours').value = state.config.defaultHours;
+      
+      document.querySelectorAll('.day-chip').forEach(btn => {
+        const day = parseInt(btn.dataset.day);
+        if (state.config.fixedOffDays.includes(day)) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      const goalInput = document.getElementById('setting-sales-goal');
+      if (goalInput) goalInput.value = state.config.salesGoal || 500000;
+    }
+
+    // --- ポップアップ制御関数 ---
+    function openHoursPopup() {
+      document.getElementById('summary-popup-backdrop').classList.add('opacity-100', 'pointer-events-auto');
+      document.getElementById('summary-popup-backdrop').classList.remove('opacity-0', 'pointer-events-none');
+      const popup = document.getElementById('popup-hours');
+      popup.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
+      popup.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+    }
+
+    function openSalesPopup() {
+      document.getElementById('summary-popup-backdrop').classList.add('opacity-100', 'pointer-events-auto');
+      document.getElementById('summary-popup-backdrop').classList.remove('opacity-0', 'pointer-events-none');
+      const popup = document.getElementById('popup-sales-modal');
+      popup.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
+      popup.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+      updateSalesPopupCalculations();
+    }
+
+    function closeSummaryPopups() {
+      document.getElementById('summary-popup-backdrop').classList.remove('opacity-100', 'pointer-events-auto');
+      document.getElementById('summary-popup-backdrop').classList.add('opacity-0', 'pointer-events-none');
+      
+      ['popup-hours', 'popup-sales-modal'].forEach(id => {
+        const popup = document.getElementById(id);
+        if (popup) {
+          popup.classList.remove('opacity-100', 'pointer-events-auto', 'scale-100');
+          popup.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+        }
+      });
+    }
+
+    function updateSalesPopupCalculations() {
+      const startDate = new Date(state.currentYear, state.currentMonth - 2, 21);
+      const endDate = new Date(state.currentYear, state.currentMonth - 1, 20);
+      
+      let totalSales = 0;
+      let remainingWorkDays = 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const record = state.records[dateStr];
+        const dayOfWeek = d.getDay();
+        
+        if (record && record.type === 'work' && record.isConfirmed && !record.isVirtual) {
+          totalSales += Number(record.sales || 0);
+        }
+
+        if (d >= today) {
+          const dayType = getDayTypeStr(dateStr, dayOfWeek, d);
+          if (record ? record.type === 'work' : dayType === 'work') {
+            remainingWorkDays++;
+          }
+        }
+      }
+
+      const goal = Number(state.config.salesGoal) || 500000;
+      const remainingAmount = Math.max(0, goal - totalSales);
+      const achievementRate = goal > 0 ? Math.min(100, Math.round((totalSales / goal) * 100)) : 0;
+      const requiredPerDay = remainingWorkDays > 0 ? Math.ceil(remainingAmount / remainingWorkDays) : 0;
+
+      const remEl = document.getElementById('popup-sales-remaining');
+      const statusEl = document.getElementById('popup-sales-goal-status');
+      const reqEl = document.getElementById('popup-required-per-day');
+      const infoEl = document.getElementById('popup-remaining-days-info');
+
+      if (remEl) remEl.innerText = `¥${remainingAmount.toLocaleString()}`;
+      if (statusEl) statusEl.innerText = `達成率 ${achievementRate}% (目標 ¥${goal.toLocaleString()})`;
+      if (reqEl) reqEl.innerText = `¥${requiredPerDay.toLocaleString()}`;
+      if (infoEl) infoEl.innerText = `残り出勤 ${remainingWorkDays}日 (${endDate.getMonth() + 1}/${endDate.getDate()}まで)`;
+    }
+
+    function setDisplayMode(mode) {
+      state.config.displayMode = mode;
+      saveData();
+      updateDisplayModeUI();
+      renderCalendar(getEffectiveRecordsForMonth());
+    }
+
+    function updateDisplayModeUI() {
+      const mode = state.config.displayMode || 'hours';
+      const btnHours = document.getElementById('disp-toggle-hours');
+      const btnSales = document.getElementById('disp-toggle-sales');
+      const indicator = document.getElementById('disp-indicator');
+      
+      if (mode === 'hours') {
+        btnHours.classList.replace('text-app-muted', 'text-white');
+        btnSales.classList.replace('text-white', 'text-app-muted');
+        if(!btnHours.classList.contains('text-white')) { btnHours.classList.add('text-white'); btnSales.classList.add('text-app-muted'); }
+        indicator.style.left = '2px';
+      } else {
+        btnSales.classList.replace('text-app-muted', 'text-white');
+        btnHours.classList.replace('text-white', 'text-app-muted');
+        if(!btnSales.classList.contains('text-white')) { btnSales.classList.add('text-white'); btnHours.classList.add('text-app-muted'); }
+        indicator.style.left = 'calc(50% + 0px)';
+      }
+    }
+
+    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ config: state.config, records: state.records })); }
+
+    function changeMonth(delta) {
+      state.currentMonth += delta;
+      if (state.currentMonth > 12) { state.currentMonth = 1; state.currentYear++; }
+      else if (state.currentMonth < 1) { state.currentMonth = 12; state.currentYear--; }
+      renderAll();
+    }
+
+    function jumpToMonth(val) {
+      if (!val) return;
+      const [y, m] = val.split('-');
+      state.currentYear = parseInt(y, 10);
+      state.currentMonth = parseInt(m, 10);
+      renderAll();
+    }
+
+    function getDayTypeStr(dateStr, dayOfWeek, dateObj) {
+      const realRec = state.records[dateStr];
+      if (realRec) return realRec.type;
+      const isFixedOff = state.config.fixedOffEnabled && state.config.fixedOffDays.includes(dayOfWeek);
+      if (isFixedOff) return 'off';
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (dateObj >= today) return 'work';
+      return 'none';
+    }
+
+    function getEffectiveRecordsForMonth() {
+      const records = {};
+      const lastDay = new Date(state.currentYear, state.currentMonth, 0).getDate();
+      const prefix = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}-`;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const defH = Number(state.config.defaultHours) || 0;
+
+      for (let day = 1; day <= lastDay; day++) {
+        const dateStr = `${prefix}${String(day).padStart(2, '0')}`;
+        const d = new Date(state.currentYear, state.currentMonth - 1, day);
+        const dayType = getDayTypeStr(dateStr, d.getDay(), d);
+        
+        let rec = state.records[dateStr] ? { ...state.records[dateStr], isVirtual: false } : null;
+        if (!rec) {
+          if (dayType === 'off') rec = { type: 'off', hours: 0, isConfirmed: false, isVirtual: true };
+          else if (dayType === 'work') rec = { type: 'work', startTime: '', endTime: '', hours: defH, sales: 0, rides: 0, isConfirmed: false, isVirtual: true };
+          else rec = { type: 'none', isConfirmed: false, isVirtual: true };
+        }
+        if (d < today && rec.type === 'off') rec.isConfirmed = true;
+        records[dateStr] = rec;
+      }
+
+      for (let day = 1; day <= lastDay; day++) {
+        const dateStr = `${prefix}${String(day).padStart(2, '0')}`;
+        if (records[dateStr].type === 'work') {
+          let streakCount = 1;
+          const currentD = new Date(state.currentYear, state.currentMonth - 1, day);
+          
+          let pD = new Date(currentD); pD.setDate(pD.getDate() - 1);
+          while (true) {
+            const pStr = `${pD.getFullYear()}-${String(pD.getMonth() + 1).padStart(2, '0')}-${String(pD.getDate()).padStart(2, '0')}`;
+            if (getDayTypeStr(pStr, pD.getDay(), pD) === 'work') { streakCount++; if (streakCount >= 20) break; pD.setDate(pD.getDate() - 1); }
+            else break;
+          }
+          
+          let fD = new Date(currentD); fD.setDate(fD.getDate() + 1);
+          while (true) {
+            const fStr = `${fD.getFullYear()}-${String(fD.getMonth() + 1).padStart(2, '0')}-${String(fD.getDate()).padStart(2, '0')}`;
+            if (getDayTypeStr(fStr, fD.getDay(), fD) === 'work') { streakCount++; if (streakCount >= 20) break; fD.setDate(fD.getDate() + 1); }
+            else break;
+          }
+          records[dateStr].streakLength = streakCount;
+        } else {
+          records[dateStr].streakLength = 0;
+        }
+      }
+      return records;
+    }
+
+    function calcHours(start, end) {
+      if (!start || !end) return 0;
+      let [sh, sm] = start.split(':').map(Number);
+      let [eh, em] = end.split(':').map(Number);
+      let startMin = sh * 60 + sm; let endMin = eh * 60 + em;
+      if (endMin <= startMin) endMin += 24 * 60;
+      return Math.round(((endMin - startMin) / 60) * 10) / 10;
+    }
+
+    function calculateCommission(sales) {
+      if (sales >= 480000) return { rate: 61, income: sales * 0.61 };
+      if (sales >= 465000) return { rate: 60, income: sales * 0.60 };
+      if (sales >= 450000) return { rate: 59, income: sales * 0.59 };
+      if (sales >= 435000) return { rate: 58, income: sales * 0.58 };
+      if (sales >= 420000) return { rate: 57, income: sales * 0.57 };
+      if (sales >= 405000) return { rate: 56, income: sales * 0.56 };
+      if (sales >= 390000) return { rate: 55, income: sales * 0.55 };
+      if (sales >= 375000) return { rate: 53.5, income: sales * 0.535 };
+      if (sales >= 360000) return { rate: 52, income: sales * 0.52 };
+      if (sales >= 340000) return { rate: 51, income: sales * 0.51 };
+      if (sales >= 320000) return { rate: 50, income: sales * 0.50 };
+      return { rate: 45, income: sales * 0.45 };
+    }
+
+    function renderAll() {
+      const displayEl = document.getElementById('month-display');
+      displayEl.innerText = `${state.currentYear}年 ${state.currentMonth}月`;
+
+      const picker = document.getElementById('month-picker');
+      if (picker) {
+        picker.value = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+      }
+
+      const effRecords = getEffectiveRecordsForMonth();
+      renderCalendar(effRecords);
+      renderSummary(effRecords);
+    }
+
+    function renderCalendar(effRecords) {
+      const grid = document.getElementById('calendar-grid');
+      grid.innerHTML = '';
+      const startDayOfWeek = new Date(state.currentYear, state.currentMonth - 1, 1).getDay();
+      const totalDays = new Date(state.currentYear, state.currentMonth, 0).getDate();
+
+      const realToday = new Date();
+      const isCurrentMonth = state.currentYear === realToday.getFullYear() && state.currentMonth === realToday.getMonth() + 1;
+
+      for (let i = 0; i < startDayOfWeek; i++) { grid.appendChild(Object.assign(document.createElement('div'),{className:'bg-app-surface'})); }
+
+      for (let day = 1; day <= totalDays; day++) {
+        const dateStr = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const record = effRecords[dateStr];
+        const cell = document.createElement('button');
+        cell.className = 'bg-app-surface aspect-[4/4.5] flex flex-col items-center pt-2 pb-1.5 relative transition-colors active:bg-app-border focus:outline-none';
+        
+        const d = new Date(state.currentYear, state.currentMonth - 1, day);
+        let dayColor = d.getDay() === 0 ? 'text-app-danger/90 font-medium' : d.getDay() === 6 ? 'text-app-primary/90 font-medium' : 'text-white font-medium';
+        const isToday = isCurrentMonth && day === realToday.getDate();
+
+        const dayBadgeClass = isToday 
+          ? 'w-6 h-6 rounded-full bg-app-primary text-white font-bold flex items-center justify-center text-xs shadow-sm' 
+          : `text-xs ${dayColor} mb-0.5`;
+
+        cell.innerHTML = `<span class="${dayBadgeClass}">${day}</span>`;
+
+        if (record.streakLength >= 13) {
+          cell.innerHTML += `<div class="absolute top-1 right-1 flex items-center justify-center w-3.5 h-3.5 bg-app-danger/90 rounded-full z-10 shadow-sm"><span class="text-[9px] font-bold text-white leading-none">!</span></div>`;
+        }
+
+        const content = document.createElement('div');
+        content.className = 'flex-1 flex flex-col items-center justify-center w-full mt-0.5';
+
+        if (record.type === 'work') {
+          const color = record.isConfirmed ? 'text-app-success' : 'text-app-primary opacity-80';
+          
+          let displayHtml = '';
+          if (state.config.displayMode === 'sales') {
+            if (record.isConfirmed) {
+              let salesText = record.sales >= 10000 
+                ? (record.sales / 10000).toFixed(1).replace('.0', '') + '万' 
+                : record.sales.toLocaleString();
+              if(record.sales === 0) salesText = '0';
+              displayHtml = `<span class="text-[9px] font-extrabold ${color} tracking-tighter">¥${salesText}</span>`;
+            } else {
+              displayHtml = `<span class="text-[10px] font-extrabold ${color} tracking-tighter">-</span>`;
+            }
+          } else {
+            if (record.isConfirmed) {
+              displayHtml = `<span class="text-[11px] font-extrabold ${color} tabular-nums tracking-tighter">${record.hours.toFixed(1)}<span class="text-[8px] opacity-70 ml-[1px]">h</span></span>`;
+            } else {
+              displayHtml = `<span class="text-[10px] font-extrabold ${color} tracking-tighter">-</span>`;
+            }
+          }
+
+          content.innerHTML = `${displayHtml}`;
+
+        } else if (record.type === 'off') {
+          const color = record.isConfirmed ? 'text-app-muted' : 'text-app-muted opacity-40';
+          content.innerHTML = `<span class="text-[11px] font-bold ${color}">休</span>`;
+        }
+        
+        cell.appendChild(content);
+        cell.onclick = () => openEditor(dateStr, day, record);
+        grid.appendChild(cell);
+      }
+      
+      const remainingCells = 42 - (startDayOfWeek + totalDays);
+      for (let i = 0; i < remainingCells; i++) { grid.appendChild(Object.assign(document.createElement('div'),{className:'bg-app-surface'})); }
+    }
+
+    function renderSummary(effRecords) {
+      let confHours = 0, planHours = 0;
+      let workDaysMonth = 0;
+      
+      for (const [key, record] of Object.entries(effRecords)) {
+        if (record.type === 'work') {
+          if (record.isConfirmed) confHours += record.hours; else planHours += record.hours;
+          
+          if (!record.isVirtual && record.isConfirmed) {
+            workDaysMonth++;
+          }
+        }
+      }
+
+      let totalSales = 0;
+
+      const startDate = new Date(state.currentYear, state.currentMonth - 2, 21);
+      const endDate = new Date(state.currentYear, state.currentMonth - 1, 20);
+      const periodStr = `(${startDate.getMonth() + 1}/${startDate.getDate()}〜${endDate.getMonth() + 1}/${endDate.getDate()})`;
+      
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const record = state.records[dateStr];
+        if (record && record.type === 'work' && record.isConfirmed && !record.isVirtual) {
+          totalSales += Number(record.sales || 0);
+        }
+      }
+
+      const totalHours = confHours + planHours;
+      const maxH = Number(state.config.maxHours) || 288;
+      
+      document.getElementById('summary-max-hours').innerText = maxH;
+      document.getElementById('summary-hours-total').innerText = totalHours.toFixed(1);
+      document.getElementById('summary-sales').innerText = `¥${totalSales.toLocaleString()}`;
+
+      document.getElementById('popup-hours-conf').innerText = confHours.toFixed(1);
+      document.getElementById('popup-hours-plan').innerText = planHours.toFixed(1);
+
+      const totalTextEl = document.getElementById('summary-hours-total');
+      if (totalHours > maxH) totalTextEl.className = 'font-extrabold tracking-tight tabular-nums text-app-danger leading-none';
+      else if (totalHours / maxH > 0.9) totalTextEl.className = 'font-extrabold tracking-tight tabular-nums text-app-warning leading-none';
+      else totalTextEl.className = 'font-extrabold tracking-tight tabular-nums text-white leading-none';
+
+      document.getElementById('popup-sales-period').innerText = periodStr;
+      document.getElementById('popup-sales-total').innerText = `¥${totalSales.toLocaleString()}`;
+      const commissionInfo = calculateCommission(totalSales);
+      document.getElementById('popup-commission-rate').innerText = `歩合 ${commissionInfo.rate}%`;
+      document.getElementById('popup-estimated-income').innerText = `¥${Math.floor(commissionInfo.income).toLocaleString()}`;
+
+      updateSalesPopupCalculations();
+    }
+
+    function openEditor(dateStr, dayNum, record) {
+      editingDateStr = dateStr;
+      const d = new Date(dateStr);
+      const days = ['日','月','火','水','木','金','土'];
+      document.getElementById('editor-date-title').innerText = `${state.currentMonth}月${dayNum}日 (${days[d.getDay()]})`;
+
+      document.getElementById('streak-warning-message').style.display = record.streakLength >= 13 ? 'flex' : 'none';
+
+      setWorkTypeUI(record.type === 'off' ? 'off' : 'work');
+      document.getElementById('input-start').value = record.startTime || '';
+      document.getElementById('input-end').value = record.endTime || '';
+      
+      document.getElementById('input-sales').value = (record.isVirtual || record.sales === 0) ? '' : record.sales;
+      
+      updateCalculatedHours();
+
+      const statusText = document.getElementById('editor-status-text');
+      if (record.isConfirmed) {
+        statusText.innerText = record.type === 'off' ? '確定済 (休)' : '確定済 (出勤)';
+        statusText.className = record.type === 'off' ? 'text-[11px] font-bold tracking-widest mb-1 text-app-muted uppercase' : 'text-[11px] font-bold tracking-widest mb-1 text-app-success uppercase';
+      } else {
+        statusText.innerText = '予定';
+        statusText.className = 'text-[11px] font-bold tracking-widest mb-1 text-app-primary uppercase';
+      }
+
+      toggleEditorLock(record.isConfirmed, record.type);
+      document.getElementById('editor-backdrop').classList.add('open');
+      document.getElementById('editor-sheet').classList.add('open');
+    }
+
+    function closeEditor() {
+      document.getElementById('editor-backdrop').classList.remove('open');
+      document.getElementById('editor-sheet').classList.remove('open');
+      editingDateStr = null;
+    }
+
+    function setWorkType(type) {
+      const record = state.records[editingDateStr] || {};
+      if (record.isConfirmed) return;
+      setWorkTypeUI(type);
+    }
+
+    function setWorkTypeUI(type) {
+      const btnWork = document.getElementById('btn-type-work');
+      const btnOff = document.getElementById('btn-type-off');
+      const indicator = document.getElementById('type-indicator');
+      const timeContainer = document.getElementById('time-inputs-container');
+      const salesContainer = document.getElementById('sales-container');
+
+      if (type === 'work') {
+        btnWork.classList.replace('text-app-muted', 'text-white');
+        btnOff.classList.replace('text-white', 'text-app-muted');
+        if(!btnWork.classList.contains('text-white')) { btnWork.classList.add('text-white'); btnOff.classList.add('text-app-muted'); }
+        indicator.style.left = '4px';
+        
+        timeContainer.style.display = 'block';
+        salesContainer.style.display = 'block';
+        timeContainer.style.opacity = '1';
+        salesContainer.style.opacity = '1';
+        ['input-start', 'input-end', 'input-sales'].forEach(id => document.getElementById(id).disabled = false);
+      } else {
+        btnOff.classList.replace('text-app-muted', 'text-white');
+        btnWork.classList.replace('text-white', 'text-app-muted');
+        indicator.style.left = 'calc(50% + 0px)';
+        
+        timeContainer.style.opacity = '0.4';
+        salesContainer.style.opacity = '0.4';
+        ['input-start', 'input-end', 'input-sales'].forEach(id => document.getElementById(id).disabled = true);
+        document.getElementById('display-calc-hours').innerText = '0.0';
+      }
+      btnWork.dataset.current = type;
+    }
+
+    function updateCalculatedHours() {
+      const start = document.getElementById('input-start').value;
+      const end = document.getElementById('input-end').value;
+      const display = document.getElementById('display-calc-hours');
+      
+      if (start && end) {
+        display.innerText = calcHours(start, end).toFixed(1);
+        display.classList.replace('text-app-muted', 'text-app-text');
+      } else {
+        display.innerText = state.config.defaultHours.toFixed(1);
+        display.classList.replace('text-app-text', 'text-app-muted');
+      }
+    }
+
+    function toggleEditorLock(isLocked, type) {
+      const editContainer = document.getElementById('edit-mode-container');
+      const readonlyContainer = document.getElementById('readonly-container');
+      const readonlyBadgeContainer = document.getElementById('readonly-badge-container');
+      const actionBtns = document.getElementById('action-buttons');
+      const readonlyActionBtns = document.getElementById('readonly-action-buttons');
+
+      if (isLocked) {
+        editContainer.classList.add('hidden');
+        readonlyContainer.classList.remove('hidden');
+        actionBtns.classList.add('hidden');
+        readonlyActionBtns.classList.remove('hidden');
+
+        if (type === 'off') {
+          readonlyBadgeContainer.innerHTML = `
+            <div class="bg-app-bg rounded-2xl p-6 border border-app-border text-center mt-2">
+              <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-app-surface border border-app-border mb-3 text-app-muted shadow-sm">
+                <span class="material-icons-round text-[28px]">event_busy</span>
+              </div>
+              <div class="text-xl font-extrabold text-white mb-1">公休</div>
+              <div class="text-xs text-app-muted">この日は公休として記録されています。</div>
+            </div>
+          `;
+        } else {
+          const record = state.records[editingDateStr] || {};
+          const hours = record.hours || 0;
+          const sales = record.sales || 0;
+          const rides = record.rides || 0;
+          const start = record.startTime || '--:--';
+          const end = record.endTime || '--:--';
+
+          readonlyBadgeContainer.innerHTML = `
+            <div class="bg-app-bg rounded-2xl p-5 border border-app-border mb-3 text-left shadow-sm mt-2">
+              <div class="text-[11px] text-app-muted font-bold uppercase tracking-wider mb-2 flex items-center">
+                <span class="material-icons-round text-[15px] mr-1 text-app-primary">schedule</span> 労働時間
+              </div>
+              <div class="flex items-baseline mb-2">
+                <span class="text-4xl font-extrabold text-white tabular-nums tracking-tight">${hours.toFixed(1)}</span>
+                <span class="text-sm font-medium text-app-muted ml-1.5">時間 (h)</span>
+              </div>
+              <div class="text-[11px] text-app-muted font-bold tabular-nums pt-2 border-t border-app-border flex items-center justify-between">
+                <span>出退勤帯</span>
+                <span class="text-app-text">${start} 〜 ${end}</span>
+              </div>
+            </div>
+
+            <div class="bg-app-bg rounded-2xl p-4 border border-app-border text-left shadow-sm flex flex-col justify-center">
+              <div class="text-[11px] text-app-muted font-bold uppercase tracking-wider mb-1.5 flex items-center">
+                <span class="material-icons-round text-[15px] mr-1 text-app-success">payments</span> 売上
+              </div>
+              <div class="flex items-baseline">
+                <span class="text-2xl font-extrabold text-white tabular-nums tracking-tight">¥${sales.toLocaleString()}</span>
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        editContainer.classList.remove('hidden');
+        readonlyContainer.classList.add('hidden');
+        actionBtns.classList.remove('hidden');
+        readonlyActionBtns.classList.add('hidden');
+      }
+    }
+
+    function unlockDay() {
+      if (!editingDateStr) return;
+      if (!state.records[editingDateStr]) {
+        const effRecords = getEffectiveRecordsForMonth();
+        state.records[editingDateStr] = { ...effRecords[editingDateStr], isVirtual: false };
+      }
+      state.records[editingDateStr].isConfirmed = false;
+      saveData();
+      document.getElementById('editor-status-text').innerText = '予定 (編集中)';
+      document.getElementById('editor-status-text').className = 'text-[11px] font-bold tracking-widest mb-1 text-app-primary uppercase';
+      toggleEditorLock(false, state.records[editingDateStr].type);
+      renderAll();
+    }
+
+    function saveRecord(isConfirmed) {
+      if (!editingDateStr) return;
+      const type = document.getElementById('btn-type-work').dataset.current || 'work';
+      const st = document.getElementById('input-start').value;
+      const et = document.getElementById('input-end').value;
+      const sl = document.getElementById('input-sales').value;
+
+      state.records[editingDateStr] = {
+        type: type, startTime: type === 'work' ? st : '', endTime: type === 'work' ? et : '',
+        hours: type === 'work' ? calcHours(st, et) : 0, sales: type === 'work' ? Number(sl) : 0,
+        isConfirmed: isConfirmed
+      };
+
+      saveData(); renderAll(); closeEditor();
+    }
+
+    function openSettings() { document.getElementById('settings-backdrop').classList.add('open'); document.getElementById('settings-sheet').classList.add('open'); }
+    function closeSettings() { document.getElementById('settings-backdrop').classList.remove('open'); document.getElementById('settings-sheet').classList.remove('open'); }
+
+    function toggleSettingDay(dayIndex) {
+      if(!state.config.fixedOffEnabled) return;
+      const idx = state.config.fixedOffDays.indexOf(dayIndex);
+      if (idx > -1) state.config.fixedOffDays.splice(idx, 1); else state.config.fixedOffDays.push(dayIndex);
+      updateSettingsRealtime();
+      updateSettingsUI();
+    }
+
+    function updateSettingsRealtime() {
+      state.config.maxHours = Number(document.getElementById('setting-max-hours').value) || 288;
+      state.config.fixedOffEnabled = document.getElementById('setting-fixed-off').checked;
+      state.config.defaultHours = Number(document.getElementById('setting-def-hours').value) || 11.0;
+      const goalEl = document.getElementById('setting-sales-goal');
+      if (goalEl) state.config.salesGoal = Number(goalEl.value) || 0;
+      saveData(); renderAll();
+    }
+
+    function exportJSON() {
+      const confRecs = {}; const today = new Date(); today.setHours(0,0,0,0);
+      for (const [k, v] of Object.entries(state.records)) {
+        const [y, m, d] = k.split('-');
+        if (v.isConfirmed && new Date(Number(y), Number(m)-1, Number(d)) <= today) confRecs[k] = v;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify({ version: "5.0", config: state.config, records: confRecs }, null, 2)], { type: 'application/json' }));
+      a.download = `taxishift_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+    }
+
+    function importJSON(event) {
+      const file = event.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const p = JSON.parse(e.target.result); let nC = { ...state.config }; let nR = { ...state.records };
+          const t = new Date(); t.setHours(0,0,0,0);
+          if (p.records && p.config) {
+            nC = { ...nC, ...p.config };
+            for (const [k, v] of Object.entries(p.records)) {
+              const [y, m, d] = k.split('-');
+              if (new Date(Number(y), Number(m)-1, Number(d)) <= t) nR[k] = v;
+            }
+          } else { throw new Error("非対応"); }
+          state.config = nC; state.records = nR; saveData(); updateSettingsUI(); updateDisplayModeUI(); renderAll(); closeSettings(); alert('インポート完了');
+        } catch (err) { alert('読み込みエラー'); }
+      };
+      reader.readAsText(file); event.target.value = '';
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
