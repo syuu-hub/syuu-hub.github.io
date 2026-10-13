@@ -212,30 +212,50 @@
       <button onclick="closeSummaryPopups()" class="w-8 h-8 rounded-full text-app-muted hover:bg-app-surface2 hover:text-white active:scale-90 transition bg-app-bg border border-app-border flex items-center justify-center flex-shrink-0"><span class="material-icons-round text-[18px]">close</span></button>
     </div>
     
-    <div class="space-y-3 relative z-10">
-      <div class="bg-app-bg rounded-[20px] p-5 border border-app-border flex justify-between items-center">
-        <div class="flex flex-col">
-          <span class="text-[12px] text-app-muted font-bold mb-1 flex items-center"><span class="material-icons-round text-[16px] mr-1 text-app-success">check_circle</span> 実績 (確定)</span>
+    <div class="space-y-4 relative z-10">
+      
+      <!-- 予定と実績・合計のグルーピング -->
+      <div class="bg-app-bg rounded-[24px] p-5 border border-app-border">
+        
+        <div class="flex justify-between items-center mb-3">
+          <div class="flex items-center">
+            <span class="material-icons-round text-[16px] mr-2 text-app-success">check_circle</span>
+            <span class="text-[12px] text-app-muted font-bold">実績 (確定)</span>
+          </div>
+          <div class="flex items-baseline">
+            <span class="text-xl font-bold tracking-tight tabular-nums text-white" id="popup-hours-conf">0.0</span>
+            <span class="text-[11px] text-app-muted ml-1 font-medium">h</span>
+          </div>
         </div>
-        <div class="flex items-baseline">
-          <span class="text-3xl font-extrabold tracking-tight tabular-nums text-white" id="popup-hours-conf">0.0</span>
-          <span class="text-sm text-app-muted ml-1 font-medium">h</span>
+
+        <div class="flex justify-between items-center pb-4 border-b border-app-border/70 mb-4">
+          <div class="flex items-center">
+            <span class="material-icons-round text-[16px] mr-2 text-app-primary">schedule</span>
+            <span class="text-[12px] text-app-muted font-bold">予定</span>
+          </div>
+          <div class="flex items-baseline">
+            <span class="text-xl font-bold tracking-tight tabular-nums text-white" id="popup-hours-plan">0.0</span>
+            <span class="text-[11px] text-app-muted ml-1 font-medium">h</span>
+          </div>
         </div>
+
+        <div class="flex justify-between items-center">
+          <div class="flex items-center">
+            <span class="text-[13px] text-white font-extrabold tracking-widest">合計</span>
+          </div>
+          <div class="flex items-baseline">
+            <span class="text-4xl font-extrabold tracking-tight tabular-nums text-white" id="popup-hours-sum">0.0</span>
+            <span class="text-sm text-app-primary ml-1.5 font-bold opacity-90">h</span>
+          </div>
+        </div>
+
       </div>
 
-      <div class="bg-app-bg rounded-[20px] p-5 border border-app-border flex justify-between items-center">
-        <div class="flex flex-col">
-          <span class="text-[12px] text-app-muted font-bold mb-1 flex items-center"><span class="material-icons-round text-[16px] mr-1 text-app-primary">schedule</span> 予定</span>
-        </div>
-        <div class="flex items-baseline">
-          <span class="text-3xl font-extrabold tracking-tight tabular-nums text-white" id="popup-hours-plan">0.0</span>
-          <span class="text-sm text-app-muted ml-1 font-medium">h</span>
-        </div>
-      </div>
-
-      <div class="bg-app-surface2 rounded-[20px] p-5 border border-app-border flex justify-between items-center mt-3">
-        <div class="flex flex-col">
-          <span class="text-[12px] text-app-muted font-bold mb-1 flex items-center"><span class="material-icons-round text-[16px] mr-1 text-app-warning">warning</span> 月間上限</span>
+      <!-- 月間上限 -->
+      <div class="bg-app-surface2 rounded-[24px] p-5 border border-app-border flex justify-between items-center">
+        <div class="flex items-center">
+          <span class="material-icons-round text-[16px] mr-2 text-app-warning">warning</span>
+          <span class="text-[12px] text-app-muted font-bold">月間上限</span>
         </div>
         <div class="flex items-baseline">
           <span class="text-2xl font-extrabold tracking-tight tabular-nums text-app-muted" id="summary-max-hours">288</span>
@@ -462,7 +482,7 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'taxishift_md3_v39_data'; 
+    const STORAGE_KEY = 'taxishift_md3_v40_data'; 
     
     // PWA用アイコンのSVG定義
     const appIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -521,7 +541,7 @@
     function init() { loadData(); renderAll(); }
 
     function loadData() {
-      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('taxishift_md3_v38_data'); // マイグレーション対応
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('taxishift_md3_v39_data'); // マイグレーション対応
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -745,7 +765,7 @@
       if (sales >= 420000) return { rate: 57, income: sales * 0.57 };
       if (sales >= 405000) return { rate: 56, income: sales * 0.56 };
       if (sales >= 390000) return { rate: 55, income: sales * 0.55 };
-      if (sales >= 375000) return { rate: 53.5, income: sales * 0.535 }; // 固定：構文エラー修正
+      if (sales >= 375000) return { rate: 53.5, income: sales * 0.535 };
       if (sales >= 360000) return { rate: 52, income: sales * 0.52 };
       if (sales >= 340000) return { rate: 51, income: sales * 0.51 };
       if (sales >= 320000) return { rate: 50, income: sales * 0.50 };
@@ -872,8 +892,11 @@
       document.getElementById('summary-hours-total').innerText = totalHours.toFixed(1);
       document.getElementById('summary-sales').innerText = `¥${totalSales.toLocaleString()}`;
 
+      // 実績と予定、合計のUI反映
       document.getElementById('popup-hours-conf').innerText = confHours.toFixed(1);
       document.getElementById('popup-hours-plan').innerText = planHours.toFixed(1);
+      const sumEl = document.getElementById('popup-hours-sum');
+      if (sumEl) sumEl.innerText = totalHours.toFixed(1);
 
       const totalTextEl = document.getElementById('summary-hours-total');
       if (totalHours > maxH) totalTextEl.className = 'font-extrabold tracking-tight tabular-nums text-app-danger leading-none';
