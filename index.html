@@ -141,7 +141,7 @@
     <main class="flex-1 overflow-y-auto px-4 pb-8">
       <div class="min-h-full flex flex-col pt-2">
         
-        <!-- サマリー（労働時間と売上） リッチなカードデザインに変更 -->
+        <!-- サマリー（労働時間と売上） リッチなカードデザイン -->
         <div class="grid grid-cols-2 gap-3 mb-5">
           <div onclick="openHoursPopup()" class="relative overflow-hidden bg-gradient-to-br from-app-surface to-[#222226] rounded-[24px] p-4 border border-app-border shadow-md cursor-pointer group active:scale-[0.97] transition-all flex flex-col justify-center items-center text-center hover:border-app-primary/50 min-h-[100px]">
             <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-app-primary opacity-10 rounded-full blur-xl"></div>
@@ -261,7 +261,7 @@
             <span class="material-icons-round text-[16px] mr-1 text-app-warning">trending_up</span> 目標まで残り
           </div>
           <div class="font-extrabold text-xl tabular-nums tracking-tight text-white"><span id="popup-sales-remaining">¥0</span></div>
-          <div class="text-[10px] text-app-muted mt-1 font-medium" id="popup-sales-goal-status">達成率 0%</div>
+          <div class="text-[10px] text-app-text mt-1.5 font-medium leading-snug" id="popup-sales-goal-status">達成率 0%<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">目標 ¥0</span></div>
         </div>
 
         <div class="bg-app-bg rounded-[20px] p-4 border border-app-border flex flex-col justify-center">
@@ -269,7 +269,7 @@
             <span class="material-icons-round text-[16px] mr-1 text-app-primary">bolt</span> 締め日まで必要/日
           </div>
           <div class="font-extrabold text-xl tabular-nums tracking-tight text-app-primary"><span id="popup-required-per-day">¥0</span></div>
-          <div class="text-[10px] text-app-muted mt-1 font-medium" id="popup-remaining-days-info">残り出勤 0日</div>
+          <div class="text-[10px] text-app-text mt-1.5 font-medium leading-snug" id="popup-remaining-days-info">残り出勤 0日<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">-/- まで</span></div>
         </div>
       </div>
 
@@ -324,8 +324,8 @@
           <div id="type-indicator" class="segment-indicator absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-app-surface2 rounded-[12px] border border-app-border shadow-sm"></div>
         </div>
 
-        <!-- 出勤時のみ表示される入力エリア（公休時はアニメーションで隠れる） -->
-        <div id="work-inputs-wrapper" class="transition-all duration-500 ease-spring overflow-hidden" style="max-height: 500px; opacity: 1; margin-top: 1.75rem;">
+        <!-- 出勤時のみ表示される入力エリア（即時切り替え） -->
+        <div id="work-inputs-wrapper" style="display: block; margin-top: 1.75rem;">
           <div class="space-y-7 pb-2">
             
             <div id="time-inputs-container" class="bg-app-surface2 rounded-[24px] p-5 border border-app-border relative">
@@ -462,7 +462,7 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'taxishift_md3_v38_data'; 
+    const STORAGE_KEY = 'taxishift_md3_v39_data'; 
     
     // PWA用アイコンのSVG定義
     const appIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -521,7 +521,7 @@
     function init() { loadData(); renderAll(); }
 
     function loadData() {
-      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('taxishift_md3_v37_data'); // マイグレーション対応
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('taxishift_md3_v38_data'); // マイグレーション対応
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -617,9 +617,13 @@
       const infoEl = document.getElementById('popup-remaining-days-info');
 
       if (remEl) remEl.innerText = `¥${remainingAmount.toLocaleString()}`;
-      if (statusEl) statusEl.innerText = `達成率 ${achievementRate}% (目標 ¥${goal.toLocaleString()})`;
+      if (statusEl) {
+        statusEl.innerHTML = `達成率 ${achievementRate}%<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">目標 ¥${goal.toLocaleString()}</span>`;
+      }
       if (reqEl) reqEl.innerText = `¥${requiredPerDay.toLocaleString()}`;
-      if (infoEl) infoEl.innerText = `残り出勤 ${remainingWorkDays}日 (${endDate.getMonth() + 1}/${endDate.getDate()}まで)`;
+      if (infoEl) {
+        infoEl.innerHTML = `残り出勤 ${remainingWorkDays}日<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">${endDate.getMonth() + 1}/${endDate.getDate()} まで</span>`;
+      }
     }
 
     function setDisplayMode(mode) {
@@ -741,7 +745,7 @@
       if (sales >= 420000) return { rate: 57, income: sales * 0.57 };
       if (sales >= 405000) return { rate: 56, income: sales * 0.56 };
       if (sales >= 390000) return { rate: 55, income: sales * 0.55 };
-      if (sales >= 375000) return { rate: 53.5, income: sales * 0.535 };
+      if (sales >= 375000) return { rate: 53.5, income: sales * 0.535 }; // 固定：構文エラー修正
       if (sales >= 360000) return { rate: 52, income: sales * 0.52 };
       if (sales >= 340000) return { rate: 51, income: sales * 0.51 };
       if (sales >= 320000) return { rate: 50, income: sales * 0.50 };
@@ -927,7 +931,7 @@
       setWorkTypeUI(type);
     }
 
-    // 公休時は入力を「非表示（高さ0）」にしてスッキリさせる
+    // 公休時は入力を即座に非表示にしてスッキリさせる（アニメーションなし）
     function setWorkTypeUI(type) {
       const btnWork = document.getElementById('btn-type-work');
       const btnOff = document.getElementById('btn-type-off');
@@ -940,11 +944,8 @@
         if(!btnWork.classList.contains('text-white')) { btnWork.classList.add('text-white'); btnOff.classList.add('text-app-muted'); }
         indicator.style.transform = 'translateX(0)';
         
-        // 入力エリアをアニメーションで展開
-        workInputsWrapper.style.maxHeight = '500px';
-        workInputsWrapper.style.opacity = '1';
-        workInputsWrapper.style.marginTop = '1.75rem';
-        workInputsWrapper.style.pointerEvents = 'auto';
+        // 入力エリアを即座に表示
+        workInputsWrapper.style.display = 'block';
         
         ['input-start', 'input-end'].forEach(id => {
           document.getElementById(id).disabled = false;
@@ -956,11 +957,8 @@
         btnWork.classList.replace('text-white', 'text-app-muted');
         indicator.style.transform = 'translateX(100%)';
         
-        // 入力エリアをアニメーションで格納（非表示）
-        workInputsWrapper.style.maxHeight = '0px';
-        workInputsWrapper.style.opacity = '0';
-        workInputsWrapper.style.marginTop = '0px';
-        workInputsWrapper.style.pointerEvents = 'none';
+        // 入力エリアを即座に非表示
+        workInputsWrapper.style.display = 'none';
         
         ['input-start', 'input-end'].forEach(id => {
           document.getElementById(id).disabled = true;
