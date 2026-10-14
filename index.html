@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- OSのキーボードやピッカー出現時にコンテンツを正しくリサイズするための interactive-widget=resizes-content を追加 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>タクシー勤怠管理</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,17 +34,17 @@
           },
           colors: {
             app: {
-              bg: '#000000',          // ピュアブラック (OLED最適化)
-              surface: '#1C1C1E',     // iOSダークモード風のサーフェス
-              surface2: '#2C2C2E',    // 浮き上がった要素用
+              bg: '#000000',          
+              surface: '#1C1C1E',     
+              surface2: '#2C2C2E',    
               border: '#38383A',
-              primary: '#0A84FF',     // 洗練されたアクセントブルー
+              primary: '#0A84FF',     
               primaryGlow: 'rgba(10, 132, 255, 0.25)',
-              success: '#32D74B',     // 視認性の高いグリーン
+              success: '#32D74B',     
               warning: '#FF9F0A',
               danger: '#FF453A',
               text: '#FFFFFF',
-              muted: '#8E8E93'        // 読みやすいグレー
+              muted: '#8E8E93'        
             }
           },
           boxShadow: {
@@ -59,27 +60,24 @@
   <style>
     body { background-color: #000000; color: #FFFFFF; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
     
-    /* ボトムシートのイージングをより滑らかで自然なものに変更 */
     .bottom-sheet { transform: translateY(100%); transition: transform 0.5s cubic-bezier(0.28, 0.84, 0.42, 1); }
     .bottom-sheet.open { transform: translateY(0); }
     .backdrop { opacity: 0; pointer-events: none; transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
     .backdrop.open { opacity: 1; pointer-events: auto; }
     ::-webkit-scrollbar { display: none; }
 
-    /* 入力フィールドのUX改善 */
     .simple-input {
       background: #1C1C1E; color: white; border: 1px solid #38383A; border-radius: 1rem;
       padding: 1rem 1.25rem; width: 100%; font-size: 1.125rem; font-weight: 600; outline: none; transition: all 0.2s;
-      font-family: inherit; font-feature-settings: "tnum";
+      font-family: inherit; font-feature-settings: "tnum"; box-sizing: border-box;
     }
     .simple-input:focus { border-color: #0A84FF; background: #2C2C2E; box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.15); }
     .simple-input:disabled { opacity: 0.3; background: transparent; border-style: dashed; pointer-events: none; }
     
-    /* OSダイアログ対応の時間入力ラッパー */
     .time-wrap {
       background: #1C1C1E; border: 1px solid #38383A; border-radius: 1rem;
       width: 100%; height: 3.5rem; display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s; padding: 0 1rem;
+      transition: all 0.2s; padding: 0 1rem; box-sizing: border-box;
     }
     .time-wrap:focus-within {
       border-color: #0A84FF; background: #2C2C2E; box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.15);
@@ -87,18 +85,20 @@
     .time-wrap.disabled {
       opacity: 0.3; background: transparent; border-style: dashed; pointer-events: none;
     }
+    
+    /* 入力エリアの見切れ防止とiOSデフォルトスタイルのリセット */
     .time-wrap input[type="time"] {
       background: transparent; border: none; outline: none; color: white;
-      font-size: 1rem; /* 見切れ防止のために文字サイズを縮小 */
-      font-weight: 700; text-align: center; letter-spacing: 0.05em; /* 間隔を適度に調整 */
+      font-size: 1.0625rem; font-weight: 700; text-align: center; letter-spacing: 0.05em; 
       width: 100%; padding: 0; margin: 0; 
       font-family: inherit; font-feature-settings: "tnum";
+      -webkit-appearance: none; appearance: none; box-sizing: border-box;
     }
+    .time-wrap input[type="time"]::-webkit-date-and-time-value { text-align: center; }
     .time-wrap input[type="time"]::-webkit-calendar-picker-indicator { 
       filter: invert(1); opacity: 0.4; padding-left: 0.25rem; cursor: pointer;
     }
 
-    /* トグルボタン（設定用） */
     .toggle-checkbox:checked { right: 0; border-color: #0A84FF; }
     .toggle-checkbox:checked + .toggle-label { background-color: #0A84FF; }
     .toggle-checkbox { right: calc(100% - 1.5rem); z-index: 1; border-color: transparent; transition: all 0.4s cubic-bezier(0.28, 0.84, 0.42, 1); }
@@ -106,22 +106,23 @@
     .toggle-knob { width: 1.35rem; height: 1.35rem; background-color: white; border-radius: 50%; position: absolute; top: 0.2rem; left: 0.2rem; transition: all 0.4s cubic-bezier(0.28, 0.84, 0.42, 1); pointer-events: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .toggle-checkbox:checked ~ .toggle-knob { transform: translateX(1.5rem); }
     
-    .day-chip { width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.875rem; font-weight: 600; transition: all 0.2s; background: #1C1C1E; color: #8E8E93; border: 1px solid #38383A; }
+    .day-chip { width: clamp(2.1rem, 10vw, 2.5rem); height: clamp(2.1rem, 10vw, 2.5rem); flex-shrink: 1; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: clamp(0.75rem, 3.5vw, 0.875rem); font-weight: 600; transition: all 0.2s; background: #1C1C1E; color: #8E8E93; border: 1px solid #38383A; }
     .day-chip.active { background: #0A84FF; color: #FFFFFF; border-color: #0A84FF; font-weight: 700; box-shadow: 0 2px 10px rgba(10,132,255,0.3); }
 
-    /* セグメントコントロール（出勤・公休トグル）用 */
     .segment-indicator { transition: transform 0.5s cubic-bezier(0.28, 0.84, 0.42, 1), background-color 0.4s; }
   </style>
 </head>
-<body class="font-sans antialiased h-screen w-screen overflow-hidden flex justify-center">
+<!-- h-screen から h-[100dvh] に変更し、OSのアドレスバー伸縮に追従 -->
+<body class="font-sans antialiased h-[100dvh] w-screen overflow-hidden flex justify-center">
 
   <div id="app" class="w-full max-w-md h-full bg-app-bg relative flex flex-col">
     
-    <header class="flex-shrink-0 pt-safe px-5 py-4 flex items-center justify-between z-10 w-full relative">
+    <!-- セーフエリア（ノッチ等）を考慮した余白 pt-[max(env(safe-area-inset-top),1rem)] に修正 -->
+    <header class="flex-shrink-0 pt-[max(env(safe-area-inset-top),1rem)] px-5 pb-4 flex items-center justify-between z-10 w-full relative">
       <div class="w-10"></div>
       
       <!-- 月ナビゲーション -->
-      <div class="flex items-center bg-app-surface rounded-full border border-app-border p-1 shadow-glass absolute left-1/2 transform -translate-x-1/2 backdrop-blur-md bg-opacity-80">
+      <div class="flex items-center bg-app-surface rounded-full border border-app-border p-1 shadow-glass absolute left-1/2 transform -translate-x-1/2 backdrop-blur-md bg-opacity-80 mt-[max(env(safe-area-inset-top),0px)]">
         <button onclick="changeMonth(-1)" class="w-9 h-9 rounded-full text-app-text hover:bg-app-surface2 active:scale-90 transition flex items-center justify-center"><span class="material-icons-round text-[22px]">chevron_left</span></button>
         
         <div class="relative w-[110px] flex items-center justify-center box-border">
@@ -133,15 +134,16 @@
       </div>
 
       <!-- 設定ボタン -->
-      <button onclick="openSettings()" class="w-10 h-10 rounded-full bg-app-surface border border-app-border text-app-muted hover:text-white active:scale-90 transition flex items-center justify-center shadow-sm shrink-0">
+      <button onclick="openSettings()" class="w-10 h-10 rounded-full bg-app-surface border border-app-border text-app-muted hover:text-white active:scale-90 transition flex items-center justify-center shadow-sm shrink-0 relative z-20">
         <span class="material-icons-round text-[20px]">tune</span>
       </button>
     </header>
 
-    <main class="flex-1 overflow-y-auto px-4 pb-8">
+    <!-- 下部のホームインジケータ分を確保するために pb-[max(env(safe-area-inset-bottom),2rem)] に変更 -->
+    <main class="flex-1 overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),2rem)]">
       <div class="min-h-full flex flex-col pt-2">
         
-        <!-- サマリー（労働時間と売上） リッチなカードデザイン -->
+        <!-- サマリー（労働時間と売上） -->
         <div class="grid grid-cols-2 gap-3 mb-5">
           <div onclick="openHoursPopup()" class="relative overflow-hidden bg-gradient-to-br from-app-surface to-[#222226] rounded-[24px] p-4 border border-app-border shadow-md cursor-pointer group active:scale-[0.97] transition-all flex flex-col justify-center items-center text-center hover:border-app-primary/50 min-h-[100px]">
             <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-app-primary opacity-10 rounded-full blur-xl"></div>
@@ -170,7 +172,6 @@
           <h2 class="text-[13px] font-bold text-white tracking-widest flex items-center h-[36px]">
             <span class="material-icons-round text-[18px] mr-1.5 text-app-muted">calendar_month</span>シフトカレンダー
           </h2>
-          <!-- 洗練されたトグルスイッチ -->
           <div class="flex bg-app-surface rounded-full p-1 border border-app-border w-[100px] h-[36px] relative shadow-sm shrink-0">
             <button type="button" id="disp-toggle-hours" onclick="setDisplayMode('hours')" class="flex-1 flex items-center justify-center text-[11px] font-bold text-white z-10 transition-colors">時間</button>
             <button type="button" id="disp-toggle-sales" onclick="setDisplayMode('sales')" class="flex-1 flex items-center justify-center text-[11px] font-bold text-app-muted z-10 transition-colors">売上</button>
@@ -185,7 +186,6 @@
             <div class="text-app-muted">月</div><div class="text-app-muted">火</div><div class="text-app-muted">水</div><div class="text-app-muted">木</div><div class="text-app-muted">金</div>
             <div class="text-app-primary">土</div>
           </div>
-          <!-- 隙間を広げてセルの独立感を高める -->
           <div id="calendar-grid" class="grid grid-cols-7 bg-app-border gap-[1px]"></div>
         </div>
         
@@ -194,73 +194,38 @@
           <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-success mr-2 shadow-[0_0_8px_rgba(50,215,75,0.5)]"></span>出勤(確定)</span>
           <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-primary mr-2 shadow-[0_0_8px_rgba(10,132,255,0.5)]"></span>出勤(予定)</span>
           <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-surface2 border border-app-border mr-2"></span>公休</span>
-          <span class="flex items-center"><span class="flex items-center justify-center w-4 h-4 bg-app-danger rounded-full mr-1.5 shadow-sm"><span class="text-[10px] font-bold text-white leading-none">!</span></span>13連勤注意</span>
         </div>
       </div>
     </main>
   </div>
 
-  <!-- サマリーポップアップのバックドロップ -->
   <div id="summary-popup-backdrop" class="fixed inset-0 bg-black/70 z-50 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-400 ease-smooth" onclick="closeSummaryPopups()"></div>
 
   <!-- 労働時間詳細ポップアップ -->
   <div id="popup-hours" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-sm bg-[#1C1C1E] rounded-[32px] shadow-glass z-50 opacity-0 pointer-events-none transition-all duration-500 ease-spring scale-[0.9] p-6 border border-app-border overflow-hidden">
     <div class="absolute top-0 right-0 w-32 h-32 bg-app-primary opacity-5 rounded-full blur-3xl pointer-events-none"></div>
-    
     <div class="flex justify-between items-center mb-6 relative z-10">
       <h3 class="text-lg font-extrabold text-white tracking-widest">労働時間内訳</h3>
       <button onclick="closeSummaryPopups()" class="w-8 h-8 rounded-full text-app-muted hover:bg-app-surface2 hover:text-white active:scale-90 transition bg-app-bg border border-app-border flex items-center justify-center flex-shrink-0"><span class="material-icons-round text-[18px]">close</span></button>
     </div>
-    
     <div class="space-y-4 relative z-10">
-      
-      <!-- 予定と実績・合計のグルーピング -->
       <div class="bg-app-bg rounded-[24px] p-5 border border-app-border">
-        
         <div class="flex justify-between items-center mb-3">
-          <div class="flex items-center">
-            <span class="material-icons-round text-[16px] mr-2 text-app-success">check_circle</span>
-            <span class="text-[12px] text-app-muted font-bold">実績 (確定)</span>
-          </div>
-          <div class="flex items-baseline">
-            <span class="text-xl font-bold tracking-tight tabular-nums text-white" id="popup-hours-conf">0.0</span>
-            <span class="text-[11px] text-app-muted ml-1 font-medium">h</span>
-          </div>
+          <div class="flex items-center"><span class="material-icons-round text-[16px] mr-2 text-app-success">check_circle</span><span class="text-[12px] text-app-muted font-bold">実績 (確定)</span></div>
+          <div class="flex items-baseline"><span class="text-xl font-bold tracking-tight tabular-nums text-white" id="popup-hours-conf">0.0</span><span class="text-[11px] text-app-muted ml-1 font-medium">h</span></div>
         </div>
-
         <div class="flex justify-between items-center pb-4 border-b border-app-border/70 mb-4">
-          <div class="flex items-center">
-            <span class="material-icons-round text-[16px] mr-2 text-app-primary">schedule</span>
-            <span class="text-[12px] text-app-muted font-bold">予定</span>
-          </div>
-          <div class="flex items-baseline">
-            <span class="text-xl font-bold tracking-tight tabular-nums text-white" id="popup-hours-plan">0.0</span>
-            <span class="text-[11px] text-app-muted ml-1 font-medium">h</span>
-          </div>
+          <div class="flex items-center"><span class="material-icons-round text-[16px] mr-2 text-app-primary">schedule</span><span class="text-[12px] text-app-muted font-bold">予定</span></div>
+          <div class="flex items-baseline"><span class="text-xl font-bold tracking-tight tabular-nums text-white" id="popup-hours-plan">0.0</span><span class="text-[11px] text-app-muted ml-1 font-medium">h</span></div>
         </div>
-
         <div class="flex justify-between items-center">
-          <div class="flex items-center">
-            <span class="text-[13px] text-white font-extrabold tracking-widest">合計</span>
-          </div>
-          <div class="flex items-baseline">
-            <span class="text-4xl font-extrabold tracking-tight tabular-nums text-white" id="popup-hours-sum">0.0</span>
-            <span class="text-sm text-app-primary ml-1.5 font-bold opacity-90">h</span>
-          </div>
+          <div class="flex items-center"><span class="text-[13px] text-white font-extrabold tracking-widest">合計</span></div>
+          <div class="flex items-baseline"><span class="text-4xl font-extrabold tracking-tight tabular-nums text-white" id="popup-hours-sum">0.0</span><span class="text-sm text-app-primary ml-1.5 font-bold opacity-90">h</span></div>
         </div>
-
       </div>
-
-      <!-- 月間上限 -->
       <div class="bg-app-surface2 rounded-[24px] p-5 border border-app-border flex justify-between items-center">
-        <div class="flex items-center">
-          <span class="material-icons-round text-[16px] mr-2 text-app-warning">warning</span>
-          <span class="text-[12px] text-app-muted font-bold">月間上限</span>
-        </div>
-        <div class="flex items-baseline">
-          <span class="text-2xl font-extrabold tracking-tight tabular-nums text-app-muted" id="summary-max-hours">288</span>
-          <span class="text-sm text-app-muted ml-1 font-medium">h</span>
-        </div>
+        <div class="flex items-center"><span class="material-icons-round text-[16px] mr-2 text-app-warning">warning</span><span class="text-[12px] text-app-muted font-bold">月間上限</span></div>
+        <div class="flex items-baseline"><span class="text-2xl font-extrabold tracking-tight tabular-nums text-app-muted" id="summary-max-hours">288</span><span class="text-sm text-app-muted ml-1 font-medium">h</span></div>
       </div>
     </div>
   </div>
@@ -268,31 +233,23 @@
   <!-- 売上詳細ポップアップ -->
   <div id="popup-sales-modal" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-md bg-[#1C1C1E] rounded-[32px] shadow-glass z-50 opacity-0 pointer-events-none transition-all duration-500 ease-spring scale-[0.9] p-6 border border-app-border max-h-[90vh] overflow-y-auto">
     <div class="absolute bottom-0 left-0 w-40 h-40 bg-app-success opacity-5 rounded-full blur-3xl pointer-events-none"></div>
-
     <div class="flex justify-between items-center mb-6 relative z-10">
       <h3 class="text-lg font-extrabold text-white tracking-widest">売上・目標管理</h3>
       <button onclick="closeSummaryPopups()" class="w-8 h-8 rounded-full text-app-muted hover:bg-app-surface2 hover:text-white active:scale-90 transition bg-app-bg border border-app-border flex items-center justify-center flex-shrink-0"><span class="material-icons-round text-[18px]">close</span></button>
     </div>
-
     <div class="space-y-4 relative z-10">
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-app-bg rounded-[20px] p-4 border border-app-border flex flex-col justify-center">
-          <div class="text-[11px] text-app-muted font-bold mb-1.5 flex items-center">
-            <span class="material-icons-round text-[16px] mr-1 text-app-warning">trending_up</span> 目標まで残り
-          </div>
+          <div class="text-[11px] text-app-muted font-bold mb-1.5 flex items-center"><span class="material-icons-round text-[16px] mr-1 text-app-warning">trending_up</span> 目標まで残り</div>
           <div class="font-extrabold text-xl tabular-nums tracking-tight text-white"><span id="popup-sales-remaining">¥0</span></div>
           <div class="text-[10px] text-app-text mt-1.5 font-medium leading-snug" id="popup-sales-goal-status">達成率 0%<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">目標 ¥0</span></div>
         </div>
-
         <div class="bg-app-bg rounded-[20px] p-4 border border-app-border flex flex-col justify-center">
-          <div class="text-[11px] text-app-muted font-bold mb-1.5 flex items-center">
-            <span class="material-icons-round text-[16px] mr-1 text-app-primary">bolt</span> 締め日まで必要/日
-          </div>
+          <div class="text-[11px] text-app-muted font-bold mb-1.5 flex items-center"><span class="material-icons-round text-[16px] mr-1 text-app-primary">bolt</span> 締め日まで必要/日</div>
           <div class="font-extrabold text-xl tabular-nums tracking-tight text-app-primary"><span id="popup-required-per-day">¥0</span></div>
           <div class="text-[10px] text-app-text mt-1.5 font-medium leading-snug" id="popup-remaining-days-info">残り出勤 0日<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">-/- まで</span></div>
         </div>
       </div>
-
       <div class="bg-app-bg rounded-[20px] p-5 border border-app-border">
         <div class="text-[12px] text-app-muted font-bold mb-2 flex items-center justify-between">
           <div class="flex items-center"><span class="material-icons-round text-[18px] mr-1 text-app-success">payments</span> 期間合計</div>
@@ -300,7 +257,6 @@
         </div>
         <div class="font-extrabold text-4xl tabular-nums tracking-tight text-white mt-1"><span id="popup-sales-total">¥0</span></div>
       </div>
-
       <div class="bg-app-primary/10 rounded-[20px] p-5 border border-app-primary/30">
         <div class="text-[12px] text-app-primary font-bold mb-2 flex items-center justify-between">
           <div class="flex items-center"><span class="material-icons-round text-[18px] mr-1">account_balance_wallet</span> 推定手取り額</div>
@@ -313,16 +269,17 @@
 
   <!-- エディタボトムシート -->
   <div id="editor-backdrop" class="backdrop fixed inset-0 bg-black/70 z-40 backdrop-blur-md" onclick="closeEditor()"></div>
-  <div id="editor-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-app-surface rounded-t-[32px] shadow-glass z-50 flex flex-col max-h-[90vh]">
-    <!-- ドラッグハンドル -->
+  <!-- 高さを max-h-[85dvh] に抑え、上部見切れを防ぐ -->
+  <div id="editor-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-app-surface rounded-t-[32px] shadow-glass z-50 flex flex-col max-h-[85dvh]">
     <div class="w-14 h-1.5 bg-app-border rounded-full mx-auto mt-4 mb-1 flex-shrink-0"></div>
     
-    <!-- 閉じるボタン (明示的UX) -->
+    <!-- 閉じるボタン -->
     <button onclick="closeEditor()" class="absolute top-4 right-5 w-8 h-8 bg-app-surface2 rounded-full flex items-center justify-center text-app-muted hover:text-white transition-colors z-10">
       <span class="material-icons-round text-[18px]">close</span>
     </button>
 
-    <div class="px-6 pt-3 pb-8 overflow-y-auto flex-1 space-y-7">
+    <!-- 下部のホームインジケータ分を確保するために pb-[max(env(safe-area-inset-bottom),2rem)] に変更 -->
+    <div class="px-6 pt-3 pb-[max(env(safe-area-inset-bottom),2rem)] overflow-y-auto flex-1 space-y-7">
       <div>
         <div id="editor-status-text" class="text-[12px] font-extrabold tracking-widest mb-1 text-app-primary uppercase">予定</div>
         <h2 id="editor-date-title" class="text-3xl font-extrabold text-white leading-none tabular-nums tracking-tight">6月1日 (月)</h2>
@@ -333,18 +290,13 @@
         <div class="text-app-danger text-sm font-medium leading-relaxed">前回の休みから <span class="font-extrabold tabular-nums">13日</span> 以上の連勤になります。<br>休日の取得をご検討ください。</div>
       </div>
 
-      <!-- 編集モード用コンテナ -->
       <div id="edit-mode-container" class="flex flex-col">
-        
-        <!-- 洗練された勤務種別トグル (iOS Segmented Control風) -->
         <div id="work-type-toggle" class="flex bg-app-bg rounded-[16px] p-1.5 relative border border-app-border transition-opacity duration-300 shadow-inner z-20">
           <button type="button" id="btn-type-work" onclick="setWorkType('work')" class="flex-1 py-3 text-sm font-bold rounded-[12px] transition-colors z-10">出勤</button>
           <button type="button" id="btn-type-off" onclick="setWorkType('off')" class="flex-1 py-3 text-sm font-bold rounded-[12px] transition-colors z-10">公休</button>
-          <!-- インジケーター -->
           <div id="type-indicator" class="segment-indicator absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-app-surface2 rounded-[12px] border border-app-border shadow-sm"></div>
         </div>
 
-        <!-- 出勤時のみ表示される入力エリア（即時切り替え） -->
         <div id="work-inputs-wrapper" style="display: block; margin-top: 1.75rem;">
           <div class="space-y-7 pb-2">
             
@@ -364,7 +316,6 @@
                 </div>
               </div>
               
-              <!-- 自動計算結果（アニメーションで展開） -->
               <div id="calc-result-section" class="transition-all duration-500 ease-spring overflow-hidden" style="max-height: 0px; opacity: 0;">
                 <div class="pt-5 mt-5 border-t border-app-border flex justify-between items-center">
                   <span class="text-[12px] text-app-primary font-extrabold flex items-center tracking-wider">
@@ -390,12 +341,10 @@
         </div>
       </div>
 
-      <!-- 閲覧専用モード用コンテナ -->
       <div id="readonly-container" class="hidden space-y-4">
         <div id="readonly-badge-container"></div>
       </div>
 
-      <!-- アクションボタンエリア -->
       <div id="action-buttons" class="pt-4 pb-4 flex space-x-3">
         <button onclick="saveRecord(false)" class="flex-1 py-4 rounded-[16px] font-bold bg-app-surface2 text-app-text border border-app-border hover:bg-app-border active:scale-[0.97] transition-all text-[15px]">予定保存</button>
         <button onclick="saveRecord(true)" class="flex-1 py-4 rounded-[16px] font-bold bg-app-primary text-white active:scale-[0.97] transition-all shadow-glow-primary hover:brightness-110 text-[15px]">確定して保存</button>
@@ -411,18 +360,20 @@
 
   <!-- 設定ボトムシート -->
   <div id="settings-backdrop" class="backdrop fixed inset-0 bg-black/70 z-40 backdrop-blur-md" onclick="closeSettings()"></div>
-  <div id="settings-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-app-surface rounded-t-[32px] shadow-glass z-50 flex flex-col max-h-[90vh]">
+  <!-- 高さを max-h-[85dvh] に抑え、上部見切れを防ぐ -->
+  <div id="settings-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-app-surface rounded-t-[32px] shadow-glass z-50 flex flex-col max-h-[85dvh]">
     <div class="w-14 h-1.5 bg-app-border rounded-full mx-auto mt-4 mb-1 flex-shrink-0"></div>
     <button onclick="closeSettings()" class="absolute top-4 right-5 w-8 h-8 bg-app-surface2 rounded-full flex items-center justify-center text-app-muted hover:text-white transition-colors z-10">
       <span class="material-icons-round text-[18px]">close</span>
     </button>
 
-    <div class="px-6 pt-3 pb-10 overflow-y-auto flex-1 space-y-7">
+    <!-- 下部のホームインジケータ分を確保するために pb-[max(env(safe-area-inset-bottom),2.5rem)] に変更 -->
+    <div class="px-6 pt-3 pb-[max(env(safe-area-inset-bottom),2.5rem)] overflow-y-auto flex-1 space-y-7">
       <h2 class="text-2xl font-extrabold text-white mb-2 tracking-wide">設定</h2>
       
       <div class="space-y-7">
         
-        <div class="bg-app-bg p-5 rounded-[20px] border border-app-border shadow-inner">
+        <div class="bg-app-bg p-4 sm:p-5 rounded-[20px] border border-app-border shadow-inner">
           <div class="flex items-center justify-between mb-5">
             <span class="text-sm font-bold text-white">固定休みの自動適用</span>
             <div class="relative inline-block w-14 h-7 align-middle select-none">
@@ -431,7 +382,7 @@
               <div class="toggle-knob"></div>
             </div>
           </div>
-          <div class="flex justify-between px-1" id="fixed-off-days-container">
+          <div class="flex justify-between gap-1.5 sm:gap-2" id="fixed-off-days-container">
             <button class="day-chip text-app-danger/80" data-day="0" onclick="toggleSettingDay(0)">日</button>
             <button class="day-chip" data-day="1" onclick="toggleSettingDay(1)">月</button>
             <button class="day-chip" data-day="2" onclick="toggleSettingDay(2)">火</button>
@@ -484,7 +435,6 @@
   <script>
     const STORAGE_KEY = 'taxishift_md3_v40_data'; 
     
-    // PWA用アイコンのSVG定義
     const appIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
       <rect width="512" height="512" fill="#000000" />
       <g transform="translate(128, 128) scale(0.5)">
@@ -541,7 +491,7 @@
     function init() { loadData(); renderAll(); }
 
     function loadData() {
-      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('taxishift_md3_v39_data'); // マイグレーション対応
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('taxishift_md3_v39_data'); 
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -801,14 +751,12 @@
         const dateStr = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const record = effRecords[dateStr];
         const cell = document.createElement('button');
-        // セルの背景色をsurfaceにし、タップ時の反応を改善
         cell.className = 'bg-app-surface aspect-[4/4.5] flex flex-col items-center pt-2 pb-1.5 relative transition-colors hover:bg-app-surface2 active:bg-app-border focus:outline-none';
         
         const d = new Date(state.currentYear, state.currentMonth - 1, day);
         let dayColor = d.getDay() === 0 ? 'text-app-danger font-semibold' : d.getDay() === 6 ? 'text-app-primary font-semibold' : 'text-white font-medium';
         const isToday = isCurrentMonth && day === realToday.getDate();
 
-        // 今日のハイライトをより洗練
         const dayBadgeClass = isToday 
           ? 'w-[26px] h-[26px] rounded-full bg-app-primary text-white font-bold flex items-center justify-center text-xs shadow-glow-primary' 
           : `text-xs ${dayColor} mb-0.5`;
@@ -892,7 +840,6 @@
       document.getElementById('summary-hours-total').innerText = totalHours.toFixed(1);
       document.getElementById('summary-sales').innerText = `¥${totalSales.toLocaleString()}`;
 
-      // 実績と予定、合計のUI反映
       document.getElementById('popup-hours-conf').innerText = confHours.toFixed(1);
       document.getElementById('popup-hours-plan').innerText = planHours.toFixed(1);
       const sumEl = document.getElementById('popup-hours-sum');
@@ -954,7 +901,6 @@
       setWorkTypeUI(type);
     }
 
-    // 公休時は入力を即座に非表示にしてスッキリさせる（アニメーションなし）
     function setWorkTypeUI(type) {
       const btnWork = document.getElementById('btn-type-work');
       const btnOff = document.getElementById('btn-type-off');
@@ -967,7 +913,6 @@
         if(!btnWork.classList.contains('text-white')) { btnWork.classList.add('text-white'); btnOff.classList.add('text-app-muted'); }
         indicator.style.transform = 'translateX(0)';
         
-        // 入力エリアを即座に表示
         workInputsWrapper.style.display = 'block';
         
         ['input-start', 'input-end'].forEach(id => {
@@ -980,7 +925,6 @@
         btnWork.classList.replace('text-white', 'text-app-muted');
         indicator.style.transform = 'translateX(100%)';
         
-        // 入力エリアを即座に非表示
         workInputsWrapper.style.display = 'none';
         
         ['input-start', 'input-end'].forEach(id => {
@@ -990,7 +934,6 @@
         document.getElementById('input-sales').disabled = true;
         document.getElementById('display-calc-hours-summary').innerText = '0.0';
         
-        // 公休時は自動計算パネルを隠す
         const calcSection = document.getElementById('calc-result-section');
         if (calcSection) {
           calcSection.style.maxHeight = '0px';
