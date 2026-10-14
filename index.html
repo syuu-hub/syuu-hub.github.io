@@ -112,91 +112,97 @@
     .segment-indicator { transition: transform 0.5s cubic-bezier(0.28, 0.84, 0.42, 1), background-color 0.4s; }
   </style>
 </head>
-<!-- h-screen から h-[100dvh] に変更し、OSのアドレスバー伸縮に追従 -->
-<body class="font-sans antialiased h-[100dvh] w-screen overflow-hidden flex justify-center">
+<body class="font-sans antialiased h-[100dvh] w-screen overflow-hidden flex justify-center bg-black">
 
-  <div id="app" class="w-full max-w-md h-full bg-app-bg relative flex flex-col">
+  <div id="app" class="w-full max-w-md h-full relative flex flex-col">
     
-    <!-- セーフエリア（ノッチ等）を考慮した余白 pt-[max(env(safe-area-inset-top),1rem)] に修正 -->
-    <header class="flex-shrink-0 pt-[max(env(safe-area-inset-top),1rem)] px-5 pb-4 flex items-center justify-between z-10 w-full relative">
-      <div class="w-10"></div>
-      
-      <!-- 月ナビゲーション -->
-      <div class="flex items-center bg-app-surface rounded-full border border-app-border p-1 shadow-glass absolute left-1/2 transform -translate-x-1/2 backdrop-blur-md bg-opacity-80 mt-[max(env(safe-area-inset-top),0px)]">
-        <button onclick="changeMonth(-1)" class="w-9 h-9 rounded-full text-app-text hover:bg-app-surface2 active:scale-90 transition flex items-center justify-center"><span class="material-icons-round text-[22px]">chevron_left</span></button>
+    <!-- 全体をラップして上下中央配置を可能にするスクロールコンテナ -->
+    <div class="flex-1 overflow-y-auto w-full flex flex-col">
+      <!-- my-auto によって、コンテンツが少ない場合は上下中央に。多い場合は通常通り上からスクロール可能に -->
+      <div class="my-auto w-full flex flex-col pt-[max(env(safe-area-inset-top),1.5rem)] pb-[max(env(safe-area-inset-bottom),2.5rem)] px-4">
         
-        <div class="relative w-[110px] flex items-center justify-center box-border">
-          <h1 id="month-display" class="text-[14px] font-bold tracking-wider tabular-nums whitespace-nowrap text-white text-center w-full">2026年 10月</h1>
-          <input type="month" id="month-picker" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="jumpToMonth(this.value)">
-        </div>
-
-        <button onclick="changeMonth(1)" class="w-9 h-9 rounded-full text-app-text hover:bg-app-surface2 active:scale-90 transition flex items-center justify-center"><span class="material-icons-round text-[22px]">chevron_right</span></button>
-      </div>
-
-      <!-- 設定ボタン -->
-      <button onclick="openSettings()" class="w-10 h-10 rounded-full bg-app-surface border border-app-border text-app-muted hover:text-white active:scale-90 transition flex items-center justify-center shadow-sm shrink-0 relative z-20">
-        <span class="material-icons-round text-[20px]">tune</span>
-      </button>
-    </header>
-
-    <!-- 下部のホームインジケータ分を確保するために pb-[max(env(safe-area-inset-bottom),2rem)] に変更 -->
-    <main class="flex-1 overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),2rem)]">
-      <div class="min-h-full flex flex-col pt-2">
-        
-        <!-- サマリー（労働時間と売上） -->
-        <div class="grid grid-cols-2 gap-3 mb-5">
-          <div onclick="openHoursPopup()" class="relative overflow-hidden bg-gradient-to-br from-app-surface to-[#222226] rounded-[24px] p-4 border border-app-border shadow-md cursor-pointer group active:scale-[0.97] transition-all flex flex-col justify-center items-center text-center hover:border-app-primary/50 min-h-[100px]">
-            <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-app-primary opacity-10 rounded-full blur-xl"></div>
-            <div class="text-[11px] text-app-muted font-bold tracking-wider flex items-center justify-center mb-1.5 w-full z-10">
-              <span class="material-icons-round text-[16px] mr-1 text-app-primary">schedule</span> 予想労働時間
-            </div>
-            <div class="flex items-baseline justify-center w-full z-10">
-              <span class="font-extrabold tracking-tight tabular-nums text-white leading-none" style="font-size: clamp(1.6rem, 6.5vw, 2rem);" id="summary-hours-total">0.0</span>
-              <span class="text-sm text-app-muted ml-1 font-medium">h</span>
-            </div>
-          </div>
+        <header class="flex-shrink-0 pb-6 flex items-center justify-between z-10 w-full relative">
+          <div class="w-10"></div>
           
-          <div onclick="openSalesPopup()" class="relative overflow-hidden bg-gradient-to-br from-app-surface to-[#222226] rounded-[24px] p-4 border border-app-border shadow-md cursor-pointer group active:scale-[0.97] transition-all flex flex-col justify-center items-center text-center hover:border-app-success/50 min-h-[100px]">
-            <div class="absolute bottom-0 left-0 -mb-2 -ml-2 w-16 h-16 bg-app-success opacity-10 rounded-full blur-xl"></div>
-            <div class="text-[11px] text-app-muted font-bold tracking-wider flex items-center justify-center mb-1.5 w-full z-10">
-              <span class="material-icons-round text-[16px] mr-1 text-app-success">payments</span> 現在の売上 
+          <!-- 月ナビゲーション -->
+          <div class="flex items-center bg-app-surface rounded-full border border-app-border p-1 shadow-glass absolute left-1/2 transform -translate-x-1/2 backdrop-blur-md bg-opacity-80 z-20">
+            <button onclick="changeMonth(-1)" class="w-9 h-9 rounded-full text-app-text hover:bg-app-surface2 active:scale-90 transition flex items-center justify-center"><span class="material-icons-round text-[22px]">chevron_left</span></button>
+            
+            <div class="relative w-[110px] flex items-center justify-center box-border">
+              <h1 id="month-display" class="text-[14px] font-bold tracking-wider tabular-nums whitespace-nowrap text-white text-center w-full">2026年 10月</h1>
+              <input type="month" id="month-picker" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="jumpToMonth(this.value)">
             </div>
-            <div class="flex items-center justify-center w-full z-10">
-              <span class="font-extrabold tabular-nums leading-none text-white tracking-tighter" style="font-size: clamp(1.35rem, 5.5vw, 1.875rem);" id="summary-sales">¥0</span>
+
+            <button onclick="changeMonth(1)" class="w-9 h-9 rounded-full text-app-text hover:bg-app-surface2 active:scale-90 transition flex items-center justify-center"><span class="material-icons-round text-[22px]">chevron_right</span></button>
+          </div>
+
+          <!-- 設定ボタン -->
+          <button onclick="openSettings()" class="w-10 h-10 rounded-full bg-app-surface border border-app-border text-app-muted hover:text-white active:scale-90 transition flex items-center justify-center shadow-sm shrink-0 relative z-20">
+            <span class="material-icons-round text-[20px]">tune</span>
+          </button>
+        </header>
+
+        <main class="flex-shrink-0">
+          <div class="w-full flex flex-col">
+            
+            <!-- サマリー（労働時間と売上） -->
+            <div class="grid grid-cols-2 gap-3 mb-5">
+              <div onclick="openHoursPopup()" class="relative overflow-hidden bg-gradient-to-br from-app-surface to-[#222226] rounded-[24px] p-4 border border-app-border shadow-md cursor-pointer group active:scale-[0.97] transition-all flex flex-col justify-center items-center text-center hover:border-app-primary/50 min-h-[100px]">
+                <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-app-primary opacity-10 rounded-full blur-xl"></div>
+                <div class="text-[11px] text-app-muted font-bold tracking-wider flex items-center justify-center mb-1.5 w-full z-10">
+                  <span class="material-icons-round text-[16px] mr-1 text-app-primary">schedule</span> 予想労働時間
+                </div>
+                <div class="flex items-baseline justify-center w-full z-10">
+                  <span class="font-extrabold tracking-tight tabular-nums text-white leading-none" style="font-size: clamp(1.6rem, 6.5vw, 2rem);" id="summary-hours-total">0.0</span>
+                  <span class="text-sm text-app-muted ml-1 font-medium">h</span>
+                </div>
+              </div>
+              
+              <div onclick="openSalesPopup()" class="relative overflow-hidden bg-gradient-to-br from-app-surface to-[#222226] rounded-[24px] p-4 border border-app-border shadow-md cursor-pointer group active:scale-[0.97] transition-all flex flex-col justify-center items-center text-center hover:border-app-success/50 min-h-[100px]">
+                <div class="absolute bottom-0 left-0 -mb-2 -ml-2 w-16 h-16 bg-app-success opacity-10 rounded-full blur-xl"></div>
+                <div class="text-[11px] text-app-muted font-bold tracking-wider flex items-center justify-center mb-1.5 w-full z-10">
+                  <span class="material-icons-round text-[16px] mr-1 text-app-success">payments</span> 現在の売上 
+                </div>
+                <div class="flex items-center justify-center w-full z-10">
+                  <span class="font-extrabold tabular-nums leading-none text-white tracking-tighter" style="font-size: clamp(1.35rem, 5.5vw, 1.875rem);" id="summary-sales">¥0</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <!-- カレンダー上部のコントロール（表示切替） -->
-        <div class="flex justify-between items-center mb-3 px-2">
-          <h2 class="text-[13px] font-bold text-white tracking-widest flex items-center h-[36px]">
-            <span class="material-icons-round text-[18px] mr-1.5 text-app-muted">calendar_month</span>シフトカレンダー
-          </h2>
-          <div class="flex bg-app-surface rounded-full p-1 border border-app-border w-[100px] h-[36px] relative shadow-sm shrink-0">
-            <button type="button" id="disp-toggle-hours" onclick="setDisplayMode('hours')" class="flex-1 flex items-center justify-center text-[11px] font-bold text-white z-10 transition-colors">時間</button>
-            <button type="button" id="disp-toggle-sales" onclick="setDisplayMode('sales')" class="flex-1 flex items-center justify-center text-[11px] font-bold text-app-muted z-10 transition-colors">売上</button>
-            <div id="disp-indicator" class="absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] left-[3px] bg-app-surface2 rounded-full transition-all duration-400 ease-spring border border-app-border shadow-sm"></div>
-          </div>
-        </div>
+            <!-- カレンダー上部のコントロール（表示切替） -->
+            <div class="flex justify-between items-center mb-3 px-2">
+              <h2 class="text-[13px] font-bold text-white tracking-widest flex items-center h-[36px]">
+                <span class="material-icons-round text-[18px] mr-1.5 text-app-muted">calendar_month</span>シフトカレンダー
+              </h2>
+              <div class="flex bg-app-surface rounded-full p-1 border border-app-border w-[100px] h-[36px] relative shadow-sm shrink-0">
+                <button type="button" id="disp-toggle-hours" onclick="setDisplayMode('hours')" class="flex-1 flex items-center justify-center text-[11px] font-bold text-white z-10 transition-colors">時間</button>
+                <button type="button" id="disp-toggle-sales" onclick="setDisplayMode('sales')" class="flex-1 flex items-center justify-center text-[11px] font-bold text-app-muted z-10 transition-colors">売上</button>
+                <div id="disp-indicator" class="absolute top-[3px] bottom-[3px] w-[calc(50%-3px)] left-[3px] bg-app-surface2 rounded-full transition-all duration-400 ease-spring border border-app-border shadow-sm"></div>
+              </div>
+            </div>
 
-        <!-- カレンダー本体 -->
-        <div class="bg-app-surface rounded-[24px] overflow-hidden border border-app-border mb-6 shadow-md">
-          <div class="grid grid-cols-7 bg-[#232325] text-center text-[10px] font-bold py-3 border-b border-app-border uppercase tracking-widest">
-            <div class="text-app-danger">日</div>
-            <div class="text-app-muted">月</div><div class="text-app-muted">火</div><div class="text-app-muted">水</div><div class="text-app-muted">木</div><div class="text-app-muted">金</div>
-            <div class="text-app-primary">土</div>
+            <!-- カレンダー本体 -->
+            <div class="bg-app-surface rounded-[24px] overflow-hidden border border-app-border mb-6 shadow-md">
+              <div class="grid grid-cols-7 bg-[#232325] text-center text-[10px] font-bold py-3 border-b border-app-border uppercase tracking-widest">
+                <div class="text-app-danger">日</div>
+                <div class="text-app-muted">月</div><div class="text-app-muted">火</div><div class="text-app-muted">水</div><div class="text-app-muted">木</div><div class="text-app-muted">金</div>
+                <div class="text-app-primary">土</div>
+              </div>
+              <div id="calendar-grid" class="grid grid-cols-7 bg-app-border gap-[1px]"></div>
+            </div>
+            
+            <!-- 凡例 -->
+            <div class="flex flex-wrap justify-center gap-x-5 gap-y-2 text-[11px] font-semibold text-app-muted bg-app-surface/40 p-3 rounded-[20px] border border-app-border/50">
+              <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-success mr-2 shadow-[0_0_8px_rgba(50,215,75,0.5)]"></span>出勤(確定)</span>
+              <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-primary mr-2 shadow-[0_0_8px_rgba(10,132,255,0.5)]"></span>出勤(予定)</span>
+              <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-surface2 border border-app-border mr-2"></span>公休</span>
+            </div>
+
           </div>
-          <div id="calendar-grid" class="grid grid-cols-7 bg-app-border gap-[1px]"></div>
-        </div>
+        </main>
         
-        <!-- 凡例 -->
-        <div class="flex flex-wrap justify-center gap-x-5 gap-y-2 text-[11px] font-semibold text-app-muted bg-app-surface/40 p-3 rounded-[20px] border border-app-border/50">
-          <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-success mr-2 shadow-[0_0_8px_rgba(50,215,75,0.5)]"></span>出勤(確定)</span>
-          <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-primary mr-2 shadow-[0_0_8px_rgba(10,132,255,0.5)]"></span>出勤(予定)</span>
-          <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-app-surface2 border border-app-border mr-2"></span>公休</span>
-        </div>
       </div>
-    </main>
+    </div>
   </div>
 
   <div id="summary-popup-backdrop" class="fixed inset-0 bg-black/70 z-50 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-400 ease-smooth" onclick="closeSummaryPopups()"></div>
