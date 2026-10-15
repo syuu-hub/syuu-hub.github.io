@@ -237,16 +237,20 @@
       <button onclick="closeSummaryPopups()" class="w-8 h-8 rounded-full text-app-muted hover:bg-app-surface2 hover:text-white active:scale-90 transition bg-app-bg border border-app-border flex items-center justify-center flex-shrink-0"><span class="material-icons-round text-[18px]">close</span></button>
     </div>
     <div class="space-y-4 relative z-10">
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-app-bg rounded-[20px] p-4 border border-app-border flex flex-col justify-center">
-          <div class="text-[11px] text-app-muted font-bold mb-1.5 flex items-center"><span class="material-icons-round text-[16px] mr-1 text-app-warning">trending_up</span> 目標まで残り</div>
-          <div class="font-extrabold text-xl tabular-nums tracking-tight text-white"><span id="popup-sales-remaining">¥0</span></div>
-          <div class="text-[10px] text-app-text mt-1.5 font-medium leading-snug" id="popup-sales-goal-status">達成率 0%<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">目標 ¥0</span></div>
+      <div class="grid grid-cols-2 gap-2 sm:gap-3">
+        <div class="bg-app-bg rounded-[20px] p-3 sm:p-4 border border-app-border flex flex-col justify-center overflow-hidden">
+          <div class="text-[9.5px] sm:text-[11px] text-app-muted font-bold mb-1.5 flex items-center whitespace-nowrap tracking-tighter sm:tracking-normal">
+            <span class="material-icons-round text-[14px] sm:text-[16px] mr-0.5 sm:mr-1 text-app-warning">trending_up</span> 目標まで残り
+          </div>
+          <div class="font-extrabold text-lg sm:text-xl tabular-nums tracking-tight text-white"><span id="popup-sales-remaining">¥0</span></div>
+          <div class="text-[10px] sm:text-[11px] text-app-text mt-1.5 font-medium" id="popup-sales-goal-status">達成率 0%</div>
         </div>
-        <div class="bg-app-bg rounded-[20px] p-4 border border-app-border flex flex-col justify-center">
-          <div class="text-[11px] text-app-muted font-bold mb-1.5 flex items-center"><span class="material-icons-round text-[16px] mr-1 text-app-primary">bolt</span> 締め日まで必要/日</div>
-          <div class="font-extrabold text-xl tabular-nums tracking-tight text-app-primary"><span id="popup-required-per-day">¥0</span></div>
-          <div class="text-[10px] text-app-text mt-1.5 font-medium leading-snug" id="popup-remaining-days-info">残り出勤 0日<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">-/- まで</span></div>
+        <div class="bg-app-bg rounded-[20px] p-3 sm:p-4 border border-app-border flex flex-col justify-center overflow-hidden">
+          <div class="text-[9.5px] sm:text-[11px] text-app-muted font-bold mb-1.5 flex items-center whitespace-nowrap tracking-tighter sm:tracking-normal">
+            <span class="material-icons-round text-[14px] sm:text-[16px] mr-0.5 sm:mr-1 text-app-primary">bolt</span> 締め日まで必要/日
+          </div>
+          <div class="font-extrabold text-lg sm:text-xl tabular-nums tracking-tight text-app-primary"><span id="popup-required-per-day">¥0</span></div>
+          <div class="text-[10px] sm:text-[11px] text-app-text mt-1.5 font-medium" id="popup-remaining-days-info">残り出勤 0日</div>
         </div>
       </div>
       <div class="bg-app-bg rounded-[20px] p-5 border border-app-border">
@@ -587,11 +591,11 @@
 
       if (remEl) remEl.innerText = `¥${remainingAmount.toLocaleString()}`;
       if (statusEl) {
-        statusEl.innerHTML = `達成率 ${achievementRate}%<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">目標 ¥${goal.toLocaleString()}</span>`;
+        statusEl.innerText = `達成率 ${achievementRate}%`;
       }
       if (reqEl) reqEl.innerText = `¥${requiredPerDay.toLocaleString()}`;
       if (infoEl) {
-        infoEl.innerHTML = `残り出勤 ${remainingWorkDays}日<br><span class="opacity-60 mt-0.5 inline-block text-[9px]">${endDate.getMonth() + 1}/${endDate.getDate()} まで</span>`;
+        infoEl.innerText = `残り出勤 ${remainingWorkDays}日`;
       }
     }
 
