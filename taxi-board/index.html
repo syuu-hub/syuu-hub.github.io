@@ -74,10 +74,11 @@ svg{display:block}
 .app{
   height:100vh;height:100dvh;
   display:grid;
+  grid-template-columns:minmax(0,1fr);   /* 長い1行で画面幅が広がらないように */
   grid-template-rows:minmax(0,1fr) auto;
 }
 .views{
-  min-height:0;position:relative;
+  min-height:0;min-width:0;position:relative;
   padding:max(var(--pad),env(safe-area-inset-top)) max(var(--pad),env(safe-area-inset-right)) var(--pad) max(var(--pad),env(safe-area-inset-left));
 }
 .view{height:100%}
@@ -251,6 +252,8 @@ svg{display:block}
 .row .time{font-size:15px;font-weight:600;width:3.2em;flex:none;color:var(--muted)}
 .row .body{flex:1;min-width:0}
 .row .main{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .main + .main{margin-top:2px}
+.row .pt{display:inline-block;width:1.5em;font-size:12px;font-weight:700;color:var(--faint)}
 .row .sub{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .row .amt{font-size:20px;font-weight:700;flex:none}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface-3);color:var(--muted);margin-right:6px;vertical-align:1px}
@@ -580,6 +583,10 @@ svg{display:block}
           <div><div class="k">画面を常時点灯</div><div class="d">営業中はスリープしない（対応端末のみ）</div></div>
           <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
         </div>
+        <div class="setting">
+          <div><div class="k">GPSを住所に変換</div><div class="d">通信できる時のみ（国土地理院の逆ジオコーダー）</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="GPSを住所に変換"></button>
+        </div>
       </div>
       <div class="pane-sec">
         <div class="sec-h"><h3>過去のシフト</h3></div>
@@ -758,7 +765,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 1,
-    settings: { goal: 50000, dim: false, wake: true, tab: 'home', heat: 'all', heatRides: true },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, tab: 'home', heat: 'all', heatRides: true },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,toll,other},total,pay,kind,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -833,6 +840,105 @@ function trackDistance(o) {
 }
 
 /* ============================================================
+   住所変換（国土地理院 逆ジオコーダー：通信できる時だけ）
+   緯度経度 → 「東京都新宿区西新宿一丁目」。結果は端末内にキャッシュし、
+   圏外で記録した分は通信が戻ってから順に埋める。
+   ============================================================ */
+const GSI_REVERSE = 'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress';
+const GSI_MUNI = 'https://maps.gsi.go.jp/js/muni.js';
+const ADDR_KEY = 'taxiboard.addr.v1';
+const ADDR_MAX = 4000;
+let addrCache = {};
+try { addrCache = JSON.parse(localStorage.getItem(ADDR_KEY)) || {}; } catch (e) {}
+const addrKey = p => p.lat.toFixed(4) + ',' + p.lng.toFixed(4);   // 約10m単位で共有
+const shortAddr = a => (a || '').replace(/^(東京都|北海道|京都府|大阪府|.{2,3}県)/, '');
+function saveAddrCache() {
+  const keys = Object.keys(addrCache);
+  if (keys.length > ADDR_MAX) keys.slice(0, keys.length - ADDR_MAX).forEach(k => delete addrCache[k]);
+  try { localStorage.setItem(ADDR_KEY, JSON.stringify(addrCache)); } catch (e) {}
+}
+
+// 市区町村コード → 名称（muni.js を一度だけ読み込む）
+let muniPromise = null;
+function loadMuni() {
+  if (!muniPromise) muniPromise = new Promise(resolve => {
+    window.GSI = window.GSI || {};
+    GSI.MUNI_ARRAY = GSI.MUNI_ARRAY || {};
+    const sc = document.createElement('script');
+    sc.src = GSI_MUNI;
+    sc.onload = () => resolve(GSI.MUNI_ARRAY);
+    sc.onerror = () => { sc.remove(); muniPromise = null; resolve(null); };
+    document.head.appendChild(sc);
+  });
+  return muniPromise;
+}
+function muniName(arr, code) {
+  const v = code && (arr[code] || arr[String(+code)] || arr[String(code).padStart(5, '0')]);
+  if (!v) return '';
+  const [, pref, , city] = v.split(',');
+  return (pref || '') + (city || '').replace(/[\s　]/g, '');
+}
+
+// 住所文字列を返す（'' は住所なし＝海上など）。通信できなければ undefined
+async function reverseGeocode(p) {
+  const k = addrKey(p);
+  if (k in addrCache) return addrCache[k];
+  if (!S.settings.addr || navigator.onLine === false) return undefined;
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    const res = await fetch(`${GSI_REVERSE}?lat=${p.lat}&lon=${p.lng}`, { signal: ctl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return undefined;
+    const r = (await res.json() || {}).results;
+    let addr = '';
+    if (r) {
+      const muni = await loadMuni();
+      if (!muni) return undefined;
+      addr = muniName(muni, r.muniCd) + (r.lv01Nm && r.lv01Nm !== '－' ? r.lv01Nm : '');
+    }
+    addrCache[k] = addr;
+    saveAddrCache();
+    return addr;
+  } catch (e) { return undefined; }
+}
+
+// 位置オブジェクト {lat,lng,addr} に住所を書き込む。成功で true
+async function fillAddr(o) {
+  if (!o || o.lat == null || o.addr !== undefined) return false;
+  const a = await reverseGeocode(o);
+  if (a === undefined) return false;
+  o.addr = a;
+  return true;
+}
+function setLL(o, p) { o.lat = p.lat; o.lng = p.lng; o.acc = p.acc; delete o.addr; }
+
+// 住所が未変換の記録を新しい順に埋める
+let addrBusy = false, addrTimer = null;
+function queueAddr() { clearTimeout(addrTimer); addrTimer = setTimeout(resolvePending, 600); }
+async function resolvePending() {
+  if (addrBusy || !S.settings.addr || navigator.onLine === false) return;
+  addrBusy = true;
+  let changed = 0;
+  try {
+    const sh = curShift();
+    const targets = [...S.events, ...S.pins, ...S.rides.flatMap(r => [r.from, r.to]), sh && sh.trip && sh.trip.from]
+      .filter(o => o && o.lat != null && o.addr === undefined)
+      .reverse().slice(0, 80);
+    for (const o of targets) {
+      const cached = addrKey(o) in addrCache;
+      if (!(await fillAddr(o))) break;            // 通信失敗 → 次の機会に再開
+      changed++;
+      if (!cached) await new Promise(r => setTimeout(r, 250));
+    }
+  } finally {
+    addrBusy = false;
+    if (changed) { save(); renderAll(); }
+  }
+}
+window.addEventListener('online', queueAddr);
+
+/* ============================================================
    シフト・ステータス
    ============================================================ */
 function startShift() {
@@ -847,7 +953,7 @@ function startShift() {
 function logEvent(sh, status, prev) {
   const ev = { id: uid(), shiftId: sh.id, ts: Date.now(), status, prev, lat: null, lng: null, acc: null };
   S.events.push(ev);
-  getPos().then(p => { if (p) { ev.lat = p.lat; ev.lng = p.lng; ev.acc = p.acc; save(); } });
+  getPos().then(p => { if (p) { ev.lat = p.lat; ev.lng = p.lng; ev.acc = p.acc; save(); queueAddr(); } });
   return ev;
 }
 
@@ -865,7 +971,7 @@ function setStatus(st) {
   if (st === 'occupied') {
     const trip = { start: ev.ts, from: null, prev };
     sh.trip = trip;
-    getPos().then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); } });
+    getPos().then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); queueAddr(); } });
   }
   save();
   haptic(18);
@@ -978,7 +1084,7 @@ function renderClock() {
    ============================================================ */
 const payLabel = k => (PAY.find(p => p.k === k) || {}).label || k;
 const kindLabel = k => (KIND.find(p => p.k === k) || {}).label || '';
-function placeText(p) { return p ? (p.memo || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
+function placeText(p) { return p ? (p.memo || shortAddr(p.addr) || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
 
 function renderLog() {
   const sh = curShift();
@@ -999,8 +1105,9 @@ function renderLog() {
     <li><button class="row" data-ride="${r.id}">
       <span class="time num">${hhmm(r.ts)}</span>
       <span class="body">
-        <div class="main"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay))}</span>${esc(placeText(r.from))} → ${esc(placeText(r.to))}</div>
-        <div class="sub num">${[kindLabel(r.kind), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : '', r.fare.toll ? '高速' + yen(r.fare.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
+        <div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
+        <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>
+        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay))}</span>${[kindLabel(r.kind), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : '', r.fare.toll ? '高速' + yen(r.fare.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
       </span>
       <span class="amt num">${yen(r.total)}</span>
     </button></li>`).join('');
@@ -1015,10 +1122,10 @@ function demandPoints() {
   const now = new Date(), h = now.getHours(), dow = now.getDay();
   const hourOk = t => { const d = new Date(t); const dh = Math.abs(d.getHours() - h); return Math.min(dh, 24 - dh) <= 1; };
   const pass = t => f === 'all' || (hourOk(t) && (f === 'hour' || new Date(t).getDay() === dow));
-  const pts = S.pins.filter(p => p.lat != null && pass(p.ts)).map(p => ({ lat: p.lat, lng: p.lng, ts: p.ts, type: p.type }));
+  const pts = S.pins.filter(p => p.lat != null && pass(p.ts)).map(p => ({ lat: p.lat, lng: p.lng, ts: p.ts, type: p.type, addr: p.addr }));
   if (S.settings.heatRides) {
     for (const r of S.rides) {
-      if (r.from && r.from.lat != null && pass(r.start || r.ts)) pts.push({ lat: r.from.lat, lng: r.from.lng, ts: r.start || r.ts, type: 'ride', memo: r.from.memo });
+      if (r.from && r.from.lat != null && pass(r.start || r.ts)) pts.push({ lat: r.from.lat, lng: r.from.lng, ts: r.start || r.ts, type: 'ride', memo: r.from.memo, addr: r.from.addr });
     }
   }
   return pts;
@@ -1133,9 +1240,10 @@ function renderDemand() {
     c.n++; c.lat += p.lat; c.lng += p.lng;
     c.types[p.type] = (c.types[p.type] || 0) + 1;
     c.hours[new Date(p.ts).getHours()]++;
-    if (p.memo) c.memos[p.memo] = (c.memos[p.memo] || 0) + 1;
+    const nm = p.memo || shortAddr(p.addr);
+    if (nm) c.memos[nm] = (c.memos[nm] || 0) + 1;
   }
-  // 名前のないセルには付近の乗車地メモを流用
+  // セル名：乗車地メモ → 住所の順で多いものを採用
   const top = [...cells.values()].sort((a, b) => b.n - a.n).slice(0, 8);
   const list = $('#hotList');
   if (!top.length) { list.innerHTML = '<li class="empty">「アプリ通知」「手挙げ」ボタンで需要のあった場所を記録しましょう。</li>'; return; }
@@ -1355,9 +1463,8 @@ function openEntry(rideId) {
     // 乗車地が無ければ現在地で補完、降車地は常に現在地
     getPos().then(p => {
       if (!E || E.editId || !p) return;
-      const ll = { lat: p.lat, lng: p.lng, acc: p.acc };
-      if (E.from.lat == null) Object.assign(E.from, ll);
-      Object.assign(E.to, ll);
+      if (E.from.lat == null) setLL(E.from, p);
+      setLL(E.to, p);
       renderEntryLoc();
     });
   }
@@ -1386,9 +1493,20 @@ function renderEntry() {
   save.disabled = total <= 0;
   save.textContent = total > 0 ? `${E.editId ? '修正を保存' : '記録する'}　${yen(total)}` : '金額を入力';
 }
+const addrFailed = new WeakSet();
+function locLine(o) {
+  if (!o || o.lat == null) return E.editId ? '位置情報なし' : '取得中…';
+  const acc = o.acc != null ? '  ±' + o.acc + 'm' : '';
+  if (o.addr) return shortAddr(o.addr) + acc;
+  if (o.addr === undefined && S.settings.addr && navigator.onLine !== false && !addrFailed.has(o)) {
+    fillAddr(o).then(ok => { if (!ok) addrFailed.add(o); if (E && (E.from === o || E.to === o)) renderEntryLoc(); });
+    return '住所を取得中…' + acc;
+  }
+  return fmtLL(o);
+}
 function renderEntryLoc() {
-  $('#eFromGps').textContent = fmtLL(E.from) || (E.editId ? '位置情報なし' : '取得中…');
-  $('#eToGps').textContent = fmtLL(E.to) || (E.editId ? '位置情報なし' : '取得中…');
+  $('#eFromGps').textContent = locLine(E.from);
+  $('#eToGps').textContent = locLine(E.to);
 }
 
 function saveEntry() {
@@ -1410,7 +1528,7 @@ function saveEntry() {
     if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
     toast(`${yen(total)}（${payLabel(E.pay)}）を記録しました`);
   }
-  save(); haptic(25);
+  save(); haptic(25); queueAddr();
   E = null;
   closeSheet($('#entry'));
   renderAll();
@@ -1456,7 +1574,7 @@ function addPin(type) {
     S.pins = S.pins.filter(p => p.id !== pin.id); save(); renderAll(); toast('取り消しました');
   });
   getPos(15000).then(p => {
-    if (p) { pin.lat = p.lat; pin.lng = p.lng; pin.acc = p.acc; save(); if (S.settings.tab === 'demand') renderDemand(); }
+    if (p) { pin.lat = p.lat; pin.lng = p.lng; pin.acc = p.acc; save(); queueAddr(); if (S.settings.tab === 'demand') renderDemand(); }
     else if (S.pins.includes(pin)) toast('位置情報を取得できませんでした（時刻のみ記録）');
   });
 }
@@ -1477,22 +1595,22 @@ const fileDate = () => { const d = new Date(); return d.getFullYear() + pad2(d.g
 const shiftDay = id => { const s = S.shifts.find(x => x.id === id); return s ? ymd(s.start) : ''; };
 
 function exportLog(onlyShiftId) {
-  const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)',
+  const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)', '住所',
     '運賃合計', 'メーター', '迎車', '高速', 'その他', '決済方法', '乗車種別',
-    '乗車時刻', '乗車地', '乗車緯度', '乗車経度', '降車地', '降車緯度', '降車経度'];
+    '乗車時刻', '乗車地メモ', '乗車住所', '乗車緯度', '乗車経度', '降車地メモ', '降車住所', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
   const rows = [];
   for (const e of S.events.filter(keep)) {
     const note = e.status === 'off' ? '入庫' : e.prev === 'off' ? '出庫' : (STATUS[e.prev] ? STATUS[e.prev].label + 'から' : '');
-    rows.push([e.ts, [stamp(e.ts), shiftDay(e.shiftId), 'ステータス', STATUS[e.status]?.label || e.status, note, e.lat, e.lng, e.acc]]);
+    rows.push([e.ts, [stamp(e.ts), shiftDay(e.shiftId), 'ステータス', STATUS[e.status]?.label || e.status, note, e.lat, e.lng, e.acc, e.addr]]);
   }
   for (const r of S.rides.filter(keep)) {
-    rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc,
+    rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
       r.total, r.fare.meter, r.fare.pickup, r.fare.toll, r.fare.other, payLabel(r.pay), kindLabel(r.kind),
-      r.start ? stamp(r.start) : '', r.from?.memo, r.from?.lat, r.from?.lng, r.to?.memo, r.to?.lat, r.to?.lng]]);
+      r.start ? stamp(r.start) : '', r.from?.memo, r.from?.addr, r.from?.lat, r.from?.lng, r.to?.memo, r.to?.addr, r.to?.lat, r.to?.lng]]);
   }
   for (const p of S.pins.filter(keep)) {
-    rows.push([p.ts, [stamp(p.ts), shiftDay(p.shiftId), '需要ピン', '', PIN_TYPES[p.type], p.lat, p.lng, p.acc]]);
+    rows.push([p.ts, [stamp(p.ts), shiftDay(p.shiftId), '需要ピン', '', PIN_TYPES[p.type], p.lat, p.lng, p.acc, p.addr]]);
   }
   if (!rows.length) { toast('出力するデータがありません'); return; }
   rows.sort((a, b) => a[0] - b[0]);
@@ -1610,6 +1728,7 @@ $$('[data-export]').forEach(b => b.addEventListener('click', () => {
 }));
 $$('.switch[data-setting]').forEach(s => s.addEventListener('click', () => {
   const k = s.dataset.setting; S.settings[k] = !S.settings[k]; save(); applySettings(); renderData();
+  if (k === 'addr') queueAddr();
 }));
 $('#backupBtn').addEventListener('click', backup);
 $('#restoreBtn').addEventListener('click', () => $('#restoreFile').click());
@@ -1631,7 +1750,7 @@ $$('[data-regps]').forEach(b => b.addEventListener('click', async () => {
   $(which === 'from' ? '#eFromGps' : '#eToGps').textContent = '取得中…';
   const p = await getPos(3000);
   if (!E) return;
-  if (p) Object.assign(E[which], { lat: p.lat, lng: p.lng, acc: p.acc });
+  if (p) setLL(E[which], p);
   else toast('位置情報を取得できませんでした');
   renderEntryLoc();
 }));
@@ -1669,6 +1788,8 @@ applySettings();
 tickBi();
 setView(S.settings.tab);
 startGeo();
+queueAddr();
+setInterval(queueAddr, 60000);
 setInterval(() => { renderHome(); renderMini(); renderClock(); renderGps(); }, 1000);
 setInterval(tickBi, 20000);
 </script>
