@@ -213,7 +213,7 @@ svg{display:block}
 .st-btn[aria-pressed="true"] .l,.st-btn[aria-pressed="true"] .t{color:#0A0C0F}
 
 /* ---------------- アクション ---------------- */
-.actions{grid-area:actions;min-height:0;display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.actions{grid-area:actions;min-height:0;display:grid;grid-template-columns:1fr}
 .btn{
   min-height:var(--tap);
   border-radius:var(--r-md);
@@ -231,9 +231,6 @@ svg{display:block}
 .btn.sm{min-height:48px;font-size:14px;padding:0 14px;border-radius:var(--r-sm)}
 .btn:disabled{opacity:.4}
 .act-btn{height:100%;min-height:64px;font-size:clamp(16px,min(2.8vh,4.8vw),24px);white-space:nowrap;padding:0 10px}
-.pin-btn{flex-direction:column;gap:4px;font-size:clamp(13px,3.6vw,15px);line-height:1.2}
-.pin-btn svg{color:var(--accent)}
-.pin-btn small{font-size:11px;font-weight:600;color:var(--muted)}
 
 .pane-sec + .pane-sec,.heat-legend + .pane-sec{margin-top:28px}
 .sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
@@ -471,7 +468,6 @@ svg{display:block}
   .depart-btn{height:72px}
   .view-head{min-height:52px}
   .cockpit .act-btn{height:64px;font-size:18px}
-  .pin-btn small{display:none}
   .sheet-head{height:44px}
   .e-foot{padding-top:8px}
   .e-foot .primary,.e-foot .danger{height:56px;font-size:19px}
@@ -566,14 +562,6 @@ svg{display:block}
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       乗車を記録
     </button>
-    <button class="btn act-btn pin-btn" data-pin="app">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-      アプリ通知<small>需要ピン</small>
-    </button>
-    <button class="btn act-btn pin-btn" data-pin="hail">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg>
-      手挙げ<small>需要ピン</small>
-    </button>
   </section>
   </div>
  </section>
@@ -606,7 +594,6 @@ svg{display:block}
         <button data-f="all" aria-pressed="true">全期間</button>
         <button data-f="hour" aria-pressed="false">いまの時間帯</button>
         <button data-f="dow" aria-pressed="false">同じ曜日×時間帯</button>
-        <button data-f="rides" aria-pressed="true" id="incRides">乗車地も含む</button>
       </div>
       <div class="heat-wrap"><canvas class="heat" id="heat"></canvas></div>
       <div class="heat-legend"><span>少</span><i></i><span>多</span><span class="spacer" style="flex:1"></span><span class="num" id="heatCount"></span></div>
@@ -634,7 +621,7 @@ svg{display:block}
       <div class="pane-sec">
         <div class="sec-h"><h3>CSV出力</h3><span class="aside">Excel対応（UTF-8 BOM）</span></div>
         <div class="btn-col">
-          <button class="btn stack" data-export="log-all">営業ログ（全期間）<span class="hint">乗車・ステータス・需要ピンを時系列で</span></button>
+          <button class="btn stack" data-export="log-all">営業ログ（全期間）<span class="hint">乗車・ステータスを時系列で</span></button>
           <div class="btn-grid">
             <button class="btn stack" data-export="log-shift">営業ログ<span class="hint">このシフトのみ</span></button>
             <button class="btn stack" data-export="summary">日報サマリー<span class="hint">シフト別の集計</span></button>
@@ -933,7 +920,6 @@ const DEFAULT_APPS = [['GO', 'cash', 100, 'gopay'], ['DiDi', 'app', 0, 'app'], [
   .map(([name, defaultPay, feeOther, payKey], i) => ({ id: 'app' + i, name, defaultPay, fee: 0, feeOther, payKey }));
 const appPayKey = cfg => (cfg && cfg.payKey) || 'app';
 const appFeeFor = (cfg, pay) => (pay === appPayKey(cfg) ? cfg.fee : cfg.feeOther) || 0;
-const PIN_TYPES = { app: 'アプリ通知', hail: '手挙げ', ride: '乗車' };
 // 待機・休憩は一時的な状態：空車／実車、または同じボタンの再タップで解除して空車へ
 const PAUSE = ['wait'];
 const KEYS = ['1','2','3','4','5','6','7','8','9','00','0','del'];
@@ -980,11 +966,10 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', heat: 'all', heatRides: true },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', heat: 'all' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,pax,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
-    pins: [],     // {id,shiftId,ts,type,lat,lng,acc}
   };
 }
 function loadState() {
@@ -1013,7 +998,7 @@ const curShift = () => S.shifts.find(s => !s.end) || null;
 /* ============================================================
    GPS（Geolocation API）
    ============================================================ */
-// 位置はトリガー式：出庫・入庫・ステータス変更・乗車記録・需要ピン・「現在地」ボタン・
+// 位置はトリガー式：出庫・入庫・ステータス変更・乗車記録・「現在地」ボタン・
 // 需要/エリア画面を開いた時だけ取得する（常時の追跡はしない）
 const geo = { pos: null, err: null, busy: false };
 const toPos = p => ({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy), t: Date.now() });
@@ -1025,7 +1010,7 @@ function startGeo() {
 }
 
 // 直近の位置が maxAge 以内ならそれを、古ければ取り直す（失敗時は手元の最新値）
-// ステータス変更・乗車記録は 5秒、需要ピンは 15秒、画面表示用は 60秒まで使い回す
+// ステータス変更・乗車記録は 5秒、画面表示用は 60秒まで使い回す
 // 同時に来た要求（例：ステータス記録と乗車地の取得）は1回の測位を共有する
 let geoPending = null;
 function getPos(maxAge = 20000) {
@@ -1127,7 +1112,7 @@ async function resolvePending() {
   let changed = 0;
   try {
     const sh = curShift();
-    const targets = [...S.events, ...S.pins, ...S.rides.flatMap(r => [r.from, r.to]), sh && sh.trip && sh.trip.from]
+    const targets = [...S.events, ...S.rides.flatMap(r => [r.from, r.to]), sh && sh.trip && sh.trip.from]
       .filter(o => o && o.lat != null && o.addr === undefined)
       .reverse().slice(0, 80);
     for (const o of targets) {
@@ -1526,13 +1511,9 @@ function demandPoints() {
   const now = new Date(), h = now.getHours(), dow = now.getDay();
   const hourOk = t => { const d = new Date(t); const dh = Math.abs(d.getHours() - h); return Math.min(dh, 24 - dh) <= 1; };
   const pass = t => f === 'all' || (hourOk(t) && (f === 'hour' || new Date(t).getDay() === dow));
-  const pts = S.pins.filter(p => p.lat != null && pass(p.ts)).map(p => ({ lat: p.lat, lng: p.lng, ts: p.ts, type: p.type, addr: p.addr }));
-  if (S.settings.heatRides) {
-    for (const r of S.rides) {
-      if (r.from && r.from.lat != null && pass(r.start || r.ts)) pts.push({ lat: r.from.lat, lng: r.from.lng, ts: r.start || r.ts, type: 'ride', memo: r.from.memo, addr: r.from.addr });
-    }
-  }
-  return pts;
+  // 需要＝記録した乗車の乗車地
+  return S.rides.filter(r => r.from && r.from.lat != null && pass(r.start || r.ts))
+    .map(r => ({ lat: r.from.lat, lng: r.from.lng, ts: r.start || r.ts, memo: r.from.memo, addr: r.from.addr }));
 }
 
 let PALETTE = null;
@@ -1563,7 +1544,7 @@ function drawHeat(pts) {
   if (!pts.length) {
     ctx.fillStyle = '#5A6472'; ctx.font = '14px ' + getComputedStyle(document.body).fontFamily;
     ctx.textAlign = 'center';
-    ctx.fillText('需要ピンを記録するとここに表示されます', w / 2, h / 2);
+    ctx.fillText('乗車を記録すると乗車地がここに表示されます', w / 2, h / 2);
     return;
   }
 
@@ -1630,7 +1611,7 @@ function drawHeat(pts) {
 function renderDemand() {
   const pts = demandPoints();
   $$('#heatFilter [data-f]').forEach(b => {
-    b.setAttribute('aria-pressed', b.dataset.f === 'rides' ? S.settings.heatRides : b.dataset.f === S.settings.heat);
+    b.setAttribute('aria-pressed', b.dataset.f === S.settings.heat);
   });
   $('#heatCount').textContent = pts.length + ' 件';
   drawHeat(pts);
@@ -1640,9 +1621,8 @@ function renderDemand() {
   for (const p of pts) {
     const key = Math.floor(p.lat / CELL_LAT) + ':' + Math.floor(p.lng / CELL_LNG);
     let c = cells.get(key);
-    if (!c) cells.set(key, c = { n: 0, lat: 0, lng: 0, types: {}, hours: new Array(24).fill(0), memos: {} });
+    if (!c) cells.set(key, c = { n: 0, lat: 0, lng: 0, hours: new Array(24).fill(0), memos: {} });
     c.n++; c.lat += p.lat; c.lng += p.lng;
-    c.types[p.type] = (c.types[p.type] || 0) + 1;
     c.hours[new Date(p.ts).getHours()]++;
     const nm = p.memo || shortAddr(p.addr);
     if (nm) c.memos[nm] = (c.memos[nm] || 0) + 1;
@@ -1650,18 +1630,17 @@ function renderDemand() {
   // セル名：乗車地メモ → 住所の順で多いものを採用
   const top = [...cells.values()].sort((a, b) => b.n - a.n).slice(0, 8);
   const list = $('#hotList');
-  if (!top.length) { list.innerHTML = '<li class="empty">「アプリ通知」「手挙げ」ボタンで需要のあった場所を記録しましょう。</li>'; return; }
+  if (!top.length) { list.innerHTML = '<li class="empty">乗車を記録すると、乗車の多いエリアが表示されます。</li>'; return; }
   list.innerHTML = top.map((c, i) => {
     const ctr = { lat: c.lat / c.n, lng: c.lng / c.n };
     const name = Object.entries(c.memos).sort((a, b) => b[1] - a[1])[0]?.[0];
     const peak = c.hours.indexOf(Math.max(...c.hours));
-    const mix = Object.entries(c.types).map(([k, v]) => PIN_TYPES[k] + v).join(' ・ ');
     const dir = geo.pos ? `<b>${dirLabel(bearing(geo.pos, ctr))}</b><span class="num">${fmtDist(haversine(geo.pos, ctr))}</span>` : '<span>—</span>';
     return `<li class="row">
       <span class="rank num ${i < 3 ? 'top' : ''}">${i + 1}</span>
       <span class="body">
         <div class="main">${name ? esc(name) + ' 付近' : '<span class="num">' + ctr.lat.toFixed(4) + ', ' + ctr.lng.toFixed(4) + '</span>'}</div>
-        <div class="sub num">${c.n}件 ・ ピーク ${peak}時台 ・ ${mix}</div>
+        <div class="sub num">乗車 ${c.n}件 ・ ピーク ${peak}時台</div>
       </span>
       <span class="dir">${dir}</span>
     </li>`;
@@ -2113,23 +2092,6 @@ function editGoal() {
 }
 
 /* ============================================================
-   需要ピン
-   ============================================================ */
-function addPin(type) {
-  const sh = curShift();
-  const pin = { id: uid(), shiftId: sh ? sh.id : null, ts: Date.now(), type, lat: null, lng: null, acc: null };
-  S.pins.push(pin);
-  save(); haptic(25);
-  toast(`${PIN_TYPES[type]}を記録しました`, '取消', () => {
-    S.pins = S.pins.filter(p => p.id !== pin.id); save(); renderAll(); toast('取り消しました');
-  });
-  getPos(15000).then(p => {
-    if (p) { pin.lat = p.lat; pin.lng = p.lng; pin.acc = p.acc; save(); queueAddr(); if (S.settings.tab === 'demand') renderDemand(); }
-    else if (S.pins.includes(pin)) toast('位置情報を取得できませんでした（時刻のみ記録）');
-  });
-}
-
-/* ============================================================
    CSV 出力
    ============================================================ */
 const csvCell = v => { if (v == null) return ''; v = String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
@@ -2165,9 +2127,6 @@ function exportLog(onlyShiftId) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
       r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.noPickup ? '○' : '', payLabel(r.pay, r.app), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
       r.start ? stamp(r.start) : '', r.from?.memo, r.from?.addr, r.from?.lat, r.from?.lng, r.to?.memo, r.to?.addr, r.to?.lat, r.to?.lng]]);
-  }
-  for (const p of S.pins.filter(keep)) {
-    rows.push([p.ts, [stamp(p.ts), shiftDay(p.shiftId), '需要ピン', '', PIN_TYPES[p.type], p.lat, p.lng, p.acc, p.addr]]);
   }
   if (!rows.length) { toast('出力するデータがありません'); return; }
   rows.sort((a, b) => a[0] - b[0]);
@@ -2261,7 +2220,6 @@ function toast(msg, actLabel, actFn) {
    ============================================================ */
 $$('.st-btn').forEach(b => b.addEventListener('click', () => setStatus(b.dataset.st)));
 $('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
-$$('[data-pin]').forEach(b => b.addEventListener('click', () => addPin(b.dataset.pin)));
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
@@ -2306,8 +2264,7 @@ $('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pau
 
 $('#heatFilter').addEventListener('click', e => {
   const b = e.target.closest('[data-f]'); if (!b) return;
-  if (b.dataset.f === 'rides') S.settings.heatRides = !S.settings.heatRides;
-  else S.settings.heat = b.dataset.f;
+  S.settings.heat = b.dataset.f;
   saveSoon(); renderDemand();
 });
 
