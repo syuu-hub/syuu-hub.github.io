@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0C0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>タクシーボード</title>
+<style>
+/* ============================================================
+   Design tokens
+   ============================================================ */
+:root{
+  --bg:#0A0C0F;
+  --surface:#12151A;
+  --surface-2:#191D24;
+  --surface-3:#212630;
+  --line:#242A33;
+  --line-2:#343C48;
+  --text:#ECEFF3;
+  --muted:#8C96A4;
+  --faint:#5A6472;
+
+  --accent:#FFB020;          /* 売上・主要アクション */
+  --accent-ink:#1E1400;
+  --accent-soft:rgba(255,176,32,.14);
+  --ok:#3DD68C;
+  --danger:#FF6B6B;
+
+  /* ステータス色：実際の表示灯に準拠（空車=赤 / 実車=緑） */
+  --st-vacant:#FF5D5D;
+  --st-occupied:#3DD68C;
+  --st-deadhead:#5B9BFF;
+  --st-rest:#A78BFA;
+
+  --r-lg:20px;
+  --r-md:14px;
+  --r-sm:10px;
+  --gap:12px;
+  --pad:16px;
+  --tap:64px;                /* 最小タッチターゲット */
+
+  --font: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  color-scheme: dark;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text)}
+body{
+  font-family:var(--font);
+  font-size:16px;line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;
+  overflow:hidden;
+  user-select:none;-webkit-user-select:none;
+  touch-action:manipulation;
+}
+html.dim body{filter:brightness(.55)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
+input{font:inherit;color:inherit;user-select:text;-webkit-user-select:text}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+[hidden]{display:none !important}
+svg{display:block}
+
+/* ============================================================
+   App layout
+   portrait : HUD → status → actions → panel（縦積み）
+   landscape: 左＝HUD/status/actions、右＝panel
+   ============================================================ */
+.app{
+  height:100vh;height:100dvh;
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto auto auto minmax(0,1fr);
+  grid-template-areas:"hud" "status" "actions" "panel";
+  gap:var(--gap);
+  padding:max(var(--pad),env(safe-area-inset-top)) max(var(--pad),env(safe-area-inset-right)) max(var(--pad),env(safe-area-inset-bottom)) max(var(--pad),env(safe-area-inset-left));
+}
+@media (orientation:landscape) and (min-width:700px){
+  .app{
+    grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
+    grid-template-rows:auto auto 1fr;
+    grid-template-areas:"hud panel" "status panel" "actions panel";
+    gap:var(--gap) calc(var(--gap) * 1.5);
+  }
+  .actions{align-self:start}
+}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)}
+
+/* ---------------- HUD（売上・進捗） ---------------- */
+.hud{grid-area:hud;padding:clamp(14px,2.2vh,22px) clamp(16px,2.4vw,24px)}
+.hud-meta{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin-bottom:6px}
+.hud-meta .spacer{flex:1}
+.badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--surface-3);color:var(--muted)}
+.badge.live{background:rgba(61,214,140,.14);color:var(--ok)}
+.gps{display:inline-flex;align-items:center;gap:6px}
+.gps i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.gps.ok i{background:var(--ok);box-shadow:0 0 0 3px rgba(61,214,140,.18)}
+.gps.stale i{background:var(--accent)}
+.gps.err i{background:var(--danger)}
+.icon-btn{width:40px;height:40px;margin:-8px -8px -8px 0;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.icon-btn[aria-pressed="true"]{color:var(--accent)}
+
+.hud-main{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.sales{flex:1;min-width:0;font-size:clamp(38px,min(8.5vh,13vw),84px);font-weight:800;letter-spacing:-.02em;line-height:1;white-space:nowrap}
+.sales .cur{font-size:.5em;font-weight:700;margin-right:.08em;color:var(--muted);vertical-align:.32em}
+.goal-btn{flex:none;text-align:right;padding:6px 0 2px 12px;border-radius:var(--r-sm);min-height:var(--tap);display:flex;flex-direction:column;justify-content:flex-end}
+.pct{font-size:clamp(26px,4.6vh,40px);font-weight:800;line-height:1;color:var(--accent)}
+.pct small{font-size:.55em;margin-left:2px}
+.goal-line{font-size:13px;color:var(--muted);margin-top:6px;white-space:nowrap}
+.goal-line b{color:var(--text);font-weight:600}
+.bar{position:relative;height:12px;border-radius:999px;background:var(--surface-3);margin:14px 0 4px;overflow:hidden}
+.bar-fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:inherit;background:var(--accent);transition:width .5s cubic-bezier(.25,1,.5,1),background .3s}
+.hud.done .bar-fill{background:var(--ok)}
+.hud.done .pct{color:var(--ok)}
+.remain{font-size:13px;color:var(--muted);text-align:right}
+.hud.done .remain{color:var(--ok)}
+
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:clamp(10px,1.8vh,18px);padding-top:clamp(10px,1.8vh,16px);border-top:1px solid var(--line)}
+.stat{padding:0 4px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0;padding-left:0}
+.stat .k{font-size:12px;color:var(--muted);white-space:nowrap}
+.stat .v{font-size:clamp(15px,min(2.6vh,4.6vw),24px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
+
+/* ---------------- ステータス ---------------- */
+.status{grid-area:status;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.st-btn{
+  --c:var(--muted);
+  height:clamp(64px,11vh,96px);
+  border-radius:var(--r-md);
+  border:2px solid var(--line-2);
+  background:var(--surface);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  transition:background .15s,border-color .15s,transform .08s;
+}
+.st-btn:active{transform:scale(.97)}
+.st-btn .l{font-size:clamp(20px,3.2vh,28px);font-weight:800;letter-spacing:.06em;color:var(--c)}
+.st-btn .t{font-size:13px;font-weight:600;color:var(--muted);min-height:1.2em}
+.st-btn[data-st="vacant"]{--c:var(--st-vacant)}
+.st-btn[data-st="occupied"]{--c:var(--st-occupied)}
+.st-btn[data-st="deadhead"]{--c:var(--st-deadhead)}
+.st-btn[data-st="rest"]{--c:var(--st-rest)}
+.st-btn[aria-pressed="true"]{background:var(--c);border-color:var(--c)}
+.st-btn[aria-pressed="true"] .l,.st-btn[aria-pressed="true"] .t{color:#0A0C0F}
+
+/* ---------------- アクション ---------------- */
+.actions{grid-area:actions;display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.btn{
+  min-height:var(--tap);
+  border-radius:var(--r-md);
+  border:1px solid var(--line-2);
+  background:var(--surface-2);
+  font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  padding:0 16px;
+  transition:background .15s,transform .08s,opacity .15s;
+}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--danger);border-color:rgba(255,107,107,.4);background:transparent}
+.btn.ghost{background:transparent}
+.btn.sm{min-height:48px;font-size:14px;padding:0 14px;border-radius:var(--r-sm)}
+.btn:disabled{opacity:.4}
+.act-btn{height:clamp(64px,12vh,100px);font-size:clamp(16px,min(2.8vh,4.8vw),24px);white-space:nowrap;padding:0 10px}
+.pin-btn{flex-direction:column;gap:4px;font-size:clamp(13px,3.6vw,15px);line-height:1.2}
+.pin-btn svg{color:var(--accent)}
+.pin-btn small{font-size:11px;font-weight:600;color:var(--muted)}
+
+/* ---------------- パネル ---------------- */
+.panel{grid-area:panel;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);flex:none}
+.tab{height:52px;font-size:15px;font-weight:600;color:var(--muted);position:relative}
+.tab[aria-selected="true"]{color:var(--text)}
+.tab[aria-selected="true"]::after{content:"";position:absolute;left:22%;right:22%;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--accent)}
+.pane{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:var(--pad)}
+.pane-sec + .pane-sec{margin-top:28px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+.sec-h h3{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.sec-h .aside{font-size:12px;color:var(--faint)}
+.empty{padding:28px 8px;text-align:center;color:var(--faint);font-size:14px;line-height:1.7}
+
+/* 決済内訳 */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.split > div{background:var(--surface-2);border-radius:var(--r-md);padding:12px 14px}
+.split .k{font-size:12px;color:var(--muted)}
+.split .v{font-size:22px;font-weight:700}
+.chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.chips-row b{color:var(--text);font-weight:600;margin-left:4px}
+
+/* 一覧（共通） */
+.list{list-style:none}
+.row{display:flex;align-items:center;gap:14px;min-height:var(--tap);padding:10px 4px;border-bottom:1px solid var(--line);width:100%;text-align:left}
+.row:last-child{border-bottom:0}
+.row .time{font-size:15px;font-weight:600;width:3.2em;flex:none;color:var(--muted)}
+.row .body{flex:1;min-width:0}
+.row .main{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .sub{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.row .amt{font-size:20px;font-weight:700;flex:none}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface-3);color:var(--muted);margin-right:6px;vertical-align:1px}
+.tag.cash{background:rgba(255,176,32,.14);color:var(--accent)}
+
+/* 需要マップ */
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.seg button{height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.heat-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;background:#0D1014;border:1px solid var(--line)}
+.heat{width:100%;aspect-ratio:4/3;max-height:52vh}
+.heat-legend{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--faint);margin-top:8px}
+.heat-legend i{flex:0 0 72px;height:6px;border-radius:3px;background:linear-gradient(90deg,rgba(255,90,40,.3),#FFA01E,#FFDC5A,#FFFFE6)}
+.rank{width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--surface-3);color:var(--muted)}
+.rank.top{background:var(--accent-soft);color:var(--accent)}
+.dir{flex:none;text-align:right}
+.dir b{display:block;font-size:16px}
+.dir span{font-size:11px;color:var(--faint)}
+
+/* BI モック */
+.demo-note{font-size:12px;color:var(--faint);background:var(--surface-2);border:1px dashed var(--line-2);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px}
+.lvl{flex:none;width:68px}
+.lvl .meter{height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden;margin-top:6px}
+.lvl .meter i{display:block;height:100%;border-radius:inherit}
+.lvl .lab{font-size:12px;font-weight:700}
+.trend{width:18px;flex:none;text-align:center;font-size:14px;font-weight:700}
+
+/* 設定 */
+.setting{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:var(--tap);border-bottom:1px solid var(--line)}
+.setting:last-child{border-bottom:0}
+.setting .k{font-size:15px}
+.setting .d{font-size:12px;color:var(--faint);margin-top:2px}
+.switch{width:56px;height:34px;border-radius:999px;background:var(--surface-3);position:relative;flex:none;transition:background .2s}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+.switch[aria-checked="true"]{background:var(--accent)}
+.switch[aria-checked="true"]::after{transform:translateX(22px);background:var(--accent-ink)}
+.btn-col{display:grid;gap:10px}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn .hint{font-size:12px;font-weight:500;color:var(--muted)}
+.btn.stack{flex-direction:column;gap:2px;padding:10px 12px;line-height:1.3}
+
+/* ============================================================
+   Sheets（入力モーダル）
+   ============================================================ */
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(5,6,8,.72);display:flex;align-items:stretch;justify-content:center;opacity:0;transition:opacity .18s}
+.sheet.open{opacity:1}
+.sheet-inner{
+  width:100%;max-width:1280px;height:100%;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  padding:max(12px,env(safe-area-inset-top)) max(var(--pad),env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(var(--pad),env(safe-area-inset-left));
+  transform:translateY(16px);transition:transform .22s cubic-bezier(.25,1,.5,1);
+}
+.sheet.open .sheet-inner{transform:none}
+.sheet-head{display:flex;align-items:center;gap:12px;height:56px;flex:none}
+.sheet-head h2{font-size:18px;font-weight:700}
+.sheet-head .sub{font-size:13px;color:var(--muted)}
+.sheet-head .spacer{flex:1}
+.close-btn{height:48px;padding:0 14px 0 8px;border-radius:var(--r-sm);display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-weight:600}
+
+.entry-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);gap:var(--gap);overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+@media (orientation:landscape) and (min-width:700px){
+  .entry-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:calc(var(--gap)*2);overflow:hidden}
+  .e-meta{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+  .e-amount{min-height:0;display:flex;flex-direction:column}
+  .e-amount .keypad{flex:1;grid-auto-rows:1fr}
+}
+
+/* 金額表示 */
+.total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:4px 4px 10px}
+.total .lbl{font-size:14px;color:var(--muted);font-weight:600}
+.total .v{font-size:clamp(44px,8vh,72px);font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--accent)}
+.total .v .cur{font-size:.5em;margin-right:.08em;vertical-align:.32em;color:var(--muted)}
+.fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.field{min-height:var(--tap);border-radius:var(--r-md);border:2px solid var(--line-2);background:var(--surface);padding:6px 10px;text-align:left;display:flex;flex-direction:column;justify-content:center}
+.field .k{font-size:12px;color:var(--muted);font-weight:600}
+.field .v{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field .v.zero{color:var(--faint)}
+.field[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.field[aria-pressed="true"] .k{color:var(--accent)}
+
+/* テンキー（全入力で共通） */
+.keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:clamp(58px,8.6vh,88px);gap:8px}
+.key{border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line);font-size:clamp(26px,4vh,34px);font-weight:600;display:grid;place-items:center;transition:background .08s,transform .06s}
+.key:active{background:var(--surface-3);transform:scale(.96)}
+.key.fn{background:transparent;color:var(--muted)}
+
+/* 選択肢（決済・種別） — ステータスボタンと同じ「塗りで選択」パターン */
+.group + .group{margin-top:18px}
+.glabel{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+.opts{display:grid;gap:8px}
+.opts.pay{grid-template-columns:repeat(3,minmax(0,1fr))}
+.opts.kind{grid-template-columns:repeat(4,minmax(0,1fr))}
+.opt{min-height:var(--tap);border-radius:var(--r-md);border:2px solid var(--line-2);background:var(--surface);font-size:16px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;padding:4px}
+.opt small{font-size:11px;font-weight:600;color:var(--muted);margin-top:2px}
+.opt[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.opt[aria-pressed="true"] small{color:#3A414C}
+.opts.kind .opt{min-height:52px;font-size:14px}
+
+/* 場所 */
+.loc{display:flex;align-items:center;gap:10px;padding:8px 0}
+.loc + .loc{border-top:1px solid var(--line)}
+.loc-k{flex:none;width:2.6em;font-size:14px;font-weight:700;color:var(--muted)}
+.loc-body{flex:1;min-width:0}
+.loc input{width:100%;height:48px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface);padding:0 12px;font-size:16px}
+.loc input:focus{outline:none;border-color:var(--accent)}
+.loc-gps{font-size:12px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e-foot{flex:none;display:flex;gap:10px;padding-top:12px}
+.e-foot .primary{flex:1;height:72px;font-size:22px}
+.e-foot .danger{height:72px}
+
+/* 数値入力ダイアログ */
+.np-inner{max-width:480px;margin:auto;height:auto;border-radius:var(--r-lg);border:1px solid var(--line);padding:var(--pad)}
+.sheet.center{align-items:center}
+.np-inner .total{padding:8px 4px 16px}
+.np-inner .keypad{grid-auto-rows:64px}
+
+/* トースト */
+.toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;
+  transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  min-height:56px;width:max-content;max-width:min(92vw,560px);
+  display:flex;align-items:center;gap:16px;padding:8px 8px 8px 20px;
+  background:var(--text);color:var(--bg);border-radius:var(--r-md);
+  font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.5);
+  transition:opacity .2s,transform .25s cubic-bezier(.25,1,.5,1);
+}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{height:44px;padding:0 14px;border-radius:var(--r-sm);font-weight:800;color:#B26E00}
+.toast:not(.has-act){padding-right:20px}
+
+/* 小さな横画面（スマホ横向き）用の圧縮 */
+@media (orientation:landscape) and (max-height:520px){
+  :root{--pad:12px;--gap:8px;--tap:56px}
+  .hud{padding:10px 16px}
+  .sales{font-size:46px}
+  .pct{font-size:26px}
+  .bar{margin:8px 0 2px;height:10px}
+  .stats{margin-top:8px;padding-top:8px}
+  .st-btn{height:60px}
+  .act-btn{height:60px;font-size:18px}
+  .pin-btn small{display:none}
+  .sheet-head{height:44px}
+  .e-foot{padding-top:8px}
+  .e-foot .primary,.e-foot .danger{height:56px;font-size:19px}
+  /* 金額欄を縦に並べ、テンキーを横に配置して高さを確保 */
+  .e-amount{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,2fr);grid-template-rows:auto minmax(0,1fr);gap:6px 8px}
+  .e-amount .total{grid-column:1 / -1;padding:0 4px}
+  .total .v{font-size:34px}
+  .fields{grid-template-columns:1fr;grid-auto-rows:1fr;gap:6px;margin:0}
+  .field{min-height:0;padding:2px 10px}
+  .field .v{font-size:16px}
+  .e-amount .keypad{grid-auto-rows:1fr;gap:6px}
+  .key{font-size:24px}
+  .np-inner .keypad{grid-auto-rows:44px}
+}
+@media (max-width:480px){
+  .stats{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:10px}
+  .stat:nth-child(4){border-left:0;padding-left:0}
+  .stat .v{font-size:20px}
+}
+@media (max-width:360px){
+  .opts.pay{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ===== HUD：売上と目標（最重要情報） ===== -->
+  <header class="hud card" id="hud">
+    <div class="hud-meta">
+      <span>本日の売上</span>
+      <span class="badge" id="shiftBadge">未出庫</span>
+      <span class="spacer"></span>
+      <span class="gps" id="gps"><i></i>GPS</span>
+      <time class="num" id="clock">--:--</time>
+      <button class="icon-btn" id="dimBtn" aria-label="減光モード" aria-pressed="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </div>
+    <div class="hud-main">
+      <div class="sales num" id="sales"><span class="cur">¥</span>0</div>
+      <button class="goal-btn" id="goalBtn" aria-label="目標金額を変更">
+        <span class="pct num" id="pct">0<small>%</small></span>
+        <span class="goal-line">目標 <b class="num" id="goal">¥0</b></span>
+      </button>
+    </div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="barWrap"><div class="bar-fill" id="bar"></div></div>
+    <div class="remain num" id="remain">&nbsp;</div>
+    <div class="stats">
+      <div class="stat"><div class="k">乗車</div><div class="v num" id="stCount">0<small>回</small></div></div>
+      <div class="stat"><div class="k">平均単価</div><div class="v num" id="stAvg">—</div></div>
+      <div class="stat"><div class="k">実車率</div><div class="v num" id="stOcc">—</div></div>
+      <div class="stat"><div class="k">時間単価</div><div class="v num" id="stHourly">—</div></div>
+      <div class="stat"><div class="k">営業時間</div><div class="v num" id="stTime">0:00</div></div>
+    </div>
+  </header>
+
+  <!-- ===== ステータス（常時表示） ===== -->
+  <nav class="status" aria-label="ステータス">
+    <button class="st-btn" data-st="vacant" aria-pressed="false"><span class="l">空車</span><span class="t num"></span></button>
+    <button class="st-btn" data-st="occupied" aria-pressed="false"><span class="l">実車</span><span class="t num"></span></button>
+    <button class="st-btn" data-st="deadhead" aria-pressed="false"><span class="l">回送</span><span class="t num"></span></button>
+    <button class="st-btn" data-st="rest" aria-pressed="false"><span class="l">休憩</span><span class="t num"></span></button>
+  </nav>
+
+  <!-- ===== 主要アクション ===== -->
+  <section class="actions">
+    <button class="btn primary act-btn" id="recordBtn">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      乗車を記録
+    </button>
+    <button class="btn act-btn pin-btn" data-pin="app">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      アプリ通知<small>需要ピン</small>
+    </button>
+    <button class="btn act-btn pin-btn" data-pin="hail">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg>
+      手挙げ<small>需要ピン</small>
+    </button>
+  </section>
+
+  <!-- ===== パネル ===== -->
+  <section class="panel card">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="log" aria-selected="true">履歴</button>
+      <button class="tab" role="tab" data-tab="demand" aria-selected="false">需要</button>
+      <button class="tab" role="tab" data-tab="area" aria-selected="false">エリア</button>
+      <button class="tab" role="tab" data-tab="data" aria-selected="false">出力・設定</button>
+    </div>
+
+    <!-- 履歴 -->
+    <div class="pane" data-pane="log">
+      <div class="pane-sec">
+        <div class="split">
+          <div><div class="k">現金</div><div class="v num" id="sumCash">¥0</div></div>
+          <div><div class="k">キャッシュレス</div><div class="v num" id="sumCashless">¥0</div></div>
+        </div>
+        <div class="chips-row num" id="payBreakdown"></div>
+      </div>
+      <div class="pane-sec">
+        <div class="sec-h"><h3>このシフトの乗車</h3><span class="aside">タップで修正</span></div>
+        <ul class="list" id="rideList"></ul>
+      </div>
+    </div>
+
+    <!-- 需要 -->
+    <div class="pane" data-pane="demand" hidden>
+      <div class="seg" id="heatFilter">
+        <button data-f="all" aria-pressed="true">全期間</button>
+        <button data-f="hour" aria-pressed="false">いまの時間帯</button>
+        <button data-f="dow" aria-pressed="false">同じ曜日×時間帯</button>
+        <button data-f="rides" aria-pressed="true" id="incRides">乗車地も含む</button>
+      </div>
+      <div class="heat-wrap"><canvas class="heat" id="heat"></canvas></div>
+      <div class="heat-legend"><span>少</span><i></i><span>多</span><span class="spacer" style="flex:1"></span><span class="num" id="heatCount"></span></div>
+      <div class="pane-sec">
+        <div class="sec-h"><h3>需要が多いエリア（約500m四方）</h3><span class="aside">現在地からの方角</span></div>
+        <ul class="list" id="hotList"></ul>
+      </div>
+    </div>
+
+    <!-- エリア（互助型BI モック） -->
+    <div class="pane" data-pane="area" hidden>
+      <div class="demo-note">デモ表示：他ドライバーの稼働状況はダミーデータです（通信なしで動作する将来機能のモックアップ）。</div>
+      <div class="sec-h"><h3>いま忙しいエリア</h3><span class="aside num" id="biUpdated"></span></div>
+      <ul class="list" id="biList"></ul>
+    </div>
+
+    <!-- 出力・設定 -->
+    <div class="pane" data-pane="data" hidden>
+      <div class="pane-sec">
+        <div class="sec-h"><h3>営業</h3><span class="aside num" id="shiftInfo"></span></div>
+        <button class="btn danger" style="width:100%" id="shiftBtn">入庫（営業終了）</button>
+      </div>
+      <div class="pane-sec">
+        <div class="sec-h"><h3>CSV出力</h3><span class="aside">Excel対応（UTF-8 BOM）</span></div>
+        <div class="btn-col">
+          <button class="btn stack" data-export="log-all">営業ログ（全期間）<span class="hint">乗車・ステータス・需要ピンを時系列で</span></button>
+          <div class="btn-grid">
+            <button class="btn stack" data-export="log-shift">営業ログ<span class="hint">このシフトのみ</span></button>
+            <button class="btn stack" data-export="summary">日報サマリー<span class="hint">シフト別の集計</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="pane-sec">
+        <div class="sec-h"><h3>設定</h3></div>
+        <div class="setting">
+          <div><div class="k">1日の目標金額</div><div class="d">次の出庫から既定値として使用</div></div>
+          <button class="btn sm num" id="goalSetBtn">¥0</button>
+        </div>
+        <div class="setting">
+          <div><div class="k">減光モード</div><div class="d">夜間の車内で画面を暗く</div></div>
+          <button class="switch" role="switch" aria-checked="false" data-setting="dim" aria-label="減光モード"></button>
+        </div>
+        <div class="setting">
+          <div><div class="k">画面を常時点灯</div><div class="d">営業中はスリープしない（対応端末のみ）</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
+        </div>
+      </div>
+      <div class="pane-sec">
+        <div class="sec-h"><h3>過去のシフト</h3></div>
+        <ul class="list" id="shiftList"></ul>
+      </div>
+      <div class="pane-sec">
+        <div class="sec-h"><h3>バックアップ</h3><span class="aside num" id="storageInfo"></span></div>
+        <div class="btn-grid">
+          <button class="btn sm" id="backupBtn">JSONで保存</button>
+          <button class="btn sm" id="restoreBtn">復元</button>
+        </div>
+        <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+        <button class="btn sm danger" style="width:100%;margin-top:10px" id="wipeBtn">全データを削除</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ===== 乗車記録シート ===== -->
+<div class="sheet" id="entry" hidden role="dialog" aria-modal="true" aria-labelledby="entryTitle">
+  <div class="sheet-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="entryTitle">乗車記録</h2>
+      <span class="spacer"></span>
+      <span class="sub num" id="eTime"></span>
+    </header>
+
+    <div class="entry-body">
+      <section class="e-amount">
+        <div class="total">
+          <span class="lbl">合計</span>
+          <span class="v num" id="eTotal"><span class="cur">¥</span>0</span>
+        </div>
+        <div class="fields" id="eFields"></div>
+        <div class="keypad" id="eKeys"></div>
+      </section>
+
+      <section class="e-meta">
+        <div class="group">
+          <div class="glabel">決済方法</div>
+          <div class="opts pay" id="ePay"></div>
+        </div>
+        <div class="group">
+          <div class="glabel">乗車種別</div>
+          <div class="opts kind" id="eKind"></div>
+        </div>
+        <div class="group">
+          <div class="glabel"><span>乗車地・降車地</span><span>GPS自動取得・メモで補正</span></div>
+          <div class="loc">
+            <span class="loc-k">乗車</span>
+            <div class="loc-body"><input id="eFromMemo" placeholder="地名メモ（例：新宿駅西口）" enterkeyhint="next"><div class="loc-gps num" id="eFromGps"></div></div>
+            <button class="btn sm ghost" data-regps="from">現在地</button>
+          </div>
+          <div class="loc">
+            <span class="loc-k">降車</span>
+            <div class="loc-body"><input id="eToMemo" placeholder="地名メモ（例：渋谷 道玄坂）" enterkeyhint="done"><div class="loc-gps num" id="eToGps"></div></div>
+            <button class="btn sm ghost" data-regps="to">現在地</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="e-foot">
+      <button class="btn danger" id="eDelete" hidden>削除</button>
+      <button class="btn primary" id="eSave">記録する</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ===== 数値入力ダイアログ（目標金額） ===== -->
+<div class="sheet center" id="numpad" hidden role="dialog" aria-modal="true" aria-labelledby="npTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="npTitle">目標金額</h2>
+    </header>
+    <div class="total"><span class="lbl">金額</span><span class="v num" id="npVal"><span class="cur">¥</span>0</span></div>
+    <div class="keypad" id="npKeys"></div>
+    <footer class="e-foot"><button class="btn primary" id="npOk">決定</button></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   定数
+   ============================================================ */
+const STATUS = {
+  vacant:   { label: '空車' },
+  occupied: { label: '実車' },
+  deadhead: { label: '回送' },
+  rest:     { label: '休憩' },
+  off:      { label: '入庫' },
+};
+const PAY = [
+  { k: 'cash',   label: '現金' },
+  { k: 'card',   label: 'クレジット' },
+  { k: 'ic',     label: '交通系IC' },
+  { k: 'app',    label: 'アプリ決済', sub: 'GO / DiDi 等' },
+  { k: 'qr',     label: 'QR決済',     sub: 'PayPay 等' },
+  { k: 'ticket', label: 'チケット' },
+];
+const KIND = [
+  { k: 'street', label: '流し' },
+  { k: 'app',    label: 'アプリ配車' },
+  { k: 'stand',  label: '乗り場' },
+  { k: 'call',   label: '無線・予約' },
+];
+const FIELDS = [
+  { k: 'meter',  label: 'メーター' },
+  { k: 'pickup', label: '迎車' },
+  { k: 'toll',   label: '高速' },
+  { k: 'other',  label: 'その他' },
+];
+const PIN_TYPES = { app: 'アプリ通知', hail: '手挙げ', ride: '乗車' };
+const KEYS = ['1','2','3','4','5','6','7','8','9','00','0','del'];
+const STORE_KEY = 'taxiboard.v1';
+const MAX_DIGITS = 7;
+
+/* ============================================================
+   ユーティリティ
+   ============================================================ */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pad2 = n => String(n).padStart(2, '0');
+const yen = n => '¥' + Math.round(n || 0).toLocaleString('ja-JP');
+const yenHtml = n => '<span class="cur">¥</span>' + Math.round(n || 0).toLocaleString('ja-JP');
+const hhmm = t => { const d = new Date(t); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+const ymd = t => { const d = new Date(t); return d.getFullYear() + '/' + pad2(d.getMonth() + 1) + '/' + pad2(d.getDate()); };
+const stamp = t => ymd(t) + ' ' + hhmm(t) + ':' + pad2(new Date(t).getSeconds());
+const dur = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return Math.floor(m / 60) + ':' + pad2(m % 60); };
+const durShort = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return s < 3600 ? Math.floor(s / 60) + ':' + pad2(s % 60) : dur(ms); };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rad = d => d * Math.PI / 180;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fmtDist = m => m < 1000 ? Math.round(m / 10) * 10 + 'm' : (m / 1000).toFixed(1) + 'km';
+const fmtLL = p => p && p.lat != null ? p.lat.toFixed(5) + ', ' + p.lng.toFixed(5) + (p.acc != null ? '  ±' + p.acc + 'm' : '') : '';
+function haversine(a, b) {
+  const R = 6371000, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function bearing(a, b) {
+  const y = Math.sin(rad(b.lng - a.lng)) * Math.cos(rad(b.lat));
+  const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lng - a.lng));
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+const DIRS = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
+const dirLabel = deg => DIRS[Math.round(deg / 45) % 8];
+function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+
+/* ============================================================
+   永続化（localStorage）
+   ============================================================ */
+function freshState() {
+  return {
+    v: 1,
+    settings: { goal: 50000, dim: false, wake: true, tab: 'log', heat: 'all', heatRides: true },
+    shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
+    rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,toll,other},total,pay,kind,from,to}
+    events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
+    pins: [],     // {id,shiftId,ts,type,lat,lng,acc}
+  };
+}
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (s && s.v === 1) {
+      const base = freshState();
+      return { ...base, ...s, settings: { ...base.settings, ...s.settings } };
+    }
+  } catch (e) {}
+  return freshState();
+}
+let S = loadState();
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer); saveTimer = null;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
+  catch (e) { toast('保存できませんでした（容量不足の可能性）— バックアップ後に古いデータを整理してください'); }
+}
+function saveSoon() { if (!saveTimer) saveTimer = setTimeout(save, 5000); }
+window.addEventListener('pagehide', () => { if (saveTimer) save(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && saveTimer) save(); });
+
+const curShift = () => S.shifts.find(s => !s.end) || null;
+
+/* ============================================================
+   GPS（Geolocation API）
+   ============================================================ */
+const geo = { pos: null, err: null, track: null };
+const toPos = p => ({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy), t: Date.now() });
+
+function startGeo() {
+  if (!('geolocation' in navigator)) { geo.err = 'unsupported'; renderGps(); return; }
+  navigator.geolocation.watchPosition(p => {
+    const o = toPos(p);
+    trackDistance(o);
+    geo.pos = o; geo.err = null; renderGps();
+  }, e => { geo.err = e.code || 'error'; renderGps(); },
+  { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+}
+
+// 直近の位置が新しければそれを、古ければ取り直す（失敗時は手元の最新値）
+function getPos(maxAge = 20000) {
+  return new Promise(resolve => {
+    if (geo.pos && Date.now() - geo.pos.t < maxAge) return resolve(geo.pos);
+    if (!('geolocation' in navigator)) return resolve(geo.pos);
+    navigator.geolocation.getCurrentPosition(
+      p => { geo.pos = toPos(p); geo.err = null; renderGps(); resolve(geo.pos); },
+      () => resolve(geo.pos),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 });
+  });
+}
+
+// ステータス別の走行距離を裏側で積算（精度の悪い点・瞬間移動は除外）
+function trackDistance(o) {
+  const sh = curShift();
+  if (!sh || sh.status === 'off' || o.acc > 60) return;
+  if (geo.track) {
+    const d = haversine(geo.track, o);
+    const dt = (o.t - geo.track.t) / 1000;
+    if (d < 25) return;
+    if (dt > 0 && d / dt < 60) {
+      sh.dist[sh.status] = (sh.dist[sh.status] || 0) + d;
+      saveSoon();
+    }
+  }
+  geo.track = o;
+}
+
+/* ============================================================
+   シフト・ステータス
+   ============================================================ */
+function startShift() {
+  const now = Date.now();
+  const sh = { id: uid(), start: now, end: null, goal: S.settings.goal, status: 'off', statusSince: now, trip: null, dist: {} };
+  S.shifts.push(sh);
+  geo.track = null;
+  applyWakeLock();
+  return sh;
+}
+
+function logEvent(sh, status, prev) {
+  const ev = { id: uid(), shiftId: sh.id, ts: Date.now(), status, prev, lat: null, lng: null, acc: null };
+  S.events.push(ev);
+  getPos().then(p => { if (p) { ev.lat = p.lat; ev.lng = p.lng; ev.acc = p.acc; save(); } });
+  return ev;
+}
+
+function setStatus(st) {
+  const sh = curShift() || startShift();
+  const prev = sh.status;
+  if (prev === st) return;
+  const ev = logEvent(sh, st, prev);
+  sh.status = st;
+  sh.statusSince = ev.ts;
+  if (st === 'occupied') {
+    const trip = { start: ev.ts, from: null };
+    sh.trip = trip;
+    getPos().then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); } });
+  }
+  save();
+  haptic(18);
+  renderAll();
+  // 実車終了＝そのまま営業記録の入力へ
+  if (prev === 'occupied') openEntry();
+}
+
+function endShift() {
+  const sh = curShift();
+  if (!sh) return;
+  const st = shiftStats(sh);
+  if (!confirm(`入庫（営業終了）しますか？\n\n売上 ${yen(st.sales)} / ${st.count}回`)) return;
+  logEvent(sh, 'off', sh.status);
+  sh.end = Date.now();
+  sh.status = 'off';
+  sh.trip = null;
+  save();
+  applyWakeLock();
+  renderAll();
+  toast('入庫しました。お疲れさまでした');
+}
+
+/* ============================================================
+   集計
+   ============================================================ */
+function shiftStats(sh) {
+  const rides = S.rides.filter(r => r.shiftId === sh.id);
+  const byPay = {}; const fare = { meter: 0, pickup: 0, toll: 0, other: 0 };
+  let sales = 0;
+  for (const r of rides) {
+    sales += r.total;
+    byPay[r.pay] = (byPay[r.pay] || 0) + r.total;
+    for (const k in fare) fare[k] += r.fare[k] || 0;
+  }
+  const end = sh.end || Date.now();
+  const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
+  const time = { vacant: 0, occupied: 0, deadhead: 0, rest: 0 };
+  evs.forEach((e, i) => {
+    if (!(e.status in time)) return;
+    const to = i + 1 < evs.length ? evs[i + 1].ts : end;
+    time[e.status] += Math.max(0, to - e.ts);
+  });
+  const working = time.vacant + time.occupied + time.deadhead;   // 休憩を除く稼働時間
+  const elapsed = end - sh.start;
+  const distTotal = Object.values(sh.dist || {}).reduce((a, b) => a + b, 0);
+  return {
+    rides, count: rides.length, sales, byPay, fare, time, working, elapsed,
+    occRate: working > 60000 ? time.occupied / working : null,
+    hourly: working > 15 * 60000 ? sales / (working / 3600000) : null,
+    avg: rides.length ? sales / rides.length : null,
+    distTotal, distOcc: (sh.dist || {}).occupied || 0,
+  };
+}
+
+/* ============================================================
+   描画：HUD・ステータス
+   ============================================================ */
+function renderHud() {
+  const sh = curShift();
+  const st = sh ? shiftStats(sh) : null;
+  const goal = sh ? sh.goal : S.settings.goal;
+  const sales = st ? st.sales : 0;
+  const ratio = goal > 0 ? sales / goal : 0;
+
+  $('#sales').innerHTML = yenHtml(sales);
+  $('#goal').textContent = yen(goal);
+  $('#pct').innerHTML = Math.floor(ratio * 100) + '<small>%</small>';
+  $('#bar').style.width = clamp(ratio * 100, 0, 100) + '%';
+  $('#barWrap').setAttribute('aria-valuenow', Math.round(clamp(ratio * 100, 0, 100)));
+  $('#hud').classList.toggle('done', goal > 0 && sales >= goal);
+  $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `目標達成 ＋${yen(sales - goal)}` : `目標まで あと ${yen(goal - sales)}`;
+
+  $('#stCount').innerHTML = (st ? st.count : 0) + '<small>回</small>';
+  $('#stAvg').textContent = st && st.avg != null ? yen(st.avg) : '—';
+  $('#stOcc').innerHTML = st && st.occRate != null ? Math.round(st.occRate * 100) + '<small>%</small>' : '—';
+  $('#stHourly').textContent = st && st.hourly != null ? yen(st.hourly) : '—';
+  $('#stTime').textContent = st ? dur(st.elapsed) : '0:00';
+
+  const badge = $('#shiftBadge');
+  badge.textContent = sh ? hhmm(sh.start) + ' 出庫' : '未出庫';
+  badge.classList.toggle('live', !!sh);
+}
+
+function renderStatus() {
+  const sh = curShift();
+  $$('.st-btn').forEach(b => {
+    const on = !!sh && sh.status === b.dataset.st;
+    b.setAttribute('aria-pressed', on);
+    b.querySelector('.t').textContent = on ? durShort(Date.now() - sh.statusSince) : '';
+  });
+}
+
+function renderGps() {
+  const el = $('#gps');
+  const fresh = geo.pos && Date.now() - geo.pos.t < 60000;
+  el.className = 'gps ' + (fresh ? 'ok' : geo.pos ? 'stale' : geo.err ? 'err' : '');
+  el.title = geo.err === 'unsupported' ? 'この端末は位置情報に未対応' :
+             geo.err === 1 ? '位置情報の許可がありません' :
+             fresh ? `精度 ±${geo.pos.acc}m` : '測位中…';
+}
+
+function renderClock() {
+  $('#clock').textContent = hhmm(Date.now());
+}
+
+/* ============================================================
+   描画：履歴
+   ============================================================ */
+const payLabel = k => (PAY.find(p => p.k === k) || {}).label || k;
+const kindLabel = k => (KIND.find(p => p.k === k) || {}).label || '';
+function placeText(p) { return p ? (p.memo || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
+
+function renderLog() {
+  const sh = curShift();
+  const st = sh ? shiftStats(sh) : null;
+  const byPay = st ? st.byPay : {};
+  const cash = byPay.cash || 0;
+  $('#sumCash').textContent = yen(cash);
+  $('#sumCashless').textContent = yen((st ? st.sales : 0) - cash);
+  $('#payBreakdown').innerHTML = PAY.filter(p => p.k !== 'cash' && byPay[p.k])
+    .map(p => `<span>${p.label}<b>${yen(byPay[p.k])}</b></span>`).join('');
+
+  const list = $('#rideList');
+  if (!st || !st.rides.length) {
+    list.innerHTML = `<li class="empty">${sh ? 'まだ乗車記録はありません。<br>「実車」→「空車」で自動的に入力画面が開きます。' : 'ステータスボタンを押すと出庫（営業開始）します。'}</li>`;
+    return;
+  }
+  list.innerHTML = st.rides.slice().sort((a, b) => b.ts - a.ts).map(r => `
+    <li><button class="row" data-ride="${r.id}">
+      <span class="time num">${hhmm(r.ts)}</span>
+      <span class="body">
+        <div class="main"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay))}</span>${esc(placeText(r.from))} → ${esc(placeText(r.to))}</div>
+        <div class="sub num">${[kindLabel(r.kind), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : '', r.fare.toll ? '高速' + yen(r.fare.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
+      </span>
+      <span class="amt num">${yen(r.total)}</span>
+    </button></li>`).join('');
+}
+
+/* ============================================================
+   描画：需要ヒートマップ
+   ============================================================ */
+const CELL_LAT = 0.0045, CELL_LNG = 0.0055;   // 約500m四方（東京付近）
+function demandPoints() {
+  const f = S.settings.heat;
+  const now = new Date(), h = now.getHours(), dow = now.getDay();
+  const hourOk = t => { const d = new Date(t); const dh = Math.abs(d.getHours() - h); return Math.min(dh, 24 - dh) <= 1; };
+  const pass = t => f === 'all' || (hourOk(t) && (f === 'hour' || new Date(t).getDay() === dow));
+  const pts = S.pins.filter(p => p.lat != null && pass(p.ts)).map(p => ({ lat: p.lat, lng: p.lng, ts: p.ts, type: p.type }));
+  if (S.settings.heatRides) {
+    for (const r of S.rides) {
+      if (r.from && r.from.lat != null && pass(r.start || r.ts)) pts.push({ lat: r.from.lat, lng: r.from.lng, ts: r.start || r.ts, type: 'ride', memo: r.from.memo });
+    }
+  }
+  return pts;
+}
+
+let PALETTE = null;
+function palette() {
+  if (PALETTE) return PALETTE;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 1;
+  const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 256, 0);
+  gr.addColorStop(0, 'rgba(255,90,40,0)');
+  gr.addColorStop(0.15, 'rgba(255,90,40,.45)');
+  gr.addColorStop(0.45, 'rgba(255,160,30,.8)');
+  gr.addColorStop(0.75, 'rgba(255,220,90,.95)');
+  gr.addColorStop(1, 'rgba(255,255,230,1)');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 1);
+  return (PALETTE = g.getImageData(0, 0, 256, 1).data);
+}
+
+function drawHeat(pts) {
+  const cv = $('#heat');
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#0D1014'; ctx.fillRect(0, 0, w, h);
+
+  const me = geo.pos;
+  if (!pts.length) {
+    ctx.fillStyle = '#5A6472'; ctx.font = '14px ' + getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = 'center';
+    ctx.fillText('需要ピンを記録するとここに表示されます', w / 2, h / 2);
+    return;
+  }
+
+  // 正距円筒図法（経度をcos(緯度)で補正）
+  const all = me ? pts.concat([me]) : pts;
+  const lat0 = all.reduce((a, p) => a + p.lat, 0) / all.length;
+  const kx = Math.cos(rad(lat0));
+  const X = p => p.lng * kx, Y = p => -p.lat;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of all) { minX = Math.min(minX, X(p)); maxX = Math.max(maxX, X(p)); minY = Math.min(minY, Y(p)); maxY = Math.max(maxY, Y(p)); }
+  const spanX = Math.max(maxX - minX, 0.012) * 1.3, spanY = Math.max(maxY - minY, 0.012) * 1.3;
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const scale = Math.min(w / spanX, h / spanY);
+  const px = p => (X(p) - cx) * scale + w / 2, py = p => (Y(p) - cy) * scale + h / 2;
+  const mPerPx = 111320 / scale;
+
+  // 縮尺に合わせたグリッドと縮尺バー
+  const nice = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
+  const step = nice.find(n => n / mPerPx >= 60) || nice[nice.length - 1];
+  const stepPx = step / mPerPx;
+  ctx.strokeStyle = 'rgba(255,255,255,.045)'; ctx.lineWidth = 1;
+  for (let x = (w / 2) % stepPx; x < w; x += stepPx) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, h); ctx.stroke(); }
+  for (let y = (h / 2) % stepPx; y < h; y += stepPx) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); ctx.stroke(); }
+
+  // 濃度を蓄積 → パレットで着色
+  const off = document.createElement('canvas'); off.width = w; off.height = h;
+  const o = off.getContext('2d');
+  const r = clamp(280 / mPerPx, 12, 56);
+  for (const p of pts) {
+    const x = px(p), y = py(p);
+    const g = o.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(0,0,0,.32)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    o.fillStyle = g; o.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  const img = o.getImageData(0, 0, w, h), d = img.data, pal = palette();
+  for (let i = 3; i < d.length; i += 4) {
+    const a = d[i]; if (!a) continue;
+    const j = a * 4; d[i - 3] = pal[j]; d[i - 2] = pal[j + 1]; d[i - 1] = pal[j + 2]; d[i] = pal[j + 3];
+  }
+  o.putImageData(img, 0, 0);
+  ctx.drawImage(off, 0, 0, w, h);
+
+  // 個々の点
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  for (const p of pts) { ctx.beginPath(); ctx.arc(px(p), py(p), 1.6, 0, Math.PI * 2); ctx.fill(); }
+
+  // 現在地
+  if (me) {
+    const x = px(me), y = py(me);
+    ctx.fillStyle = 'rgba(91,155,255,.22)'; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#5B9BFF'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+
+  // 縮尺・方位
+  ctx.strokeStyle = '#8C96A4'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(12, h - 14); ctx.lineTo(12 + stepPx, h - 14); ctx.stroke();
+  ctx.fillStyle = '#8C96A4'; ctx.font = '600 11px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'left';
+  ctx.fillText(fmtDist(step), 12, h - 20);
+  ctx.textAlign = 'center'; ctx.fillText('N', w - 16, 20);
+  ctx.beginPath(); ctx.moveTo(w - 16, 26); ctx.lineTo(w - 16, 40); ctx.stroke();
+}
+
+function renderDemand() {
+  const pts = demandPoints();
+  $$('#heatFilter [data-f]').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.f === 'rides' ? S.settings.heatRides : b.dataset.f === S.settings.heat);
+  });
+  $('#heatCount').textContent = pts.length + ' 件';
+  drawHeat(pts);
+
+  // 約500mセルで集計
+  const cells = new Map();
+  for (const p of pts) {
+    const key = Math.floor(p.lat / CELL_LAT) + ':' + Math.floor(p.lng / CELL_LNG);
+    let c = cells.get(key);
+    if (!c) cells.set(key, c = { n: 0, lat: 0, lng: 0, types: {}, hours: new Array(24).fill(0), memos: {} });
+    c.n++; c.lat += p.lat; c.lng += p.lng;
+    c.types[p.type] = (c.types[p.type] || 0) + 1;
+    c.hours[new Date(p.ts).getHours()]++;
+    if (p.memo) c.memos[p.memo] = (c.memos[p.memo] || 0) + 1;
+  }
+  // 名前のないセルには付近の乗車地メモを流用
+  const top = [...cells.values()].sort((a, b) => b.n - a.n).slice(0, 8);
+  const list = $('#hotList');
+  if (!top.length) { list.innerHTML = '<li class="empty">「アプリ通知」「手挙げ」ボタンで需要のあった場所を記録しましょう。</li>'; return; }
+  list.innerHTML = top.map((c, i) => {
+    const ctr = { lat: c.lat / c.n, lng: c.lng / c.n };
+    const name = Object.entries(c.memos).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const peak = c.hours.indexOf(Math.max(...c.hours));
+    const mix = Object.entries(c.types).map(([k, v]) => PIN_TYPES[k] + v).join(' ・ ');
+    const dir = geo.pos ? `<b>${dirLabel(bearing(geo.pos, ctr))}</b><span class="num">${fmtDist(haversine(geo.pos, ctr))}</span>` : '<span>—</span>';
+    return `<li class="row">
+      <span class="rank num ${i < 3 ? 'top' : ''}">${i + 1}</span>
+      <span class="body">
+        <div class="main">${name ? esc(name) + ' 付近' : '<span class="num">' + ctr.lat.toFixed(4) + ', ' + ctr.lng.toFixed(4) + '</span>'}</div>
+        <div class="sub num">${c.n}件 ・ ピーク ${peak}時台 ・ ${mix}</div>
+      </span>
+      <span class="dir">${dir}</span>
+    </li>`;
+  }).join('');
+}
+
+/* ============================================================
+   互助型BI（モックアップ：ダミーデータ）
+   ============================================================ */
+const AREAS = [
+  { n: '新宿駅 西口',   lat: 35.6910, lng: 139.6990, p: 'mixed' },
+  { n: '渋谷 道玄坂',   lat: 35.6580, lng: 139.6975, p: 'night' },
+  { n: '東京駅 八重洲', lat: 35.6800, lng: 139.7700, p: 'biz' },
+  { n: '六本木交差点',  lat: 35.6627, lng: 139.7314, p: 'night' },
+  { n: '銀座 4丁目',    lat: 35.6717, lng: 139.7650, p: 'night' },
+  { n: '品川駅 港南口', lat: 35.6285, lng: 139.7400, p: 'biz' },
+  { n: '池袋駅 東口',   lat: 35.7295, lng: 139.7120, p: 'mixed' },
+  { n: '羽田空港 T3',   lat: 35.5440, lng: 139.7680, p: 'air' },
+  { n: '上野駅',        lat: 35.7138, lng: 139.7770, p: 'mixed' },
+  { n: '赤坂見附',      lat: 35.6770, lng: 139.7370, p: 'night' },
+];
+function areaBase(p, h) {
+  const wave = (c, w) => Math.exp(-(Math.min(Math.abs(h - c), 24 - Math.abs(h - c)) ** 2) / (2 * w * w));
+  if (p === 'night') return 25 + 65 * Math.max(wave(23.5, 2.2), 0.5 * wave(19, 1.5));
+  if (p === 'biz')   return 25 + 60 * Math.max(wave(8.5, 1.4), wave(18.5, 1.8));
+  if (p === 'air')   return 45 + 40 * Math.max(wave(9, 2.5), wave(21, 2.5));
+  return 35 + 45 * Math.max(wave(9, 2), wave(22, 2.5));
+}
+const bi = { areas: AREAS.map(a => ({ ...a, noise: (Math.random() - .5) * 20, demand: 0, prev: 0 })), at: 0 };
+function tickBi() {
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  for (const a of bi.areas) {
+    a.prev = a.demand;
+    a.noise = clamp(a.noise + (Math.random() - .5) * 8, -20, 20);
+    a.demand = Math.round(clamp(areaBase(a.p, h) + a.noise, 3, 99));
+    a.drivers = Math.max(0, Math.round((100 - a.demand) / 9 + Math.random() * 3));
+    a.wait = Math.max(1, Math.round((100 - a.demand) / 5 + Math.random() * 4));
+  }
+  bi.at = Date.now();
+  if (S.settings.tab === 'area') renderBi();
+}
+function renderBi() {
+  const lv = d => d >= 75 ? ['混雑', 'var(--danger)'] : d >= 55 ? ['やや混雑', 'var(--accent)'] : d >= 35 ? ['通常', 'var(--ok)'] : ['閑散', 'var(--faint)'];
+  $('#biUpdated').textContent = '更新 ' + hhmm(bi.at);
+  $('#biList').innerHTML = bi.areas.slice().sort((a, b) => b.demand - a.demand).map(a => {
+    const [lab, col] = lv(a.demand);
+    const delta = a.prev ? a.demand - a.prev : 0;
+    const tr = delta > 2 ? ['↑', 'var(--danger)'] : delta < -2 ? ['↓', 'var(--st-deadhead)'] : ['→', 'var(--faint)'];
+    const dist = geo.pos ? ' ・ ' + dirLabel(bearing(geo.pos, a)) + ' ' + fmtDist(haversine(geo.pos, a)) : '';
+    return `<li class="row">
+      <span class="lvl"><div class="lab" style="color:${col}">${lab}</div><div class="meter"><i style="width:${a.demand}%;background:${col}"></i></div></span>
+      <span class="body"><div class="main">${a.n}</div><div class="sub num">空車 約${a.drivers}台 ・ 客待ち 約${a.wait}分${dist}</div></span>
+      <span class="trend" style="color:${tr[1]}">${tr[0]}</span>
+    </li>`;
+  }).join('');
+}
+
+/* ============================================================
+   描画：出力・設定
+   ============================================================ */
+function renderData() {
+  const sh = curShift();
+  $('#shiftBtn').textContent = sh ? '入庫（営業終了）' : '出庫（営業開始）';
+  $('#shiftBtn').className = 'btn ' + (sh ? 'danger' : 'primary');
+  $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
+  $('#goalSetBtn').textContent = yen(S.settings.goal);
+  $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
+
+  const past = S.shifts.filter(s => s.end).sort((a, b) => b.start - a.start).slice(0, 30);
+  $('#shiftList').innerHTML = past.length ? past.map(s => {
+    const st = shiftStats(s);
+    return `<li class="row">
+      <span class="body"><div class="main num">${ymd(s.start)}</div><div class="sub num">${hhmm(s.start)}–${hhmm(s.end)} ・ ${st.count}回 ・ 実車率 ${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'}</div></span>
+      <span class="amt num">${yen(st.sales)}</span>
+    </li>`;
+  }).join('') : '<li class="empty">入庫したシフトがここに並びます。</li>';
+
+  let bytes = 0; try { bytes = (localStorage.getItem(STORE_KEY) || '').length * 2; } catch (e) {}
+  $('#storageInfo').textContent = '使用量 ' + (bytes / 1024).toFixed(0) + ' KB';
+}
+
+function renderAll() {
+  renderHud(); renderStatus(); renderGps(); renderClock();
+  const t = S.settings.tab;
+  if (t === 'log') renderLog();
+  else if (t === 'demand') renderDemand();
+  else if (t === 'area') renderBi();
+  else if (t === 'data') renderData();
+}
+
+function setTab(t) {
+  S.settings.tab = t; saveSoon();
+  $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
+  $$('.pane').forEach(p => p.hidden = p.dataset.pane !== t);
+  renderAll();
+}
+
+/* ============================================================
+   テンキー（共通部品）
+   ============================================================ */
+function mountKeypad(el, onKey) {
+  el.innerHTML = KEYS.map(k => k === 'del'
+    ? `<button class="key fn" data-k="del" aria-label="1文字削除（長押しで全消去）"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-7 7 7 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="M17 9l-6 6M11 9l6 6"/></svg></button>`
+    : `<button class="key num" data-k="${k}">${k}</button>`).join('');
+  let holdTimer = null, held = false;
+  el.addEventListener('pointerdown', e => {
+    const b = e.target.closest('[data-k="del"]'); if (!b) return;
+    held = false;
+    holdTimer = setTimeout(() => { held = true; haptic(30); onKey('clr'); }, 550);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, () => clearTimeout(holdTimer)));
+  el.addEventListener('click', e => {
+    const b = e.target.closest('.key'); if (!b) return;
+    if (b.dataset.k === 'del' && held) { held = false; return; }
+    haptic(); onKey(b.dataset.k);
+  });
+}
+function applyKey(str, k) {
+  if (k === 'clr') return '';
+  if (k === 'del') return str.slice(0, -1);
+  const n = (str + k).replace(/^0+/, '');
+  return n.length > MAX_DIGITS ? str : n;
+}
+
+/* ============================================================
+   乗車記録シート
+   ============================================================ */
+let E = null;   // 入力中の記録
+
+function openSheet(el) {
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add('open'));
+}
+function closeSheet(el) {
+  el.classList.remove('open');
+  setTimeout(() => { el.hidden = true; }, 200);
+}
+
+function openEntry(rideId) {
+  const sh = curShift();
+  const r = rideId ? S.rides.find(x => x.id === rideId) : null;
+  if (r) {
+    E = {
+      editId: r.id, start: r.start, ts: r.ts,
+      fields: Object.fromEntries(FIELDS.map(f => [f.k, r.fare[f.k] ? String(r.fare[f.k]) : ''])),
+      active: 'meter', pay: r.pay, kind: r.kind || 'street',
+      from: { ...(r.from || {}) }, to: { ...(r.to || {}) },
+    };
+  } else {
+    const trip = sh && sh.trip;
+    E = {
+      editId: null, start: trip ? trip.start : null, ts: Date.now(),
+      fields: { meter: '', pickup: '', toll: '', other: '' },
+      active: 'meter', pay: 'cash', kind: 'street',
+      from: trip && trip.from ? { ...trip.from } : {}, to: {},
+    };
+    // 乗車地が無ければ現在地で補完、降車地は常に現在地
+    getPos().then(p => {
+      if (!E || E.editId || !p) return;
+      const ll = { lat: p.lat, lng: p.lng, acc: p.acc };
+      if (E.from.lat == null) Object.assign(E.from, ll);
+      Object.assign(E.to, ll);
+      renderEntryLoc();
+    });
+  }
+  $('#entryTitle').textContent = r ? '乗車記録の修正' : '乗車記録';
+  $('#eDelete').hidden = !r;
+  $('#eFromMemo').value = E.from.memo || '';
+  $('#eToMemo').value = E.to.memo || '';
+  renderEntry(); renderEntryLoc();
+  openSheet($('#entry'));
+}
+
+function entryTotal() { return FIELDS.reduce((a, f) => a + (+E.fields[f.k] || 0), 0); }
+
+function renderEntry() {
+  const total = entryTotal();
+  $('#eTotal').innerHTML = yenHtml(total);
+  $('#eTime').textContent = (E.start ? hhmm(E.start) + ' → ' : '') + hhmm(E.ts);
+  $('#eFields').innerHTML = FIELDS.map(f => {
+    const v = +E.fields[f.k] || 0;
+    return `<button class="field" data-field="${f.k}" aria-pressed="${E.active === f.k}">
+      <span class="k">${f.label}</span><span class="v num ${v ? '' : 'zero'}">${yen(v)}</span></button>`;
+  }).join('');
+  $('#ePay').innerHTML = PAY.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}">${p.label}${p.sub ? `<small>${p.sub}</small>` : ''}</button>`).join('');
+  $('#eKind').innerHTML = KIND.map(p => `<button class="opt" data-kind="${p.k}" aria-pressed="${E.kind === p.k}">${p.label}</button>`).join('');
+  const save = $('#eSave');
+  save.disabled = total <= 0;
+  save.textContent = total > 0 ? `${E.editId ? '修正を保存' : '記録する'}　${yen(total)}` : '金額を入力';
+}
+function renderEntryLoc() {
+  $('#eFromGps').textContent = fmtLL(E.from) || (E.editId ? '位置情報なし' : '取得中…');
+  $('#eToGps').textContent = fmtLL(E.to) || (E.editId ? '位置情報なし' : '取得中…');
+}
+
+function saveEntry() {
+  const total = entryTotal();
+  if (total <= 0) return;
+  E.from.memo = $('#eFromMemo').value.trim();
+  E.to.memo = $('#eToMemo').value.trim();
+  const fare = Object.fromEntries(FIELDS.map(f => [f.k, +E.fields[f.k] || 0]));
+  if (E.editId) {
+    const r = S.rides.find(x => x.id === E.editId);
+    Object.assign(r, { fare, total, pay: E.pay, kind: E.kind, from: E.from, to: E.to });
+    toast('修正しました');
+  } else {
+    const sh = curShift() || startShift();
+    if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
+    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, pay: E.pay, kind: E.kind, from: E.from, to: E.to });
+    sh.trip = null;
+    // 実車のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
+    if (sh.status === 'occupied') { logEvent(sh, 'vacant', 'occupied'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
+    toast(`${yen(total)}（${payLabel(E.pay)}）を記録しました`);
+  }
+  save(); haptic(25);
+  E = null;
+  closeSheet($('#entry'));
+  renderAll();
+}
+
+function deleteEntry() {
+  if (!E || !E.editId) return;
+  if (!confirm('この乗車記録を削除しますか？')) return;
+  S.rides = S.rides.filter(r => r.id !== E.editId);
+  save(); E = null;
+  closeSheet($('#entry'));
+  renderAll();
+  toast('削除しました');
+}
+
+/* ============================================================
+   数値入力ダイアログ
+   ============================================================ */
+const NP = { val: '', onOk: null };
+function openNumpad(title, value, onOk) {
+  $('#npTitle').textContent = title;
+  NP.val = value ? String(value) : ''; NP.onOk = onOk;
+  $('#npVal').innerHTML = yenHtml(+NP.val || 0);
+  openSheet($('#numpad'));
+}
+function editGoal() {
+  openNumpad('1日の目標金額', S.settings.goal, v => {
+    S.settings.goal = v;
+    const sh = curShift(); if (sh) sh.goal = v;
+    save(); renderAll();
+  });
+}
+
+/* ============================================================
+   需要ピン
+   ============================================================ */
+function addPin(type) {
+  const sh = curShift();
+  const pin = { id: uid(), shiftId: sh ? sh.id : null, ts: Date.now(), type, lat: null, lng: null, acc: null };
+  S.pins.push(pin);
+  save(); haptic(25);
+  toast(`${PIN_TYPES[type]}を記録しました`, '取消', () => {
+    S.pins = S.pins.filter(p => p.id !== pin.id); save(); renderAll(); toast('取り消しました');
+  });
+  getPos(15000).then(p => {
+    if (p) { pin.lat = p.lat; pin.lng = p.lng; pin.acc = p.acc; save(); if (S.settings.tab === 'demand') renderDemand(); }
+    else if (S.pins.includes(pin)) toast('位置情報を取得できませんでした（時刻のみ記録）');
+  });
+}
+
+/* ============================================================
+   CSV 出力
+   ============================================================ */
+const csvCell = v => { if (v == null) return ''; v = String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+function download(name, text, type = 'text/csv;charset=utf-8') {
+  const blob = new Blob([type.startsWith('text/csv') ? '﻿' + text : text], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+const fileDate = () => { const d = new Date(); return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()); };
+const shiftDay = id => { const s = S.shifts.find(x => x.id === id); return s ? ymd(s.start) : ''; };
+
+function exportLog(onlyShiftId) {
+  const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)',
+    '運賃合計', 'メーター', '迎車', '高速', 'その他', '決済方法', '乗車種別',
+    '乗車時刻', '乗車地', '乗車緯度', '乗車経度', '降車地', '降車緯度', '降車経度'];
+  const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
+  const rows = [];
+  for (const e of S.events.filter(keep)) {
+    const note = e.status === 'off' ? '入庫' : e.prev === 'off' ? '出庫' : (STATUS[e.prev] ? STATUS[e.prev].label + 'から' : '');
+    rows.push([e.ts, [stamp(e.ts), shiftDay(e.shiftId), 'ステータス', STATUS[e.status]?.label || e.status, note, e.lat, e.lng, e.acc]]);
+  }
+  for (const r of S.rides.filter(keep)) {
+    rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc,
+      r.total, r.fare.meter, r.fare.pickup, r.fare.toll, r.fare.other, payLabel(r.pay), kindLabel(r.kind),
+      r.start ? stamp(r.start) : '', r.from?.memo, r.from?.lat, r.from?.lng, r.to?.memo, r.to?.lat, r.to?.lng]]);
+  }
+  for (const p of S.pins.filter(keep)) {
+    rows.push([p.ts, [stamp(p.ts), shiftDay(p.shiftId), '需要ピン', '', PIN_TYPES[p.type], p.lat, p.lng, p.acc]]);
+  }
+  if (!rows.length) { toast('出力するデータがありません'); return; }
+  rows.sort((a, b) => a[0] - b[0]);
+  download(`taxiboard-log-${onlyShiftId ? 'shift-' : ''}${fileDate()}.csv`, toCsv([head, ...rows.map(r => r[1])]));
+}
+
+function exportSummary() {
+  const shifts = S.shifts.slice().sort((a, b) => a.start - b.start);
+  if (!shifts.length) { toast('出力するデータがありません'); return; }
+  const head = ['営業日', '出庫', '入庫', '営業時間', '休憩時間', '乗車回数', '営業収入合計',
+    'メーター', '迎車', '高速', 'その他', ...PAY.map(p => p.label),
+    '実車時間', '空車時間', '回送時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
+  const rows = shifts.map(s => {
+    const st = shiftStats(s);
+    return [ymd(s.start), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), dur(st.time.rest), st.count, st.sales,
+      st.fare.meter, st.fare.pickup, st.fare.toll, st.fare.other, ...PAY.map(p => st.byPay[p.k] || 0),
+      dur(st.time.occupied), dur(st.time.vacant), dur(st.time.deadhead),
+      st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
+      (st.distTotal / 1000).toFixed(1), (st.distOcc / 1000).toFixed(1),
+      s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
+  });
+  download(`taxiboard-summary-${fileDate()}.csv`, toCsv([head, ...rows]));
+}
+
+/* ============================================================
+   バックアップ
+   ============================================================ */
+function backup() {
+  save();
+  download(`taxiboard-backup-${fileDate()}.json`, JSON.stringify(S), 'application/json');
+}
+function restore(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const s = JSON.parse(rd.result);
+      if (!s || s.v !== 1 || !Array.isArray(s.rides)) throw new Error('format');
+      if (!confirm(`バックアップを復元しますか？\n現在のデータは置き換えられます。\n（乗車記録 ${s.rides.length}件）`)) return;
+      const base = freshState();
+      S = { ...base, ...s, settings: { ...base.settings, ...s.settings } };
+      save(); applySettings(); setTab(S.settings.tab);
+      toast('復元しました');
+    } catch (e) { toast('バックアップファイルを読み込めませんでした'); }
+  };
+  rd.readAsText(file);
+}
+
+/* ============================================================
+   画面設定（減光・常時点灯）
+   ============================================================ */
+let wakeLock = null;
+async function applyWakeLock() {
+  try {
+    const want = S.settings.wake && curShift() && document.visibilityState === 'visible';
+    if (want && !wakeLock && 'wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!want && wakeLock) {
+      await wakeLock.release(); wakeLock = null;
+    }
+  } catch (e) { wakeLock = null; }
+}
+document.addEventListener('visibilitychange', applyWakeLock);
+
+function applySettings() {
+  document.documentElement.classList.toggle('dim', !!S.settings.dim);
+  $('#dimBtn').setAttribute('aria-pressed', !!S.settings.dim);
+  applyWakeLock();
+}
+
+/* ============================================================
+   トースト
+   ============================================================ */
+let toastTimer = null;
+function toast(msg, actLabel, actFn) {
+  const el = $('#toast'), btn = $('#toastAct');
+  $('#toastMsg').textContent = msg;
+  btn.hidden = !actLabel;
+  el.classList.toggle('has-act', !!actLabel);
+  btn.textContent = actLabel || '';
+  btn.onclick = actFn ? () => { el.classList.remove('show'); actFn(); } : null;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), actLabel ? 5000 : 2600);
+}
+
+/* ============================================================
+   イベント
+   ============================================================ */
+$$('.st-btn').forEach(b => b.addEventListener('click', () => setStatus(b.dataset.st)));
+$('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
+$$('[data-pin]').forEach(b => b.addEventListener('click', () => addPin(b.dataset.pin)));
+$$('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+$('#goalBtn').addEventListener('click', editGoal);
+$('#goalSetBtn').addEventListener('click', editGoal);
+$('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
+
+$('#rideList').addEventListener('click', e => { const b = e.target.closest('[data-ride]'); if (b) openEntry(b.dataset.ride); });
+
+$('#heatFilter').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if (!b) return;
+  if (b.dataset.f === 'rides') S.settings.heatRides = !S.settings.heatRides;
+  else S.settings.heat = b.dataset.f;
+  saveSoon(); renderDemand();
+});
+
+$('#shiftBtn').addEventListener('click', () => {
+  if (curShift()) endShift();
+  else { const sh = startShift(); logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); save(); renderAll(); toast('出庫しました。安全運転で！'); }
+});
+$$('[data-export]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.export;
+  if (k === 'log-all') exportLog();
+  else if (k === 'log-shift') { const sh = curShift() || S.shifts.slice().sort((a, b) => b.start - a.start)[0]; sh ? exportLog(sh.id) : toast('出力するデータがありません'); }
+  else exportSummary();
+}));
+$$('.switch[data-setting]').forEach(s => s.addEventListener('click', () => {
+  const k = s.dataset.setting; S.settings[k] = !S.settings[k]; save(); applySettings(); renderData();
+}));
+$('#backupBtn').addEventListener('click', backup);
+$('#restoreBtn').addEventListener('click', () => $('#restoreFile').click());
+$('#restoreFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) restore(f); e.target.value = ''; });
+$('#wipeBtn').addEventListener('click', () => {
+  if (!confirm('すべての記録を削除します。元に戻せません。\n（事前にバックアップを推奨）')) return;
+  if (!confirm('本当に削除しますか？')) return;
+  const settings = S.settings; S = freshState(); S.settings = settings;
+  save(); applyWakeLock(); renderAll(); toast('全データを削除しました');
+});
+
+// 入力シート
+mountKeypad($('#eKeys'), k => { E.fields[E.active] = applyKey(E.fields[E.active], k); renderEntry(); });
+$('#eFields').addEventListener('click', e => { const b = e.target.closest('[data-field]'); if (b) { haptic(); E.active = b.dataset.field; renderEntry(); } });
+$('#ePay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); E.pay = b.dataset.pay; renderEntry(); } });
+$('#eKind').addEventListener('click', e => { const b = e.target.closest('[data-kind]'); if (b) { haptic(); E.kind = b.dataset.kind; renderEntry(); } });
+$$('[data-regps]').forEach(b => b.addEventListener('click', async () => {
+  const which = b.dataset.regps;
+  $(which === 'from' ? '#eFromGps' : '#eToGps').textContent = '取得中…';
+  const p = await getPos(3000);
+  if (!E) return;
+  if (p) Object.assign(E[which], { lat: p.lat, lng: p.lng, acc: p.acc });
+  else toast('位置情報を取得できませんでした');
+  renderEntryLoc();
+}));
+$('#eSave').addEventListener('click', saveEntry);
+$('#eDelete').addEventListener('click', deleteEntry);
+$('#entry [data-close]').addEventListener('click', () => { E = null; closeSheet($('#entry')); });
+
+// 数値ダイアログ
+mountKeypad($('#npKeys'), k => { NP.val = applyKey(NP.val, k); $('#npVal').innerHTML = yenHtml(+NP.val || 0); });
+$('#npOk').addEventListener('click', () => { const fn = NP.onOk; closeSheet($('#numpad')); fn && fn(+NP.val || 0); });
+$('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad')));
+$('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
+
+document.addEventListener('keydown', e => {
+  const open = ['#numpad', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  if (!open) return;
+  if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
+  if (e.target.tagName === 'INPUT') return;
+  const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
+  if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
+  e.preventDefault();
+  open.querySelector(`.key[data-k="${k}"]`)?.click();
+});
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (S.settings.tab === 'demand') renderDemand(); }, 150);
+});
+
+/* ============================================================
+   起動
+   ============================================================ */
+applySettings();
+tickBi();
+setTab(S.settings.tab);
+startGeo();
+setInterval(() => { renderHud(); renderStatus(); renderClock(); renderGps(); }, 1000);
+setInterval(tickBi, 20000);
+</script>
+</body>
+</html>
