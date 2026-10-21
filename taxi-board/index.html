@@ -262,6 +262,10 @@ svg{display:block}
 .row .amt{font-size:20px;font-weight:700;flex:none}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface-3);color:var(--muted);margin-right:6px;vertical-align:1px}
 .tag.cash{background:rgba(255,176,32,.14);color:var(--accent)}
+.tag.pause{background:rgba(244,114,182,.16);color:var(--st-wait)}
+.pause-sum{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 14px;border-radius:var(--r-md);background:var(--surface-2);font-size:14px;color:var(--muted)}
+.pause-sum b{color:var(--st-wait);font-size:18px}
+.row .amt.dur{font-size:17px;color:var(--st-wait)}
 
 /* 需要マップ */
 .seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
@@ -405,7 +409,7 @@ svg{display:block}
 .cal-inner{max-width:960px}
 .cal-nav{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--text)}
 .cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
-.cal-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.cal-sum{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .cal-sum > div{background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px}
 .cal-sum .k{font-size:12px;color:var(--muted)}
 .cal-sum .v{font-size:clamp(16px,4.6vw,24px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -428,6 +432,7 @@ svg{display:block}
 #calSheet .close-btn{white-space:nowrap}
 @media (max-width:480px){
   .cal-sum{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cal-sum > div:last-child{grid-column:1 / -1}
   .cal-sum .v{font-size:22px}
   #calTitle{min-width:0 !important;font-size:17px}
   .cal-nav{width:44px;height:44px}
@@ -583,9 +588,10 @@ svg{display:block}
           <div><div class="k">キャッシュレス</div><div class="v num" id="sumCashless">¥0</div></div>
         </div>
         <div class="chips-row num" id="payBreakdown"></div>
+        <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>このシフトの乗車</h3><span class="aside">タップで修正</span></div>
+        <div class="sec-h"><h3>このシフトの記録</h3><span class="aside">乗車はタップで修正</span></div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -1166,17 +1172,20 @@ function shiftStats(sh) {
   const end = sh.end || Date.now();
   const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
   const time = { vacant: 0, occupied: 0, wait: 0 };
+  const pauses = [];   // 待機・休憩の区間 {ev, start, end(継続中は null), ms}
   evs.forEach((e, i) => {
     const st = legacyStatus(e.status);
     if (!(st in time)) return;
-    const to = i + 1 < evs.length ? evs[i + 1].ts : end;
-    time[st] += Math.max(0, to - e.ts);
+    const next = i + 1 < evs.length ? evs[i + 1].ts : null;
+    const ms = Math.max(0, (next ?? end) - e.ts);
+    time[st] += ms;
+    if (st === 'wait') pauses.push({ ev: e, start: e.ts, end: next ?? sh.end, ms });
   });
   const working = time.vacant + time.occupied + time.wait;   // 出庫中の稼働時間
   const elapsed = end - sh.start;
   const distTotal = Object.values(sh.dist || {}).reduce((a, b) => a + b, 0);
   return {
-    rides, count: rides.length, sales, byPay, fare, pax, time, working, elapsed,
+    rides, count: rides.length, sales, byPay, fare, pax, time, pauses, working, elapsed,
     occRate: working > 60000 ? time.occupied / working : null,
     hourly: working > 15 * 60000 ? sales / (working / 3600000) : null,
     avg: rides.length ? sales / rides.length : null,
@@ -1274,8 +1283,9 @@ function monthData(y, m) {
     if (p.y !== y || p.m !== m) continue;
     const st = shiftStats(sh);
     const k = dayKey(new Date(sh.start));
-    const o = days[k] || (days[k] = { sales: 0, count: 0, ms: 0, shifts: [] });
+    const o = days[k] || (days[k] = { sales: 0, count: 0, ms: 0, wait: 0, shifts: [] });
     o.sales += st.sales; o.count += st.count; o.ms += st.elapsed;   // 労働時間＝出庫〜入庫
+    o.wait += st.time.wait;
     o.shifts.push({ sh, st });
   }
   return days;
@@ -1285,7 +1295,7 @@ function renderCal() {
   const { y, m } = CAL;
   const days = monthData(y, m);
   const list = Object.values(days);
-  const tot = list.reduce((a, o) => ({ sales: a.sales + o.sales, count: a.count + o.count, ms: a.ms + o.ms }), { sales: 0, count: 0, ms: 0 });
+  const tot = list.reduce((a, o) => ({ sales: a.sales + o.sales, count: a.count + o.count, ms: a.ms + o.ms, wait: a.wait + o.wait }), { sales: 0, count: 0, ms: 0, wait: 0 });
   const [from, to] = periodRange(y, m);
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
   $('#calTitle').innerHTML = `${periodName(CAL)}<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">${md(from)}〜${md(to)}</small>`;
@@ -1293,7 +1303,8 @@ function renderCal() {
     <div><div class="k">売上</div><div class="v num">${yen(tot.sales)}</div></div>
     <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
     <div><div class="k">労働時間</div><div class="v num">${dur(tot.ms)}</div></div>
-    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
+    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>
+    <div><div class="k">待機・休憩</div><div class="v num" style="color:var(--st-wait)">${dur(tot.wait)}</div></div>`;
 
   const max = Math.max(0, ...list.map(o => o.sales));
   const today = dayKey(new Date());
@@ -1317,7 +1328,7 @@ function renderCal() {
     : `<div class="sec-h"><h3>${sd.getMonth() + 1}月${sd.getDate()}日（${WEEKDAYS[sd.getDay()]}）</h3>${o ? `<span class="aside num">${yen(o.sales)} ・ ${o.count}回 ・ ${dur(o.ms)}</span>` : ''}</div>` +
       (o ? `<ul class="list">${o.shifts.map(({ sh, st }) => `<li class="row">
         <span class="body"><div class="main num">${hhmm(sh.start)}–${sh.end ? hhmm(sh.end) : '営業中'}</div>
-        <div class="sub num">${st.count}回 ・ 労働 ${dur(st.elapsed)} ・ 実車率 ${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'} ・ 時間単価 ${st.hourly != null ? yen(st.hourly) : '—'}</div></span>
+        <div class="sub num">${st.count}回 ・ 労働 ${dur(st.elapsed)} ・ 待機・休憩 ${dur(st.time.wait)}（${st.pauses.length}回） ・ 実車率 ${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'} ・ 時間単価 ${st.hourly != null ? yen(st.hourly) : '—'}</div></span>
         <span class="amt num">${yen(st.sales)}</span></li>`).join('')}</ul>`
         : '<div class="empty">この日の営業記録はありません。</div>');
 }
@@ -1344,12 +1355,26 @@ function renderLog() {
   $('#payBreakdown').innerHTML = PAY.filter(p => p.k !== 'cash' && byPay[p.k])
     .map(p => `<span>${p.label}<b>${yen(byPay[p.k])}</b></span>`).join('');
 
+  const ps = $('#pauseSum');
+  ps.hidden = !st || !st.pauses.length;
+  if (st && st.pauses.length) ps.innerHTML = `<span class="tag pause">待機・休憩</span>合計 <b>${dur(st.time.wait)}</b>（${st.pauses.length}回）`;
+
   const list = $('#rideList');
-  if (!st || !st.rides.length) {
+  if (!st || (!st.rides.length && !st.pauses.length)) {
     list.innerHTML = `<li class="empty">${sh ? 'まだ乗車記録はありません。<br>「実車」→「空車」で自動的に入力画面が開きます。' : '出庫前です。ホームの「出庫」から営業を開始します。'}</li>`;
     return;
   }
-  list.innerHTML = st.rides.slice().sort((a, b) => b.ts - a.ts).map(r => `
+  // 乗車と待機・休憩を新しい順に並べる（待機・休憩は開始時刻で）
+  const items = [...st.rides.map(r => ({ t: r.ts, r })), ...st.pauses.map(p => ({ t: p.start, p }))].sort((a, b) => b.t - a.t);
+  list.innerHTML = items.map(({ r, p }) => p ? `
+    <li class="row">
+      <span class="time num">${hhmm(p.start)}</span>
+      <span class="body">
+        <div class="main"><span class="tag pause">待機・休憩</span><span class="num">${hhmm(p.start)}–${p.end ? hhmm(p.end) : '継続中'}</span></div>
+        <div class="sub">${esc(placeText(p.ev.lat != null ? p.ev : null))}</div>
+      </span>
+      <span class="amt num dur">${dur(p.ms)}</span>
+    </li>` : `
     <li><button class="row" data-ride="${r.id}">
       <span class="time num">${hhmm(r.ts)}</span>
       <span class="body">
@@ -1952,8 +1977,15 @@ function exportLog(onlyShiftId) {
     '乗車時刻', '乗車地メモ', '乗車住所', '乗車緯度', '乗車経度', '降車地メモ', '降車住所', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
   const rows = [];
+  // ステータスの継続時間（同じシフトの次のステータスまで。営業中は現在まで）
+  const nextTs = new Map();
+  for (const sh of S.shifts) {
+    const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
+    evs.forEach((e, i) => nextTs.set(e, i + 1 < evs.length ? evs[i + 1].ts : sh.end || Date.now()));
+  }
   for (const e of S.events.filter(keep)) {
-    const note = e.status === 'off' ? '入庫' : e.prev === 'off' ? '出庫' : (STATUS[e.prev] ? STATUS[e.prev].label + 'から' : '');
+    const base = e.status === 'off' ? '入庫' : e.prev === 'off' ? '出庫' : (STATUS[e.prev] ? STATUS[e.prev].label + 'から' : '');
+    const note = e.status === 'off' || !nextTs.has(e) ? base : `${base} ・ 継続 ${dur(nextTs.get(e) - e.ts)}`;
     rows.push([e.ts, [stamp(e.ts), shiftDay(e.shiftId), 'ステータス', STATUS[e.status]?.label || e.status, note, e.lat, e.lng, e.acc, e.addr]]);
   }
   for (const r of S.rides.filter(keep)) {
