@@ -33,6 +33,7 @@
   --st-vacant:#FF5D5D;
   --st-occupied:#3DD68C;
   --st-deadhead:#5B9BFF;
+  --st-wait:#F472B6;
   --st-rest:#A78BFA;
 
   --r-lg:20px;
@@ -67,27 +68,84 @@ svg{display:block}
 
 /* ============================================================
    App layout
-   portrait : HUD → status → actions → panel（縦積み）
-   landscape: 左＝HUD/status/actions、右＝panel
+   画面（view）＋ 下部タブバー。
+   ホーム：出庫前＝出庫画面 / 出庫後＝コックピット（HUD・ステータス・記録）
    ============================================================ */
 .app{
   height:100vh;height:100dvh;
   display:grid;
-  grid-template-columns:minmax(0,1fr);
-  grid-template-rows:auto auto auto minmax(0,1fr);
-  grid-template-areas:"hud" "status" "actions" "panel";
-  gap:var(--gap);
-  padding:max(var(--pad),env(safe-area-inset-top)) max(var(--pad),env(safe-area-inset-right)) max(var(--pad),env(safe-area-inset-bottom)) max(var(--pad),env(safe-area-inset-left));
+  grid-template-rows:minmax(0,1fr) auto;
 }
+.views{
+  min-height:0;position:relative;
+  padding:max(var(--pad),env(safe-area-inset-top)) max(var(--pad),env(safe-area-inset-right)) var(--pad) max(var(--pad),env(safe-area-inset-left));
+}
+.view{height:100%}
+
+/* コックピット */
+.cockpit{
+  height:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto minmax(80px,200px) minmax(72px,170px);
+  grid-template-areas:"hud" "status" "actions";
+  gap:var(--gap);
+}
+.cockpit .hud{display:flex;flex-direction:column;justify-content:center}
 @media (orientation:landscape) and (min-width:700px){
-  .app{
+  .cockpit{
     grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
-    grid-template-rows:auto auto 1fr;
-    grid-template-areas:"hud panel" "status panel" "actions panel";
+    grid-template-rows:minmax(0,1fr) minmax(64px,auto);
+    grid-template-areas:"hud status" "hud actions";
     gap:var(--gap) calc(var(--gap) * 1.5);
   }
-  .actions{align-self:start}
+  .cockpit .sales{font-size:clamp(46px,min(13vh,8.5vw),132px)}
+  .cockpit .pct{font-size:clamp(26px,min(6vh,4vw),56px)}
+  .cockpit .status{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .cockpit .st-btn{grid-column:span 2}
+  .cockpit .st-btn[data-st="vacant"],.cockpit .st-btn[data-st="occupied"]{grid-column:span 3}
+  .cockpit .act-btn{height:clamp(64px,16vh,120px)}
 }
+
+/* 出庫画面 */
+.depart{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(20px,5vh,48px);text-align:center}
+.depart > *{width:100%;max-width:480px}
+.d-date{font-size:16px;color:var(--muted);font-weight:600}
+.d-clock{font-size:clamp(64px,14vh,120px);font-weight:800;letter-spacing:-.02em;line-height:1}
+.d-info{display:grid;gap:10px}
+.d-row{display:flex;align-items:center;gap:12px;min-height:var(--tap);padding:10px 18px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);text-align:left;width:100%}
+.d-row .k{font-size:14px;color:var(--muted);flex:1}
+.d-row .v{font-size:22px;font-weight:700}
+.d-row .sub{display:block;font-size:12px;color:var(--faint);font-weight:500}
+.d-row .chev{font-size:13px;color:var(--accent);font-weight:700}
+.depart-btn{width:100%;height:clamp(88px,14vh,120px);font-size:clamp(28px,4.4vh,36px);letter-spacing:.2em;border-radius:var(--r-lg)}
+.d-hint{font-size:13px;color:var(--faint);line-height:1.6}
+.d-gps{display:flex;justify-content:center;gap:16px;color:var(--muted);font-size:13px}
+
+/* 下部タブバー */
+.tabbar{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  border-top:1px solid var(--line);background:var(--surface);
+  padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.tab-btn{height:68px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);position:relative}
+.tab-btn svg{width:24px;height:24px}
+.tab-btn[aria-current="page"]{color:var(--accent)}
+.tab-btn[aria-current="page"]::before{content:"";position:absolute;top:-1px;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+
+/* 一覧系の画面 */
+.view.pane{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.view-body{max-width:960px;margin:0 auto;padding-bottom:24px}
+.view-head{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;margin-bottom:8px}
+.view-head h2{font-size:22px;font-weight:800}
+.mini{--c:var(--faint);display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 16px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font-size:14px;font-weight:700}
+.mini i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.mini .mini-st{color:var(--c)}
+.mini[data-st="vacant"]{--c:var(--st-vacant)}
+.mini[data-st="occupied"]{--c:var(--st-occupied)}
+.mini[data-st="deadhead"]{--c:var(--st-deadhead)}
+.mini[data-st="wait"]{--c:var(--st-wait)}
+.mini[data-st="rest"]{--c:var(--st-rest)}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)}
 
@@ -128,10 +186,10 @@ svg{display:block}
 .stat .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
 
 /* ---------------- ステータス ---------------- */
-.status{grid-area:status;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.status{grid-area:status;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .st-btn{
   --c:var(--muted);
-  height:clamp(64px,11vh,96px);
+  height:100%;min-height:64px;
   border-radius:var(--r-md);
   border:2px solid var(--line-2);
   background:var(--surface);
@@ -139,17 +197,18 @@ svg{display:block}
   transition:background .15s,border-color .15s,transform .08s;
 }
 .st-btn:active{transform:scale(.97)}
-.st-btn .l{font-size:clamp(20px,3.2vh,28px);font-weight:800;letter-spacing:.06em;color:var(--c)}
+.st-btn .l{font-size:clamp(20px,min(3.6vh,6.2vw),34px);font-weight:800;letter-spacing:.06em;color:var(--c)}
 .st-btn .t{font-size:13px;font-weight:600;color:var(--muted);min-height:1.2em}
 .st-btn[data-st="vacant"]{--c:var(--st-vacant)}
 .st-btn[data-st="occupied"]{--c:var(--st-occupied)}
 .st-btn[data-st="deadhead"]{--c:var(--st-deadhead)}
+.st-btn[data-st="wait"]{--c:var(--st-wait)}
 .st-btn[data-st="rest"]{--c:var(--st-rest)}
 .st-btn[aria-pressed="true"]{background:var(--c);border-color:var(--c)}
 .st-btn[aria-pressed="true"] .l,.st-btn[aria-pressed="true"] .t{color:#0A0C0F}
 
 /* ---------------- アクション ---------------- */
-.actions{grid-area:actions;display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.actions{grid-area:actions;min-height:0;display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
 .btn{
   min-height:var(--tap);
   border-radius:var(--r-md);
@@ -166,19 +225,12 @@ svg{display:block}
 .btn.ghost{background:transparent}
 .btn.sm{min-height:48px;font-size:14px;padding:0 14px;border-radius:var(--r-sm)}
 .btn:disabled{opacity:.4}
-.act-btn{height:clamp(64px,12vh,100px);font-size:clamp(16px,min(2.8vh,4.8vw),24px);white-space:nowrap;padding:0 10px}
+.act-btn{height:100%;min-height:64px;font-size:clamp(16px,min(2.8vh,4.8vw),24px);white-space:nowrap;padding:0 10px}
 .pin-btn{flex-direction:column;gap:4px;font-size:clamp(13px,3.6vw,15px);line-height:1.2}
 .pin-btn svg{color:var(--accent)}
 .pin-btn small{font-size:11px;font-weight:600;color:var(--muted)}
 
-/* ---------------- パネル ---------------- */
-.panel{grid-area:panel;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);flex:none}
-.tab{height:52px;font-size:15px;font-weight:600;color:var(--muted);position:relative}
-.tab[aria-selected="true"]{color:var(--text)}
-.tab[aria-selected="true"]::after{content:"";position:absolute;left:22%;right:22%;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--accent)}
-.pane{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:var(--pad)}
-.pane-sec + .pane-sec{margin-top:28px}
+.pane-sec + .pane-sec,.heat-legend + .pane-sec{margin-top:28px}
 .sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
 .sec-h h3{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em}
 .sec-h .aside{font-size:12px;color:var(--faint)}
@@ -318,7 +370,7 @@ svg{display:block}
 
 /* トースト */
 .toast{
-  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;
+  position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));z-index:40;
   transform:translate(-50%,20px);opacity:0;pointer-events:none;
   min-height:56px;width:max-content;max-width:min(92vw,560px);
   display:flex;align-items:center;gap:16px;padding:8px 8px 8px 20px;
@@ -338,8 +390,14 @@ svg{display:block}
   .pct{font-size:26px}
   .bar{margin:8px 0 2px;height:10px}
   .stats{margin-top:8px;padding-top:8px}
-  .st-btn{height:60px}
-  .act-btn{height:60px;font-size:18px}
+  .views{padding-bottom:8px}
+  .tab-btn{height:52px;flex-direction:row;gap:6px}
+  .tab-btn svg{width:20px;height:20px}
+  .d-clock{font-size:56px}
+  .depart{gap:14px}
+  .depart-btn{height:72px}
+  .view-head{min-height:52px}
+  .cockpit .act-btn{height:64px;font-size:18px}
   .pin-btn small{display:none}
   .sheet-head{height:44px}
   .e-foot{padding-top:8px}
@@ -369,6 +427,29 @@ svg{display:block}
 <body>
 
 <div class="app" id="app">
+<main class="views">
+
+ <!-- ===== ホーム ===== -->
+ <section class="view" data-view="home">
+
+  <!-- 出庫前：出庫画面のみ -->
+  <div class="depart" id="depart">
+    <div>
+      <div class="d-date num" id="dDate"></div>
+      <div class="d-clock num" id="dClock">--:--</div>
+    </div>
+    <div class="d-info">
+      <button class="d-row" id="dGoal"><span class="k">本日の目標</span><span class="v num" id="dGoalVal">¥0</span><span class="chev">変更</span></button>
+      <div class="d-row" id="dLast"><span class="k">前回の営業<span class="sub num" id="dLastSub"></span></span><span class="v num" id="dLastVal"></span></div>
+    </div>
+    <div>
+      <button class="btn primary depart-btn" id="departBtn">出庫</button>
+      <p class="d-hint" style="margin-top:12px">出庫すると、売上・ステータス・乗車記録の画面に切り替わります</p>
+    </div>
+  </div>
+
+  <!-- 出庫後：コックピット -->
+  <div class="cockpit" id="cockpit" hidden>
 
   <!-- ===== HUD：売上と目標（最重要情報） ===== -->
   <header class="hud card" id="hud">
@@ -404,6 +485,7 @@ svg{display:block}
   <nav class="status" aria-label="ステータス">
     <button class="st-btn" data-st="vacant" aria-pressed="false"><span class="l">空車</span><span class="t num"></span></button>
     <button class="st-btn" data-st="occupied" aria-pressed="false"><span class="l">実車</span><span class="t num"></span></button>
+    <button class="st-btn" data-st="wait" aria-pressed="false"><span class="l">待機</span><span class="t num"></span></button>
     <button class="st-btn" data-st="deadhead" aria-pressed="false"><span class="l">回送</span><span class="t num"></span></button>
     <button class="st-btn" data-st="rest" aria-pressed="false"><span class="l">休憩</span><span class="t num"></span></button>
   </nav>
@@ -423,18 +505,12 @@ svg{display:block}
       手挙げ<small>需要ピン</small>
     </button>
   </section>
-
-  <!-- ===== パネル ===== -->
-  <section class="panel card">
-    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="log" aria-selected="true">履歴</button>
-      <button class="tab" role="tab" data-tab="demand" aria-selected="false">需要</button>
-      <button class="tab" role="tab" data-tab="area" aria-selected="false">エリア</button>
-      <button class="tab" role="tab" data-tab="data" aria-selected="false">出力・設定</button>
-    </div>
+  </div>
+ </section>
 
     <!-- 履歴 -->
-    <div class="pane" data-pane="log">
+    <section class="view pane" data-view="log" hidden><div class="view-body">
+      <header class="view-head"><h2>履歴</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
       <div class="pane-sec">
         <div class="split">
           <div><div class="k">現金</div><div class="v num" id="sumCash">¥0</div></div>
@@ -446,10 +522,11 @@ svg{display:block}
         <div class="sec-h"><h3>このシフトの乗車</h3><span class="aside">タップで修正</span></div>
         <ul class="list" id="rideList"></ul>
       </div>
-    </div>
+    </div></section>
 
     <!-- 需要 -->
-    <div class="pane" data-pane="demand" hidden>
+    <section class="view pane" data-view="demand" hidden><div class="view-body">
+      <header class="view-head"><h2>需要マップ</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
       <div class="seg" id="heatFilter">
         <button data-f="all" aria-pressed="true">全期間</button>
         <button data-f="hour" aria-pressed="false">いまの時間帯</button>
@@ -462,18 +539,20 @@ svg{display:block}
         <div class="sec-h"><h3>需要が多いエリア（約500m四方）</h3><span class="aside">現在地からの方角</span></div>
         <ul class="list" id="hotList"></ul>
       </div>
-    </div>
+    </div></section>
 
     <!-- エリア（互助型BI モック） -->
-    <div class="pane" data-pane="area" hidden>
+    <section class="view pane" data-view="area" hidden><div class="view-body">
+      <header class="view-head"><h2>エリア状況</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
       <div class="demo-note">デモ表示：他ドライバーの稼働状況はダミーデータです（通信なしで動作する将来機能のモックアップ）。</div>
       <div class="sec-h"><h3>いま忙しいエリア</h3><span class="aside num" id="biUpdated"></span></div>
       <ul class="list" id="biList"></ul>
-    </div>
+    </div></section>
 
     <!-- 出力・設定 -->
-    <div class="pane" data-pane="data" hidden>
-      <div class="pane-sec">
+    <section class="view pane" data-view="data" hidden><div class="view-body">
+      <header class="view-head"><h2>出力・設定</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
+      <div class="pane-sec" id="shiftSec">
         <div class="sec-h"><h3>営業</h3><span class="aside num" id="shiftInfo"></span></div>
         <button class="btn danger" style="width:100%" id="shiftBtn">入庫（営業終了）</button>
       </div>
@@ -515,8 +594,17 @@ svg{display:block}
         <input type="file" id="restoreFile" accept="application/json,.json" hidden>
         <button class="btn sm danger" style="width:100%;margin-top:10px" id="wipeBtn">全データを削除</button>
       </div>
-    </div>
-  </section>
+    </div></section>
+</main>
+
+<!-- ===== 下部タブバー ===== -->
+<nav class="tabbar" aria-label="画面切り替え">
+  <button class="tab-btn" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></button>
+  <button class="tab-btn" data-go="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>履歴</span></button>
+  <button class="tab-btn" data-go="demand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>需要</span></button>
+  <button class="tab-btn" data-go="area"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>エリア</span></button>
+  <button class="tab-btn" data-go="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg><span>出力・設定</span></button>
+</nav>
 </div>
 
 <!-- ===== 乗車記録シート ===== -->
@@ -599,6 +687,7 @@ svg{display:block}
 const STATUS = {
   vacant:   { label: '空車' },
   occupied: { label: '実車' },
+  wait:     { label: '待機' },
   deadhead: { label: '回送' },
   rest:     { label: '休憩' },
   off:      { label: '入庫' },
@@ -667,7 +756,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 1,
-    settings: { goal: 50000, dim: false, wake: true, tab: 'log', heat: 'all', heatRides: true },
+    settings: { goal: 50000, dim: false, wake: true, tab: 'home', heat: 'all', heatRides: true },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,toll,other},total,pay,kind,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -761,14 +850,15 @@ function logEvent(sh, status, prev) {
 }
 
 function setStatus(st) {
-  const sh = curShift() || startShift();
+  const sh = curShift();
+  if (!sh) return;
   const prev = sh.status;
   if (prev === st) return;
   const ev = logEvent(sh, st, prev);
   sh.status = st;
   sh.statusSince = ev.ts;
   if (st === 'occupied') {
-    const trip = { start: ev.ts, from: null };
+    const trip = { start: ev.ts, from: null, prev };
     sh.trip = trip;
     getPos().then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); } });
   }
@@ -790,7 +880,7 @@ function endShift() {
   sh.trip = null;
   save();
   applyWakeLock();
-  renderAll();
+  setView('home');
   toast('入庫しました。お疲れさまでした');
 }
 
@@ -808,13 +898,13 @@ function shiftStats(sh) {
   }
   const end = sh.end || Date.now();
   const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
-  const time = { vacant: 0, occupied: 0, deadhead: 0, rest: 0 };
+  const time = { vacant: 0, occupied: 0, wait: 0, deadhead: 0, rest: 0 };
   evs.forEach((e, i) => {
     if (!(e.status in time)) return;
     const to = i + 1 < evs.length ? evs[i + 1].ts : end;
     time[e.status] += Math.max(0, to - e.ts);
   });
-  const working = time.vacant + time.occupied + time.deadhead;   // 休憩を除く稼働時間
+  const working = time.vacant + time.occupied + time.wait + time.deadhead;   // 休憩を除く稼働時間
   const elapsed = end - sh.start;
   const distTotal = Object.values(sh.dist || {}).reduce((a, b) => a + b, 0);
   return {
@@ -896,7 +986,7 @@ function renderLog() {
 
   const list = $('#rideList');
   if (!st || !st.rides.length) {
-    list.innerHTML = `<li class="empty">${sh ? 'まだ乗車記録はありません。<br>「実車」→「空車」で自動的に入力画面が開きます。' : 'ステータスボタンを押すと出庫（営業開始）します。'}</li>`;
+    list.innerHTML = `<li class="empty">${sh ? 'まだ乗車記録はありません。<br>「実車」→「空車」で自動的に入力画面が開きます。' : '出庫前です。ホームの「出庫」から営業を開始します。'}</li>`;
     return;
   }
   list.innerHTML = st.rides.slice().sort((a, b) => b.ts - a.ts).map(r => `
@@ -1116,8 +1206,7 @@ function renderBi() {
    ============================================================ */
 function renderData() {
   const sh = curShift();
-  $('#shiftBtn').textContent = sh ? '入庫（営業終了）' : '出庫（営業開始）';
-  $('#shiftBtn').className = 'btn ' + (sh ? 'danger' : 'primary');
+  $('#shiftSec').hidden = !sh;
   $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
   $('#goalSetBtn').textContent = yen(S.settings.goal);
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
@@ -1135,19 +1224,66 @@ function renderData() {
   $('#storageInfo').textContent = '使用量 ' + (bytes / 1024).toFixed(0) + ' KB';
 }
 
+// ホーム：出庫前は出庫画面、出庫後はコックピット
+function renderHome() {
+  const sh = curShift();
+  $('#depart').hidden = !!sh;
+  $('#cockpit').hidden = !sh;
+  if (sh) { renderHud(); renderStatus(); } else renderDepart();
+}
+
+const WEEKDAYS = '日月火水木金土';
+function renderDepart() {
+  const d = new Date();
+  $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
+  $('#dClock').textContent = hhmm(d);
+  $('#dGoalVal').textContent = yen(S.settings.goal);
+  const last = S.shifts.filter(s => s.end).sort((a, b) => b.end - a.end)[0];
+  $('#dLast').hidden = !last;
+  if (last) {
+    const st = shiftStats(last);
+    $('#dLastVal').textContent = `${yen(st.sales)} ・ ${st.count}回`;
+    $('#dLastSub').textContent = `${new Date(last.start).getMonth() + 1}/${new Date(last.start).getDate()} ${hhmm(last.start)}–${hhmm(last.end)}`;
+  }
+}
+
+// 各画面右上のステータス表示（タップでホームへ）
+function renderMini() {
+  const sh = curShift();
+  const sales = sh ? shiftStats(sh).sales : 0;
+  $$('.mini').forEach(m => {
+    m.dataset.st = sh ? sh.status : 'off';
+    m.querySelector('.mini-st').textContent = sh ? STATUS[sh.status].label : '未出庫';
+    m.querySelector('.mini-sales').textContent = sh ? yen(sales) : '';
+  });
+}
+
+function depart() {
+  if (curShift()) return;
+  const sh = startShift();
+  logEvent(sh, 'vacant', 'off');
+  sh.status = 'vacant'; sh.statusSince = Date.now();
+  save(); haptic(25);
+  setView('home');
+  toast('出庫しました。安全運転で！');
+}
+
 function renderAll() {
-  renderHud(); renderStatus(); renderGps(); renderClock();
+  renderHome(); renderMini(); renderGps(); renderClock();
   const t = S.settings.tab;
+  if (t === 'home') return;
   if (t === 'log') renderLog();
   else if (t === 'demand') renderDemand();
   else if (t === 'area') renderBi();
   else if (t === 'data') renderData();
 }
 
-function setTab(t) {
-  S.settings.tab = t; saveSoon();
-  $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
-  $$('.pane').forEach(p => p.hidden = p.dataset.pane !== t);
+function setView(v) {
+  if (!$(`.view[data-view="${v}"]`)) v = 'home';
+  S.settings.tab = v; saveSoon();
+  $$('.tab-btn').forEach(b => b.setAttribute('aria-current', b.dataset.go === v ? 'page' : 'false'));
+  $$('.view').forEach(p => p.hidden = p.dataset.view !== v);
+  $(`.view[data-view="${v}"]`).scrollTop = 0;
   renderAll();
 }
 
@@ -1207,7 +1343,7 @@ function openEntry(rideId) {
     E = {
       editId: null, start: trip ? trip.start : null, ts: Date.now(),
       fields: { meter: '', pickup: '', toll: '', other: '' },
-      active: 'meter', pay: 'cash', kind: 'street',
+      active: 'meter', pay: 'cash', kind: trip && trip.prev === 'wait' ? 'stand' : 'street',   // 待機からの乗車は「乗り場」
       from: trip && trip.from ? { ...trip.from } : {}, to: {},
     };
     // 乗車地が無ければ現在地で補完、降車地は常に現在地
@@ -1362,12 +1498,12 @@ function exportSummary() {
   if (!shifts.length) { toast('出力するデータがありません'); return; }
   const head = ['営業日', '出庫', '入庫', '営業時間', '休憩時間', '乗車回数', '営業収入合計',
     'メーター', '迎車', '高速', 'その他', ...PAY.map(p => p.label),
-    '実車時間', '空車時間', '回送時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
+    '実車時間', '空車時間', '待機時間', '回送時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
     return [ymd(s.start), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), dur(st.time.rest), st.count, st.sales,
       st.fare.meter, st.fare.pickup, st.fare.toll, st.fare.other, ...PAY.map(p => st.byPay[p.k] || 0),
-      dur(st.time.occupied), dur(st.time.vacant), dur(st.time.deadhead),
+      dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait), dur(st.time.deadhead),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
       (st.distTotal / 1000).toFixed(1), (st.distOcc / 1000).toFixed(1),
       s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
@@ -1391,7 +1527,7 @@ function restore(file) {
       if (!confirm(`バックアップを復元しますか？\n現在のデータは置き換えられます。\n（乗車記録 ${s.rides.length}件）`)) return;
       const base = freshState();
       S = { ...base, ...s, settings: { ...base.settings, ...s.settings } };
-      save(); applySettings(); setTab(S.settings.tab);
+      save(); applySettings(); setView(S.settings.tab);
       toast('復元しました');
     } catch (e) { toast('バックアップファイルを読み込めませんでした'); }
   };
@@ -1443,7 +1579,7 @@ function toast(msg, actLabel, actFn) {
 $$('.st-btn').forEach(b => b.addEventListener('click', () => setStatus(b.dataset.st)));
 $('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
 $$('[data-pin]').forEach(b => b.addEventListener('click', () => addPin(b.dataset.pin)));
-$$('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+$$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
@@ -1457,10 +1593,9 @@ $('#heatFilter').addEventListener('click', e => {
   saveSoon(); renderDemand();
 });
 
-$('#shiftBtn').addEventListener('click', () => {
-  if (curShift()) endShift();
-  else { const sh = startShift(); logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); save(); renderAll(); toast('出庫しました。安全運転で！'); }
-});
+$('#shiftBtn').addEventListener('click', endShift);
+$('#departBtn').addEventListener('click', depart);
+$('#dGoal').addEventListener('click', editGoal);
 $$('[data-export]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.export;
   if (k === 'log-all') exportLog();
@@ -1526,9 +1661,9 @@ window.addEventListener('resize', () => {
    ============================================================ */
 applySettings();
 tickBi();
-setTab(S.settings.tab);
+setView(S.settings.tab);
 startGeo();
-setInterval(() => { renderHud(); renderStatus(); renderClock(); renderGps(); }, 1000);
+setInterval(() => { renderHome(); renderMini(); renderClock(); renderGps(); }, 1000);
 setInterval(tickBi, 20000);
 </script>
 </body>
