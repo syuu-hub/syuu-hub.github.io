@@ -925,7 +925,8 @@ const paxHtml = p => p && (p.m || p.f) ? PAX.filter(x => p[x.k]).map(x => `<span
 const KIND = [
   { k: 'street', label: '流し' },
   { k: 'stand',  label: '乗り場' },
-  { k: 'call',   label: '無線・予約' },
+  { k: 'radio',  label: '無線' },
+  { k: 'resv',   label: '予約' },
 ];
 // defaultPay = そのアプリを選んだ時の決済方法（'app' はそのアプリの決済）
 // fee = アプリ決済時の手数料、feeOther = それ以外の決済時の手数料（GOはGO Pay以外で¥100）
@@ -1306,7 +1307,8 @@ function renderClock() {
    ============================================================ */
 // 配車アプリの乗車では「アプリ決済」を「GO決済」のようにアプリ名で表す
 const payLabel = (k, app) => k === 'app' && app ? app.name + '決済' : (payDef(k) || {}).label || k;
-const kindLabel = (k, app) => k === 'app' ? (app ? app.name : 'アプリ配車') : (KIND.find(p => p.k === k) || {}).label || '';
+// 'call' は無線と予約を分ける前の記録（どちらか判別できないため旧表記のまま）
+const kindLabel = (k, app) => k === 'app' ? (app ? app.name : 'アプリ配車') : k === 'call' ? '無線・予約' : (KIND.find(p => p.k === k) || {}).label || '';
 const fareOf = r => ({ meter: 0, pickup: 0, appFee: 0, toll: 0, other: 0, ...r.fare });
 function placeText(p) { return p ? (p.memo || shortAddr(p.addr) || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
 
