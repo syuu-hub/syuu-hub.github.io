@@ -1153,7 +1153,8 @@ function renderClock() {
 /* ============================================================
    描画：履歴
    ============================================================ */
-const payLabel = k => (PAY.find(p => p.k === k) || {}).label || k;
+// 配車アプリの乗車では「アプリ決済」を「GO決済」のようにアプリ名で表す
+const payLabel = (k, app) => k === 'app' && app ? app.name + '決済' : (PAY.find(p => p.k === k) || {}).label || k;
 const kindLabel = (k, app) => k === 'app' ? (app ? app.name : 'アプリ配車') : (KIND.find(p => p.k === k) || {}).label || '';
 const fareOf = r => ({ meter: 0, pickup: 0, appFee: 0, toll: 0, other: 0, ...r.fare });
 function placeText(p) { return p ? (p.memo || shortAddr(p.addr) || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
@@ -1179,7 +1180,7 @@ function renderLog() {
       <span class="body">
         <div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
         <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>
-        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.toll ? '高速' + yen(r.fare.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
+        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.toll ? '高速' + yen(r.fare.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
       </span>
       <span class="amt num">${yen(r.total)}</span>
     </button></li>`).join('');
@@ -1578,7 +1579,11 @@ function renderEntry() {
   const extra = [E.pickup && '迎車 ' + yen(E.pickup), E.appFee && '手数料 ' + yen(E.appFee), E.legacy && '高速・その他 ' + yen(E.legacy)].filter(Boolean);
   $('#eBreak').innerHTML = extra.length ? `＋ ${extra.join(' ＋ ')}　合計 <b>${yen(total)}</b>` : '';
   $('#eTime').textContent = (E.start ? hhmm(E.start) + ' → ' : '') + hhmm(E.ts);
-  $('#ePay').innerHTML = PAY.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}">${p.label}${p.sub ? `<small>${p.sub}</small>` : ''}</button>`).join('');
+  // 配車アプリ選択中は「現金」「◯◯決済」を先頭に並べる
+  const pays = E.app
+    ? [PAY.find(p => p.k === 'cash'), { k: 'app', label: E.app.name + '決済', sub: 'アプリ内で支払い' }, ...PAY.filter(p => p.k !== 'cash' && p.k !== 'app')]
+    : PAY;
+  $('#ePay').innerHTML = pays.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}">${esc(p.label)}${p.sub ? `<small>${p.sub}</small>` : ''}</button>`).join('');
   $('#ePaxHint').textContent = `タップで人数（${S.settings.paxMax}人の次は0）`;
   $('#ePax').innerHTML = PAX.map(p => `<button class="opt" data-pax="${p.k}" aria-pressed="${E.pax[p.k] > 0}" aria-label="${p.label} ${E.pax[p.k]}人">${p.label}<span class="cnt num">${E.pax[p.k]}<small>人</small></span></button>`).join('');
   // 編集中の記録が削除済みアプリなら、その名前でボタンを残す
@@ -1626,7 +1631,7 @@ function saveEntry() {
     sh.trip = null;
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    toast(`${yen(total)}（${payLabel(E.pay)}）を記録しました`);
+    toast(`${yen(total)}（${payLabel(E.pay, E.app)}）を記録しました`);
   }
   save(); haptic(25); queueAddr();
   E = null;
@@ -1750,7 +1755,7 @@ function exportLog(onlyShiftId) {
   }
   for (const r of S.rides.filter(keep)) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
-      r.total, ...(f => [f.meter, f.pickup, f.appFee, f.toll + f.other])(fareOf(r)), payLabel(r.pay), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
+      r.total, ...(f => [f.meter, f.pickup, f.appFee, f.toll + f.other])(fareOf(r)), payLabel(r.pay, r.app), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
       r.start ? stamp(r.start) : '', r.from?.memo, r.from?.addr, r.from?.lat, r.from?.lng, r.to?.memo, r.to?.addr, r.to?.lat, r.to?.lng]]);
   }
   for (const p of S.pins.filter(keep)) {
