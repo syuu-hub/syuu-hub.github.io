@@ -982,45 +982,33 @@ const curShift = () => S.shifts.find(s => !s.end) || null;
 /* ============================================================
    GPS（Geolocation API）
    ============================================================ */
-const geo = { pos: null, err: null, track: null };
+// 位置はトリガー式：出庫・入庫・ステータス変更・乗車記録・需要ピン・「現在地」ボタン・
+// 需要/エリア画面を開いた時だけ取得する（常時の追跡はしない）
+const geo = { pos: null, err: null, busy: false };
 const toPos = p => ({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy), t: Date.now() });
+const GPS_FRESH = 10 * 60000;   // この時間以内の取得なら「取得済み」表示
 
 function startGeo() {
-  if (!('geolocation' in navigator)) { geo.err = 'unsupported'; renderGps(); return; }
-  navigator.geolocation.watchPosition(p => {
-    const o = toPos(p);
-    trackDistance(o);
-    geo.pos = o; geo.err = null; renderGps();
-  }, e => { geo.err = e.code || 'error'; renderGps(); },
-  { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+  if (!('geolocation' in navigator)) geo.err = 'unsupported';
+  renderGps();
 }
 
-// 直近の位置が新しければそれを、古ければ取り直す（失敗時は手元の最新値）
+// 直近の位置が maxAge 以内ならそれを、古ければ取り直す（失敗時は手元の最新値）
+// ステータス変更・乗車記録は 5秒、需要ピンは 15秒、画面表示用は 60秒まで使い回す
+// 同時に来た要求（例：ステータス記録と乗車地の取得）は1回の測位を共有する
+let geoPending = null;
 function getPos(maxAge = 20000) {
-  return new Promise(resolve => {
-    if (geo.pos && Date.now() - geo.pos.t < maxAge) return resolve(geo.pos);
-    if (!('geolocation' in navigator)) return resolve(geo.pos);
+  if (geo.pos && Date.now() - geo.pos.t < maxAge) return Promise.resolve(geo.pos);
+  if (!('geolocation' in navigator)) return Promise.resolve(geo.pos);
+  if (geoPending) return geoPending;
+  geo.busy = true; renderGps();
+  return geoPending = new Promise(resolve => {
+    const done = () => { geo.busy = false; geoPending = null; renderGps(); resolve(geo.pos); };
     navigator.geolocation.getCurrentPosition(
-      p => { geo.pos = toPos(p); geo.err = null; renderGps(); resolve(geo.pos); },
-      () => resolve(geo.pos),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 });
+      p => { geo.pos = toPos(p); geo.err = null; done(); },
+      e => { geo.err = e.code || 'error'; done(); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: maxAge });
   });
-}
-
-// ステータス別の走行距離を裏側で積算（精度の悪い点・瞬間移動は除外）
-function trackDistance(o) {
-  const sh = curShift();
-  if (!sh || sh.status === 'off' || o.acc > 60) return;
-  if (geo.track) {
-    const d = haversine(geo.track, o);
-    const dt = (o.t - geo.track.t) / 1000;
-    if (d < 25) return;
-    if (dt > 0 && d / dt < 60) {
-      sh.dist[sh.status] = (sh.dist[sh.status] || 0) + d;
-      saveSoon();
-    }
-  }
-  geo.track = o;
 }
 
 /* ============================================================
@@ -1131,7 +1119,6 @@ function startShift() {
   const now = Date.now();
   const sh = { id: uid(), start: now, end: null, goal: S.settings.goal, status: 'off', statusSince: now, trip: null, dist: {} };
   S.shifts.push(sh);
-  geo.track = null;
   applyWakeLock();
   return sh;
 }
@@ -1139,7 +1126,7 @@ function startShift() {
 function logEvent(sh, status, prev) {
   const ev = { id: uid(), shiftId: sh.id, ts: Date.now(), status, prev, lat: null, lng: null, acc: null };
   S.events.push(ev);
-  getPos().then(p => { if (p) { ev.lat = p.lat; ev.lng = p.lng; ev.acc = p.acc; save(); queueAddr(); } });
+  getPos(5000).then(p => { if (p) { ev.lat = p.lat; ev.lng = p.lng; ev.acc = p.acc; save(); queueAddr(); } });
   return ev;
 }
 
@@ -1157,7 +1144,7 @@ function setStatus(st) {
   if (st === 'occupied') {
     const trip = { start: ev.ts, from: null, prev };
     sh.trip = trip;
-    getPos().then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); queueAddr(); } });
+    getPos(5000).then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); queueAddr(); } });
   }
   save();
   haptic(18);
@@ -1208,13 +1195,11 @@ function shiftStats(sh) {
   });
   const working = time.vacant + time.occupied + time.wait;   // 出庫中の稼働時間
   const elapsed = end - sh.start;
-  const distTotal = Object.values(sh.dist || {}).reduce((a, b) => a + b, 0);
   return {
     rides, count: rides.length, sales, byPay, fare, pax, time, pauses, working, elapsed,
     occRate: working > 60000 ? time.occupied / working : null,
     hourly: working > 15 * 60000 ? sales / (working / 3600000) : null,
     avg: rides.length ? sales / rides.length : null,
-    distTotal, distOcc: (sh.dist || {}).occupied || 0,
   };
 }
 
@@ -1259,11 +1244,12 @@ function renderStatus() {
 
 function renderGps() {
   const el = $('#gps');
-  const fresh = geo.pos && Date.now() - geo.pos.t < 60000;
-  el.className = 'gps ' + (fresh ? 'ok' : geo.pos ? 'stale' : geo.err ? 'err' : '');
+  const fresh = geo.pos && Date.now() - geo.pos.t < GPS_FRESH;
+  el.className = 'gps ' + (geo.busy ? 'stale' : geo.err && !fresh ? 'err' : fresh ? 'ok' : '');
   el.title = geo.err === 'unsupported' ? 'この端末は位置情報に未対応' :
              geo.err === 1 ? '位置情報の許可がありません' :
-             fresh ? `精度 ±${geo.pos.acc}m` : '測位中…';
+             geo.busy ? '測位中…' :
+             geo.pos ? `最終取得 ${hhmm(geo.pos.t)}（±${geo.pos.acc}m）` : '未取得（ステータス変更などで取得）';
 }
 
 function renderClock() {
@@ -1795,6 +1781,8 @@ function setView(v) {
   $$('.view').forEach(p => p.hidden = p.dataset.view !== v);
   $(`.view[data-view="${v}"]`).scrollTop = 0;
   renderAll();
+  // 現在地からの方角・距離を出す画面を開いた時だけ位置を取得
+  if (v === 'demand' || v === 'area') getPos(60000).then(() => { if (S.settings.tab === v) renderAll(); });
 }
 
 /* ============================================================
@@ -1858,7 +1846,7 @@ function openEntry(rideId) {
       from: trip && trip.from ? { ...trip.from } : {}, to: {},
     };
     // 乗車地が無ければ現在地で補完、降車地は常に現在地
-    getPos().then(p => {
+    getPos(5000).then(p => {
       if (!E || E.editId || !p) return;
       if (E.from.lat == null) setLL(E.from, p);
       setLL(E.to, p);
@@ -2121,14 +2109,13 @@ function exportSummary() {
   if (!shifts.length) { toast('出力するデータがありません'); return; }
   const head = ['営業日', '締め期間', '出庫', '入庫', '営業時間', '乗車回数', '乗客 男性', '乗客 女性', '営業収入合計',
     '運賃', '迎車料金', 'アプリ手数料', '高速・その他', ...PAY.map(p => p.label),
-    '実車時間', '空車時間', '待機・休憩時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
+    '実車時間', '空車時間', '待機・休憩時間', '実車率(%)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
     return [ymd(s.start), periodName(periodOf(s.start)), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.pax.m, st.pax.f, st.sales,
       st.fare.meter, st.fare.pickup, st.fare.appFee, st.fare.toll + st.fare.other, ...PAY.map(p => st.byPay[p.k] || 0),
       dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
-      (st.distTotal / 1000).toFixed(1), (st.distOcc / 1000).toFixed(1),
       s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
   });
   download(`taxiboard-summary-${fileDate()}.csv`, toCsv([head, ...rows]));
