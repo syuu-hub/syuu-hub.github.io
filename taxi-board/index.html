@@ -395,6 +395,40 @@ svg{display:block}
 .np-inner .total{padding:8px 4px 16px}
 .np-inner .keypad{grid-auto-rows:64px}
 
+/* 月間カレンダー */
+.cal-btn{width:100%;margin-bottom:12px}
+.cal-btn svg{color:var(--accent)}
+.cal-inner{max-width:960px}
+.cal-nav{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--text)}
+.cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
+.cal-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.cal-sum > div{background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px}
+.cal-sum .k{font-size:12px;color:var(--muted)}
+.cal-sum .v{font-size:clamp(16px,4.6vw,24px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-sum .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-dow{font-size:12px;font-weight:700;color:var(--muted);text-align:center;padding:2px 0 4px}
+.cal-dow.sun{color:var(--st-vacant)}
+.cal-dow.sat{color:var(--info)}
+.cal-cell{min-height:clamp(64px,10.5vh,104px);border-radius:10px;border:1px solid var(--line);background:var(--surface);padding:4px 5px;text-align:left;display:flex;flex-direction:column;gap:1px;overflow:hidden;position:relative}
+.cal-cell::before{content:"";position:absolute;inset:0;background:var(--accent);opacity:var(--h,0);pointer-events:none}
+.cal-cell > *{position:relative}
+.cal-cell .d{font-size:12px;font-weight:700;color:var(--muted)}
+.cal-cell.today .d{color:var(--accent)}
+.cal-cell .s{font-size:clamp(11px,3vw,16px);font-weight:800;white-space:nowrap}
+.cal-cell .m{font-size:clamp(9px,2.5vw,12px);color:var(--muted);white-space:nowrap;line-height:1.25}
+.cal-cell[aria-pressed="true"]{border:2px solid var(--accent);padding:3px 4px}
+.cal-cell.empty{background:transparent;border-color:transparent}
+.cal-day{margin-top:16px}
+.cal-day .row .sub{white-space:normal}
+#calSheet .close-btn{white-space:nowrap}
+@media (max-width:480px){
+  .cal-sum{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cal-sum .v{font-size:22px}
+  #calTitle{min-width:0 !important;font-size:17px}
+  .cal-nav{width:44px;height:44px}
+}
+
 /* トースト */
 .toast{
   position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));z-index:40;
@@ -535,6 +569,10 @@ svg{display:block}
     <!-- 履歴 -->
     <section class="view pane" data-view="log" hidden><div class="view-body">
       <header class="view-head"><h2>履歴</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
+      <button class="btn cal-btn" id="calBtn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+        月間カレンダー
+      </button>
       <div class="pane-sec">
         <div class="split">
           <div><div class="k">現金</div><div class="v num" id="sumCash">¥0</div></div>
@@ -699,6 +737,26 @@ svg{display:block}
       <button class="btn danger" id="eDelete" hidden>削除</button>
       <button class="btn primary" id="eSave">記録する</button>
     </footer>
+  </div>
+</div>
+
+<!-- ===== 月間カレンダー ===== -->
+<div class="sheet" id="calSheet" hidden role="dialog" aria-modal="true" aria-labelledby="calTitle">
+  <div class="sheet-inner cal-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <span class="spacer"></span>
+      <button class="cal-nav" id="calPrev" aria-label="前の月"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <h2 class="num" id="calTitle" style="min-width:7.5em;text-align:center"></h2>
+      <button class="cal-nav" id="calNext" aria-label="次の月"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    </header>
+    <div class="cal-body">
+      <div class="cal-sum" id="calSum"></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-day" id="calDay"></div>
+    </div>
   </div>
 </div>
 
@@ -1161,6 +1219,78 @@ const payLabel = (k, app) => k === 'app' && app ? app.name + '決済' : (PAY.fin
 const kindLabel = (k, app) => k === 'app' ? (app ? app.name : 'アプリ配車') : (KIND.find(p => p.k === k) || {}).label || '';
 const fareOf = r => ({ meter: 0, pickup: 0, appFee: 0, toll: 0, other: 0, ...r.fare });
 function placeText(p) { return p ? (p.memo || shortAddr(p.addr) || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
+
+/* ============================================================
+   月間カレンダー（出庫日ごとに売上・乗車数・労働時間を集計）
+   ============================================================ */
+const CAL = { y: 0, m: 0, sel: null };
+const compactYen = n => n >= 10000 ? (n / 10000).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, '') + '万' : yen(n);
+const hours = ms => (ms / 3600000).toFixed(1).replace(/\.0$/, '') + 'h';
+
+function monthData(y, m) {
+  const days = {};
+  for (const sh of S.shifts) {
+    const d = new Date(sh.start);
+    if (d.getFullYear() !== y || d.getMonth() !== m) continue;
+    const st = shiftStats(sh);
+    const o = days[d.getDate()] || (days[d.getDate()] = { sales: 0, count: 0, ms: 0, shifts: [] });
+    o.sales += st.sales; o.count += st.count; o.ms += st.elapsed;   // 労働時間＝出庫〜入庫
+    o.shifts.push({ sh, st });
+  }
+  return days;
+}
+
+function renderCal() {
+  const { y, m } = CAL;
+  const days = monthData(y, m);
+  const list = Object.values(days);
+  const tot = list.reduce((a, o) => ({ sales: a.sales + o.sales, count: a.count + o.count, ms: a.ms + o.ms }), { sales: 0, count: 0, ms: 0 });
+  $('#calTitle').textContent = `${y}年${m + 1}月`;
+  $('#calSum').innerHTML = `
+    <div><div class="k">売上</div><div class="v num">${yen(tot.sales)}</div></div>
+    <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
+    <div><div class="k">労働時間</div><div class="v num">${dur(tot.ms)}</div></div>
+    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
+
+  const max = Math.max(0, ...list.map(o => o.sales));
+  const first = new Date(y, m, 1).getDay();
+  const last = new Date(y, m + 1, 0).getDate();
+  const now = new Date();
+  const isToday = d => now.getFullYear() === y && now.getMonth() === m && now.getDate() === d;
+  let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
+  html += '<div class="cal-cell empty"></div>'.repeat(first);
+  for (let d = 1; d <= last; d++) {
+    const o = days[d];
+    const h = o && max ? (0.12 + 0.43 * o.sales / max).toFixed(2) : 0;   // 売上が多いほど濃く
+    html += `<button class="cal-cell ${isToday(d) ? 'today' : ''}" data-day="${d}" aria-pressed="${CAL.sel === d}" style="--h:${h}">
+      <span class="d num">${d}</span>
+      ${o ? `<span class="s num">${compactYen(o.sales)}</span><span class="m num">${o.count}回</span><span class="m num">${hours(o.ms)}</span>` : ''}
+    </button>`;
+  }
+  $('#calGrid').innerHTML = html;
+
+  const o = CAL.sel && days[CAL.sel];
+  $('#calDay').innerHTML = !CAL.sel ? '<div class="empty">日付をタップすると、その日の営業が表示されます。</div>'
+    : `<div class="sec-h"><h3>${m + 1}月${CAL.sel}日（${WEEKDAYS[new Date(y, m, CAL.sel).getDay()]}）</h3>${o ? `<span class="aside num">${yen(o.sales)} ・ ${o.count}回 ・ ${dur(o.ms)}</span>` : ''}</div>` +
+      (o ? `<ul class="list">${o.shifts.map(({ sh, st }) => `<li class="row">
+        <span class="body"><div class="main num">${hhmm(sh.start)}–${sh.end ? hhmm(sh.end) : '営業中'}</div>
+        <div class="sub num">${st.count}回 ・ 労働 ${dur(st.elapsed)} ・ 実車率 ${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'} ・ 時間単価 ${st.hourly != null ? yen(st.hourly) : '—'}</div></span>
+        <span class="amt num">${yen(st.sales)}</span></li>`).join('')}</ul>`
+        : '<div class="empty">この日の営業記録はありません。</div>');
+}
+
+function openCal() {
+  const now = new Date();
+  Object.assign(CAL, { y: now.getFullYear(), m: now.getMonth(), sel: now.getDate() });
+  renderCal();
+  $('#calSheet .cal-body').scrollTop = 0;
+  openSheet($('#calSheet'));
+}
+function shiftCal(delta) {
+  const d = new Date(CAL.y, CAL.m + delta, 1);
+  Object.assign(CAL, { y: d.getFullYear(), m: d.getMonth(), sel: null });
+  haptic(); renderCal();
+}
 
 function renderLog() {
   const sh = curShift();
@@ -1866,6 +1996,11 @@ $('#appPay').addEventListener('click', e => { const b = e.target.closest('[data-
 $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
 $('#appSheet [data-close]').addEventListener('click', () => closeSheet($('#appSheet')));
+$('#calBtn').addEventListener('click', () => { haptic(); openCal(); });
+$('#calPrev').addEventListener('click', () => shiftCal(-1));
+$('#calNext').addEventListener('click', () => shiftCal(1));
+$('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { haptic(); CAL.sel = +b.dataset.day; renderCal(); } });
+$('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
 
 $('#rideList').addEventListener('click', e => { const b = e.target.closest('[data-ride]'); if (b) openEntry(b.dataset.ride); });
@@ -1931,10 +2066,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#appSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#appSheet', '#calSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'appSheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
