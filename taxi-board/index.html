@@ -33,6 +33,7 @@
   --st-vacant:#FF5D5D;
   --st-occupied:#3DD68C;
   --st-deadhead:#5B9BFF;
+  --st-wait:#F472B6;
   --st-rest:#A78BFA;
 
   --r-lg:20px;
@@ -100,7 +101,9 @@ svg{display:block}
   }
   .cockpit .sales{font-size:clamp(46px,min(13vh,8.5vw),132px)}
   .cockpit .pct{font-size:clamp(26px,min(6vh,4vw),56px)}
-  .cockpit .status{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cockpit .status{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .cockpit .st-btn{grid-column:span 2}
+  .cockpit .st-btn[data-st="vacant"],.cockpit .st-btn[data-st="occupied"]{grid-column:span 3}
   .cockpit .act-btn{height:clamp(64px,16vh,120px)}
 }
 
@@ -141,6 +144,7 @@ svg{display:block}
 .mini[data-st="vacant"]{--c:var(--st-vacant)}
 .mini[data-st="occupied"]{--c:var(--st-occupied)}
 .mini[data-st="deadhead"]{--c:var(--st-deadhead)}
+.mini[data-st="wait"]{--c:var(--st-wait)}
 .mini[data-st="rest"]{--c:var(--st-rest)}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)}
@@ -182,7 +186,7 @@ svg{display:block}
 .stat .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
 
 /* ---------------- ステータス ---------------- */
-.status{grid-area:status;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.status{grid-area:status;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .st-btn{
   --c:var(--muted);
   height:100%;min-height:64px;
@@ -193,11 +197,12 @@ svg{display:block}
   transition:background .15s,border-color .15s,transform .08s;
 }
 .st-btn:active{transform:scale(.97)}
-.st-btn .l{font-size:clamp(22px,3.6vh,34px);font-weight:800;letter-spacing:.06em;color:var(--c)}
+.st-btn .l{font-size:clamp(20px,min(3.6vh,6.2vw),34px);font-weight:800;letter-spacing:.06em;color:var(--c)}
 .st-btn .t{font-size:13px;font-weight:600;color:var(--muted);min-height:1.2em}
 .st-btn[data-st="vacant"]{--c:var(--st-vacant)}
 .st-btn[data-st="occupied"]{--c:var(--st-occupied)}
 .st-btn[data-st="deadhead"]{--c:var(--st-deadhead)}
+.st-btn[data-st="wait"]{--c:var(--st-wait)}
 .st-btn[data-st="rest"]{--c:var(--st-rest)}
 .st-btn[aria-pressed="true"]{background:var(--c);border-color:var(--c)}
 .st-btn[aria-pressed="true"] .l,.st-btn[aria-pressed="true"] .t{color:#0A0C0F}
@@ -480,6 +485,7 @@ svg{display:block}
   <nav class="status" aria-label="ステータス">
     <button class="st-btn" data-st="vacant" aria-pressed="false"><span class="l">空車</span><span class="t num"></span></button>
     <button class="st-btn" data-st="occupied" aria-pressed="false"><span class="l">実車</span><span class="t num"></span></button>
+    <button class="st-btn" data-st="wait" aria-pressed="false"><span class="l">待機</span><span class="t num"></span></button>
     <button class="st-btn" data-st="deadhead" aria-pressed="false"><span class="l">回送</span><span class="t num"></span></button>
     <button class="st-btn" data-st="rest" aria-pressed="false"><span class="l">休憩</span><span class="t num"></span></button>
   </nav>
@@ -681,6 +687,7 @@ svg{display:block}
 const STATUS = {
   vacant:   { label: '空車' },
   occupied: { label: '実車' },
+  wait:     { label: '待機' },
   deadhead: { label: '回送' },
   rest:     { label: '休憩' },
   off:      { label: '入庫' },
@@ -851,7 +858,7 @@ function setStatus(st) {
   sh.status = st;
   sh.statusSince = ev.ts;
   if (st === 'occupied') {
-    const trip = { start: ev.ts, from: null };
+    const trip = { start: ev.ts, from: null, prev };
     sh.trip = trip;
     getPos().then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); } });
   }
@@ -891,13 +898,13 @@ function shiftStats(sh) {
   }
   const end = sh.end || Date.now();
   const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
-  const time = { vacant: 0, occupied: 0, deadhead: 0, rest: 0 };
+  const time = { vacant: 0, occupied: 0, wait: 0, deadhead: 0, rest: 0 };
   evs.forEach((e, i) => {
     if (!(e.status in time)) return;
     const to = i + 1 < evs.length ? evs[i + 1].ts : end;
     time[e.status] += Math.max(0, to - e.ts);
   });
-  const working = time.vacant + time.occupied + time.deadhead;   // 休憩を除く稼働時間
+  const working = time.vacant + time.occupied + time.wait + time.deadhead;   // 休憩を除く稼働時間
   const elapsed = end - sh.start;
   const distTotal = Object.values(sh.dist || {}).reduce((a, b) => a + b, 0);
   return {
@@ -1336,7 +1343,7 @@ function openEntry(rideId) {
     E = {
       editId: null, start: trip ? trip.start : null, ts: Date.now(),
       fields: { meter: '', pickup: '', toll: '', other: '' },
-      active: 'meter', pay: 'cash', kind: 'street',
+      active: 'meter', pay: 'cash', kind: trip && trip.prev === 'wait' ? 'stand' : 'street',   // 待機からの乗車は「乗り場」
       from: trip && trip.from ? { ...trip.from } : {}, to: {},
     };
     // 乗車地が無ければ現在地で補完、降車地は常に現在地
@@ -1491,12 +1498,12 @@ function exportSummary() {
   if (!shifts.length) { toast('出力するデータがありません'); return; }
   const head = ['営業日', '出庫', '入庫', '営業時間', '休憩時間', '乗車回数', '営業収入合計',
     'メーター', '迎車', '高速', 'その他', ...PAY.map(p => p.label),
-    '実車時間', '空車時間', '回送時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
+    '実車時間', '空車時間', '待機時間', '回送時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
     return [ymd(s.start), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), dur(st.time.rest), st.count, st.sales,
       st.fare.meter, st.fare.pickup, st.fare.toll, st.fare.other, ...PAY.map(p => st.byPay[p.k] || 0),
-      dur(st.time.occupied), dur(st.time.vacant), dur(st.time.deadhead),
+      dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait), dur(st.time.deadhead),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
       (st.distTotal / 1000).toFixed(1), (st.distOcc / 1000).toFixed(1),
       s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
