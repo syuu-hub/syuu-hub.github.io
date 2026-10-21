@@ -895,9 +895,6 @@ const STATUS = {
   vacant:   { label: '空車' },
   occupied: { label: '実車' },
   wait:     { label: '待機・休憩' },
-  // 旧データ（回送・休憩が別ステータスだった頃の記録）の表示用
-  deadhead: { label: '回送' },
-  rest:     { label: '休憩' },
   off:      { label: '入庫' },
 };
 // 決済方法の初期値（設定で追加・編集できる。cash と app は集計・配車アプリで使うので削除不可）
@@ -940,7 +937,8 @@ const PIN_TYPES = { app: 'アプリ通知', hail: '手挙げ', ride: '乗車' };
 // 待機・休憩は一時的な状態：空車／実車、または同じボタンの再タップで解除して空車へ
 const PAUSE = ['wait'];
 const KEYS = ['1','2','3','4','5','6','7','8','9','00','0','del'];
-const STORE_KEY = 'taxiboard.v1';
+const STORE_KEY = 'taxiboard.v2';
+try { localStorage.removeItem('taxiboard.v1'); } catch (e) {}   // 開発中の旧データは破棄
 const MAX_DIGITS = 7;
 
 /* ============================================================
@@ -981,32 +979,19 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
    ============================================================ */
 function freshState() {
   return {
-    v: 1,
+    v: 2,
     settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', heat: 'all', heatRides: true },
-    shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
-    rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee,toll,other},total,pay,kind,app,pax,from,to}
+    shifts: [],   // {id,start,end,goal,status,statusSince,trip}
+    rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,pax,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
     pins: [],     // {id,shiftId,ts,type,lat,lng,acc}
   };
 }
-// 旧ステータス → 現在の区分（休憩は待機・休憩へ、回送は空車へ）
-const legacyStatus = st => st === 'rest' ? 'wait' : st === 'deadhead' ? 'vacant' : st;
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
-    if (s && s.v === 1) {
+    if (s && s.v === 2) {
       const base = freshState();
-      // 営業中のシフトが旧ステータスなら新しい区分へ
-      for (const sh of s.shifts || []) if (!sh.end) sh.status = legacyStatus(sh.status);
-      // 配車アプリ：デフォルト決済方法・手数料が無い古い設定を補完
-      for (const a of (s.settings && s.settings.apps) || []) {
-        if (a.defaultPay === undefined) a.defaultPay = a.name === 'GO' ? 'cash' : 'app';
-        if (a.fee === undefined) a.fee = 0;
-        if (a.feeOther === undefined) a.feeOther = a.name === 'GO' ? 100 : a.fee;
-        if (a.payKey === undefined) a.payKey = a.name === 'GO' ? 'gopay' : 'app';
-      }
-      // 決済方法の一覧が無い古い設定 → 初期値（GO Pay を含む）
-      if (s.settings && !Array.isArray(s.settings.pays)) s.settings.pays = DEFAULT_PAYS.map(p => ({ ...p }));
       return { ...base, ...s, settings: { ...base.settings, ...s.settings } };
     }
   } catch (e) {}
@@ -1163,7 +1148,7 @@ window.addEventListener('online', () => { addrRetryAt = 0; queueAddr(); });
    ============================================================ */
 function startShift() {
   const now = Date.now();
-  const sh = { id: uid(), start: now, end: null, goal: S.settings.goal, status: 'off', statusSince: now, trip: null, dist: {} };
+  const sh = { id: uid(), start: now, end: null, goal: S.settings.goal, status: 'off', statusSince: now, trip: null };
   S.shifts.push(sh);
   applyWakeLock();
   return sh;
@@ -1219,7 +1204,7 @@ function endShift() {
    ============================================================ */
 function shiftStats(sh) {
   const rides = S.rides.filter(r => r.shiftId === sh.id);
-  const byPay = {}; const fare = { meter: 0, pickup: 0, appFee: 0, toll: 0, other: 0 }; const pax = { m: 0, f: 0 };
+  const byPay = {}; const fare = { meter: 0, pickup: 0, appFee: 0 }; const pax = { m: 0, f: 0 };
   let sales = 0;
   for (const r of rides) {
     sales += r.total;
@@ -1232,7 +1217,7 @@ function shiftStats(sh) {
   const time = { vacant: 0, occupied: 0, wait: 0 };
   const pauses = [];   // 待機・休憩の区間 {ev, start, end(継続中は null), ms}
   evs.forEach((e, i) => {
-    const st = legacyStatus(e.status);
+    const st = e.status;
     if (!(st in time)) return;
     const next = i + 1 < evs.length ? evs[i + 1].ts : null;
     const ms = Math.max(0, (next ?? end) - e.ts);
@@ -1307,9 +1292,7 @@ function renderClock() {
    ============================================================ */
 // 配車アプリの乗車では「アプリ決済」を「GO決済」のようにアプリ名で表す
 const payLabel = (k, app) => k === 'app' && app ? app.name + '決済' : (payDef(k) || {}).label || k;
-// 'call' は無線と予約を分ける前の記録（どちらか判別できないため旧表記のまま）
-const kindLabel = (k, app) => k === 'app' ? (app ? app.name : 'アプリ配車') : k === 'call' ? '無線・予約' : (KIND.find(p => p.k === k) || {}).label || '';
-const fareOf = r => ({ meter: 0, pickup: 0, appFee: 0, toll: 0, other: 0, ...r.fare });
+const kindLabel = (k, app) => k === 'app' ? (app ? app.name : 'アプリ配車') : (KIND.find(p => p.k === k) || {}).label || '';
 function placeText(p) { return p ? (p.memo || shortAddr(p.addr) || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
 
 /* ============================================================
@@ -1477,12 +1460,12 @@ function deletePause() {
   if (!c.prev) {
     c.e.status = 'vacant';   // 出庫直後の待機・休憩 → 空車として残す
     drop.delete(c.e);
-  } else if (c.next && c.next.status !== 'off' && legacyStatus(c.next.status) === legacyStatus(c.prev.status)) {
+  } else if (c.next && c.next.status !== 'off' && c.next.status === c.prev.status) {
     drop.add(c.next);        // 空車→待機・休憩→空車 は、ひと続きの空車に
   } else if (c.next) {
     c.next.prev = c.prev.status;
   } else if (!c.sh.end) {
-    c.sh.status = legacyStatus(c.prev.status);   // 継続中だった → 直前のステータスに戻す
+    c.sh.status = c.prev.status;   // 継続中だった → 直前のステータスに戻す
     c.sh.statusSince = c.prev.ts;
   }
   S.events = S.events.filter(x => !drop.has(x));
@@ -1528,7 +1511,7 @@ function renderLog() {
       <span class="body">
         <div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
         <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>
-        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.toll ? '高速' + yen(r.fare.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
+        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
       </span>
       <span class="amt num">${yen(r.total)}</span>
     </button></li>`).join('');
@@ -2001,14 +1984,12 @@ function saveEntry() {
   const noPickup = E.kind === 'app' && !!E.noPickup;
   if (E.editId) {
     const r = S.rides.find(x => x.id === E.editId);
-    // 金額も種別・決済も変えていない旧形式の記録（高速・その他など）は内訳を残す
-    const keep = !r.simple && r.total === total && r.pay === E.pay && r.kind === E.kind && (r.app && r.app.id) === (E.app && E.app.id);
-    Object.assign(r, { fare: keep ? r.fare : fare, total, simple: keep ? r.simple : true, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
+    Object.assign(r, { fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
     toast('修正しました');
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, simple: true, noPickup: E.kind === 'app' && !!E.noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
+    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
     sh.trip = null;
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
@@ -2165,7 +2146,7 @@ const shiftDay = id => { const s = S.shifts.find(x => x.id === id); return s ? y
 
 function exportLog(onlyShiftId) {
   const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)', '住所',
-    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '高速・その他', '決済方法', '乗車種別', '配車アプリ', '金額の入力', '男性', '女性',
+    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '迎車なし', '決済方法', '乗車種別', '配車アプリ', '男性', '女性',
     '乗車時刻', '乗車地メモ', '乗車住所', '乗車緯度', '乗車経度', '降車地メモ', '降車住所', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
   const rows = [];
@@ -2182,7 +2163,7 @@ function exportLog(onlyShiftId) {
   }
   for (const r of S.rides.filter(keep)) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
-      r.total, ...(f => [f.meter, f.pickup, f.appFee, f.toll + f.other])(fareOf(r)), payLabel(r.pay, r.app), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.simple ? (r.noPickup ? '総額（迎車なし）' : '総額') : '内訳あり', r.pax?.m ?? '', r.pax?.f ?? '',
+      r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.noPickup ? '○' : '', payLabel(r.pay, r.app), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
       r.start ? stamp(r.start) : '', r.from?.memo, r.from?.addr, r.from?.lat, r.from?.lng, r.to?.memo, r.to?.addr, r.to?.lat, r.to?.lng]]);
   }
   for (const p of S.pins.filter(keep)) {
@@ -2200,12 +2181,12 @@ function exportSummary() {
   const used = new Set(S.rides.map(r => r.pay));
   const csvPays = allPays().filter(p => !p.hidden || used.has(p.k));
   const head = ['営業日', '締め期間', '出庫', '入庫', '営業時間', '乗車回数', '乗客 男性', '乗客 女性', '営業収入合計',
-    '運賃', '迎車料金', 'アプリ手数料', '高速・その他', ...csvPays.map(p => p.label),
+    '運賃', '迎車料金', 'アプリ手数料', ...csvPays.map(p => p.label),
     '実車時間', '空車時間', '待機・休憩時間', '実車率(%)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
     return [ymd(s.start), periodName(periodOf(s.start)), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.pax.m, st.pax.f, st.sales,
-      st.fare.meter, st.fare.pickup, st.fare.appFee, st.fare.toll + st.fare.other, ...csvPays.map(p => st.byPay[p.k] || 0),
+      st.fare.meter, st.fare.pickup, st.fare.appFee, ...csvPays.map(p => st.byPay[p.k] || 0),
       dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
       s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
@@ -2225,7 +2206,7 @@ function restore(file) {
   rd.onload = () => {
     try {
       const s = JSON.parse(rd.result);
-      if (!s || s.v !== 1 || !Array.isArray(s.rides)) throw new Error('format');
+      if (!s || s.v !== 2 || !Array.isArray(s.rides)) throw new Error('format');
       if (!confirm(`バックアップを復元しますか？\n現在のデータは置き換えられます。\n（乗車記録 ${s.rides.length}件）`)) return;
       const base = freshState();
       S = { ...base, ...s, settings: { ...base.settings, ...s.settings } };
