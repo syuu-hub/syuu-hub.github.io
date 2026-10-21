@@ -880,27 +880,29 @@ function muniName(arr, code) {
 }
 
 // 住所文字列を返す（'' は住所なし＝海上など）。通信できなければ undefined
+let addrRetryAt = 0;   // 失敗後しばらくは問い合わせない
 async function reverseGeocode(p) {
   const k = addrKey(p);
   if (k in addrCache) return addrCache[k];
-  if (!S.settings.addr || navigator.onLine === false) return undefined;
+  if (!S.settings.addr || navigator.onLine === false || Date.now() < addrRetryAt) return undefined;
+  const fail = () => { addrRetryAt = Date.now() + 60000; return undefined; };
   try {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 8000);
     const res = await fetch(`${GSI_REVERSE}?lat=${p.lat}&lon=${p.lng}`, { signal: ctl.signal });
     clearTimeout(timer);
-    if (!res.ok) return undefined;
+    if (!res.ok) return fail();
     const r = (await res.json() || {}).results;
     let addr = '';
     if (r) {
       const muni = await loadMuni();
-      if (!muni) return undefined;
+      if (!muni) return fail();
       addr = muniName(muni, r.muniCd) + (r.lv01Nm && r.lv01Nm !== '－' ? r.lv01Nm : '');
     }
     addrCache[k] = addr;
     saveAddrCache();
     return addr;
-  } catch (e) { return undefined; }
+  } catch (e) { return fail(); }
 }
 
 // 位置オブジェクト {lat,lng,addr} に住所を書き込む。成功で true
@@ -936,7 +938,7 @@ async function resolvePending() {
     if (changed) { save(); renderAll(); }
   }
 }
-window.addEventListener('online', queueAddr);
+window.addEventListener('online', () => { addrRetryAt = 0; queueAddr(); });
 
 /* ============================================================
    シフト・ステータス
