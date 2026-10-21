@@ -271,6 +271,11 @@ svg{display:block}
 .seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .seg button{height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;font-weight:600;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.dem-toggle{width:100%;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;margin-bottom:8px;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--surface);text-align:left}
+.dem-toggle .k{font-size:13px;font-weight:700;color:var(--muted)}
+.dem-toggle .v{flex:1;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dem-toggle svg{flex:none;color:var(--muted);transition:transform .2s}
+.dem-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
 .dem-filter{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
 .dem-filter > span{flex:none;width:3.5em;font-size:12px;font-weight:700;color:var(--muted);line-height:40px}
 .dem-filter .seg{margin:0}
@@ -606,12 +611,18 @@ svg{display:block}
     <!-- 需要 -->
     <section class="view pane" data-view="demand" hidden><div class="view-body">
       <header class="view-head"><h2>需要マップ</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
+      <button class="dem-toggle" id="demToggle" aria-expanded="false" aria-controls="demFilters">
+        <span class="k">絞り込み</span><span class="v" id="demSummary"></span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div id="demFilters" hidden>
       <div class="dem-filter"><span>時間帯</span><div class="seg" id="demHour">
         <button data-v="all">全時間</button><button data-v="now">いま±1時間</button><button data-v="morning">朝 6–10</button><button data-v="day">昼 10–16</button><button data-v="evening">夕 16–20</button><button data-v="night">夜 20–24</button><button data-v="late">深夜 0–6</button>
       </div></div>
       <div class="dem-filter"><span>曜日</span><div class="seg" id="demDow">
         <button data-v="all">全曜日</button><button data-v="weekday">平日</button><button data-v="weekend">土日</button><button data-v="0">日</button><button data-v="1">月</button><button data-v="2">火</button><button data-v="3">水</button><button data-v="4">木</button><button data-v="5">金</button><button data-v="6">土</button>
       </div></div>
+      </div>
       <div class="map-wrap"><div class="pinmap" id="leafmap" hidden></div><canvas class="pinmap" id="pinmap" aria-label="乗車地のピン"></canvas></div>
       <div class="map-note" id="mapNote" hidden>地図を読み込めないため、地図なしで表示しています（通信できる時は OpenStreetMap を表示）</div>
       <div class="pin-legend" id="pinLegend"></div>
@@ -1702,6 +1713,9 @@ function renderMap(places) {
 function renderDemand() {
   $$('#demHour [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.settings.demHour));
   $$('#demDow [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.settings.demDow));
+  // 絞り込みは折りたたみ：見出しに現在の条件を表示
+  const lbl = (id, v) => $(`#${id} [data-v="${v}"]`).textContent;
+  $('#demSummary').textContent = `${lbl('demHour', S.settings.demHour)}・${lbl('demDow', S.settings.demDow)}`;
   const places = demandPlaces();
   if (DEM.sel && !places.some(c => c.key === DEM.sel)) DEM.sel = null;
   renderMap(places);
@@ -1829,6 +1843,7 @@ function renderAll() {
 
 function setView(v) {
   if (!$(`.view[data-view="${v}"]`)) v = 'home';
+  if (v === 'demand' && S.settings.tab !== 'demand') { $('#demFilters').hidden = true; $('#demToggle').setAttribute('aria-expanded', false); }   // 開くたびに折りたたみから
   S.settings.tab = v; saveSoon();
   $$('.tab-btn').forEach(b => b.setAttribute('aria-current', b.dataset.go === v ? 'page' : 'false'));
   $$('.view').forEach(p => p.hidden = p.dataset.view !== v);
@@ -2302,6 +2317,12 @@ $('#psSave').addEventListener('click', savePause);
 $('#psDelete').addEventListener('click', deletePause);
 $('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pauseSheet')));
 
+$('#demToggle').addEventListener('click', e => {
+  haptic();
+  const open = $('#demFilters').hidden;
+  $('#demFilters').hidden = !open;
+  e.currentTarget.setAttribute('aria-expanded', open);
+});
 ['demHour', 'demDow'].forEach(k => $('#' + k).addEventListener('click', e => {
   const b = e.target.closest('[data-v]'); if (!b) return;
   haptic(); S.settings[k] = b.dataset.v; saveSoon(); renderDemand();
