@@ -267,6 +267,8 @@ svg{display:block}
 .seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .seg button{height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;font-weight:600;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.seg.lg{margin:0;flex:none;flex-wrap:nowrap}
+.seg.lg button{height:48px;padding:0 18px;font-size:14px}
 .heat-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;background:#0D1014;border:1px solid var(--line)}
 .heat{width:100%;aspect-ratio:4/3;max-height:52vh}
 .heat-legend{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--faint);margin-top:8px}
@@ -593,6 +595,10 @@ svg{display:block}
       <div class="pane-sec">
         <div class="sec-h"><h3>設定</h3></div>
         <div class="setting">
+          <div><div class="k">料金の入力モード</div><div class="d" id="modeDesc"></div></div>
+          <div class="seg lg" id="modeSeg"><button data-mode="detail">詳細</button><button data-mode="simple">簡略</button></div>
+        </div>
+        <div class="setting">
           <div><div class="k">1日の目標金額</div><div class="d">次の出庫から既定値として使用</div></div>
           <button class="btn sm num" id="goalSetBtn">¥0</button>
         </div>
@@ -663,7 +669,7 @@ svg{display:block}
     <div class="entry-body">
       <section class="e-amount">
         <div class="total">
-          <span class="lbl">運賃</span>
+          <span class="lbl" id="eFareLbl">運賃</span>
           <span class="v num" id="eFare"><span class="cur">¥</span>0</span>
         </div>
         <div class="breakdown num" id="eBreak"></div>
@@ -672,7 +678,7 @@ svg{display:block}
 
       <section class="e-meta">
         <div class="group">
-          <div class="glabel"><span>乗車種別</span><span>アプリは迎車料金・手数料を自動加算</span></div>
+          <div class="glabel"><span>乗車種別</span><span id="eKindHint"></span></div>
           <div class="opts kind" id="eKind"></div>
         </div>
         <div class="group">
@@ -842,7 +848,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 1,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pickupFee: 0, ver: SETTINGS_VERSION, tab: 'home', heat: 'all', heatRides: true },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pickupFee: 0, inputMode: 'detail', ver: SETTINGS_VERSION, tab: 'home', heat: 'all', heatRides: true },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee,toll,other},total,pay,kind,app,pax,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -1425,6 +1431,11 @@ function renderData() {
   $('#goalSetBtn').textContent = yen(S.settings.goal);
   $('#paxMaxBtn').textContent = S.settings.paxMax + '人';
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
+  const simple = S.settings.inputMode === 'simple';
+  $$('#modeSeg [data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.settings.inputMode));
+  $('#modeDesc').textContent = simple
+    ? 'メーター総額（手数料・迎車料金込み）だけを入力'
+    : 'メーター運賃を入力し、アプリの迎車料金・手数料を決済方法に応じて自動加算';
   $('#appList').innerHTML = S.settings.apps.length ? S.settings.apps.map(a => `<li><button class="row" data-app-edit="${esc(a.id)}">
       <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 アプリ決済 ${yen(a.fee)} / 他の決済 ${yen(a.feeOther)}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
@@ -1554,7 +1565,7 @@ function openEntry(rideId) {
   if (r) {
     const fr = fareOf(r);
     E = {
-      editId: r.id, start: r.start, ts: r.ts,
+      editId: r.id, start: r.start, ts: r.ts, simple: !!r.simple,
       meter: fr.meter ? String(fr.meter) : '', pickup: fr.pickup, appFee: fr.appFee,
       legacy: fr.toll + fr.other,   // 旧形式の高速・その他（入力欄は廃止、金額は保持）
       fare: fr, app: r.app || null,
@@ -1567,6 +1578,7 @@ function openEntry(rideId) {
     E = {
       editId: null, start: trip ? trip.start : null, ts: Date.now(),
       meter: '', pickup: 0, appFee: 0, legacy: 0, fare: {}, app: null, appCfg: null,
+      simple: S.settings.inputMode === 'simple',   // 簡略モード：メーター総額のみ（加算なし）
       pay: 'cash', kind: trip && trip.prev === 'wait' ? 'stand' : 'street',   // 待機からの乗車は「乗り場」
       pax: { m: 0, f: 0 },
       from: trip && trip.from ? { ...trip.from } : {}, to: {},
@@ -1596,7 +1608,8 @@ function selectKind(k, appId) {
   if (app) {
     E.kind = 'app'; E.app = { id: app.id, name: app.name }; E.appCfg = app;
     E.pay = app.defaultPay || 'app'; E.payAuto = true;
-    E.pickup = S.settings.pickupFee; E.appFee = appFeeFor(app, E.pay);
+    E.pickup = E.simple ? 0 : S.settings.pickupFee;
+    E.appFee = E.simple ? 0 : appFeeFor(app, E.pay);
   } else {
     if (E.kind === 'app' && (E.payAuto || E.pay === 'app')) E.pay = 'cash';
     E.payAuto = false;
@@ -1608,7 +1621,10 @@ function renderEntry() {
   const total = entryTotal();
   $('#eFare').innerHTML = yenHtml(+E.meter || 0);
   const extra = [E.pickup && '迎車 ' + yen(E.pickup), E.appFee && '手数料 ' + yen(E.appFee), E.legacy && '高速・その他 ' + yen(E.legacy)].filter(Boolean);
-  $('#eBreak').innerHTML = extra.length ? `＋ ${extra.join(' ＋ ')}　合計 <b>${yen(total)}</b>` : '';
+  $('#eFareLbl').textContent = E.simple ? 'メーター総額' : 'メーター運賃';
+  $('#eKindHint').textContent = E.simple ? '簡略モード：料金の自動加算なし' : 'アプリは迎車料金・手数料を自動加算';
+  $('#eBreak').innerHTML = extra.length ? `＋ ${extra.join(' ＋ ')}　合計 <b>${yen(total)}</b>`
+    : E.simple ? '手数料・迎車料金を含む総額を入力' : '';
   $('#eTime').textContent = (E.start ? hhmm(E.start) + ' → ' : '') + hhmm(E.ts);
   // 配車アプリ選択中は「現金」「◯◯決済」を先頭に並べる
   const pays = E.app
@@ -1622,7 +1638,7 @@ function renderEntry() {
   if (E.app && !apps.some(a => a.id === E.app.id)) apps.push({ ...E.app, fee: E.appFee, feeOther: E.appFee });
   $('#eKind').innerHTML = KIND.map(p => `<button class="opt" data-kind="${p.k}" aria-pressed="${E.kind === p.k}">${p.label}</button>`).join('') +
     apps.map(a => {
-      const sub = [a.fee && '手数料' + yen(a.fee), a.feeOther !== a.fee && '他決済' + yen(a.feeOther)].filter(Boolean).join(' ');
+      const sub = E.simple ? '' : [a.fee && '手数料' + yen(a.fee), a.feeOther !== a.fee && '他決済' + yen(a.feeOther)].filter(Boolean).join(' ');
       return `<button class="opt app-opt" data-app="${esc(a.id)}" aria-pressed="${E.kind === 'app' && !!E.app && E.app.id === a.id}">${esc(a.name)}${sub ? `<small class="num">${sub}</small>` : ''}</button>`;
     }).join('');
   const save = $('#eSave');
@@ -1653,12 +1669,12 @@ function saveEntry() {
   const fare = { ...E.fare, meter: +E.meter || 0, pickup: E.pickup, appFee: E.appFee };
   if (E.editId) {
     const r = S.rides.find(x => x.id === E.editId);
-    Object.assign(r, { fare, total, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
+    Object.assign(r, { fare, total, simple: E.simple, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
     toast('修正しました');
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
+    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, simple: E.simple, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
     sh.trip = null;
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
@@ -1781,7 +1797,7 @@ const shiftDay = id => { const s = S.shifts.find(x => x.id === id); return s ? y
 
 function exportLog(onlyShiftId) {
   const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)', '住所',
-    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '高速・その他', '決済方法', '乗車種別', '配車アプリ', '男性', '女性',
+    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '高速・その他', '決済方法', '乗車種別', '配車アプリ', '入力モード', '男性', '女性',
     '乗車時刻', '乗車地メモ', '乗車住所', '乗車緯度', '乗車経度', '降車地メモ', '降車住所', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
   const rows = [];
@@ -1791,7 +1807,7 @@ function exportLog(onlyShiftId) {
   }
   for (const r of S.rides.filter(keep)) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
-      r.total, ...(f => [f.meter, f.pickup, f.appFee, f.toll + f.other])(fareOf(r)), payLabel(r.pay, r.app), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
+      r.total, ...(f => [f.meter, f.pickup, f.appFee, f.toll + f.other])(fareOf(r)), payLabel(r.pay, r.app), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.simple ? '簡略（総額）' : '詳細', r.pax?.m ?? '', r.pax?.f ?? '',
       r.start ? stamp(r.start) : '', r.from?.memo, r.from?.addr, r.from?.lat, r.from?.lng, r.to?.memo, r.to?.addr, r.to?.lat, r.to?.lng]]);
   }
   for (const p of S.pins.filter(keep)) {
@@ -1898,6 +1914,7 @@ $('#pickupFeeBtn').addEventListener('click', () => openNumpad('迎車料金（�
 $('#appFee').addEventListener('click', () => openNumpad('手数料（アプリ決済）', AE.fee, v => { AE.fee = v; renderAppSheet(); }));
 $('#appFeeOther').addEventListener('click', () => openNumpad('手数料（他の決済）', AE.feeOther, v => { AE.feeOther = v; renderAppSheet(); }));
 $('#appOk').addEventListener('click', saveApp);
+$('#modeSeg').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b) { haptic(); S.settings.inputMode = b.dataset.mode; save(); renderData(); } });
 $('#appPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.defaultPay = b.dataset.pay; renderAppSheet(); } });
 $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
@@ -1942,7 +1959,7 @@ mountKeypad($('#eKeys'), k => { E.meter = applyKey(E.meter, k); renderEntry(); }
 $('#ePay').addEventListener('click', e => {
   const b = e.target.closest('[data-pay]'); if (!b) return;
   haptic(); E.pay = b.dataset.pay; E.payAuto = false;
-  if (E.kind === 'app' && E.appCfg) E.appFee = appFeeFor(E.appCfg, E.pay);
+  if (E.kind === 'app' && E.appCfg && !E.simple) E.appFee = appFeeFor(E.appCfg, E.pay);
   renderEntry();
 });
 // 乗客：タップごとに +1、上限を超えたら 0 に戻る
