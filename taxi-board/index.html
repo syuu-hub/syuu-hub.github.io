@@ -669,6 +669,11 @@ svg{display:block}
         </div>
       </div>
       <div class="pane-sec">
+        <div class="sec-h"><h3>決済方法</h3><span class="aside">乗車記録で選ぶ支払い方法</span></div>
+        <ul class="list" id="payList"></ul>
+        <button class="btn sm" style="width:100%;margin-top:10px" id="payAddBtn">＋ 決済方法を追加</button>
+      </div>
+      <div class="pane-sec">
         <div class="sec-h"><h3>配車アプリ</h3><span class="aside">総額から迎車料金・手数料を差し引いて記録</span></div>
         <div class="setting">
           <div><div class="k">迎車料金（会社共通）</div><div class="d">アプリ配車の総額から差し引く。会社の料金に合わせて変更</div></div>
@@ -804,6 +809,30 @@ svg{display:block}
   </div>
 </div>
 
+<!-- ===== 決済方法の編集 ===== -->
+<div class="sheet center" id="paySheet" hidden role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="payTitle">決済方法</h2>
+    </header>
+    <div class="group">
+      <div class="glabel">名前</div>
+      <input class="text-in" id="payName" placeholder="例：PayPay" maxlength="12" enterkeyhint="next">
+    </div>
+    <div class="group">
+      <div class="glabel"><span>補足（任意）</span><span>ボタンに小さく表示</span></div>
+      <input class="text-in" id="paySub" placeholder="例：QRコード" maxlength="16" enterkeyhint="done">
+    </div>
+    <footer class="e-foot">
+      <button class="btn danger" id="payDelete">削除</button>
+      <button class="btn primary" id="payOk">保存</button>
+    </footer>
+  </div>
+</div>
+
 <!-- ===== 配車アプリの編集 ===== -->
 <div class="sheet center" id="appSheet" hidden role="dialog" aria-modal="true" aria-labelledby="appTitle">
   <div class="sheet-inner np-inner">
@@ -820,9 +849,13 @@ svg{display:block}
     <div class="group">
       <div class="glabel"><span>アプリ手数料</span><span>総額から差し引く</span></div>
       <div class="fields">
-        <button class="field" id="appFee"><span class="k">アプリ決済の時</span><span class="v num">¥0</span></button>
+        <button class="field" id="appFee"><span class="k">アプリ内決済の時</span><span class="v num">¥0</span></button>
         <button class="field" id="appFeeOther"><span class="k">それ以外の決済の時</span><span class="v num">¥0</span></button>
       </div>
+    </div>
+    <div class="group">
+      <div class="glabel"><span>アプリ内決済にあたる支払い</span><span>GOなら GO Pay</span></div>
+      <div class="opts pay" id="appOwnPay"></div>
     </div>
     <div class="group">
       <div class="glabel"><span>デフォルト決済方法</span><span>選んだ時に自動で適用</span></div>
@@ -867,14 +900,21 @@ const STATUS = {
   rest:     { label: '休憩' },
   off:      { label: '入庫' },
 };
-const PAY = [
+// 決済方法の初期値（設定で追加・編集できる。cash と app は集計・配車アプリで使うので削除不可）
+// app は配車アプリ内の決済の総称（配車アプリ選択時は「DiDi決済」のように表示）
+const DEFAULT_PAYS = [
   { k: 'cash',   label: '現金' },
   { k: 'card',   label: 'クレジット' },
   { k: 'ic',     label: '交通系IC' },
-  { k: 'app',    label: 'アプリ決済', sub: 'GO / DiDi 等' },
+  { k: 'gopay',  label: 'GO Pay',     sub: 'GOアプリ' },
+  { k: 'app',    label: 'アプリ決済', sub: 'DiDi / Uber 等' },
   { k: 'qr',     label: 'QR決済',     sub: 'PayPay 等' },
   { k: 'ticket', label: 'チケット' },
 ];
+const FIXED_PAYS = ['cash', 'app'];
+const allPays = () => S.settings.pays;                       // 削除済み（hidden）も含む：過去の記録の表示用
+const PAYS = () => S.settings.pays.filter(p => !p.hidden);    // 選択肢として出すもの
+const payDef = k => S.settings.pays.find(p => p.k === k);
 const PAX = [
   { k: 'm', label: '男性' },
   { k: 'f', label: '女性' },
@@ -890,9 +930,11 @@ const KIND = [
 // defaultPay = そのアプリを選んだ時の決済方法（'app' はそのアプリの決済）
 // fee = アプリ決済時の手数料、feeOther = それ以外の決済時の手数料（GOはGO Pay以外で¥100）
 // 迎車料金は会社共通の settings.pickupFee。いずれも入力した総額から差し引いて内訳を出す
-const DEFAULT_APPS = [['GO', 'cash', 100], ['DiDi', 'app', 0], ['S.RIDE', 'app', 0], ['Uber', 'app', 0]]
-  .map(([name, defaultPay, feeOther], i) => ({ id: 'app' + i, name, defaultPay, fee: 0, feeOther }));
-const appFeeFor = (cfg, pay) => (pay === 'app' ? cfg.fee : cfg.feeOther) || 0;
+// payKey = そのアプリ内の決済にあたる支払い方法（GOなら GO Pay）
+const DEFAULT_APPS = [['GO', 'cash', 100, 'gopay'], ['DiDi', 'app', 0, 'app'], ['S.RIDE', 'app', 0, 'app'], ['Uber', 'app', 0, 'app']]
+  .map(([name, defaultPay, feeOther, payKey], i) => ({ id: 'app' + i, name, defaultPay, fee: 0, feeOther, payKey }));
+const appPayKey = cfg => (cfg && cfg.payKey) || 'app';
+const appFeeFor = (cfg, pay) => (pay === appPayKey(cfg) ? cfg.fee : cfg.feeOther) || 0;
 const PIN_TYPES = { app: 'アプリ通知', hail: '手挙げ', ride: '乗車' };
 // 待機・休憩は一時的な状態：空車／実車、または同じボタンの再タップで解除して空車へ
 const PAUSE = ['wait'];
@@ -939,7 +981,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 1,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', heat: 'all', heatRides: true },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', heat: 'all', heatRides: true },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee,toll,other},total,pay,kind,app,pax,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -960,7 +1002,10 @@ function loadState() {
         if (a.defaultPay === undefined) a.defaultPay = a.name === 'GO' ? 'cash' : 'app';
         if (a.fee === undefined) a.fee = 0;
         if (a.feeOther === undefined) a.feeOther = a.name === 'GO' ? 100 : a.fee;
+        if (a.payKey === undefined) a.payKey = a.name === 'GO' ? 'gopay' : 'app';
       }
+      // 決済方法の一覧が無い古い設定 → 初期値（GO Pay を含む）
+      if (s.settings && !Array.isArray(s.settings.pays)) s.settings.pays = DEFAULT_PAYS.map(p => ({ ...p }));
       return { ...base, ...s, settings: { ...base.settings, ...s.settings } };
     }
   } catch (e) {}
@@ -1260,7 +1305,7 @@ function renderClock() {
    描画：履歴
    ============================================================ */
 // 配車アプリの乗車では「アプリ決済」を「GO決済」のようにアプリ名で表す
-const payLabel = (k, app) => k === 'app' && app ? app.name + '決済' : (PAY.find(p => p.k === k) || {}).label || k;
+const payLabel = (k, app) => k === 'app' && app ? app.name + '決済' : (payDef(k) || {}).label || k;
 const kindLabel = (k, app) => k === 'app' ? (app ? app.name : 'アプリ配車') : (KIND.find(p => p.k === k) || {}).label || '';
 const fareOf = r => ({ meter: 0, pickup: 0, appFee: 0, toll: 0, other: 0, ...r.fare });
 function placeText(p) { return p ? (p.memo || shortAddr(p.addr) || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
@@ -1450,7 +1495,7 @@ function renderLog() {
   const cash = byPay.cash || 0;
   $('#sumCash').textContent = yen(cash);
   $('#sumCashless').textContent = yen((st ? st.sales : 0) - cash);
-  $('#payBreakdown').innerHTML = PAY.filter(p => p.k !== 'cash' && byPay[p.k])
+  $('#payBreakdown').innerHTML = allPays().filter(p => p.k !== 'cash' && byPay[p.k])
     .map(p => `<span>${p.label}<b>${yen(byPay[p.k])}</b></span>`).join('');
 
   const ps = $('#pauseSum');
@@ -1701,8 +1746,12 @@ function renderData() {
   $('#closingBtn').textContent = closingLabel();
   $('#closingDesc').textContent = '月間カレンダー・日報の集計期間（' + (S.settings.closingDay ? `前月${S.settings.closingDay + 1}日〜当月${S.settings.closingDay}日` : '1日〜末日') + '）';
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
+  $('#payList').innerHTML = PAYS().map(p => `<li><button class="row" data-pay-edit="${esc(p.k)}">
+      <span class="body"><div class="main">${esc(p.label)}</div>${p.sub ? `<div class="sub">${esc(p.sub)}</div>` : ''}</span>
+      <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
+    </button></li>`).join('');
   $('#appList').innerHTML = S.settings.apps.length ? S.settings.apps.map(a => `<li><button class="row" data-app-edit="${esc(a.id)}">
-      <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 アプリ決済 ${yen(a.fee)} / 他 ${yen(a.feeOther)}</div></span>
+      <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 ${esc(payLabel(appPayKey(a), a))} ${yen(a.fee)} / 他 ${yen(a.feeOther)}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') : '<li class="empty">配車アプリが登録されていません。</li>';
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
@@ -1900,10 +1949,14 @@ function renderEntry() {
   noPick.hidden = E.kind !== 'app';
   noPick.setAttribute('aria-pressed', !!E.noPickup);
   $('#eTime').textContent = (E.start ? hhmm(E.start) + ' → ' : '') + hhmm(E.ts);
-  // 配車アプリ選択中は「現金」「◯◯決済」を先頭に並べる
+  // 配車アプリ選択中は「現金」「そのアプリの決済（GO Pay・◯◯決済）」を先頭に並べる
+  const ecfg = E.app && S.settings.apps.find(a => a.id === E.app.id);
+  const own = E.app ? appPayKey(ecfg) : null;
   const pays = E.app
-    ? [PAY.find(p => p.k === 'cash'), { k: 'app', label: E.app.name + '決済', sub: 'アプリ内で支払い' }, ...PAY.filter(p => p.k !== 'cash' && p.k !== 'app')]
-    : PAY;
+    ? [payDef('cash'), { ...(payDef(own) || {}), k: own, label: payLabel(own, E.app), sub: 'アプリ内で支払い' },
+       ...PAYS().filter(p => p.k !== 'cash' && p.k !== own && p.k !== 'app')]   // 汎用の「アプリ決済」は他アプリのものなので出さない
+    : PAYS();
+  if (!pays.some(p => p.k === E.pay)) pays.push({ k: E.pay, label: payLabel(E.pay, E.app) });   // 削除済みの決済で記録した乗車
   $('#ePay').innerHTML = pays.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}">${esc(p.label)}${p.sub ? `<small>${p.sub}</small>` : ''}</button>`).join('');
   $('#ePaxHint').textContent = `タップで人数（${S.settings.paxMax}人の次は0）`;
   $('#ePax').innerHTML = PAX.map(p => `<button class="opt" data-pax="${p.k}" aria-pressed="${E.pax[p.k] > 0}" aria-label="${p.label} ${E.pax[p.k]}人">${p.label}<span class="cnt num">${E.pax[p.k]}<small>人</small></span></button>`).join('');
@@ -1991,18 +2044,52 @@ function openNumpad(title, value, onOk, { unit = null, label = '金額', digits 
   renderNumpad();
   openSheet($('#numpad'));
 }
+// 決済方法の追加・編集（削除は非表示にするだけ：過去の記録の表示名を残すため）
+const PE = { k: null };
+function openPayEditor(k) {
+  const p = k ? payDef(k) : null;
+  PE.k = p ? p.k : null;
+  $('#payTitle').textContent = p ? '決済方法の編集' : '決済方法の追加';
+  $('#payName').value = p ? p.label : '';
+  $('#paySub').value = p ? p.sub || '' : '';
+  $('#payDelete').hidden = !p || FIXED_PAYS.includes(p.k);
+  openSheet($('#paySheet'));
+}
+function savePay() {
+  const label = $('#payName').value.trim(), sub = $('#paySub').value.trim();
+  if (!label) { toast('名前を入力してください'); $('#payName').focus(); return; }
+  const p = PE.k && payDef(PE.k);
+  if (p) Object.assign(p, { label, sub: sub || undefined });
+  else S.settings.pays.push({ k: 'p' + uid(), label, sub: sub || undefined });
+  save(); closeSheet($('#paySheet')); renderData();
+  toast(`${label} を保存しました`);
+}
+function deletePay() {
+  const p = payDef(PE.k);
+  if (!p || FIXED_PAYS.includes(p.k) || !confirm(`${p.label} を決済方法から外しますか？\n（記録済みの乗車の表示はそのまま残ります）`)) return;
+  p.hidden = true;
+  for (const a of S.settings.apps) {
+    if (a.defaultPay === p.k) a.defaultPay = 'cash';
+    if (a.payKey === p.k) a.payKey = 'app';
+  }
+  save(); closeSheet($('#paySheet')); renderData();
+}
+
 // 配車アプリの追加・編集
-const AE = { id: null, defaultPay: 'app', fee: 0, feeOther: 0 };
+const AE = { id: null, defaultPay: 'app', fee: 0, feeOther: 0, payKey: 'app' };
 function renderAppSheet() {
   $('#appFee .v').textContent = yen(AE.fee);
   $('#appFeeOther .v').textContent = yen(AE.feeOther);
   const name = $('#appName').value.trim() || 'アプリ';
-  const order = [PAY.find(p => p.k === 'cash'), PAY.find(p => p.k === 'app'), ...PAY.filter(p => p.k !== 'cash' && p.k !== 'app')];
-  $('#appPay').innerHTML = order.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${AE.defaultPay === p.k}">${esc(p.k === 'app' ? name + '決済' : p.label)}</button>`).join('');
+  const lbl = p => esc(p.k === 'app' ? name + '決済' : p.label);
+  const opts = PAYS().filter(p => p.k !== 'cash');
+  $('#appOwnPay').innerHTML = opts.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${AE.payKey === p.k}">${lbl(p)}</button>`).join('');
+  const order = [payDef('cash'), payDef(AE.payKey) || payDef('app'), ...PAYS().filter(p => p.k !== 'cash' && p.k !== AE.payKey && p.k !== 'app')];
+  $('#appPay').innerHTML = order.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${AE.defaultPay === p.k}">${lbl(p)}</button>`).join('');
 }
 function openAppEditor(id) {
   const a = id ? S.settings.apps.find(x => x.id === id) : null;
-  Object.assign(AE, { id: a ? a.id : null, defaultPay: a ? a.defaultPay : 'app', fee: a ? a.fee : 0, feeOther: a ? a.feeOther : 0 });
+  Object.assign(AE, { id: a ? a.id : null, defaultPay: a ? a.defaultPay : 'app', fee: a ? a.fee : 0, feeOther: a ? a.feeOther : 0, payKey: a ? appPayKey(a) : 'app' });
   $('#appTitle').textContent = a ? '配車アプリの編集' : '配車アプリの追加';
   $('#appName').value = a ? a.name : '';
   $('#appDelete').hidden = !a;
@@ -2014,7 +2101,7 @@ function saveApp() {
   const name = $('#appName').value.trim();
   if (!name) { toast('アプリ名を入力してください'); $('#appName').focus(); return; }
   const a = AE.id && S.settings.apps.find(x => x.id === AE.id);
-  const cfg = { name, defaultPay: AE.defaultPay, fee: AE.fee, feeOther: AE.feeOther };
+  const cfg = { name, defaultPay: AE.defaultPay, fee: AE.fee, feeOther: AE.feeOther, payKey: AE.payKey };
   if (a) Object.assign(a, cfg);
   else S.settings.apps.push({ id: uid(), ...cfg });
   save(); closeSheet($('#appSheet')); renderData();
@@ -2107,13 +2194,16 @@ function exportLog(onlyShiftId) {
 function exportSummary() {
   const shifts = S.shifts.slice().sort((a, b) => a.start - b.start);
   if (!shifts.length) { toast('出力するデータがありません'); return; }
+  // 決済方法の列：表示中のもの＋外した決済方法でも記録があるもの
+  const used = new Set(S.rides.map(r => r.pay));
+  const csvPays = allPays().filter(p => !p.hidden || used.has(p.k));
   const head = ['営業日', '締め期間', '出庫', '入庫', '営業時間', '乗車回数', '乗客 男性', '乗客 女性', '営業収入合計',
-    '運賃', '迎車料金', 'アプリ手数料', '高速・その他', ...PAY.map(p => p.label),
+    '運賃', '迎車料金', 'アプリ手数料', '高速・その他', ...csvPays.map(p => p.label),
     '実車時間', '空車時間', '待機・休憩時間', '実車率(%)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
     return [ymd(s.start), periodName(periodOf(s.start)), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.pax.m, st.pax.f, st.sales,
-      st.fare.meter, st.fare.pickup, st.fare.appFee, st.fare.toll + st.fare.other, ...PAY.map(p => st.byPay[p.k] || 0),
+      st.fare.meter, st.fare.pickup, st.fare.appFee, st.fare.toll + st.fare.other, ...csvPays.map(p => st.byPay[p.k] || 0),
       dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
       s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
@@ -2201,12 +2291,18 @@ $('#closingBtn').addEventListener('click', () => openNumpad('締め日（末日�
 $('#appList').addEventListener('click', e => { const b = e.target.closest('[data-app-edit]'); if (b) openAppEditor(b.dataset.appEdit); });
 $('#appAddBtn').addEventListener('click', () => openAppEditor(null));
 $('#appOk').addEventListener('click', saveApp);
+$('#appOwnPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.payKey = b.dataset.pay; renderAppSheet(); } });
 $('#pickupFeeBtn').addEventListener('click', () => openNumpad('迎車料金（会社共通）', S.settings.pickupFee, v => { S.settings.pickupFee = v; save(); renderData(); }));
 $('#appFee').addEventListener('click', () => openNumpad('手数料（アプリ決済の時）', AE.fee, v => { AE.fee = v; renderAppSheet(); }));
 $('#appFeeOther').addEventListener('click', () => openNumpad('手数料（それ以外の決済の時）', AE.feeOther, v => { AE.feeOther = v; renderAppSheet(); }));
 $('#appPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.defaultPay = b.dataset.pay; renderAppSheet(); } });
 $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
+$('#payList').addEventListener('click', e => { const b = e.target.closest('[data-pay-edit]'); if (b) openPayEditor(b.dataset.payEdit); });
+$('#payAddBtn').addEventListener('click', () => openPayEditor(null));
+$('#payOk').addEventListener('click', savePay);
+$('#payDelete').addEventListener('click', deletePay);
+$('#paySheet [data-close]').addEventListener('click', () => closeSheet($('#paySheet')));
 $('#appSheet [data-close]').addEventListener('click', () => closeSheet($('#appSheet')));
 $('#calBtn').addEventListener('click', () => { haptic(); openCal(); });
 $('#pauseFilter').addEventListener('click', () => { haptic(); S.settings.histPause = !S.settings.histPause; save(); renderLog(); });
@@ -2287,10 +2383,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#pauseSheet', '#appSheet', '#calSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'pauseSheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
