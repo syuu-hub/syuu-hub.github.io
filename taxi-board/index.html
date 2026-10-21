@@ -1520,7 +1520,7 @@ const SAME_PLACE_M = 100;   // この距離以内の乗車地は同じ場所
 const HOUR_BANDS = { morning: [6, 10], day: [10, 16], evening: [16, 20], night: [20, 24], late: [0, 6] };
 const PIN_COLORS = [[5, '#FF5D5D', '5回以上'], [3, '#FFB020', '3〜4回'], [2, '#3DD68C', '2回'], [1, '#5B9BFF', '1回']];
 const pinColor = n => PIN_COLORS.find(([min]) => n >= min)[1];
-const DEM = { sel: null, hit: [], focus: null };
+const DEM = { sel: null, hit: [], focus: null, pan: null };
 
 function demandPass(t) {
   const d = new Date(t), h = d.getHours(), w = d.getDay();
@@ -1570,8 +1570,8 @@ function drawPins(places) {
     return;
   }
 
-  // 正距円筒図法（経度をcos(緯度)で補正）
-  const all = me ? places.concat([me]) : places;
+  // 正距円筒図法（経度をcos(緯度)で補正）。表示範囲はピンの位置を軸に決める（現在地は含めない）
+  const all = places;
   const lat0 = all.reduce((a, p) => a + p.lat, 0) / all.length;
   const kx = Math.cos(rad(lat0));
   const X = p => p.lng * kx, Y = p => -p.lat;
@@ -1591,8 +1591,8 @@ function drawPins(places) {
   for (let x = (w / 2) % stepPx; x < w; x += stepPx) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, h); ctx.stroke(); }
   for (let y = (h / 2) % stepPx; y < h; y += stepPx) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); ctx.stroke(); }
 
-  // 現在地
-  if (me) {
+  // 現在地（表示範囲に入っている時だけ）
+  if (me && px(me) >= 0 && px(me) <= w && py(me) >= 0 && py(me) <= h) {
     const x = px(me), y = py(me);
     ctx.fillStyle = 'rgba(91,155,255,.22)'; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#5B9BFF'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
@@ -1673,7 +1673,7 @@ function renderMap(places) {
     const icon = L.divIcon({ className: '', html: `<div class="lf-pin${sel ? ' sel' : ''}" style="--c:${pinColor(c.n)}"><span>${c.n}</span></div>`,
       iconSize: sel ? [36, 36] : [30, 30], iconAnchor: sel ? [18, 44] : [15, 37] });
     L.marker([c.lat, c.lng], { icon, zIndexOffset: (sel ? 10000 : 0) + c.n * 10, title: placeName(c) })
-      .on('click', e => { L.DomEvent.stopPropagation(e); DEM.sel = c.key; haptic(); renderDemand(); })
+      .on('click', e => { L.DomEvent.stopPropagation(e); DEM.sel = c.key; DEM.pan = c.key; haptic(); renderDemand(); })
       .addTo(MAP.pins);
   }
   if (geo.pos) {
@@ -1682,14 +1682,20 @@ function renderMap(places) {
   }
   // 絞り込みが変わった時だけ全体が入るように合わせる（選択だけでは動かさない）
   const fitKey = S.settings.demHour + '|' + S.settings.demDow + '|' + places.map(c => c.key).join(',');
+  // 表示はピンの位置を軸にする：一覧から選んだ場所は拡大して中央へ、ピンをタップしたらそのピンを中央へ、
+  // 絞り込みが変わった時はピン全体が入るように合わせる（現在地は範囲に含めない）
   if (DEM.focus) {
     const c = places.find(p => p.key === DEM.focus);
     if (c) m.setView([c.lat, c.lng], Math.max(m.getZoom(), 16));
-    DEM.focus = null;
+  } else if (DEM.pan) {
+    const c = places.find(p => p.key === DEM.pan);
+    if (c) m.panTo([c.lat, c.lng]);
   } else if (fitKey !== MAP.fitKey && places.length) {
     const pts = places.map(c => [c.lat, c.lng]);
-    if (pts.length === 1) m.setView(pts[0], 16); else m.fitBounds(pts, { padding: [36, 36], maxZoom: 16 });
+    if (pts.length === 1) m.setView(pts[0], 16);
+    else m.fitBounds(pts, { paddingTopLeft: [36, 56], paddingBottomRight: [36, 24], maxZoom: 16 });   // 上はピンの頭の分を多めに
   }
+  DEM.focus = DEM.pan = null;
   MAP.fitKey = fitKey;
 }
 
