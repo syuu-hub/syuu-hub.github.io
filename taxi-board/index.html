@@ -35,6 +35,10 @@
   --info:#5B9BFF;
   --st-wait:#F472B6;
 
+  /* 乗客の性別 */
+  --male:#4D9FFF;
+  --female:#FF6B9E;
+
   --r-lg:20px;
   --r-md:14px;
   --r-sm:10px;
@@ -356,7 +360,14 @@ svg{display:block}
 .opts.pax .opt{flex-direction:row;justify-content:space-between;padding:4px 20px}
 .opts.pax .cnt{font-size:30px;font-weight:800;line-height:1}
 .opts.pax .cnt small{font-size:13px;font-weight:600;margin-left:2px}
+.opts.pax .opt[data-pax="m"]{--g:var(--male)}
+.opts.pax .opt[data-pax="f"]{--g:var(--female)}
+.opts.pax .opt{border-color:var(--g);color:var(--g)}
 .opts.pax .opt[aria-pressed="false"] .cnt{color:var(--faint)}
+.opts.pax .opt[aria-pressed="true"]{background:var(--g);border-color:var(--g);color:#0A0C0F}
+.px{font-weight:700}
+.px.m{color:var(--male)}
+.px.f{color:var(--female)}
 
 /* 場所 */
 .loc{display:flex;align-items:center;gap:10px;padding:8px 0}
@@ -726,7 +737,7 @@ const PAX = [
   { k: 'f', label: '女性' },
 ];
 const PAX_LIMIT = 99;   // 設定できる人数上限の最大値
-const paxText = p => p && (p.m || p.f) ? PAX.filter(x => p[x.k]).map(x => x.label[0] + p[x.k]).join(' ') : '';
+const paxHtml = p => p && (p.m || p.f) ? PAX.filter(x => p[x.k]).map(x => `<span class="px ${x.k}">${x.label[0]}${p[x.k]}</span>`).join(' ') : '';
 const KIND = [
   { k: 'street', label: '流し' },
   { k: 'app',    label: 'アプリ配車' },
@@ -1135,7 +1146,7 @@ function renderLog() {
       <span class="body">
         <div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
         <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>
-        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay))}</span>${[kindLabel(r.kind), paxText(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : '', r.fare.toll ? '高速' + yen(r.fare.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
+        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay))}</span>${[kindLabel(r.kind), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : '', r.fare.toll ? '高速' + yen(r.fare.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
       </span>
       <span class="amt num">${yen(r.total)}</span>
     </button></li>`).join('');
