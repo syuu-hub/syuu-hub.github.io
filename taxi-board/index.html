@@ -581,6 +581,10 @@ svg{display:block}
           <button class="btn sm num" id="goalSetBtn">¥0</button>
         </div>
         <div class="setting">
+          <div><div class="k">乗客人数の上限</div><div class="d">男性・女性ボタンはこの人数の次で0に戻る</div></div>
+          <button class="btn sm num" id="paxMaxBtn">5人</button>
+        </div>
+        <div class="setting">
           <div><div class="k">減光モード</div><div class="d">夜間の車内で画面を暗く</div></div>
           <button class="switch" role="switch" aria-checked="false" data-setting="dim" aria-label="減光モード"></button>
         </div>
@@ -647,7 +651,7 @@ svg{display:block}
           <div class="opts pay" id="ePay"></div>
         </div>
         <div class="group">
-          <div class="glabel"><span>乗客</span><span>タップで人数（5人の次は0）</span></div>
+          <div class="glabel"><span>乗客</span><span id="ePaxHint"></span></div>
           <div class="opts pax" id="ePax"></div>
         </div>
         <div class="group">
@@ -686,7 +690,7 @@ svg{display:block}
       </button>
       <h2 id="npTitle">目標金額</h2>
     </header>
-    <div class="total"><span class="lbl">金額</span><span class="v num" id="npVal"><span class="cur">¥</span>0</span></div>
+    <div class="total"><span class="lbl" id="npLbl">金額</span><span class="v num" id="npVal"><span class="cur">¥</span>0</span></div>
     <div class="keypad" id="npKeys"></div>
     <footer class="e-foot"><button class="btn primary" id="npOk">決定</button></footer>
   </div>
@@ -721,7 +725,7 @@ const PAX = [
   { k: 'm', label: '男性' },
   { k: 'f', label: '女性' },
 ];
-const PAX_MAX = 5;
+const PAX_LIMIT = 99;   // 設定できる人数上限の最大値
 const paxText = p => p && (p.m || p.f) ? PAX.filter(x => p[x.k]).map(x => x.label[0] + p[x.k]).join(' ') : '';
 const KIND = [
   { k: 'street', label: '流し' },
@@ -781,7 +785,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 1,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, tab: 'home', heat: 'all', heatRides: true },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, tab: 'home', heat: 'all', heatRides: true },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,toll,other},total,pay,kind,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -1347,6 +1351,7 @@ function renderData() {
   $('#shiftSec').hidden = !sh;
   $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
   $('#goalSetBtn').textContent = yen(S.settings.goal);
+  $('#paxMaxBtn').textContent = S.settings.paxMax + '人';
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
 
   const past = S.shifts.filter(s => s.end).sort((a, b) => b.start - a.start).slice(0, 30);
@@ -1445,11 +1450,11 @@ function mountKeypad(el, onKey) {
     haptic(); onKey(b.dataset.k);
   });
 }
-function applyKey(str, k) {
+function applyKey(str, k, digits = MAX_DIGITS) {
   if (k === 'clr') return '';
   if (k === 'del') return str.slice(0, -1);
   const n = (str + k).replace(/^0+/, '');
-  return n.length > MAX_DIGITS ? str : n;
+  return n.length > digits ? str : n;
 }
 
 /* ============================================================
@@ -1513,6 +1518,7 @@ function renderEntry() {
       <span class="k">${f.label}</span><span class="v num ${v ? '' : 'zero'}">${yen(v)}</span></button>`;
   }).join('');
   $('#ePay').innerHTML = PAY.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}">${p.label}${p.sub ? `<small>${p.sub}</small>` : ''}</button>`).join('');
+  $('#ePaxHint').textContent = `タップで人数（${S.settings.paxMax}人の次は0）`;
   $('#ePax').innerHTML = PAX.map(p => `<button class="opt" data-pax="${p.k}" aria-pressed="${E.pax[p.k] > 0}" aria-label="${p.label} ${E.pax[p.k]}人">${p.label}<span class="cnt num">${E.pax[p.k]}<small>人</small></span></button>`).join('');
   $('#eKind').innerHTML = KIND.map(p => `<button class="opt" data-kind="${p.k}" aria-pressed="${E.kind === p.k}">${p.label}</button>`).join('');
   const save = $('#eSave');
@@ -1573,12 +1579,25 @@ function deleteEntry() {
 /* ============================================================
    数値入力ダイアログ
    ============================================================ */
-const NP = { val: '', onOk: null };
-function openNumpad(title, value, onOk) {
+// unit を渡すと金額ではなく「n人」のような数量入力になる
+const NP = { val: '', onOk: null, unit: null, digits: MAX_DIGITS };
+function renderNumpad() {
+  const n = +NP.val || 0;
+  $('#npVal').innerHTML = NP.unit ? `${n}<span class="cur" style="vertical-align:0;margin-left:.1em">${NP.unit}</span>` : yenHtml(n);
+}
+function openNumpad(title, value, onOk, { unit = null, label = '金額', digits = MAX_DIGITS } = {}) {
   $('#npTitle').textContent = title;
-  NP.val = value ? String(value) : ''; NP.onOk = onOk;
-  $('#npVal').innerHTML = yenHtml(+NP.val || 0);
+  $('#npLbl').textContent = label;
+  NP.val = value ? String(value) : ''; NP.onOk = onOk; NP.unit = unit; NP.digits = digits;
+  renderNumpad();
   openSheet($('#numpad'));
+}
+function editPaxMax() {
+  openNumpad('乗客人数の上限', S.settings.paxMax, v => {
+    S.settings.paxMax = clamp(v, 1, PAX_LIMIT);
+    save(); renderData();
+    if (v < 1 || v > PAX_LIMIT) toast(`上限は1〜${PAX_LIMIT}人の範囲で設定してください`);
+  }, { unit: '人', label: '人数', digits: 2 });
 }
 function editGoal() {
   openNumpad('1日の目標金額', S.settings.goal, v => {
@@ -1732,6 +1751,7 @@ $$('[data-pin]').forEach(b => b.addEventListener('click', () => addPin(b.dataset
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
+$('#paxMaxBtn').addEventListener('click', editPaxMax);
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
 
 $('#rideList').addEventListener('click', e => { const b = e.target.closest('[data-ride]'); if (b) openEntry(b.dataset.ride); });
@@ -1772,7 +1792,7 @@ mountKeypad($('#eKeys'), k => { E.fields[E.active] = applyKey(E.fields[E.active]
 $('#eFields').addEventListener('click', e => { const b = e.target.closest('[data-field]'); if (b) { haptic(); E.active = b.dataset.field; renderEntry(); } });
 $('#ePay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); E.pay = b.dataset.pay; renderEntry(); } });
 // 乗客：タップごとに +1、上限を超えたら 0 に戻る
-$('#ePax').addEventListener('click', e => { const b = e.target.closest('[data-pax]'); if (b) { haptic(); const k = b.dataset.pax; E.pax[k] = (E.pax[k] + 1) % (PAX_MAX + 1); renderEntry(); } });
+$('#ePax').addEventListener('click', e => { const b = e.target.closest('[data-pax]'); if (b) { haptic(); const k = b.dataset.pax; E.pax[k] = E.pax[k] >= S.settings.paxMax ? 0 : E.pax[k] + 1; renderEntry(); } });
 $('#eKind').addEventListener('click', e => { const b = e.target.closest('[data-kind]'); if (b) { haptic(); E.kind = b.dataset.kind; renderEntry(); } });
 $$('[data-regps]').forEach(b => b.addEventListener('click', async () => {
   const which = b.dataset.regps;
@@ -1788,7 +1808,7 @@ $('#eDelete').addEventListener('click', deleteEntry);
 $('#entry [data-close]').addEventListener('click', () => { E = null; closeSheet($('#entry')); });
 
 // 数値ダイアログ
-mountKeypad($('#npKeys'), k => { NP.val = applyKey(NP.val, k); $('#npVal').innerHTML = yenHtml(+NP.val || 0); });
+mountKeypad($('#npKeys'), k => { NP.val = applyKey(NP.val, k, NP.digits); renderNumpad(); });
 $('#npOk').addEventListener('click', () => { const fn = NP.onOk; closeSheet($('#numpad')); fn && fn(+NP.val || 0); });
 $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad')));
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
