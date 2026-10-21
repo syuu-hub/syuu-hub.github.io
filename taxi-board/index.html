@@ -289,6 +289,7 @@ svg{display:block}
 .setting{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:var(--tap);border-bottom:1px solid var(--line)}
 .setting:last-child{border-bottom:0}
 .setting .k{font-size:15px}
+.setting .btn{white-space:nowrap;flex:none}
 .setting .d{font-size:12px;color:var(--faint);margin-top:2px}
 .switch{width:56px;height:34px;border-radius:999px;background:var(--surface-3);position:relative;flex:none;transition:background .2s}
 .switch::after{content:"";position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
@@ -642,6 +643,10 @@ svg{display:block}
           <button class="btn sm num" id="paxMaxBtn">5人</button>
         </div>
         <div class="setting">
+          <div><div class="k">締め日</div><div class="d" id="closingDesc"></div></div>
+          <button class="btn sm num" id="closingBtn">末日</button>
+        </div>
+        <div class="setting">
           <div><div class="k">減光モード</div><div class="d">夜間の車内で画面を暗く</div></div>
           <button class="switch" role="switch" aria-checked="false" data-setting="dim" aria-label="減光モード"></button>
         </div>
@@ -903,7 +908,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 1,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pickupFee: 0, tab: 'home', heat: 'all', heatRides: true },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pickupFee: 0, closingDay: 0, tab: 'home', heat: 'all', heatRides: true },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee,toll,other},total,pay,kind,app,pax,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -1243,17 +1248,33 @@ function placeText(p) { return p ? (p.memo || shortAddr(p.addr) || (p.lat != nul
 /* ============================================================
    月間カレンダー（出庫日ごとに売上・乗車数・労働時間を集計）
    ============================================================ */
+// CAL.y / CAL.m は締め月（例：15日締めの10月度＝9/16〜10/15）。sel は 'y-m-d'
 const CAL = { y: 0, m: 0, sel: null };
+const dayKey = d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const closingLabel = () => S.settings.closingDay ? S.settings.closingDay + '日締め' : '末日締め';
+// 締め月 → 期間 [開始日, 終了日]
+function periodRange(y, m) {
+  const c = S.settings.closingDay;
+  return c ? [new Date(y, m - 1, c + 1), new Date(y, m, c)] : [new Date(y, m, 1), new Date(y, m + 1, 0)];
+}
+// 日付 → それが属する締め月
+function periodOf(t) {
+  const d = new Date(t), c = S.settings.closingDay;
+  const p = c && d.getDate() > c ? new Date(d.getFullYear(), d.getMonth() + 1, 1) : d;
+  return { y: p.getFullYear(), m: p.getMonth() };
+}
+const periodName = ({ y, m }) => `${y}年${m + 1}月${S.settings.closingDay ? '度' : ''}`;
 const compactYen = n => n >= 10000 ? (n / 10000).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, '') + '万' : yen(n);
 const hours = ms => (ms / 3600000).toFixed(1).replace(/\.0$/, '') + 'h';
 
 function monthData(y, m) {
   const days = {};
   for (const sh of S.shifts) {
-    const d = new Date(sh.start);
-    if (d.getFullYear() !== y || d.getMonth() !== m) continue;
+    const p = periodOf(sh.start);
+    if (p.y !== y || p.m !== m) continue;
     const st = shiftStats(sh);
-    const o = days[d.getDate()] || (days[d.getDate()] = { sales: 0, count: 0, ms: 0, shifts: [] });
+    const k = dayKey(new Date(sh.start));
+    const o = days[k] || (days[k] = { sales: 0, count: 0, ms: 0, shifts: [] });
     o.sales += st.sales; o.count += st.count; o.ms += st.elapsed;   // 労働時間＝出庫〜入庫
     o.shifts.push({ sh, st });
   }
@@ -1265,7 +1286,9 @@ function renderCal() {
   const days = monthData(y, m);
   const list = Object.values(days);
   const tot = list.reduce((a, o) => ({ sales: a.sales + o.sales, count: a.count + o.count, ms: a.ms + o.ms }), { sales: 0, count: 0, ms: 0 });
-  $('#calTitle').textContent = `${y}年${m + 1}月`;
+  const [from, to] = periodRange(y, m);
+  const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  $('#calTitle').innerHTML = `${periodName(CAL)}<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">${md(from)}〜${md(to)}</small>`;
   $('#calSum').innerHTML = `
     <div><div class="k">売上</div><div class="v num">${yen(tot.sales)}</div></div>
     <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
@@ -1273,25 +1296,25 @@ function renderCal() {
     <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
 
   const max = Math.max(0, ...list.map(o => o.sales));
-  const first = new Date(y, m, 1).getDay();
-  const last = new Date(y, m + 1, 0).getDate();
-  const now = new Date();
-  const isToday = d => now.getFullYear() === y && now.getMonth() === m && now.getDate() === d;
+  const today = dayKey(new Date());
   let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
-  html += '<div class="cal-cell empty"></div>'.repeat(first);
-  for (let d = 1; d <= last; d++) {
-    const o = days[d];
+  html += '<div class="cal-cell empty"></div>'.repeat(from.getDay());
+  for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    const k = dayKey(d), o = days[k];
     const h = o && max ? (0.12 + 0.43 * o.sales / max).toFixed(2) : 0;   // 売上が多いほど濃く
-    html += `<button class="cal-cell ${isToday(d) ? 'today' : ''}" data-day="${d}" aria-pressed="${CAL.sel === d}" style="--h:${h}">
-      <span class="d num">${d}</span>
+    // 期間が月をまたぐ時は、各月の初日（と期間の初日）に月を付ける
+    const label = d.getDate() === 1 || +d === +from ? md(d) : d.getDate();
+    html += `<button class="cal-cell ${k === today ? 'today' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}" style="--h:${h}">
+      <span class="d num">${label}</span>
       ${o ? `<span class="s num">${compactYen(o.sales)}</span><span class="m num">${o.count}回</span><span class="m num">${hours(o.ms)}</span>` : ''}
     </button>`;
   }
   $('#calGrid').innerHTML = html;
 
   const o = CAL.sel && days[CAL.sel];
+  const sd = CAL.sel && new Date(...CAL.sel.split('-').map((v, i) => i === 1 ? v - 1 : +v));
   $('#calDay').innerHTML = !CAL.sel ? '<div class="empty">日付をタップすると、その日の営業が表示されます。</div>'
-    : `<div class="sec-h"><h3>${m + 1}月${CAL.sel}日（${WEEKDAYS[new Date(y, m, CAL.sel).getDay()]}）</h3>${o ? `<span class="aside num">${yen(o.sales)} ・ ${o.count}回 ・ ${dur(o.ms)}</span>` : ''}</div>` +
+    : `<div class="sec-h"><h3>${sd.getMonth() + 1}月${sd.getDate()}日（${WEEKDAYS[sd.getDay()]}）</h3>${o ? `<span class="aside num">${yen(o.sales)} ・ ${o.count}回 ・ ${dur(o.ms)}</span>` : ''}</div>` +
       (o ? `<ul class="list">${o.shifts.map(({ sh, st }) => `<li class="row">
         <span class="body"><div class="main num">${hhmm(sh.start)}–${sh.end ? hhmm(sh.end) : '営業中'}</div>
         <div class="sub num">${st.count}回 ・ 労働 ${dur(st.elapsed)} ・ 実車率 ${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'} ・ 時間単価 ${st.hourly != null ? yen(st.hourly) : '—'}</div></span>
@@ -1300,8 +1323,7 @@ function renderCal() {
 }
 
 function openCal() {
-  const now = new Date();
-  Object.assign(CAL, { y: now.getFullYear(), m: now.getMonth(), sel: now.getDate() });
+  Object.assign(CAL, { ...periodOf(Date.now()), sel: dayKey(new Date()) });
   renderCal();
   $('#calSheet .cal-body').scrollTop = 0;
   openSheet($('#calSheet'));
@@ -1550,6 +1572,8 @@ function renderData() {
   $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
   $('#goalSetBtn').textContent = yen(S.settings.goal);
   $('#paxMaxBtn').textContent = S.settings.paxMax + '人';
+  $('#closingBtn').textContent = closingLabel();
+  $('#closingDesc').textContent = '月間カレンダー・日報の集計期間（' + (S.settings.closingDay ? `前月${S.settings.closingDay + 1}日〜当月${S.settings.closingDay}日` : '1日〜末日') + '）';
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
   $('#appList').innerHTML = S.settings.apps.length ? S.settings.apps.map(a => `<li><button class="row" data-app-edit="${esc(a.id)}">
       <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 アプリ決済 ${yen(a.fee)} / 他 ${yen(a.feeOther)}</div></span>
@@ -1948,12 +1972,12 @@ function exportLog(onlyShiftId) {
 function exportSummary() {
   const shifts = S.shifts.slice().sort((a, b) => a.start - b.start);
   if (!shifts.length) { toast('出力するデータがありません'); return; }
-  const head = ['営業日', '出庫', '入庫', '営業時間', '乗車回数', '乗客 男性', '乗客 女性', '営業収入合計',
+  const head = ['営業日', '締め期間', '出庫', '入庫', '営業時間', '乗車回数', '乗客 男性', '乗客 女性', '営業収入合計',
     '運賃', '迎車料金', 'アプリ手数料', '高速・その他', ...PAY.map(p => p.label),
     '実車時間', '空車時間', '待機・休憩時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
-    return [ymd(s.start), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.pax.m, st.pax.f, st.sales,
+    return [ymd(s.start), periodName(periodOf(s.start)), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.pax.m, st.pax.f, st.sales,
       st.fare.meter, st.fare.pickup, st.fare.appFee, st.fare.toll + st.fare.other, ...PAY.map(p => st.byPay[p.k] || 0),
       dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
@@ -2035,6 +2059,11 @@ $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setVi
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
 $('#paxMaxBtn').addEventListener('click', editPaxMax);
+$('#closingBtn').addEventListener('click', () => openNumpad('締め日（末日締めは0）', S.settings.closingDay, v => {
+  S.settings.closingDay = v >= 1 && v <= 28 ? v : 0;
+  if (v > 28) toast('29日以降は末日締めとして扱います');
+  save(); renderData();
+}, { unit: '日', label: '締め日', digits: 2 }));
 $('#appList').addEventListener('click', e => { const b = e.target.closest('[data-app-edit]'); if (b) openAppEditor(b.dataset.appEdit); });
 $('#appAddBtn').addEventListener('click', () => openAppEditor(null));
 $('#appOk').addEventListener('click', saveApp);
@@ -2048,7 +2077,7 @@ $('#appSheet [data-close]').addEventListener('click', () => closeSheet($('#appSh
 $('#calBtn').addEventListener('click', () => { haptic(); openCal(); });
 $('#calPrev').addEventListener('click', () => shiftCal(-1));
 $('#calNext').addEventListener('click', () => shiftCal(1));
-$('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { haptic(); CAL.sel = +b.dataset.day; renderCal(); } });
+$('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { haptic(); CAL.sel = b.dataset.day; renderCal(); } });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
 
