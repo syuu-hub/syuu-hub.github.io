@@ -32,9 +32,8 @@
   /* ステータス色：実際の表示灯に準拠（空車=赤 / 実車=緑） */
   --st-vacant:#FF5D5D;
   --st-occupied:#3DD68C;
-  --st-deadhead:#5B9BFF;
+  --info:#5B9BFF;
   --st-wait:#F472B6;
-  --st-rest:#A78BFA;
 
   --r-lg:20px;
   --r-md:14px;
@@ -102,9 +101,9 @@ svg{display:block}
   }
   .cockpit .sales{font-size:clamp(46px,min(13vh,8.5vw),132px)}
   .cockpit .pct{font-size:clamp(26px,min(6vh,4vw),56px)}
-  .cockpit .status{grid-template-columns:repeat(6,minmax(0,1fr))}
-  .cockpit .st-btn{grid-column:span 2}
-  .cockpit .st-btn[data-st="vacant"],.cockpit .st-btn[data-st="occupied"]{grid-column:span 3}
+  .cockpit .status{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cockpit .st-btn[data-st="wait"]{grid-column:1 / -1}
+  .cockpit .st-btn[data-st="wait"] .l .w,.cockpit .st-btn[data-st="wait"] .l .sep{display:inline}
   .cockpit .act-btn{height:clamp(64px,16vh,120px)}
 }
 
@@ -144,9 +143,7 @@ svg{display:block}
 .mini .mini-st{color:var(--c)}
 .mini[data-st="vacant"]{--c:var(--st-vacant)}
 .mini[data-st="occupied"]{--c:var(--st-occupied)}
-.mini[data-st="deadhead"]{--c:var(--st-deadhead)}
 .mini[data-st="wait"]{--c:var(--st-wait)}
-.mini[data-st="rest"]{--c:var(--st-rest)}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)}
 
@@ -189,7 +186,7 @@ svg{display:block}
 .stat .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
 
 /* ---------------- ステータス ---------------- */
-.status{grid-area:status;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.status{grid-area:status;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .st-btn{
   --c:var(--muted);
   height:100%;min-height:64px;
@@ -204,9 +201,10 @@ svg{display:block}
 .st-btn .t{font-size:13px;font-weight:600;color:var(--muted);min-height:1.2em;white-space:pre-line;text-align:center;line-height:1.3}
 .st-btn[data-st="vacant"]{--c:var(--st-vacant)}
 .st-btn[data-st="occupied"]{--c:var(--st-occupied)}
-.st-btn[data-st="deadhead"]{--c:var(--st-deadhead)}
 .st-btn[data-st="wait"]{--c:var(--st-wait)}
-.st-btn[data-st="rest"]{--c:var(--st-rest)}
+/* 縦画面は「待機」「休憩」を2行に、横画面（全幅ボタン）は1行に */
+.st-btn[data-st="wait"] .l .w{display:block;line-height:1.15}
+.st-btn[data-st="wait"] .l .sep{display:none}
 .st-btn[aria-pressed="true"]{background:var(--c);border-color:var(--c)}
 .st-btn[aria-pressed="true"] .l,.st-btn[aria-pressed="true"] .t{color:#0A0C0F}
 
@@ -492,9 +490,7 @@ svg{display:block}
   <nav class="status" aria-label="ステータス">
     <button class="st-btn" data-st="vacant" aria-pressed="false"><span class="l">空車</span><span class="t num"></span></button>
     <button class="st-btn" data-st="occupied" aria-pressed="false"><span class="l">実車</span><span class="t num"></span></button>
-    <button class="st-btn" data-st="wait" aria-pressed="false"><span class="l">待機</span><span class="t num"></span></button>
-    <button class="st-btn" data-st="deadhead" aria-pressed="false"><span class="l">回送</span><span class="t num"></span></button>
-    <button class="st-btn" data-st="rest" aria-pressed="false"><span class="l">休憩</span><span class="t num"></span></button>
+    <button class="st-btn" data-st="wait" aria-pressed="false"><span class="l"><span class="w">待機</span><span class="sep">・</span><span class="w">休憩</span></span><span class="t num"></span></button>
   </nav>
 
   <!-- ===== 主要アクション ===== -->
@@ -698,7 +694,8 @@ svg{display:block}
 const STATUS = {
   vacant:   { label: '空車' },
   occupied: { label: '実車' },
-  wait:     { label: '待機' },
+  wait:     { label: '待機・休憩' },
+  // 旧データ（回送・休憩が別ステータスだった頃の記録）の表示用
   deadhead: { label: '回送' },
   rest:     { label: '休憩' },
   off:      { label: '入庫' },
@@ -725,7 +722,7 @@ const FIELDS = [
 ];
 const PIN_TYPES = { app: 'アプリ通知', hail: '手挙げ', ride: '乗車' };
 // 待機・休憩は一時的な状態：空車／実車、または同じボタンの再タップで解除して空車へ
-const PAUSE = ['wait', 'rest'];
+const PAUSE = ['wait'];
 const KEYS = ['1','2','3','4','5','6','7','8','9','00','0','del'];
 const STORE_KEY = 'taxiboard.v1';
 const MAX_DIGITS = 7;
@@ -776,11 +773,15 @@ function freshState() {
     pins: [],     // {id,shiftId,ts,type,lat,lng,acc}
   };
 }
+// 旧ステータス → 現在の区分（休憩は待機・休憩へ、回送は空車へ）
+const legacyStatus = st => st === 'rest' ? 'wait' : st === 'deadhead' ? 'vacant' : st;
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
     if (s && s.v === 1) {
       const base = freshState();
+      // 営業中のシフトが旧ステータスなら新しい区分へ
+      for (const sh of s.shifts || []) if (!sh.end) sh.status = legacyStatus(sh.status);
       return { ...base, ...s, settings: { ...base.settings, ...s.settings } };
     }
   } catch (e) {}
@@ -1015,13 +1016,14 @@ function shiftStats(sh) {
   }
   const end = sh.end || Date.now();
   const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
-  const time = { vacant: 0, occupied: 0, wait: 0, deadhead: 0, rest: 0 };
+  const time = { vacant: 0, occupied: 0, wait: 0 };
   evs.forEach((e, i) => {
-    if (!(e.status in time)) return;
+    const st = legacyStatus(e.status);
+    if (!(st in time)) return;
     const to = i + 1 < evs.length ? evs[i + 1].ts : end;
-    time[e.status] += Math.max(0, to - e.ts);
+    time[st] += Math.max(0, to - e.ts);
   });
-  const working = time.vacant + time.occupied + time.wait + time.deadhead;   // 休憩を除く稼働時間
+  const working = time.vacant + time.occupied + time.wait;   // 出庫中の稼働時間
   const elapsed = end - sh.start;
   const distTotal = Object.values(sh.dist || {}).reduce((a, b) => a + b, 0);
   return {
@@ -1311,7 +1313,7 @@ function renderBi() {
   $('#biList').innerHTML = bi.areas.slice().sort((a, b) => b.demand - a.demand).map(a => {
     const [lab, col] = lv(a.demand);
     const delta = a.prev ? a.demand - a.prev : 0;
-    const tr = delta > 2 ? ['↑', 'var(--danger)'] : delta < -2 ? ['↓', 'var(--st-deadhead)'] : ['→', 'var(--faint)'];
+    const tr = delta > 2 ? ['↑', 'var(--danger)'] : delta < -2 ? ['↓', 'var(--info)'] : ['→', 'var(--faint)'];
     const dist = geo.pos ? ' ・ ' + dirLabel(bearing(geo.pos, a)) + ' ' + fmtDist(haversine(geo.pos, a)) : '';
     return `<li class="row">
       <span class="lvl"><div class="lab" style="color:${col}">${lab}</div><div class="meter"><i style="width:${a.demand}%;background:${col}"></i></div></span>
@@ -1626,14 +1628,14 @@ function exportLog(onlyShiftId) {
 function exportSummary() {
   const shifts = S.shifts.slice().sort((a, b) => a.start - b.start);
   if (!shifts.length) { toast('出力するデータがありません'); return; }
-  const head = ['営業日', '出庫', '入庫', '営業時間', '休憩時間', '乗車回数', '営業収入合計',
+  const head = ['営業日', '出庫', '入庫', '営業時間', '乗車回数', '営業収入合計',
     'メーター', '迎車', '高速', 'その他', ...PAY.map(p => p.label),
-    '実車時間', '空車時間', '待機時間', '回送時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
+    '実車時間', '空車時間', '待機・休憩時間', '実車率(%)', '走行距離(km)', '実車距離(km)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
-    return [ymd(s.start), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), dur(st.time.rest), st.count, st.sales,
+    return [ymd(s.start), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.sales,
       st.fare.meter, st.fare.pickup, st.fare.toll, st.fare.other, ...PAY.map(p => st.byPay[p.k] || 0),
-      dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait), dur(st.time.deadhead),
+      dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
       (st.distTotal / 1000).toFixed(1), (st.distOcc / 1000).toFixed(1),
       s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
