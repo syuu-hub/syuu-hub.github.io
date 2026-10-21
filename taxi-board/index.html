@@ -591,7 +591,7 @@ svg{display:block}
         <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>このシフトの記録</h3><span class="aside">乗車はタップで修正</span></div>
+        <div class="sec-h"><h3>このシフトの記録</h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩を表示</button></div></div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -914,7 +914,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 1,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pickupFee: 0, closingDay: 0, tab: 'home', heat: 'all', heatRides: true },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', heat: 'all', heatRides: true },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip,dist}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee,toll,other},total,pay,kind,app,pax,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -1359,13 +1359,16 @@ function renderLog() {
   ps.hidden = !st || !st.pauses.length;
   if (st && st.pauses.length) ps.innerHTML = `<span class="tag pause">待機・休憩</span>合計 <b>${dur(st.time.wait)}</b>（${st.pauses.length}回）`;
 
+  $('#pauseFilter').setAttribute('aria-pressed', !!S.settings.histPause);
   const list = $('#rideList');
   if (!st || (!st.rides.length && !st.pauses.length)) {
     list.innerHTML = `<li class="empty">${sh ? 'まだ乗車記録はありません。<br>「実車」→「空車」で自動的に入力画面が開きます。' : '出庫前です。ホームの「出庫」から営業を開始します。'}</li>`;
     return;
   }
-  // 乗車と待機・休憩を新しい順に並べる（待機・休憩は開始時刻で）
-  const items = [...st.rides.map(r => ({ t: r.ts, r })), ...st.pauses.map(p => ({ t: p.start, p }))].sort((a, b) => b.t - a.t);
+  // 乗車と待機・休憩を新しい順に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
+  const showPause = !!S.settings.histPause;
+  const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => b.t - a.t);
+  if (!items.length) { list.innerHTML = '<li class="empty">まだ乗車記録はありません。<br>待機・休憩は「待機・休憩を表示」で確認できます。</li>'; return; }
   list.innerHTML = items.map(({ r, p }) => p ? `
     <li class="row">
       <span class="time num">${hhmm(p.start)}</span>
@@ -2107,6 +2110,7 @@ $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
 $('#appSheet [data-close]').addEventListener('click', () => closeSheet($('#appSheet')));
 $('#calBtn').addEventListener('click', () => { haptic(); openCal(); });
+$('#pauseFilter').addEventListener('click', () => { haptic(); S.settings.histPause = !S.settings.histPause; save(); renderLog(); });
 $('#calPrev').addEventListener('click', () => shiftCal(-1));
 $('#calNext').addEventListener('click', () => shiftCal(1));
 $('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { haptic(); CAL.sel = b.dataset.day; renderCal(); } });
