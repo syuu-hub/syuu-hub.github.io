@@ -263,6 +263,9 @@ svg{display:block}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface-3);color:var(--muted);margin-right:6px;vertical-align:1px}
 .tag.cash{background:rgba(255,176,32,.14);color:var(--accent)}
 .tag.pause{background:rgba(244,114,182,.16);color:var(--st-wait)}
+.text-in[type="time"]{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;padding:0 10px}
+.ps-dur{text-align:center;color:var(--muted);font-size:14px;margin-top:14px}
+.ps-dur b{color:var(--st-wait);font-size:22px;margin-left:6px}
 .pause-sum{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 14px;border-radius:var(--r-md);background:var(--surface-2);font-size:14px;color:var(--muted)}
 .pause-sum b{color:var(--st-wait);font-size:18px}
 .row .amt.dur{font-size:17px;color:var(--st-wait)}
@@ -591,7 +594,7 @@ svg{display:block}
         <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>このシフトの記録</h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩を表示</button></div></div>
+        <div class="sec-h"><h3>このシフトの記録<span style="font-weight:500;color:var(--faint);margin-left:8px">タップで修正</span></h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩を表示</button></div></div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -755,6 +758,28 @@ svg{display:block}
     <footer class="e-foot">
       <button class="btn danger" id="eDelete" hidden>削除</button>
       <button class="btn primary" id="eSave">記録する</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ===== 待機・休憩の編集 ===== -->
+<div class="sheet center" id="pauseSheet" hidden role="dialog" aria-modal="true" aria-labelledby="psTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="psTitle">待機・休憩の修正</h2>
+    </header>
+    <div class="fields">
+      <label class="group" style="margin:0"><div class="glabel">開始</div><input class="text-in num" type="time" id="psStart"></label>
+      <label class="group" style="margin:0"><div class="glabel">終了</div><input class="text-in num" type="time" id="psEnd"><div class="text-in num" id="psOngoing" style="display:flex;align-items:center;color:var(--muted)" hidden>継続中</div></label>
+    </div>
+    <div class="ps-dur num" id="psDur"></div>
+    <div class="glabel" style="margin-top:6px;justify-content:center" id="psRange"></div>
+    <footer class="e-foot">
+      <button class="btn danger" id="psDelete">削除</button>
+      <button class="btn primary" id="psSave">保存</button>
     </footer>
   </div>
 </div>
@@ -1345,6 +1370,93 @@ function shiftCal(delta) {
   haptic(); renderCal();
 }
 
+/* ============================================================
+   待機・休憩の修正・削除
+   待機・休憩＝status 'wait' のイベントから次のイベントまで。終了時刻は次のイベントの時刻
+   ============================================================ */
+const PS = { id: null };
+function pauseCtx(id) {
+  const e = S.events.find(x => x.id === id);
+  if (!e) return null;
+  const sh = S.shifts.find(x => x.id === e.shiftId);
+  const evs = S.events.filter(x => x.shiftId === e.shiftId).sort((a, b) => a.ts - b.ts);
+  const i = evs.indexOf(e);
+  const prev = evs[i - 1] || null, next = evs[i + 1] || null, next2 = evs[i + 2] || null;
+  return {
+    e, sh, prev, next,
+    minStart: prev ? prev.ts : sh.start,
+    // 終了は次の次の記録まで（入庫で終わった時は現在まで）
+    maxEnd: next && next.status !== 'off' && next2 ? next2.ts : (sh.end && !(next && next.status === 'off') ? sh.end : Date.now()),
+  };
+}
+const toHM = t => hhmm(t);
+// 入力した時刻を、元の時刻に最も近い日付に当てはめる（深夜をまたぐ場合に対応）
+function fromHM(hm, near) {
+  const [h, m] = hm.split(':').map(Number);
+  const d = new Date(near); d.setHours(h, m, 0, 0);
+  let t = d.getTime();
+  if (t - near > 12 * 3600e3) t -= 24 * 3600e3;
+  if (near - t > 12 * 3600e3) t += 24 * 3600e3;
+  return t;
+}
+function psValues() {
+  const c = pauseCtx(PS.id);
+  // 時刻を変えていない欄は元の値（秒まで）のまま
+  const pick = (v, orig) => !v || v === toHM(orig) ? orig : fromHM(v, orig);
+  let start = pick($('#psStart').value, c.e.ts);
+  if (start < c.minStart && start > c.minStart - 60000) start = c.minStart;   // 同じ「分」なら直前の記録にそろえる
+  const end = c.next ? pick($('#psEnd').value, c.next.ts) : null;
+  return { c, start, end };
+}
+function renderPauseSheet() {
+  const { c, start, end } = psValues();
+  $('#psDur').innerHTML = `長さ<b>${dur(Math.max(0, (end ?? Date.now()) - start))}</b>`;
+  $('#psRange').textContent = `入力できる範囲：${toHM(c.minStart)} 〜 ${c.next ? toHM(c.maxEnd) : '現在'}`;
+}
+function openPause(id) {
+  const c = pauseCtx(id);
+  if (!c) return;
+  PS.id = id;
+  $('#psStart').value = toHM(c.e.ts);
+  $('#psEnd').hidden = !c.next;
+  $('#psOngoing').hidden = !!c.next;
+  if (c.next) $('#psEnd').value = toHM(c.next.ts);
+  renderPauseSheet();
+  openSheet($('#pauseSheet'));
+}
+function savePause() {
+  const { c, start, end } = psValues();
+  if (start < c.minStart) return toast(`開始は ${toHM(c.minStart)} 以降にしてください`);
+  if (start >= (end ?? Date.now())) return toast('開始が終了より後になっています');
+  if (end != null && end > c.maxEnd) return toast(`終了は ${toHM(c.maxEnd)} までにしてください`);
+  c.e.ts = start;
+  if (c.next) {
+    c.next.ts = end;
+    if (c.next.status === 'off') c.sh.end = end;   // 入庫で終わった待機・休憩
+  } else c.sh.statusSince = start;
+  save(); haptic(25); closeSheet($('#pauseSheet')); renderAll();
+  toast('待機・休憩を修正しました');
+}
+function deletePause() {
+  const c = pauseCtx(PS.id);
+  if (!c || !confirm('この待機・休憩を削除しますか？\n（その時間は直前のステータスとして扱います）')) return;
+  const drop = new Set([c.e]);
+  if (!c.prev) {
+    c.e.status = 'vacant';   // 出庫直後の待機・休憩 → 空車として残す
+    drop.delete(c.e);
+  } else if (c.next && c.next.status !== 'off' && legacyStatus(c.next.status) === legacyStatus(c.prev.status)) {
+    drop.add(c.next);        // 空車→待機・休憩→空車 は、ひと続きの空車に
+  } else if (c.next) {
+    c.next.prev = c.prev.status;
+  } else if (!c.sh.end) {
+    c.sh.status = legacyStatus(c.prev.status);   // 継続中だった → 直前のステータスに戻す
+    c.sh.statusSince = c.prev.ts;
+  }
+  S.events = S.events.filter(x => !drop.has(x));
+  save(); haptic(25); closeSheet($('#pauseSheet')); renderAll();
+  toast('待機・休憩を削除しました');
+}
+
 function renderLog() {
   const sh = curShift();
   const st = sh ? shiftStats(sh) : null;
@@ -1370,14 +1482,14 @@ function renderLog() {
   const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => b.t - a.t);
   if (!items.length) { list.innerHTML = '<li class="empty">まだ乗車記録はありません。<br>待機・休憩は「待機・休憩を表示」で確認できます。</li>'; return; }
   list.innerHTML = items.map(({ r, p }) => p ? `
-    <li class="row">
+    <li><button class="row" data-pause="${p.ev.id}">
       <span class="time num">${hhmm(p.start)}</span>
       <span class="body">
         <div class="main"><span class="tag pause">待機・休憩</span><span class="num">${hhmm(p.start)}–${p.end ? hhmm(p.end) : '継続中'}</span></div>
         <div class="sub">${esc(placeText(p.ev.lat != null ? p.ev : null))}</div>
       </span>
       <span class="amt num dur">${dur(p.ms)}</span>
-    </li>` : `
+    </button></li>` : `
     <li><button class="row" data-ride="${r.id}">
       <span class="time num">${hhmm(r.ts)}</span>
       <span class="body">
@@ -2117,7 +2229,14 @@ $('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
 
-$('#rideList').addEventListener('click', e => { const b = e.target.closest('[data-ride]'); if (b) openEntry(b.dataset.ride); });
+$('#rideList').addEventListener('click', e => {
+  const b = e.target.closest('[data-ride],[data-pause]'); if (!b) return;
+  if (b.dataset.ride) openEntry(b.dataset.ride); else openPause(b.dataset.pause);
+});
+['#psStart', '#psEnd'].forEach(sel => $(sel).addEventListener('input', renderPauseSheet));
+$('#psSave').addEventListener('click', savePause);
+$('#psDelete').addEventListener('click', deletePause);
+$('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pauseSheet')));
 
 $('#heatFilter').addEventListener('click', e => {
   const b = e.target.closest('[data-f]'); if (!b) return;
@@ -2181,10 +2300,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#appSheet', '#calSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#pauseSheet', '#appSheet', '#calSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'pauseSheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
