@@ -1161,18 +1161,18 @@ function hyogoSuggest(q) {
     if (!rest) return { hint: `${c.n} ・ 続けて町名を入力` };
     if (c.towns.includes(rest)) return { list: [] };
     const towns = c.towns.filter(t => t.startsWith(rest)).concat(c.towns.filter(t => !t.startsWith(rest) && t.includes(rest)));
-    return { list: towns.slice(0, 8).map(t => ({ v: nm + t, label: t })) };
+    return { list: towns.slice(0, 8).map(t => ({ v: '兵庫県' + nm + t, label: t })) };
   }
   // 市区町名の候補（漢字・ひらがな）
   const h = toHira(q);
   const score = c => c.n.startsWith(q) || c.s.startsWith(q) || c.k.startsWith(h) ? 0 : c.n.includes(q) || c.k.includes(h) ? 1 : -1;
   const cities = hyogo().map(c => [c, score(c)]).filter(([, sc]) => sc >= 0).sort((a, b) => a[1] - b[1]).map(([c]) => c);
-  const list = cities.slice(0, 8).map(c => ({ v: c.n, label: c.n }));
+  const list = cities.slice(0, 8).map(c => ({ v: '兵庫県' + c.n, label: c.n }));
   // 町名から直接さがす（2文字以上）
   if (q.length >= 2 && list.length < 8) {
     for (const c of hyogo()) for (const t of c.towns) {
       if (list.length >= 8) break;
-      if (t.startsWith(q)) list.push({ v: c.n + t, label: t, sub: c.n });
+      if (t.startsWith(q)) list.push({ v: '兵庫県' + c.n + t, label: t, sub: c.n });
     }
   }
   return list.length ? { list } : { hint: '兵庫県内の候補はありません（そのまま入力できます）' };
@@ -1977,7 +1977,7 @@ function openEntry(rideId) {
   }
   $('#entryTitle').textContent = r ? '乗車記録の修正' : '乗車記録';
   $('#eDelete').hidden = !r;
-  for (const w of ['from', 'to']) { E.dirty[w] = false; addrInput(w).value = shortAddr(E[w].addr); $(sugId(w)).innerHTML = ''; }
+  for (const w of ['from', 'to']) { E.dirty[w] = false; addrInput(w).value = E[w].addr || ''; $(sugId(w)).innerHTML = ''; }
   renderEntry(); renderEntryLoc();
   openSheet($('#entry'));
 }
@@ -2064,7 +2064,7 @@ function renderEntryLoc() {
   for (const w of ['from', 'to']) {
     const o = E[w], inp = addrInput(w), gps = $(w === 'from' ? '#eFromGps' : '#eToGps');
     // 手入力していなければ自動取得した住所を反映
-    if (!E.dirty[w]) inp.value = shortAddr(o.addr);
+    if (!E.dirty[w]) inp.value = o.addr || '';
     gps.textContent = locLine(o, w);
     gps.classList.toggle('manual', !!(E.dirty[w] || o.manual));
   }
@@ -2074,10 +2074,12 @@ function commitAddr(w) {
   if (!E.dirty[w]) return;
   const o = E[w], v = addrInput(w).value.trim().replace(/\s+/g, '');
   if (!v) { delete o.addr; delete o.manual; return; }
-  if (!o.manual && v === shortAddr(o.addr)) return;
-  o.addr = hyogoCity(v) ? '兵庫県' + v : v;
+  if (!o.manual && v === o.addr) return;
+  o.addr = withPref(v);
   o.manual = true;
 }
+// 兵庫県の市区町名から始まる住所に「兵庫県」を補う
+const withPref = v => !v.startsWith('兵庫県') && hyogoCity(v) ? '兵庫県' + v : v;
 
 function saveEntry() {
   const total = entryTotal();
@@ -2460,7 +2462,11 @@ $$('[data-addr]').forEach(inp => {
   const w = inp.dataset.addr;
   inp.addEventListener('input', () => { E.dirty[w] = true; renderSug(w); renderEntryLoc(); });
   inp.addEventListener('focus', () => renderSug(w));
-  inp.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== inp) $(sugId(w)).innerHTML = ''; }, 150));
+  inp.addEventListener('blur', () => setTimeout(() => {
+    if (document.activeElement === inp) return;
+    $(sugId(w)).innerHTML = '';
+    if (E && E.dirty[w]) inp.value = withPref(inp.value.trim());
+  }, 150));
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $(sugId(w)).innerHTML = ''; w === 'from' ? addrInput('to').focus() : inp.blur(); } });
 });
 $$('.sug').forEach(box => {
