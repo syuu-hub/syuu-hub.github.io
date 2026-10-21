@@ -154,6 +154,8 @@ svg{display:block}
 .hud{grid-area:hud;padding:clamp(14px,2.2vh,22px) clamp(16px,2.4vw,24px)}
 .hud-meta{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin-bottom:6px}
 .hud-meta .spacer{flex:1}
+.end-btn{height:44px;margin:-8px 0;padding:0 16px;border-radius:999px;border:1px solid rgba(255,107,107,.45);color:var(--danger);font-size:14px;font-weight:700;white-space:nowrap;flex:none}
+.end-btn:active{background:rgba(255,107,107,.12)}
 .badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--surface-3);color:var(--muted)}
 .badge.live{background:rgba(61,214,140,.14);color:var(--ok)}
 .gps{display:inline-flex;align-items:center;gap:6px}
@@ -417,6 +419,7 @@ svg{display:block}
   .np-inner .keypad{grid-auto-rows:44px}
 }
 @media (max-width:480px){
+  .hud-lbl{display:none}
   .stats{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:10px}
   .stat:nth-child(4){border-left:0;padding-left:0}
   .stat .v{font-size:20px}
@@ -457,7 +460,7 @@ svg{display:block}
   <!-- ===== HUD：売上と目標（最重要情報） ===== -->
   <header class="hud card" id="hud">
     <div class="hud-meta">
-      <span>本日の売上</span>
+      <span class="hud-lbl">本日の売上</span>
       <span class="badge" id="shiftBadge">未出庫</span>
       <span class="spacer"></span>
       <span class="gps" id="gps"><i></i>GPS</span>
@@ -465,6 +468,7 @@ svg{display:block}
       <button class="icon-btn" id="dimBtn" aria-label="減光モード" aria-pressed="false">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
+      <button class="end-btn" id="endBtn">入庫</button>
     </div>
     <div class="hud-main">
       <div class="sales num" id="sales"><span class="cur">¥</span>0</div>
@@ -1720,6 +1724,7 @@ $('#heatFilter').addEventListener('click', e => {
 });
 
 $('#shiftBtn').addEventListener('click', endShift);
+$('#endBtn').addEventListener('click', endShift);
 $('#departBtn').addEventListener('click', depart);
 $('#dGoal').addEventListener('click', editGoal);
 $$('[data-export]').forEach(b => b.addEventListener('click', () => {
