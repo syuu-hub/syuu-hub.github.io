@@ -257,6 +257,8 @@ svg{display:block}
 .log-card .log-total{margin-bottom:2px}
 .log-split{display:flex;gap:16px;font-size:13px;color:var(--muted);white-space:nowrap}
 .log-split b{color:var(--text);font-size:16px;margin-left:4px}
+.log-add{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.log-add .btn{min-width:0;padding:0 8px;color:var(--muted)}
 .log-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
 .log-acts svg{color:var(--accent);flex:none}
@@ -713,6 +715,10 @@ svg{display:block}
       </div>
       <div class="pane-sec">
         <div class="sec-h"><h3>この日の記録</h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩も表示</button></div></div>
+        <div class="log-add" id="logAdd">
+          <button class="btn sm" id="logAddRide">＋ 乗車を追加</button>
+          <button class="btn sm" id="logAddPause">＋ 待機・休憩を追加</button>
+        </div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -2035,7 +2041,7 @@ function shiftCal(delta) {
    待機・休憩の修正・削除
    待機・休憩＝status 'wait' のイベントから次のイベントまで。終了時刻は次のイベントの時刻
    ============================================================ */
-const PS = { id: null };
+const PS = { id: null, add: null };   // add：手動追加する営業 {sh, base}
 function pauseCtx(id) {
   const e = S.events.find(x => x.id === id);
   if (!e) return null;
@@ -2061,6 +2067,14 @@ function fromHM(hm, near) {
   return t;
 }
 function psValues() {
+  if (PS.add) {
+    const { sh, base } = PS.add;
+    const start = $('#psStart').value ? fromHM($('#psStart').value, base) : base;
+    let end = $('#psEnd').value ? fromHM($('#psEnd').value, start) : start;
+    if (end < start && start - end > 12 * 3600e3) end += 24 * 3600e3;
+    const c = { sh, minStart: sh.start, maxEnd: sh.end || Date.now(), next: true };
+    return { c, start, end };
+  }
   const c = pauseCtx(PS.id);
   // 時刻を変えていない欄は元の値（秒まで）のまま
   const pick = (v, orig) => !v || v === toHM(orig) ? orig : fromHM(v, orig);
@@ -2074,10 +2088,46 @@ function renderPauseSheet() {
   $('#psDur').innerHTML = `長さ<b>${dur(Math.max(0, (end ?? Date.now()) - start))}</b>`;
   $('#psRange').textContent = `入力できる範囲：${toHM(c.minStart)} 〜 ${c.next ? toHM(c.maxEnd) : '現在'}`;
 }
+// 待機・休憩の手動追加（記録し忘れた時）
+function openPauseAdd(shiftId) {
+  const sh = S.shifts.find(x => x.id === shiftId);
+  if (!sh) return;
+  const endT = Math.min(sh.end || Date.now(), Date.now());
+  const base = Math.max(sh.start, endT - 30 * 60000);
+  PS.id = null; PS.add = { sh, base };
+  $('#psTitle').textContent = '待機・休憩の追加';
+  $('#psDelete').hidden = true;
+  $('#psStart').value = toHM(base);
+  $('#psEnd').hidden = false; $('#psOngoing').hidden = true;
+  $('#psEnd').value = toHM(Math.min(endT, base + 15 * 60000));
+  renderPauseSheet();
+  openSheet($('#pauseSheet'));
+}
+function addPause() {
+  const { c, start, end } = psValues(), sh = c.sh;
+  if (start < sh.start) return toast(`開始は出庫（${toHM(sh.start)}）以降にしてください`);
+  if (end > c.maxEnd) return toast(`終了は${sh.end ? '入庫' : '現在'}（${toHM(c.maxEnd)}）までにしてください`);
+  if (start >= end) return toast('開始が終了より後になっています');
+  if (S.rides.some(r => r.shiftId === sh.id && (r.start || r.ts) < end && r.ts > start)) return toast('乗車と重なっています');
+  const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
+  if (evs.some(e => e.ts > start && e.ts < end && e.status !== 'off')) return toast('その時間に他のステータスの記録があります');
+  const before = evs.filter(e => e.ts <= start).at(-1);
+  const st0 = before ? before.status : 'vacant';
+  if (st0 === 'occupied' || PAUSE.includes(st0)) return toast(st0 === 'occupied' ? '実車中の時間です' : 'すでに待機・休憩の時間です');
+  const add = (ts, status, prev) => { const ev = { id: uid(), shiftId: sh.id, ts, status, prev, lat: null, lng: null, acc: null }; S.events.push(ev); return ev; };
+  add(start, 'wait', st0);
+  const at = evs.find(e => e.ts >= end && e.ts - end < 60000);   // 同じ「分」の記録（入庫など）にそろえる
+  if (at) at.prev = 'wait';                       // 入庫などちょうど終了時刻の記録はそのまま
+  else add(end, st0, 'wait');                     // 終了後は元のステータスに戻す
+  save(); haptic(25); closeSheet($('#pauseSheet')); renderAll();
+  toast(`待機・休憩 ${toHM(start)}〜${toHM(end)} を追加しました`);
+}
 function openPause(id) {
   const c = pauseCtx(id);
   if (!c) return;
-  PS.id = id;
+  PS.id = id; PS.add = null;
+  $('#psTitle').textContent = '待機・休憩の修正';
+  $('#psDelete').hidden = false;
   $('#psStart').value = toHM(c.e.ts);
   $('#psEnd').hidden = !c.next;
   $('#psOngoing').hidden = !!c.next;
@@ -2086,6 +2136,7 @@ function openPause(id) {
   openSheet($('#pauseSheet'));
 }
 function savePause() {
+  if (PS.add) return addPause();
   const { c, start, end } = psValues();
   if (start < c.minStart) return toast(`開始は ${toHM(c.minStart)} 以降にしてください`);
   if (start >= (end ?? Date.now())) return toast('開始が終了より後になっています');
@@ -2146,6 +2197,7 @@ function renderLog() {
   $('#sumCashless').textContent = yen((st ? st.sales : 0) - cash);
   $('#logReport').hidden = !st;
   $('#logShiftEdit').hidden = !sh;
+  $('#logAdd').hidden = !sh;
 
   const ps = $('#pauseSum');
   ps.hidden = !st || !st.pauses.length;
@@ -2587,8 +2639,11 @@ function closeSheet(el) {
   setTimeout(() => { el.hidden = true; }, 200);
 }
 
-function openEntry(rideId) {
-  const sh = curShift();
+// shiftId を渡すと、その営業（入庫後の営業も可）に乗車を追加する
+function openEntry(rideId, shiftId) {
+  const target = shiftId && S.shifts.find(x => x.id === shiftId);
+  const past = target && target !== curShift() ? target : null;   // 入力忘れの追加
+  const sh = past ? null : curShift();
   const r = rideId ? S.rides.find(x => x.id === rideId) : null;
   if (r) {
     E = {
@@ -2601,20 +2656,21 @@ function openEntry(rideId) {
   } else {
     const trip = sh && sh.trip;
     E = {
-      editId: null, start: trip ? trip.start : null, ts: Date.now(),
+      editId: null, shiftId: past ? past.id : null, start: trip ? trip.start : null, ts: past ? past.end || Date.now() : Date.now(),
       amount: '', app: null, noPickup: false,
       pay: 'cash', kind: trip && trip.prev === 'wait' ? 'stand' : 'street',   // 待機からの乗車は「乗り場」
       from: trip && trip.from ? { ...trip.from } : {}, to: {}, dirty: {},
     };
-    // 乗車地が無ければ現在地で補完、降車地は常に現在地
-    getPos(5000).then(p => {
+    // 乗車地が無ければ現在地で補完、降車地は常に現在地（入力忘れの追加では現在地は使わない）
+    if (!past) getPos(5000).then(p => {
       if (!E || E.editId || !p) return;
       if (E.from.lat == null) setLL(E.from, p);
       setLL(E.to, p);
       renderEntryLoc();
     });
   }
-  $('#entryTitle').textContent = r ? '乗車記録の修正' : '乗車記録';
+  $('#entryTitle').textContent = r ? '乗車記録の修正' : past ? `乗車の追加（${ymd(past.start).slice(5)}）` : '乗車記録';
+  if (past) setFold('fTrip', true);   // 時刻を入れてもらう
   $('#eDelete').hidden = !r;
   $('#eStart').value = E.start ? toHM(E.start) : '';
   $('#eEnd').value = toHM(E.ts);
@@ -2835,6 +2891,14 @@ function saveEntry() {
     if (E.toll) r.toll = E.toll; else delete r.toll;
     const fixed = fixPauseForRide(r);
     toast(fixed ? `修正しました（待機・休憩を${hhmm(fixed)}で終了）` : '修正しました');
+  } else if (E.shiftId) {
+    // 入力忘れの追加：その営業の時間内であること
+    const sh = S.shifts.find(x => x.id === E.shiftId), endT = sh.end || Date.now();
+    if (E.ts < sh.start || E.ts > endT || (E.start != null && E.start < sh.start)) { toast(`${toHM(sh.start)}〜${toHM(endT)}（営業時間内）で入力してください`); return; }
+    const ride = { id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) };
+    S.rides.push(ride);
+    const fixed = fixPauseForRide(ride);
+    toast(`${yen(total)} を${ymd(sh.start).slice(5)}の営業に追加しました` + (fixed ? `・待機・休憩は${hhmm(fixed)}まで` : ''));
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
@@ -3195,6 +3259,8 @@ $('#rideList').addEventListener('click', e => {
 ['#eStart', '#eEnd'].forEach(sel => $(sel).addEventListener('input', () => { if (E) renderEntryTimes(); }));
 $('#psSave').addEventListener('click', savePause);
 $('#psDelete').addEventListener('click', deletePause);
+$('#logAddRide').addEventListener('click', () => { const sh = logShift(); if (sh) { haptic(); openEntry(null, sh.id); } });
+$('#logAddPause').addEventListener('click', () => { const sh = logShift(); if (sh) { haptic(); openPauseAdd(sh.id); } });
 $('#logShiftEdit').addEventListener('click', () => { const sh = logShift(); if (sh) { haptic(); openShiftEdit(sh.id); } });
 ['#ssStart', '#ssEnd'].forEach(sel => $(sel).addEventListener('input', renderShiftSheet));
 $('#ssSave').addEventListener('click', saveShiftEdit);
