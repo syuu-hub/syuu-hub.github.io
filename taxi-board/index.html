@@ -474,6 +474,7 @@ svg{display:block}
 .rp-tbl td.a{text-align:right;font-weight:800;font-size:22px;width:7.5em}
 .rp-tbl tr.zero td{color:var(--faint)}
 .rp-tbl tr.zero td.a{font-weight:600}
+.rp-note{display:block;font-size:12px;color:var(--muted);font-weight:500}
 .rp-tbl tr.sum td{border-bottom:none;border-top:2px solid var(--line-2);font-weight:700}
 .rp-tbl tr.sum + tr.sum td{border-top:none}
 
@@ -1610,12 +1611,16 @@ function endShift() {
 /* ============================================================
    日報（入庫後の振り返り）：支払い種別ごとの金額など
    ============================================================ */
-function reportPays(rides) {
+// withToll：現金以外で払われた高速代をその決済方法の金額に含める（日報。カード等の支払額と合わせるため）
+function reportPays(rides, withToll = false) {
   // 決済方法の並び順で。配車アプリの「アプリ決済」はアプリごとに分ける
   const g = new Map();
   const add = (key, label, r) => {
-    if (!g.has(key)) g.set(key, { label, n: 0, amt: 0 });
-    if (r) { const x = g.get(key); x.n++; x.amt += r.total; }
+    if (!g.has(key)) g.set(key, { label, n: 0, amt: 0, toll: 0 });
+    if (r) {
+      const x = g.get(key); x.n++; x.amt += r.total;
+      if (withToll && r.toll && r.pay !== 'cash') { x.amt += r.toll; x.toll += r.toll; }
+    }
   };
   for (const p of PAYS()) if (p.k !== 'app') add(p.k, p.label);
   for (const r of rides.slice().sort((a, b) => a.ts - b.ts)) {
@@ -1739,10 +1744,12 @@ function openReport(id) {
   const sh = S.shifts.find(s => s.id === id);
   if (!sh) return;
   const st = shiftStats(sh), rides = st.rides;
-  const pays = reportPays(rides);
+  const pays = reportPays(rides, true);
   const cash = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.amt, 0);
   const cashN = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.n, 0);
-  const row = (label, n, amt, cls = '') => `<tr class="${cls}"><td>${esc(label)}</td><td class="n">${n != null ? n + '回' : ''}</td><td class="a">${yen(amt)}</td></tr>`;
+  const other = pays.filter(p => p.k !== 'cash'), otherToll = other.reduce((a, p) => a + p.toll, 0);
+  const row = (label, n, amt, cls = '', note = '') => `<tr class="${cls}"><td>${esc(label)}${note ? `<small class="rp-note">${esc(note)}</small>` : ''}</td><td class="n">${n != null ? n + '回' : ''}</td><td class="a">${yen(amt)}</td></tr>`;
+  const tollNote = v => v ? `うち高速代 ${yen(v)}` : '';
   // 乗車種別（配車アプリはアプリ名）
   const kinds = new Map();
   for (const r of rides) {
@@ -1761,9 +1768,9 @@ function openReport(id) {
     <section class="rp-sec">
       <h3><span>支払い種別</span><span>回数・金額</span></h3>
       <table class="rp-tbl num">
-        ${pays.map(p => row(p.label, p.n, p.amt, p.n ? '' : 'zero')).join('')}
+        ${pays.map(p => row(p.label, p.n, p.amt, p.n ? '' : 'zero', tollNote(p.toll))).join('')}
         ${row('現金 計', cashN, cash, 'sum')}
-        ${row('現金以外 計', st.count - cashN, st.sales - cash, 'sum')}
+        ${row('現金以外 計', st.count - cashN, other.reduce((a, p) => a + p.amt, 0), 'sum', tollNote(otherToll))}
       </table>
     </section>
     <section class="rp-sec">
@@ -1782,8 +1789,11 @@ function openReport(id) {
       </table>
     </section>
     <section class="rp-sec">
-      <h3><span>高速代（売上・合計に含まない）</span><span>回数・金額</span></h3>
-      <table class="rp-tbl num">${row('高速代', st.tollN, st.toll, st.toll ? '' : 'zero')}</table>
+      <h3><span>高速代（営業収入に含まない）</span><span>回数・金額</span></h3>
+      <table class="rp-tbl num">
+        ${row('高速代 計', st.tollN, st.toll, st.toll ? '' : 'zero')}
+        ${st.toll ? row('うち現金', rides.filter(r => r.toll && r.pay === 'cash').length, st.toll - otherToll) + row('うち現金以外', rides.filter(r => r.toll && r.pay !== 'cash').length, otherToll, '', '支払い種別の金額に含む') : ''}
+      </table>
     </section>
     ${kinds.size ? `<section class="rp-sec">
       <h3><span>乗車種別</span><span>回数・金額</span></h3>
