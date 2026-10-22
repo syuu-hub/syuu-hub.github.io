@@ -553,7 +553,8 @@ svg{display:block}
 .hol-setting{flex-wrap:wrap}
 .seg.hol{flex:1 1 100%;margin:8px 0 0}
 .seg.hol button{flex:1;min-width:0;padding:0}
-.cal-day{margin-top:16px}
+.cal-day{margin-top:12px}
+.cal-hint{font-size:13px;color:var(--faint);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #calTitle{white-space:nowrap}
 #calSheet .close-btn{white-space:nowrap}
 @media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0 10px} }
@@ -1989,21 +1990,12 @@ function renderCal() {
     const hol = isHoliday(d);
     html += `<button class="cal-cell ${k === today ? 'today' : ''} ${hol ? 'hol' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}" style="--h:${h}">
       <span class="d num">${label}${hol && !o ? ' <span class="hol-tag">休</span>' : ''}</span>
-      ${o ? `<span class="s num">${compactYen(o.sales)}</span><span class="m num">${o.count}回</span><span class="m num">${hours(o.ms)}</span>` : ''}
+      ${o ? `<span class="s num">${o.sales >= 10000 ? compactYen(o.sales) : o.sales.toLocaleString()}</span><span class="m num">${o.count}回</span><span class="m num">${hours(o.ms)}</span>` : ''}
     </button>`;
   }
   $('#calGrid').innerHTML = html;
 
-  const o = CAL.sel && days[CAL.sel];
-  const sd = CAL.sel && new Date(...CAL.sel.split('-').map((v, i) => i === 1 ? v - 1 : +v));
-  $('#calDay').innerHTML = !CAL.sel ? '<div class="empty">日付をタップすると、その日の営業が表示されます。</div>'
-    : `<div class="sec-h"><h3>${sd.getMonth() + 1}月${sd.getDate()}日（${WEEKDAYS[sd.getDay()]}）</h3>${o ? `<span class="aside num">${yen(o.sales)} ・ ${o.count}回 ・ ${dur(o.ms)}</span>` : ''}</div>` +
-      (o ? `<ul class="list">${o.shifts.map(({ sh, st }) => `<li class="row">
-        <span class="body"><div class="main num">${hhmm(sh.start)}–${sh.end ? hhmm(sh.end) : '営業中'}</div>
-        <div class="sub num">${st.count}回・労働${dur(st.elapsed)}・時間単価${st.hourly != null ? yen(st.hourly) : '—'}</div>
-        <div class="sub num">待機休憩${dur(st.time.wait)}${st.pauses.length ? `（${st.pauses.length}回）` : ''}・実車率${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'}</div></span>
-        <span class="amt num">${yen(st.sales)}</span></li>`).join('')}</ul>`
-        : '<div class="empty">この日の営業記録はありません。</div>');
+  $('#calDay').innerHTML = '<div class="cal-hint">日付をタップすると、その日の履歴を表示します</div>';
 }
 
 function openCal(t = Date.now()) {
@@ -3150,7 +3142,18 @@ $('#logReport').addEventListener('click', () => { const sh = logShift(); if (sh)
 $('#pauseFilter').addEventListener('click', () => { haptic(); S.settings.histPause = !S.settings.histPause; save(); renderLog(); });
 $('#calPrev').addEventListener('click', () => shiftCal(-1));
 $('#calNext').addEventListener('click', () => shiftCal(1));
-$('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { haptic(); CAL.sel = b.dataset.day; renderCal(); } });
+// 日付をタップ → カレンダーを閉じてその日の履歴へ（記録の無い日は知らせるだけ）
+$('#calGrid').addEventListener('click', e => {
+  const b = e.target.closest('[data-day]'); if (!b) return;
+  haptic();
+  const sh = logShifts().find(x => dayKey(new Date(x.start)) === b.dataset.day);
+  if (!sh) { CAL.sel = b.dataset.day; renderCal(); toast('この日の営業記録はありません'); return; }
+  LOG_SH = sh.id;
+  closeSheet($('#calSheet'));
+  setView('log');
+  renderLog();
+  $('section[data-view="log"]').scrollTop = 0;
+});
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
 $('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#reportSheet')));
 $('#rideSheet [data-close]').addEventListener('click', () => closeSheet($('#rideSheet')));
