@@ -256,6 +256,16 @@ svg{display:block}
 .log-card{background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:12px}
 .log-card .log-total{margin-bottom:0}
 .log-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.log-acts .wide{grid-column:1 / -1}
+.log-times{display:flex;align-items:flex-end;gap:10px}
+.log-times .tm{min-width:0}
+.log-times .k{display:block;font-size:12px;color:var(--muted);font-weight:700}
+.log-times .v{display:block;font-size:clamp(26px,8vw,34px);font-weight:800;line-height:1.1;white-space:nowrap}
+.log-times .v.ongoing{font-size:clamp(17px,5vw,20px);color:var(--ok);line-height:1.6}
+.log-times .ar{color:var(--faint);font-size:20px;padding-bottom:4px}
+.log-times .btn{margin-left:auto;align-self:center;flex:none}
+.log-sub{font-size:13px;color:var(--muted);margin:4px 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-card .log-total{padding-top:10px;border-top:1px solid var(--line)}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
 .log-acts svg{color:var(--accent);flex:none}
 .chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -727,10 +737,16 @@ svg{display:block}
           <button class="cal-nav" id="logNext" aria-label="次の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
         <div class="log-card">
+          <div class="log-times" id="logTimes">
+            <div class="tm"><span class="k">出庫</span><span class="v num" id="logOut">--:--</span></div>
+            <span class="ar">→</span>
+            <div class="tm"><span class="k">入庫</span><span class="v num" id="logIn">--:--</span></div>
+            <button class="btn sm" id="logShiftEdit">修正</button>
+          </div>
+          <div class="log-sub num" id="logHours"></div>
           <div class="log-total"><span class="k">営業収入</span><span class="v num" id="logTotal">¥0</span></div>
           <div class="log-acts">
-            <button class="btn sm" id="logReport">日報</button>
-            <button class="btn sm" id="logShiftEdit">時刻修正</button>
+            <button class="btn sm wide" id="logReport">日報</button>
             <button class="btn sm" id="logAddRide">＋ 乗車</button>
             <button class="btn sm" id="logAddPause">＋ 待機・休憩</button>
           </div>
@@ -2191,7 +2207,14 @@ function renderLog() {
   $('#logPrev').disabled = idx <= 0;
   $('#logNext').disabled = idx < 0 || idx >= list0.length - 1;
   $('#logDate').textContent = sh ? `${ymd(sh.start)}（${WEEKDAYS[new Date(sh.start).getDay()]}）` : '記録なし';
-  $('#logSub').textContent = !sh ? '' : sh === curShift() ? `${hhmm(sh.start)} 出庫 ・ 営業中` : `${hhmm(sh.start)}–${hhmm(sh.end)} ・ ${st.count}回`;
+  $('#logSub').textContent = !sh ? '' : sh === curShift() ? '営業中' : `乗車 ${st.count}回`;
+  $('#logTimes').hidden = $('#logHours').hidden = !sh;
+  if (sh) {
+    $('#logOut').textContent = hhmm(sh.start);
+    $('#logIn').textContent = sh.end ? hhmm(sh.end) : '営業中';
+    $('#logIn').classList.toggle('ongoing', !sh.end);
+    $('#logHours').textContent = `営業時間 ${dur((sh.end || Date.now()) - sh.start)}` + (st.time.wait ? ` ・ 待機・休憩 ${dur(st.time.wait)}` : '');
+  }
   $('#logTotal').textContent = yen(st ? st.sales : 0);
   $('#logReport').hidden = !st;
   $('#logShiftEdit').hidden = !sh;
