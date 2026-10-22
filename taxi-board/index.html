@@ -859,7 +859,7 @@ svg{display:block}
           <button class="btn sm" id="backupBtn">JSONで保存</button>
           <button class="btn sm" id="restoreBtn">復元</button>
         </div>
-        <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+        <input type="file" id="restoreFile" accept="application/json,.json,text/csv,.csv" hidden>
         <button class="btn sm danger" style="width:100%;margin-top:10px" id="wipeBtn">全データを削除</button>
           </div>
         </div>
@@ -3063,8 +3063,10 @@ function backup() {
 function restore(file) {
   const rd = new FileReader();
   rd.onload = () => {
+    const text = String(rd.result).replace(/^\uFEFF/, '');
+    if (/\.csv$/i.test(file.name) || text.startsWith('日時,')) return importLogCsv(text);
     try {
-      const s = JSON.parse(rd.result);
+      const s = JSON.parse(text);
       if (!s || s.v !== 2 || !Array.isArray(s.rides)) throw new Error('format');
       if (!confirm(`バックアップを復元しますか？\n現在のデータは置き換えられます。\n（乗車記録 ${s.rides.length}件）`)) return;
       const base = freshState();
@@ -3074,6 +3076,134 @@ function restore(file) {
     } catch (e) { toast('バックアップファイルを読み込めませんでした'); }
   };
   rd.readAsText(file);
+}
+
+/* ============================================================
+   営業ログCSVの取り込み（「出力」の営業ログCSVから記録を復元）
+   既存の記録は残し、同じ時刻の記録は重複させない
+   ============================================================ */
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); rows.push(row); row = []; cell = '';
+    } else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(x => x !== ''));
+}
+const parseStamp = v => { const m = /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(v || ''); return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)).getTime() : null; };
+function importLogCsv(text) {
+  const rows = parseCsv(text);
+  const head = rows.shift() || [];
+  const ci = name => head.indexOf(name);
+  if (ci('日時') < 0 || ci('種別') < 0) { toast('営業ログのCSVではありません'); return; }
+  const get = (r, name) => { const i = ci(name); return i < 0 ? '' : (r[i] || '').trim(); };
+  const num = (r, name) => { const v = get(r, name); return v === '' ? null : +v; };
+  const statusKey = label => Object.keys(STATUS).find(k => STATUS[k].label === label) || null;
+  const placeOf = v => { const m = /^(.*)（([^（）]+)）$/.exec(v); return v ? (m ? { name: m[1], kind: m[2] } : { name: v, kind: '施設' }) : null; };
+  const loc = (r, pre, extra = {}) => {
+    const o = { ...extra }, pl = placeOf(get(r, pre + '施設')), addr = get(r, pre + '住所'), src = get(r, pre + '住所の入力');
+    const lat = num(r, pre + '緯度'), lng = num(r, pre + '経度');
+    if (lat != null && lng != null) { o.lat = lat; o.lng = lng; }
+    if (addr) o.addr = addr;
+    if (pl) o.place = pl;
+    if (src === '施設' || src === '手入力') o.manual = true;
+    return o;
+  };
+  const payKey = (label, app) => {
+    if (!label) return 'cash';
+    if (app && label === app.name + '決済') return 'app';
+    let p = allPays().find(x => x.label === label);
+    if (!p) { p = { k: 'p' + uid(), label, hidden: true }; S.settings.pays.push(p); }   // 今の設定に無い決済方法は表示用に残す
+    return p.k;
+  };
+  // 1行ずつ記録に変換
+  const items = [];
+  for (const r of rows) {
+    const ts = parseStamp(get(r, '日時')), type = get(r, '種別');
+    if (ts == null) continue;
+    if (type === 'ステータス') {
+      const status = statusKey(get(r, 'ステータス'));
+      if (!status) continue;
+      const note = get(r, '備考'), pm = /^(.+?)から/.exec(note);
+      const prev = note.startsWith('出庫') ? 'off' : pm ? statusKey(pm[1]) : null;
+      items.push({ type: 'ev', ts, ev: { id: uid(), ts, status, prev, lat: num(r, '緯度'), lng: num(r, '経度'), acc: num(r, '精度(m)'), addr: get(r, '住所') || undefined } });
+    } else if (type === '乗車記録') {
+      const appName = get(r, '配車アプリ');
+      const app = appName ? (S.settings.apps.find(a => a.name === appName) || { id: 'imp-' + appName, name: appName }) : null;
+      const kindLabel0 = get(r, '乗車種別'), kind = app ? 'app' : (KIND.find(k => k.label === kindLabel0) || { k: 'street' }).k;
+      const tName = get(r, 'チケットの種類');
+      const ticket = tName ? (TICKETS().find(t => t.name === tName) || { id: 't' + uid(), name: tName }) : null;
+      const fare = { meter: num(r, '運賃') || 0, pickup: num(r, '迎車料金') || 0, appFee: num(r, 'アプリ手数料') || 0 };
+      if (num(r, '遠距離割')) fare.long = num(r, '遠距離割');
+      if (num(r, '障害者割')) fare.handi = num(r, '障害者割');
+      const ride = { id: uid(), ts, start: parseStamp(get(r, '乗車時刻')), fare, total: num(r, '運賃合計') || 0, noPickup: get(r, '迎車なし') === '○',
+        pay: payKey(get(r, '決済方法'), app), kind, app: app ? { id: app.id, name: app.name } : null,
+        from: loc(r, '乗車'), to: loc(r, '降車', num(r, '精度(m)') != null ? { acc: num(r, '精度(m)') } : {}) };
+      if (ticket) ride.ticket = { id: ticket.id, name: ticket.name };
+      if (num(r, '高速代')) ride.toll = num(r, '高速代');
+      items.push({ type: 'ride', ts: ride.start || ts, ride });
+    }
+  }
+  if (!items.length) { toast('取り込める記録がありません'); return; }
+  items.sort((a, b) => a.ts - b.ts);
+  // 出庫〜入庫で営業（シフト）に分ける
+  const shifts = [];
+  let cur = null;
+  const open = ts => { cur = { id: uid(), start: ts, end: null, goal: S.settings.goal, status: 'vacant', statusSince: ts, trip: null, evs: [], rides: [] }; shifts.push(cur); };
+  for (const it of items) {
+    if (it.type === 'ev') {
+      if (it.ev.prev === 'off' || !cur) open(it.ts);
+      cur.evs.push(it.ev);
+      if (it.ev.status === 'off') { cur.end = it.ts; cur = null; }
+    } else {
+      if (!cur) open(it.ts);
+      cur.rides.push(it.ride);
+    }
+  }
+  const nRides = shifts.reduce((a, x) => a + x.rides.length, 0), nEvs = shifts.reduce((a, x) => a + x.evs.length, 0);
+  if (!confirm(`営業ログCSVから記録を追加しますか？\n営業 ${shifts.length}日・乗車 ${nRides}件・ステータス ${nEvs}件\n（今の記録は残ります。同じ時刻の記録は追加しません）`)) return;
+  let addR = 0, addE = 0, lastId = null;
+  shifts.forEach((x, i) => {
+    const lastTs = Math.max(x.start, ...x.evs.map(e => e.ts), ...x.rides.map(r => r.ts));
+    // 入庫の記録が無い営業：今日の最後の営業で、営業中のシフトが無ければ営業中として続ける。それ以外は最後の記録で入庫
+    if (!x.end && !(i === shifts.length - 1 && !curShift() && dayKey(new Date(x.start)) === dayKey(new Date()))) x.end = lastTs;
+    const same = S.shifts.find(sh => Math.abs(sh.start - x.start) < 60000);
+    const sh = same || { id: x.id, start: x.start, end: x.end, goal: x.goal, status: x.end ? 'off' : 'vacant', statusSince: x.start, trip: null };
+    if (!same) S.shifts.push(sh); else if (!sh.end && x.end) sh.end = x.end;
+    for (const e of x.evs) {
+      if (S.events.some(o => o.shiftId === sh.id && o.status === e.status && Math.abs(o.ts - e.ts) < 1000)) continue;
+      // 待機・休憩の解除：その時点ですでに待機・休憩でなければ（乗車時刻で調整済み）追加しない
+      if (PAUSE.includes(e.prev)) {
+        const before = S.events.filter(o => o.shiftId === sh.id && o.ts < e.ts).sort((a, b) => a.ts - b.ts).at(-1);
+        if (before && !PAUSE.includes(before.status)) continue;
+      }
+      S.events.push({ ...e, shiftId: sh.id }); addE++;
+    }
+    for (const r of x.rides) {
+      if (S.rides.some(o => o.shiftId === sh.id && Math.abs(o.ts - r.ts) < 1000 && o.total === r.total)) continue;
+      const ride = { ...r, shiftId: sh.id };
+      S.rides.push(ride); addR++;
+      fixPauseForRide(ride);   // 待機・休憩の解除忘れは乗車時刻で終わらせる（記録時と同じ扱い）
+    }
+    if (!sh.end) {   // 営業中として続ける：最後のステータスを今の状態に
+      const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts), last = evs.at(-1);
+      if (last) { sh.status = last.status; sh.statusSince = last.ts; }
+    }
+    lastId = sh.id;
+  });
+  save(); applyWakeLock();
+  LOG_SH = lastId; setView('log');
+  toast(`乗車 ${addR}件・ステータス ${addE}件を追加しました`);
 }
 
 /* ============================================================
