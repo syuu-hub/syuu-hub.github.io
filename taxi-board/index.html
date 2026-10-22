@@ -257,8 +257,6 @@ svg{display:block}
 .log-card .log-total{margin-bottom:2px}
 .log-split{display:flex;gap:16px;font-size:13px;color:var(--muted);white-space:nowrap}
 .log-split b{color:var(--text);font-size:16px;margin-left:4px}
-.log-add{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-.log-add .btn{min-width:0;padding:0 8px;color:var(--muted)}
 .log-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
 .log-acts svg{color:var(--accent);flex:none}
@@ -736,16 +734,14 @@ svg{display:block}
           <div class="log-acts">
             <button class="btn sm" id="logReport">日報</button>
             <button class="btn sm" id="logShiftEdit">時刻修正</button>
+            <button class="btn sm" id="logAddRide">＋ 乗車</button>
+            <button class="btn sm" id="logAddPause">＋ 待機・休憩</button>
           </div>
         </div>
         <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
         <div class="sec-h"><h3>この日の記録</h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩も表示</button></div></div>
-        <div class="log-add" id="logAdd">
-          <button class="btn sm" id="logAddRide">＋ 乗車を追加</button>
-          <button class="btn sm" id="logAddPause">＋ 待機・休憩を追加</button>
-        </div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -2129,7 +2125,7 @@ function addPause() {
   if (at) at.prev = 'wait';                       // 入庫などちょうど終了時刻の記録はそのまま
   else add(end, st0, 'wait');                     // 終了後は元のステータスに戻す
   save(); haptic(25); closeSheet($('#pauseSheet')); renderAll();
-  toast(`待機・休憩 ${toHM(start)}〜${toHM(end)} を追加しました`);
+  toast(`待機・休憩 ${toHM(start)}〜${toHM(end)} を追加`);
 }
 function openPause(id) {
   const c = pauseCtx(id);
@@ -2206,7 +2202,7 @@ function renderLog() {
   $('#sumCashless').textContent = yen((st ? st.sales : 0) - cash);
   $('#logReport').hidden = !st;
   $('#logShiftEdit').hidden = !sh;
-  $('#logAdd').hidden = !sh;
+  $('#logAddRide').hidden = $('#logAddPause').hidden = !sh;
 
   const ps = $('#pauseSum');
   ps.hidden = !st || !st.pauses.length;
