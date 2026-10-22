@@ -1600,6 +1600,27 @@ function logEvent(sh, status, prev) {
   return ev;
 }
 
+// 待機・休憩の解除忘れ：待機・休憩の途中に乗車があれば、乗車時刻で終わらせる
+// （乗車時刻に「実車」、降車時刻に「空車」を挟む）。調整したら終了時刻を返す
+function fixPauseForRide(r) {
+  const sh = S.shifts.find(x => x.id === r.shiftId);
+  if (!sh) return null;
+  const t0 = r.start || r.ts, t1 = r.ts;
+  const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
+  const i = evs.findIndex((e, k) => PAUSE.includes(e.status) && e.ts < t0 && (!evs[k + 1] || evs[k + 1].ts > t0));
+  if (i < 0) return null;
+  const next = evs[i + 1] || null;
+  const add = (ts, status, prev) => S.events.push({ id: uid(), shiftId: sh.id, ts, status, prev, lat: null, lng: null, acc: null });
+  add(t0, 'occupied', evs[i].status);
+  if (!next || next.ts > t1) {
+    if (t1 > t0) add(t1, 'vacant', 'occupied');
+    // 後から押した「空車」（待機・休憩の解除）は不要になる
+    if (next && next.status === 'vacant' && PAUSE.includes(next.prev)) S.events = S.events.filter(e => e !== next);
+  }
+  if (!next && !sh.end) { sh.status = 'vacant'; sh.statusSince = t1 > t0 ? t1 : t0; }
+  return t0;
+}
+
 function setStatus(st) {
   const sh = curShift();
   if (!sh) return;
@@ -2812,15 +2833,19 @@ function saveEntry() {
     Object.assign(r, { ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to });
     if (ticket) r.ticket = ticket; else delete r.ticket;
     if (E.toll) r.toll = E.toll; else delete r.toll;
-    toast('修正しました');
+    const fixed = fixPauseForRide(r);
+    toast(fixed ? `修正しました（待機・休憩を${hhmm(fixed)}で終了）` : '修正しました');
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) });
+    const ride = { id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) };
+    S.rides.push(ride);
     sh.trip = null;
+    // 待機・休憩のまま記録 → 乗車時刻で待機・休憩を終わらせる（解除忘れ対策）
+    const fixed = fixPauseForRide(ride);
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録しました`);
+    toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録しました` + (fixed ? `・待機・休憩は${hhmm(fixed)}まで` : ''));
   }
   save(); haptic(25); queueAddr();
   E = null;
