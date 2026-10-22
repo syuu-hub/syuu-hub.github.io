@@ -1305,6 +1305,9 @@ const normName = s => toHira(s).toLowerCase().replace(/[\s・･\-ー‐_.,、�
 const EXTRA_PLACES = [
   { name: 'ジ オリエント 神戸', kind: 'ホテル', info: '神戸市中央区京町', note: 'THE ORIENT KOBE・旧オリエンタルホテル', addr: '兵庫県神戸市中央区京町25',
     alias: ['THE ORIENT KOBE', 'ザ オリエント 神戸', 'オリエンタルホテル', 'ORIENTAL HOTEL'] },
+  // 住所が未登録の施設は、その時のGPSの住所を使う
+  { name: '神戸マリオットホテル', kind: 'ホテル', note: '旧ホテルクラウンパレス神戸',
+    alias: ['Kobe Marriott Hotel', 'マリオット', 'ホテルクラウンパレス神戸', 'クラウンパレス神戸', 'クラウンパレス'] },
 ];
 function stationSuggest(q) {
   const k = normName(q.replace(/駅$/, '')), kq = normName(q);
@@ -2471,7 +2474,7 @@ const addrFailed = new WeakSet();
 const placeLine = (pl, addr) => pl.kind + (pl.info && pl.kind === '駅' ? '（' + pl.info + '）' : pl.note ? '（' + pl.note + '）' : '') + ' ・ ' + (addr ? shortAddr(addr) : '住所不明');
 function locLine(o, w) {
   const pk = E.dirty[w] && E.pick[w];
-  if (pk) return placeLine(pk, pk.addr || (pk.addrFail ? '' : '住所を取得中…'));
+  if (pk) return placeLine(pk, pk.addr || (pk.lat == null ? o.addr : pk.addrFail ? '' : '住所を取得中…'));
   if (!E.dirty[w] && o.place) return placeLine(o.place, o.addr);
   if (E.dirty[w]) return '手入力' + (o.lat != null ? '（GPS位置は保持）' : '');
   if (o.manual) return '手入力';
@@ -2955,7 +2958,7 @@ function renderSug(w) {
   const list = SUG[w] = hy.filter(x => x.city).concat(pr.list, hy.filter(x => !x.city)).slice(0, 12);
   const hint = pr.loading ? '施設を検索中…' : !list.length ? r.hint || '' : '';
   box.innerHTML = list.map((s, i) => s.place
-    ? `<button type="button" class="pl" data-sug="${i}"><b>${esc(s.label)}</b><small><em>${esc(s.place.kind)}</em> ${esc(s.place.info || '')}</small></button>`
+    ? `<button type="button" class="pl" data-sug="${i}"><b>${esc(s.label)}</b><small><em>${esc(s.place.kind)}</em> ${esc(s.place.note || s.place.info || '')}</small></button>`
     : `<button type="button" data-sug="${i}">${esc(s.label)}${s.sub ? `<small>${esc(s.sub)}</small>` : ''}</button>`).join('') +
     (hint ? `<span class="hint">${esc(hint)}</span>` : '');
 }
