@@ -1450,12 +1450,56 @@ async function resolvePending() {
       changed++;
       if (!cached) await new Promise(r => setTimeout(r, 250));
     }
+    changed += await resolveGeo();
   } finally {
     addrBusy = false;
     if (changed) { save(); renderAll(); }
   }
 }
-window.addEventListener('online', () => { addrRetryAt = 0; queueAddr(); });
+window.addEventListener('online', () => { addrRetryAt = 0; geoRetryAt = 0; queueAddr(); });
+
+// 住所 → 位置（国土地理院の住所検索）。手入力した住所や位置の無い施設を需要マップの正しい場所に置く
+const GSI_SEARCH = 'https://msearch.gsi.go.jp/address-search/AddressSearch';
+const GEO_KEY = 'taxiboard.geo.v1';
+let geoCache = {};
+try { geoCache = JSON.parse(localStorage.getItem(GEO_KEY)) || {}; } catch (e) {}
+let geoRetryAt = 0;
+const stripPref = a => toHira(a).replace(/^(東京都|北海道|京都府|大阪府|.{2,3}県)/, '').replace(/\s/g, '');
+// {lat,lng}、見つからなければ null、通信できなければ undefined
+async function geocodeAddr(addr) {
+  if (addr in geoCache) return geoCache[addr];
+  if (navigator.onLine === false || Date.now() < geoRetryAt) return undefined;
+  try {
+    const res = await getJson(`${GSI_SEARCH}?q=${encodeURIComponent(addr)}`);
+    const q = stripPref(addr);
+    // 市区町村名まで一致する結果だけを採用（別の地域の同名の町を避ける）
+    const hit = (Array.isArray(res) ? res : []).find(f => {
+      const t = stripPref((f.properties || {}).title || '');
+      return t && (q.startsWith(t.slice(0, 3)) || t.startsWith(q.slice(0, 3)));
+    });
+    const c = hit && hit.geometry && hit.geometry.coordinates;
+    const v = c ? { lat: +(+c[1]).toFixed(6), lng: +(+c[0]).toFixed(6) } : null;
+    geoCache[addr] = v;
+    const keys = Object.keys(geoCache);
+    if (keys.length > 2000) keys.slice(0, keys.length - 2000).forEach(k => delete geoCache[k]);
+    try { localStorage.setItem(GEO_KEY, JSON.stringify(geoCache)); } catch (e) {}
+    return v;
+  } catch (e) { geoRetryAt = Date.now() + 60000; return undefined; }
+}
+// 住所の位置が必要な場所：手入力の住所、または位置の無い施設
+const needsGeo = o => o && o.manual && o.addr && !(o.place && o.place.lat != null) && o.alat === undefined;
+async function resolveGeo() {
+  let changed = 0;
+  const targets = S.rides.flatMap(r => [r.from, r.to]).filter(needsGeo).reverse().slice(0, 40);
+  for (const o of targets) {
+    const v = await geocodeAddr(o.addr);
+    if (v === undefined) break;
+    o.alat = v ? v.lat : null;
+    if (v) o.alng = v.lng;
+    changed++;
+  }
+  return changed;
+}
 
 /* ============================================================
    シフト・ステータス
@@ -1546,7 +1590,8 @@ function openRide(id) {
     const nm = p.place ? p.place.name : shortAddr(p.addr) || 'GPS ' + p.lat.toFixed(5) + ', ' + p.lng.toFixed(5);
     const sub = [p.place && `<em>${esc(p.place.kind)}</em>` + (p.place.info && p.place.kind === '駅' ? '（' + esc(p.place.info) + '）' : ''),
       p.place && p.addr && esc(shortAddr(p.addr)), !p.place && p.manual && '手入力', p.lat != null && esc(fmtLL(p))].filter(Boolean).join(' ・ ');
-    const map = p.lat != null ? `<a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" rel="noopener">地図</a>` : '';
+    const mp = ridePos(p) || (p.lat != null ? p : null);
+    const map = mp ? `<a href="https://www.google.com/maps?q=${mp.lat},${mp.lng}" target="_blank" rel="noopener">地図</a>` : '';
     return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="nm">${esc(nm)}</div>${sub ? `<div class="sm num">${sub}</div>` : ''}</div>${map}</div>`;
   };
   $('#rdDate').textContent = ymd(r.ts);
@@ -2004,8 +2049,11 @@ function demandPass(t) {
 // 乗車地を場所ごとにまとめる（多い順）。既存の場所の中心から SAME_PLACE_M 以内なら同じ場所に入れる
 // ピンの位置：施設の位置が分かっていればそこ、なければ乗車地の平均
 const pinCenter = c => c.fn ? { lat: c.flat / c.fn, lng: c.flng / c.fn } : { lat: c.lat / c.n, lng: c.lng / c.n };
-// 乗車地の位置：施設を選んだ乗車は施設の位置、それ以外はGPS
-const ridePos = f => f.place && f.place.lat != null ? f.place : f.lat != null ? f : null;
+// 乗車地の位置：施設を選んだ乗車は施設の位置、手入力の住所は住所の位置、それ以外はGPS
+// 手入力の住所は住所から求めた位置（まだ求めていない・見つからない時はGPSの位置がずれているため使わない）
+const ridePos = f => f.place && f.place.lat != null ? f.place
+  : f.manual && f.addr ? (f.alat != null ? { lat: f.alat, lng: f.alng } : null)
+  : f.lat != null ? f : null;
 // 同じ場所としてまとめる鍵：施設名、または手入力した住所（GPSの位置がずれていても1本のピンに）
 const placeKey = f => f.place ? 'p:' + normName(f.place.name) : f.manual && f.addr ? 'a:' + normName(f.addr) : null;
 function demandPlaces() {
@@ -2545,6 +2593,7 @@ function renderEntryLoc() {
 function commitAddr(w) {
   if (!E.dirty[w]) return;
   const o = E[w], v = addrInput(w).value.trim().replace(/\s+/g, ''), pk = E.pick[w];
+  delete o.alat; delete o.alng;   // 住所が変わるので位置は求め直す
   if (pk && v === pk.name.replace(/\s+/g, '')) {
     // 施設：名前と種類を残し、住所は施設の位置から。GPSが無ければ施設の位置を使う
     o.place = { name: pk.name, kind: pk.kind, ...(pk.info ? { info: pk.info } : {}), ...(pk.note ? { note: pk.note } : {}),
