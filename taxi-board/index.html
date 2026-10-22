@@ -254,9 +254,7 @@ svg{display:block}
 .log-total .k{font-size:13px;color:var(--muted)}
 .log-total .v{font-size:30px;font-weight:800}
 .log-card{background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:12px}
-.log-card .log-total{margin-bottom:2px}
-.log-split{display:flex;gap:16px;font-size:13px;color:var(--muted);white-space:nowrap}
-.log-split b{color:var(--text);font-size:16px;margin-left:4px}
+.log-card .log-total{margin-bottom:0}
 .log-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
 .log-acts svg{color:var(--accent);flex:none}
@@ -730,7 +728,6 @@ svg{display:block}
         </div>
         <div class="log-card">
           <div class="log-total"><span class="k">営業収入</span><span class="v num" id="logTotal">¥0</span></div>
-          <div class="log-split num"><span>現金 <b id="sumCash">¥0</b></span><span>キャッシュレス <b id="sumCashless">¥0</b></span></div>
           <div class="log-acts">
             <button class="btn sm" id="logReport">日報</button>
             <button class="btn sm" id="logShiftEdit">時刻修正</button>
@@ -2195,11 +2192,7 @@ function renderLog() {
   $('#logNext').disabled = idx < 0 || idx >= list0.length - 1;
   $('#logDate').textContent = sh ? `${ymd(sh.start)}（${WEEKDAYS[new Date(sh.start).getDay()]}）` : '記録なし';
   $('#logSub').textContent = !sh ? '' : sh === curShift() ? `${hhmm(sh.start)} 出庫 ・ 営業中` : `${hhmm(sh.start)}–${hhmm(sh.end)} ・ ${st.count}回`;
-  const pays = st ? reportPays(st.rides) : [];
-  const cash = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.amt, 0);
   $('#logTotal').textContent = yen(st ? st.sales : 0);
-  $('#sumCash').textContent = yen(cash);
-  $('#sumCashless').textContent = yen((st ? st.sales : 0) - cash);
   $('#logReport').hidden = !st;
   $('#logShiftEdit').hidden = !sh;
   $('#logAddRide').hidden = $('#logAddPause').hidden = !sh;
