@@ -597,12 +597,16 @@ svg{display:block}
 .seg.hol button{flex:1;min-width:0;padding:0}
 .cal-day{margin-top:12px}
 .cal-hint{font-size:13px;color:var(--faint);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#calTitle{white-space:nowrap}
+#calTitle{white-space:nowrap;text-align:center;min-width:7em}
+/* 閉じる｜‹ 年月 ›（中央）｜空き：月の切り替えを画面の中央に */
+.cal-head{display:grid;grid-template-columns:1fr auto 1fr;gap:8px}
+.cal-head .close-btn{justify-self:start}
+.cal-headnav{display:flex;align-items:center;gap:10px}
 #calSheet .close-btn{white-space:nowrap}
 @media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0 10px} }
 @media (max-width:480px){
   .cal-sum .v{font-size:clamp(16px,5vw,22px)}
-  #calTitle{min-width:0 !important;font-size:17px}
+  #calTitle{min-width:6.2em;font-size:17px}
   .cal-nav{width:44px;height:44px}
 }
 
@@ -1037,14 +1041,16 @@ svg{display:block}
 
 <div class="sheet" id="calSheet" hidden role="dialog" aria-modal="true" aria-labelledby="calTitle">
   <div class="sheet-inner cal-inner">
-    <header class="sheet-head">
+    <header class="sheet-head cal-head">
       <button class="close-btn" data-close>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
       </button>
-      <span class="spacer"></span>
+      <div class="cal-headnav">
       <button class="cal-nav" id="calPrev" aria-label="前の月"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
-      <h2 class="num" id="calTitle" style="min-width:7.5em;text-align:center"></h2>
+      <h2 class="num" id="calTitle"></h2>
       <button class="cal-nav" id="calNext" aria-label="次の月"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <span></span>
     </header>
     <div class="cal-body">
       <div class="cal-sum" id="calSum"></div>
