@@ -390,7 +390,7 @@ svg{display:block}
 .opts.kind .opt.app-opt[aria-pressed="true"] small{color:var(--accent-ink)}
 .no-pick{width:100%;margin-top:8px;min-height:52px;flex-direction:row;gap:10px;justify-content:center}
 .no-pick small{margin:0}
-.breakdown.warn{color:var(--danger)}
+.breakdown.warn,#eDur.warn{color:var(--danger)}
 .text-in{width:100%;height:56px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface);padding:0 14px;font-size:18px}
 .text-in:focus{outline:none;border-color:var(--accent)}
 .opts.pax{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -407,6 +407,11 @@ svg{display:block}
 .px.f{color:var(--female)}
 
 /* 場所 */
+.e-times{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end}
+.e-times label{display:block;min-width:0}
+.e-times .k{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.e-times .arrow{padding-bottom:16px;color:var(--faint)}
+.e-times input{min-width:0}
 .loc{display:flex;align-items:center;gap:10px;padding:8px 0}
 .loc + .loc{border-top:1px solid var(--line)}
 .loc-k{flex:none;width:2.6em;font-size:14px;font-weight:700;color:var(--muted)}
@@ -758,6 +763,14 @@ svg{display:block}
         <div class="group">
           <div class="glabel"><span>乗客</span><span id="ePaxHint"></span></div>
           <div class="opts pax" id="ePax"></div>
+        </div>
+        <div class="group">
+          <div class="glabel"><span>乗車・降車時刻</span><span class="num" id="eDur"></span></div>
+          <div class="e-times">
+            <label><span class="k">乗車</span><input class="text-in num" type="time" id="eStart"></label>
+            <span class="arrow">→</span>
+            <label><span class="k">降車</span><input class="text-in num" type="time" id="eEnd"></label>
+          </div>
         </div>
         <div class="group">
           <div class="glabel"><span>乗車地・降車地</span><span>GPSで自動入力・手入力も可</span></div>
@@ -1977,6 +1990,8 @@ function openEntry(rideId) {
   }
   $('#entryTitle').textContent = r ? '乗車記録の修正' : '乗車記録';
   $('#eDelete').hidden = !r;
+  $('#eStart').value = E.start ? toHM(E.start) : '';
+  $('#eEnd').value = toHM(E.ts);
   for (const w of ['from', 'to']) { E.dirty[w] = false; addrInput(w).value = E[w].addr || ''; $(sugId(w)).innerHTML = ''; }
   renderEntry(); renderEntryLoc();
   openSheet($('#entry'));
@@ -2020,7 +2035,7 @@ function renderEntry() {
   const noPick = $('#eNoPick');
   noPick.hidden = E.kind !== 'app';
   noPick.setAttribute('aria-pressed', !!E.noPickup);
-  $('#eTime').textContent = (E.start ? hhmm(E.start) + ' → ' : '') + hhmm(E.ts);
+  renderEntryTimes();
   // 配車アプリ選択中は「現金」「そのアプリの決済（GO Pay・◯◯決済）」を先頭に並べる
   const ecfg = E.app && S.settings.apps.find(a => a.id === E.app.id);
   const own = E.app ? appPayKey(ecfg) : null;
@@ -2043,6 +2058,20 @@ function renderEntry() {
   const save = $('#eSave');
   save.disabled = total <= 0;
   save.textContent = total > 0 ? `${E.editId ? '修正を保存' : '記録する'}　${yen(total)}` : '金額を入力';
+}
+// 乗車・降車時刻の入力値。変えていない欄は元の値（秒まで）のまま、日付は近い方に当てはめる
+function entryTimes() {
+  const ev = $('#eEnd').value, sv = $('#eStart').value;
+  const end = !ev || ev === toHM(E.ts) ? E.ts : fromHM(ev, E.ts);
+  const start = !sv ? null : E.start && sv === toHM(E.start) ? E.start : fromHM(sv, end);
+  return { start, end };
+}
+function renderEntryTimes() {
+  const { start, end } = entryTimes();
+  $('#eTime').textContent = (start ? hhmm(start) + ' → ' : '') + hhmm(end);
+  const d = $('#eDur');
+  d.classList.toggle('warn', start != null && start > end);
+  d.textContent = start == null ? '乗車時刻は未記録' : start > end ? '乗車が降車より後です' : '乗車 ' + Math.round((end - start) / 60000) + '分';
 }
 const addrFailed = new WeakSet();
 // 住所欄の下に出す取得状況
@@ -2084,6 +2113,10 @@ const withPref = v => !v.startsWith('兵庫県') && hyogoCity(v) ? '兵庫県' +
 function saveEntry() {
   const total = entryTotal();
   if (total <= 0) return;
+  const t = entryTimes();
+  if (t.start != null && t.start > t.end) { toast('乗車時刻が降車時刻より後になっています'); return; }
+  if (t.end > Date.now() + 60000) { toast('降車時刻が現在より後になっています'); return; }
+  E.start = t.start; E.ts = t.end;
   commitAddr('from'); commitAddr('to');
   const bd = entryBreakdown();
   if (bd.meter < 0) { toast('総額が迎車料金・手数料より少ないため記録できません'); return; }
@@ -2091,7 +2124,7 @@ function saveEntry() {
   const noPickup = E.kind === 'app' && !!E.noPickup;
   if (E.editId) {
     const r = S.rides.find(x => x.id === E.editId);
-    Object.assign(r, { fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
+    Object.assign(r, { ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
     toast('修正しました');
   } else {
     const sh = curShift() || startShift();
@@ -2388,6 +2421,7 @@ $('#rideList').addEventListener('click', e => {
   if (b.dataset.ride) openEntry(b.dataset.ride); else openPause(b.dataset.pause);
 });
 ['#psStart', '#psEnd'].forEach(sel => $(sel).addEventListener('input', renderPauseSheet));
+['#eStart', '#eEnd'].forEach(sel => $(sel).addEventListener('input', () => { if (E) renderEntryTimes(); }));
 $('#psSave').addEventListener('click', savePause);
 $('#psDelete').addEventListener('click', deletePause);
 $('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pauseSheet')));
