@@ -35,10 +35,6 @@
   --info:#5B9BFF;
   --st-wait:#F472B6;
 
-  /* 乗客の性別 */
-  --male:#4D9FFF;
-  --female:#FF6B9E;
-
   --r-lg:20px;
   --r-md:14px;
   --r-sm:10px;
@@ -427,18 +423,6 @@ svg{display:block}
 .breakdown.warn,#eDur.warn{color:var(--danger)}
 .text-in{width:100%;height:56px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface);padding:0 14px;font-size:18px}
 .text-in:focus{outline:none;border-color:var(--accent)}
-.opts.pax{grid-template-columns:repeat(2,minmax(0,1fr))}
-.opts.pax .opt{flex-direction:row;justify-content:space-between;padding:4px 20px}
-.opts.pax .cnt{font-size:30px;font-weight:800;line-height:1}
-.opts.pax .cnt small{font-size:13px;font-weight:600;margin-left:2px}
-.opts.pax .opt[data-pax="m"]{--g:var(--male)}
-.opts.pax .opt[data-pax="f"]{--g:var(--female)}
-.opts.pax .opt{border-color:var(--g);color:var(--g)}
-.opts.pax .opt[aria-pressed="false"] .cnt{color:var(--faint)}
-.opts.pax .opt[aria-pressed="true"]{background:var(--g);border-color:var(--g);color:#0A0C0F}
-.px{font-weight:700}
-.px.m{color:var(--male)}
-.px.f{color:var(--female)}
 
 /* 場所 */
 .e-times{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end}
@@ -806,10 +790,6 @@ svg{display:block}
           <button class="fold-h" aria-expanded="false" aria-controls="gInputB"><span class="t">入力・表示</span><span class="s num" id="gInputSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gInputB" hidden>
           <div class="setting">
-          <div><div class="k">乗客人数の上限</div><div class="d">男性・女性ボタンはこの人数の次で0に戻る</div></div>
-          <button class="btn sm num" id="paxMaxBtn">5人</button>
-        </div>
-          <div class="setting">
           <div><div class="k">減光モード</div><div class="d">夜間の車内で画面を暗く</div></div>
           <button class="switch" role="switch" aria-checked="false" data-setting="dim" aria-label="減光モード"></button>
         </div>
@@ -883,10 +863,6 @@ svg{display:block}
             <div class="glabel" style="margin-top:10px"><span>チケットの種類</span><span>設定で追加・編集</span></div>
             <div class="opts tk" id="eTicket"></div>
           </div>
-        </div>
-        <div class="group">
-          <div class="glabel"><span>乗客</span><span id="ePaxHint"></span></div>
-          <div class="opts pax" id="ePax"></div>
         </div>
         <div class="fold" id="fDisc">
           <button class="fold-h" aria-expanded="false" aria-controls="fDiscB"><span class="t">割引・高速代</span><span class="s num" id="fDiscSum">なし</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -1143,12 +1119,6 @@ const rideLabel = (pay, app, ticket) => payLabel(pay, app) + (pay === 'ticket' &
 const allPays = () => S.settings.pays;                       // 削除済み（hidden）も含む：過去の記録の表示用
 const PAYS = () => S.settings.pays.filter(p => !p.hidden);    // 選択肢として出すもの
 const payDef = k => S.settings.pays.find(p => p.k === k);
-const PAX = [
-  { k: 'm', label: '男性' },
-  { k: 'f', label: '女性' },
-];
-const PAX_LIMIT = 99;   // 設定できる人数上限の最大値
-const paxHtml = p => p && (p.m || p.f) ? PAX.filter(x => p[x.k]).map(x => `<span class="px ${x.k}">${x.label[0]}${p[x.k]}</span>`).join(' ') : '';
 // 'app' は配車アプリ（設定で登録したアプリから選ぶ）
 const KIND = [
   { k: 'street', label: '流し' },
@@ -1210,9 +1180,9 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, holidays: [], histPause: false, tab: 'home', demHour: 'all', demDow: 'all' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, holidays: [], histPause: false, tab: 'home', demHour: 'all', demDow: 'all' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
-    rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,pax,from,to}
+    rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
   };
 }
@@ -1693,16 +1663,16 @@ function openRide(id) {
   $('#rdBody').innerHTML = `
     <div class="rd-amt">
       <div class="v num">${yen(r.total)}</div>
-      <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${esc(kindLabel(r.kind, r.app))}${paxHtml(r.pax) ? ' ・ ' + paxHtml(r.pax) : ''}</div>
+      <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${esc(kindLabel(r.kind, r.app))}</div>
     </div>
     <section class="rp-sec">
       <h3><span>時刻</span></h3>
       <div class="rd-time num">${r.start ? hhmm(r.start) + ' → ' : ''}${hhmm(r.ts)}${r.start ? `<small>乗車 ${Math.round((r.ts - r.start) / 60000)}分</small>` : '<small>乗車時刻は未記録</small>'}</div>
     </section>
-    <section class="rp-sec">
+    ${placeText(r.from) !== '—' || placeText(r.to) !== '—' ? `<section class="rp-sec">
       <h3><span>乗車地・降車地</span></h3>
       ${place('乗車', r.from)}${place('降車', r.to)}
-    </section>
+    </section>` : ''}
     <section class="rp-sec">
       <h3><span>料金</span></h3>
       <table class="rp-tbl num">
@@ -1715,10 +1685,6 @@ function openRide(id) {
         ${row('お支払い', yen(r.total), 'sum')}
         ${r.toll ? row('高速代（売上に含まない）', yen(r.toll)) : ''}
       </table>
-    </section>
-    <section class="rp-sec">
-      <h3><span>乗客</span></h3>
-      <table class="rp-tbl num">${PAX.map(x => row(x.label, (r.pax && r.pax[x.k] || 0) + '人', r.pax && r.pax[x.k] ? '' : 'zero')).join('')}</table>
     </section>`;
   $('#rideSheet .rp-body').scrollTop = 0;
   openSheet($('#rideSheet'));
@@ -1805,7 +1771,7 @@ function openReport(id) {
     <div class="rp-meta num">${hhmm(sh.start)} 出庫 → ${sh.end ? hhmm(sh.end) + ' 入庫' : '営業中'} ・ 営業時間 ${dur(st.elapsed)}</div>
     <div class="rp-total">
       <div><div class="k">営業収入 合計</div><div class="v num">${yen(st.sales)}</div></div>
-      <div class="side num">乗車 <b>${st.count}</b>回<br>乗客 <span class="px m">男${st.pax.m}</span> <span class="px f">女${st.pax.f}</span></div>
+      <div class="side num">乗車 <b>${st.count}</b>回</div>
     </div>
     <section class="rp-sec">
       <h3><span>支払い種別</span><span>回数・金額</span></h3>
@@ -1855,11 +1821,10 @@ function openReport(id) {
    ============================================================ */
 function shiftStats(sh) {
   const rides = S.rides.filter(r => r.shiftId === sh.id);
-  const byPay = {}; const fare = { meter: 0, pickup: 0, appFee: 0, long: 0, handi: 0 }; const pax = { m: 0, f: 0 };
+  const byPay = {}; const fare = { meter: 0, pickup: 0, appFee: 0, long: 0, handi: 0 };
   let sales = 0;
   for (const r of rides) {
     sales += r.total;
-    if (r.pax) for (const k in pax) pax[k] += r.pax[k] || 0;
     byPay[r.pay] = (byPay[r.pay] || 0) + r.total;
     for (const k in fare) fare[k] += r.fare[k] || 0;
   }
@@ -1878,7 +1843,7 @@ function shiftStats(sh) {
   const working = time.vacant + time.occupied + time.wait;   // 出庫中の稼働時間
   const elapsed = end - sh.start;
   return {
-    rides, count: rides.length, sales, byPay, fare, pax, time, pauses, working, elapsed,
+    rides, count: rides.length, sales, byPay, fare, time, pauses, working, elapsed,
     toll: rides.reduce((a, r) => a + (r.toll || 0), 0), tollN: rides.filter(r => r.toll).length,   // 高速代：売上に含めない
     occRate: working > 60000 ? time.occupied / working : null,
     hourly: working > 15 * 60000 ? sales / (working / 3600000) : null,
@@ -2214,7 +2179,7 @@ function renderLog() {
       <span class="body">
         ${placeText(r.from) !== '—' || placeText(r.to) !== '—' ? `<div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
         <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>` : `<div class="main">${esc(kindLabel(r.kind, r.app))}</div>`}
-        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.long ? '遠距離割−' + yen(r.fare.long) : '', r.fare.handi ? '障害者割−' + yen(r.fare.handi) : '', r.toll ? '高速代' + yen(r.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
+        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${[esc(kindLabel(r.kind, r.app)), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.long ? '遠距離割−' + yen(r.fare.long) : '', r.fare.handi ? '障害者割−' + yen(r.fare.handi) : '', r.toll ? '高速代' + yen(r.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
       </span>
       <span class="amt num">${yen(r.total)}</span>
     </button></li>`).join('');
@@ -2486,7 +2451,6 @@ function renderData() {
   $('#shiftSec').hidden = !sh;
   $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
   $('#goalSetBtn').textContent = yen(S.settings.goal);
-  $('#paxMaxBtn').textContent = S.settings.paxMax + '人';
   $('#closingBtn').textContent = closingLabel();
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
   $('#holidaySeg').innerHTML = WEEKDAYS.split('').map((w, i) => `<button data-hol="${i}" aria-pressed="${S.settings.holidays.includes(i)}">${w}</button>`).join('');
@@ -2523,7 +2487,7 @@ function renderData() {
   setFoldSum('gWork', [yen(S.settings.goal), closingLabel(), S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし',
     S.settings.holidays.length ? '休 ' + S.settings.holidays.map(i => WEEKDAYS[i]).join('') : ''].filter(Boolean).join(' ・ '));
   setFoldSum('gPay', `決済 ${PAYS().length} ・ チケット ${TICKETS().length} ・ アプリ ${S.settings.apps.length}`);
-  setFoldSum('gInput', [`乗客 ${S.settings.paxMax}人まで`, S.settings.dim ? '減光' : '', S.settings.addr ? '住所変換' : ''].filter(Boolean).join(' ・ '));
+  setFoldSum('gInput', [S.settings.dim ? '減光' : '', S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : ''].filter(Boolean).join(' ・ '));
   setFoldSum('gData', (bytes / 1024).toFixed(0) + ' KB');
 }
 
@@ -2648,7 +2612,7 @@ function openEntry(rideId) {
       editId: r.id, start: r.start, ts: r.ts,
       amount: r.total ? String(r.total + (r.fare.long || 0) + (r.fare.handi || 0)) : '', app: r.app || null, noPickup: !!r.noPickup,
       long: !!r.fare.long, handi: !!r.fare.handi,
-      pay: r.pay, kind: r.kind || 'street', pax: { m: 0, f: 0, ...r.pax }, ticket: r.ticket || null, toll: r.toll || 0,
+      pay: r.pay, kind: r.kind || 'street', ticket: r.ticket || null, toll: r.toll || 0,
       from: { ...(r.from || {}) }, to: { ...(r.to || {}) }, dirty: {},
     };
   } else {
@@ -2657,7 +2621,6 @@ function openEntry(rideId) {
       editId: null, start: trip ? trip.start : null, ts: Date.now(),
       amount: '', app: null, noPickup: false,
       pay: 'cash', kind: trip && trip.prev === 'wait' ? 'stand' : 'street',   // 待機からの乗車は「乗り場」
-      pax: { m: 0, f: 0 },
       from: trip && trip.from ? { ...trip.from } : {}, to: {}, dirty: {},
     };
     // 乗車地が無ければ現在地で補完、降車地は常に現在地
@@ -2755,8 +2718,6 @@ function renderEntry() {
       '<button class="opt" data-ticket-add>＋ 追加</button>';
   }
   $('#ePay').innerHTML = pays.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}">${esc(p.label)}${p.sub ? `<small>${p.sub}</small>` : ''}</button>`).join('');
-  $('#ePaxHint').textContent = `タップで人数（${S.settings.paxMax}人の次は0）`;
-  $('#ePax').innerHTML = PAX.map(p => `<button class="opt" data-pax="${p.k}" aria-pressed="${E.pax[p.k] > 0}" aria-label="${p.label} ${E.pax[p.k]}人">${p.label}<span class="cnt num">${E.pax[p.k]}<small>人</small></span></button>`).join('');
   // 編集中の記録が削除済みアプリなら、その名前でボタンを残す
   const apps = S.settings.apps.slice();
   if (E.app && !apps.some(a => a.id === E.app.id)) apps.push({ ...E.app });
@@ -2884,14 +2845,14 @@ function saveEntry() {
   const ticket = E.pay === 'ticket' && E.ticket ? { id: E.ticket.id, name: E.ticket.name } : null;
   if (E.editId) {
     const r = S.rides.find(x => x.id === E.editId);
-    Object.assign(r, { ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
+    Object.assign(r, { ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to });
     if (ticket) r.ticket = ticket; else delete r.ticket;
     if (E.toll) r.toll = E.toll; else delete r.toll;
     toast('修正しました');
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) });
+    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) });
     sh.trip = null;
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
@@ -2999,13 +2960,6 @@ function deleteApp() {
   save(); closeSheet($('#appSheet')); renderData();
 }
 
-function editPaxMax() {
-  openNumpad('乗客人数の上限', S.settings.paxMax, v => {
-    S.settings.paxMax = clamp(v, 1, PAX_LIMIT);
-    save(); renderData();
-    if (v < 1 || v > PAX_LIMIT) toast(`上限は1〜${PAX_LIMIT}人の範囲で設定してください`);
-  }, { unit: '人', label: '人数', digits: 2 });
-}
 function editGoal() {
   openNumpad('1日の目標金額', S.settings.goal, v => {
     S.settings.goal = v;
@@ -3034,7 +2988,7 @@ const placeCsv = o => o?.place ? `${o.place.name}（${o.place.kind}）` : '';
 
 function exportLog(onlyShiftId) {
   const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)', '住所',
-    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', '高速代', '迎車なし', '決済方法', 'チケットの種類', '乗車種別', '配車アプリ', '男性', '女性',
+    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', '高速代', '迎車なし', '決済方法', 'チケットの種類', '乗車種別', '配車アプリ',
     '乗車時刻', '乗車施設', '乗車住所', '乗車住所の入力', '乗車緯度', '乗車経度', '降車施設', '降車住所', '降車住所の入力', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
   const rows = [];
@@ -3051,7 +3005,7 @@ function exportLog(onlyShiftId) {
   }
   for (const r of S.rides.filter(keep)) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
-      r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.fare.long || '', r.fare.handi || '', r.toll || '', r.noPickup ? '○' : '', payLabel(r.pay, r.app), r.ticket ? r.ticket.name : '', kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
+      r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.fare.long || '', r.fare.handi || '', r.toll || '', r.noPickup ? '○' : '', payLabel(r.pay, r.app), r.ticket ? r.ticket.name : '', kindLabel(r.kind, r.app), r.app ? r.app.name : '',
       r.start ? stamp(r.start) : '', placeCsv(r.from), r.from?.addr, addrSrc(r.from), r.from?.lat, r.from?.lng, placeCsv(r.to), r.to?.addr, addrSrc(r.to), r.to?.lat, r.to?.lng]]);
   }
   if (!rows.length) { toast('出力するデータがありません'); return; }
@@ -3065,12 +3019,12 @@ function exportSummary() {
   // 決済方法の列：表示中のもの＋外した決済方法でも記録があるもの
   const used = new Set(S.rides.map(r => r.pay));
   const csvPays = allPays().filter(p => !p.hidden || used.has(p.k));
-  const head = ['営業日', '締め期間', '出庫', '入庫', '営業時間', '乗車回数', '乗客 男性', '乗客 女性', '営業収入合計',
+  const head = ['営業日', '締め期間', '出庫', '入庫', '営業時間', '乗車回数', '営業収入合計',
     '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', ...csvPays.map(p => p.label), '高速代（売上外）',
     '実車時間', '空車時間', '待機・休憩時間', '実車率(%)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
-    return [ymd(s.start), periodName(periodOf(s.start)), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.pax.m, st.pax.f, st.sales,
+    return [ymd(s.start), periodName(periodOf(s.start)), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.sales,
       st.fare.meter, st.fare.pickup, st.fare.appFee, st.fare.long, st.fare.handi, ...csvPays.map(p => st.byPay[p.k] || 0), st.toll,
       dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
@@ -3149,7 +3103,6 @@ $('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
-$('#paxMaxBtn').addEventListener('click', editPaxMax);
 $('#hoursCapBtn').addEventListener('click', () => openNumpad('月の労働時間の上限（0で上限なし）', S.settings.hoursCap, v => {
   S.settings.hoursCap = Math.min(v, 744);
   save(); renderData();
@@ -3300,8 +3253,6 @@ $('#ePay').addEventListener('click', e => {
   haptic(); E.pay = b.dataset.pay; E.payAuto = false;
   renderEntry();
 });
-// 乗客：タップごとに +1、上限を超えたら 0 に戻る
-$('#ePax').addEventListener('click', e => { const b = e.target.closest('[data-pax]'); if (b) { haptic(); const k = b.dataset.pax; E.pax[k] = E.pax[k] >= S.settings.paxMax ? 0 : E.pax[k] + 1; renderEntry(); } });
 $('#eNoPick').addEventListener('click', () => { haptic(); E.noPickup = !E.noPickup; renderEntry(); });
 $('#eDiscLong').addEventListener('click', () => { haptic(); E.long = !E.long; renderEntry(); });
 $('#eToll').addEventListener('click', () => { haptic(); openNumpad('高速代', E.toll || 0, v => { if (E) { E.toll = v; renderEntry(); } }); });
