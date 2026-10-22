@@ -2445,7 +2445,7 @@ function renderAnalysis() {
   if (bestKind && kindList.length > 1) ins.push([`高単価の種別：${esc(bestKind.l)}`, `平均 ${yen(Math.round(bestKind.avg))}（${bestKind.n}件）`, bestKind.n >= 10]);
   const maxKind = Math.max(...kindList.map(k => k.s), 1);
 
-  const fewNote = D.length < 14 ? `<div class="ana-note">営業${D.length}日分のため参考値（目安：各曜日3日以上）</div>` : '';
+  const fewNote = D.length < 14 ? `<div class="ana-note">営業${D.length}日分のため参考値です</div>` : '';
   const kv = n => n >= 100000 ? compactYen(n) : yen(n);   // 狭い欄に収める
   // ---- 描画
   const trendW = 320, trendH = 120, maxY = Math.max(...ys, 1);
