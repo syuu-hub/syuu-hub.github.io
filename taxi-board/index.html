@@ -263,7 +263,7 @@ svg{display:block}
 .log-times .v.ongoing{font-size:clamp(17px,5vw,20px);color:var(--ok);line-height:1.6}
 .log-times .ar{color:var(--faint);font-size:20px;padding-bottom:4px}
 .log-times .btn{margin-left:auto;align-self:center;flex:none}
-.log-sub{font-size:13px;color:var(--muted);margin:4px 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-card .log-times{margin-bottom:12px}
 .log-card .log-total{padding-top:10px;border-top:1px solid var(--line)}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
 .log-acts svg{color:var(--accent);flex:none}
@@ -740,7 +740,6 @@ svg{display:block}
             <div class="tm"><span class="k">入庫</span><span class="v num" id="logIn">--:--</span></div>
             <button class="btn sm" id="logShiftEdit">修正</button>
           </div>
-          <div class="log-sub num" id="logHours"></div>
           <div class="log-total"><span class="k">営業収入</span><span class="v num" id="logTotal">¥0</span></div>
           <div class="log-acts">
             <button class="btn sm wide" id="logReport">日報</button>
@@ -2203,12 +2202,11 @@ function renderLog() {
   $('#logPrev').disabled = idx <= 0;
   $('#logNext').disabled = idx < 0 || idx >= list0.length - 1;
   $('#logDate').textContent = sh ? `${ymd(sh.start)}（${WEEKDAYS[new Date(sh.start).getDay()]}）` : '記録なし';
-  $('#logTimes').hidden = $('#logHours').hidden = !sh;
+  $('#logTimes').hidden = !sh;
   if (sh) {
     $('#logOut').textContent = hhmm(sh.start);
     $('#logIn').textContent = sh.end ? hhmm(sh.end) : '営業中';
     $('#logIn').classList.toggle('ongoing', !sh.end);
-    $('#logHours').textContent = `営業時間 ${dur((sh.end || Date.now()) - sh.start)}` + (st.pauses.length ? ` ・ 待機・休憩 ${dur(st.time.wait)}（${st.pauses.length}回）` : '');
   }
   $('#logTotal').textContent = yen(st ? st.sales : 0);
   $('#logReport').hidden = !st;
