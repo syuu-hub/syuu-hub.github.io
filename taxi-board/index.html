@@ -831,6 +831,10 @@ svg{display:block}
           </div>
         </div>
         <div class="group">
+          <div class="glabel"><span>高速代</span><span>売上・合計に含めず日報に別に表示</span></div>
+          <button class="opt no-pick" id="eToll" aria-pressed="false">高速代<small id="eTollSub">金額を入力</small></button>
+        </div>
+        <div class="group">
           <div class="glabel">決済方法</div>
           <div class="opts pay" id="ePay"></div>
           <div class="tickets" id="eTicketWrap" hidden>
@@ -1641,6 +1645,7 @@ function openRide(id) {
         ${f.handi ? row('障害者割', '−' + yen(f.handi)) : ''}
         ${row('運賃', yen(f.meter))}
         ${row('お支払い', yen(r.total), 'sum')}
+        ${r.toll ? row('高速代（売上に含まない）', yen(r.toll)) : ''}
       </table>
     </section>
     <section class="rp-sec">
@@ -1754,6 +1759,10 @@ function openReport(id) {
         ${row('障害者割', rides.filter(r => r.fare.handi).length, st.fare.handi, st.fare.handi ? '' : 'zero')}
       </table>
     </section>
+    <section class="rp-sec">
+      <h3><span>高速代（売上・合計に含まない）</span><span>回数・金額</span></h3>
+      <table class="rp-tbl num">${row('高速代', st.tollN, st.toll, st.toll ? '' : 'zero')}</table>
+    </section>
     ${kinds.size ? `<section class="rp-sec">
       <h3><span>乗車種別</span><span>回数・金額</span></h3>
       <table class="rp-tbl num">${[...kinds].map(([l, x]) => row(l, x.n, x.amt)).join('')}</table>
@@ -1800,6 +1809,7 @@ function shiftStats(sh) {
   const elapsed = end - sh.start;
   return {
     rides, count: rides.length, sales, byPay, fare, pax, time, pauses, working, elapsed,
+    toll: rides.reduce((a, r) => a + (r.toll || 0), 0), tollN: rides.filter(r => r.toll).length,   // 高速代：売上に含めない
     occRate: working > 60000 ? time.occupied / working : null,
     hourly: working > 15 * 60000 ? sales / (working / 3600000) : null,
     avg: rides.length ? sales / rides.length : null,
@@ -2102,7 +2112,7 @@ function renderLog() {
       <span class="body">
         <div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
         <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>
-        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.long ? '遠距離割−' + yen(r.fare.long) : '', r.fare.handi ? '障害者割−' + yen(r.fare.handi) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
+        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.long ? '遠距離割−' + yen(r.fare.long) : '', r.fare.handi ? '障害者割−' + yen(r.fare.handi) : '', r.toll ? '高速代' + yen(r.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
       </span>
       <span class="amt num">${yen(r.total)}</span>
     </button></li>`).join('');
@@ -2521,7 +2531,7 @@ function openEntry(rideId) {
       editId: r.id, start: r.start, ts: r.ts,
       amount: r.total ? String(r.total + (r.fare.long || 0) + (r.fare.handi || 0)) : '', app: r.app || null, noPickup: !!r.noPickup,
       long: !!r.fare.long, handi: !!r.fare.handi,
-      pay: r.pay, kind: r.kind || 'street', pax: { m: 0, f: 0, ...r.pax }, ticket: r.ticket || null,
+      pay: r.pay, kind: r.kind || 'street', pax: { m: 0, f: 0, ...r.pax }, ticket: r.ticket || null, toll: r.toll || 0,
       from: { ...(r.from || {}) }, to: { ...(r.to || {}) }, dirty: {},
     };
   } else {
@@ -2599,8 +2609,11 @@ function renderEntry() {
     : !parts.length && !discs.length ? '迎車料金・アプリ手数料を含む総額を入力'
     : [parts.length && `うち ${parts.join(' ・ ')}`, discs.length && `<span class="disc-amt">${discs.join(' ・ ')}</span>`].filter(Boolean).join('　') +
       `　運賃 <b>${yen(Math.max(0, bd.meter))}</b>` + (discs.length ? `　お支払い <b>${yen(bd.total)}</b>` : '');
+  if (E.toll && !short) brk.innerHTML = (parts.length || discs.length ? brk.innerHTML + '　' : '') + `＋高速代 <b>${yen(E.toll)}</b>（売上に含まない）`;
   $('#eDiscLong').setAttribute('aria-pressed', !!E.long);
   $('#eDiscLongSub').textContent = !E.long ? '9,000円超の1割' : bd.meter + bd.long + bd.handi > LONG_FROM ? '−' + yen(bd.long) : '対象外（9,000円以下）';
+  $('#eToll').setAttribute('aria-pressed', !!E.toll);
+  $('#eTollSub').textContent = E.toll ? yen(E.toll) + '（タップで変更・0で解除）' : '金額を入力';
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
   $('#eDiscHandiSub').textContent = E.handi ? '−' + yen(bd.handi) : '運賃の1割';
   const noPick = $('#eNoPick');
@@ -2722,11 +2735,12 @@ function saveEntry() {
     const r = S.rides.find(x => x.id === E.editId);
     Object.assign(r, { ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
     if (ticket) r.ticket = ticket; else delete r.ticket;
+    if (E.toll) r.toll = E.toll; else delete r.toll;
     toast('修正しました');
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to, ...(ticket ? { ticket } : {}) });
+    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) });
     sh.trip = null;
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
@@ -2869,7 +2883,7 @@ const placeCsv = o => o?.place ? `${o.place.name}（${o.place.kind}）` : '';
 
 function exportLog(onlyShiftId) {
   const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)', '住所',
-    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', '迎車なし', '決済方法', 'チケットの種類', '乗車種別', '配車アプリ', '男性', '女性',
+    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', '高速代', '迎車なし', '決済方法', 'チケットの種類', '乗車種別', '配車アプリ', '男性', '女性',
     '乗車時刻', '乗車施設', '乗車住所', '乗車住所の入力', '乗車緯度', '乗車経度', '降車施設', '降車住所', '降車住所の入力', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
   const rows = [];
@@ -2886,7 +2900,7 @@ function exportLog(onlyShiftId) {
   }
   for (const r of S.rides.filter(keep)) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
-      r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.fare.long || '', r.fare.handi || '', r.noPickup ? '○' : '', payLabel(r.pay, r.app), r.ticket ? r.ticket.name : '', kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
+      r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.fare.long || '', r.fare.handi || '', r.toll || '', r.noPickup ? '○' : '', payLabel(r.pay, r.app), r.ticket ? r.ticket.name : '', kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
       r.start ? stamp(r.start) : '', placeCsv(r.from), r.from?.addr, addrSrc(r.from), r.from?.lat, r.from?.lng, placeCsv(r.to), r.to?.addr, addrSrc(r.to), r.to?.lat, r.to?.lng]]);
   }
   if (!rows.length) { toast('出力するデータがありません'); return; }
@@ -2901,12 +2915,12 @@ function exportSummary() {
   const used = new Set(S.rides.map(r => r.pay));
   const csvPays = allPays().filter(p => !p.hidden || used.has(p.k));
   const head = ['営業日', '締め期間', '出庫', '入庫', '営業時間', '乗車回数', '乗客 男性', '乗客 女性', '営業収入合計',
-    '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', ...csvPays.map(p => p.label),
+    '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', ...csvPays.map(p => p.label), '高速代（売上外）',
     '実車時間', '空車時間', '待機・休憩時間', '実車率(%)', '目標', '達成率(%)'];
   const rows = shifts.map(s => {
     const st = shiftStats(s);
     return [ymd(s.start), periodName(periodOf(s.start)), stamp(s.start), s.end ? stamp(s.end) : '営業中', dur(st.elapsed), st.count, st.pax.m, st.pax.f, st.sales,
-      st.fare.meter, st.fare.pickup, st.fare.appFee, st.fare.long, st.fare.handi, ...csvPays.map(p => st.byPay[p.k] || 0),
+      st.fare.meter, st.fare.pickup, st.fare.appFee, st.fare.long, st.fare.handi, ...csvPays.map(p => st.byPay[p.k] || 0), st.toll,
       dur(st.time.occupied), dur(st.time.vacant), dur(st.time.wait),
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
       s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
@@ -3127,6 +3141,7 @@ $('#ePay').addEventListener('click', e => {
 $('#ePax').addEventListener('click', e => { const b = e.target.closest('[data-pax]'); if (b) { haptic(); const k = b.dataset.pax; E.pax[k] = E.pax[k] >= S.settings.paxMax ? 0 : E.pax[k] + 1; renderEntry(); } });
 $('#eNoPick').addEventListener('click', () => { haptic(); E.noPickup = !E.noPickup; renderEntry(); });
 $('#eDiscLong').addEventListener('click', () => { haptic(); E.long = !E.long; renderEntry(); });
+$('#eToll').addEventListener('click', () => { haptic(); openNumpad('高速代', E.toll || 0, v => { if (E) { E.toll = v; renderEntry(); } }); });
 $('#eDiscHandi').addEventListener('click', () => { haptic(); E.handi = !E.handi; renderEntry(); });
 $('#eKind').addEventListener('click', e => { const b = e.target.closest('[data-kind],[data-app]'); if (b) { haptic(); selectKind(b.dataset.kind, b.dataset.app); renderEntry(); } });
 $$('[data-regps]').forEach(b => b.addEventListener('click', async () => {
