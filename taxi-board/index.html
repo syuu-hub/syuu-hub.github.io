@@ -245,8 +245,10 @@ svg{display:block}
 .split .v{font-size:22px;font-weight:700}
 .log-day{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .log-day .cal-nav:disabled{opacity:.3}
-.ld-body{flex:1;min-width:0;text-align:center}
-.ld-date{font-size:18px;font-weight:800}
+.ld-body{flex:1;min-width:0;text-align:center;padding:4px 0;border-radius:var(--r-md)}
+.ld-body:active{background:var(--surface)}
+.ld-date{font-size:18px;font-weight:800;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.ld-date svg{color:var(--accent);flex:none}
 .ld-sub{font-size:12px;color:var(--muted);margin-top:2px}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted)}
@@ -255,7 +257,7 @@ svg{display:block}
 .log-card .log-total{margin-bottom:2px}
 .log-split{display:flex;gap:16px;font-size:13px;color:var(--muted);white-space:nowrap}
 .log-split b{color:var(--text);font-size:16px;margin-left:4px}
-.log-acts{display:grid;grid-template-columns:1fr 1.6fr 1.2fr;gap:8px;margin-top:12px}
+.log-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
 .log-acts svg{color:var(--accent);flex:none}
 .chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -695,7 +697,7 @@ svg{display:block}
       <div class="pane-sec">
         <div class="log-day">
           <button class="cal-nav" id="logPrev" aria-label="前の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
-          <div class="ld-body"><div class="ld-date num" id="logDate"></div><div class="ld-sub num" id="logSub"></div></div>
+          <button class="ld-body" id="calBtn" aria-label="月間カレンダーを開く"><div class="ld-date num"><span id="logDate"></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg></div><div class="ld-sub num" id="logSub"></div></button>
           <button class="cal-nav" id="logNext" aria-label="次の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
         <div class="log-card">
@@ -704,7 +706,6 @@ svg{display:block}
           <div class="log-acts">
             <button class="btn sm" id="logReport">日報</button>
             <button class="btn sm" id="logShiftEdit">時刻修正</button>
-            <button class="btn sm" id="calBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>月間</button>
           </div>
         </div>
         <div class="pause-sum num" id="pauseSum"></div>
@@ -2005,8 +2006,8 @@ function renderCal() {
         : '<div class="empty">この日の営業記録はありません。</div>');
 }
 
-function openCal() {
-  Object.assign(CAL, { ...periodOf(Date.now()), sel: dayKey(new Date()) });
+function openCal(t = Date.now()) {
+  Object.assign(CAL, { ...periodOf(t), sel: dayKey(new Date(t)) });
   renderCal();
   $('#calSheet .cal-body').scrollTop = 0;
   openSheet($('#calSheet'));
@@ -2140,7 +2141,7 @@ function renderLog() {
   $('#pauseFilter').setAttribute('aria-pressed', !!S.settings.histPause);
   const list = $('#rideList');
   if (!st || (!st.rides.length && !st.pauses.length)) {
-    list.innerHTML = `<li class="empty">${!sh ? '出庫前です。ホームの「出庫」から営業を開始します。' : sh === curShift() ? 'まだ乗車記録はありません。<br>「実車」→「空車」で自動的に入力画面が開きます。' : 'この日の乗車記録はありません。'}</li>`;
+    list.innerHTML = `<li class="empty">${!sh ? '出庫前です。ホームの「出庫」から営業を開始します。' : sh === curShift() ? 'まだ乗車記録はありません。<br>「実車」→「空車」で記録できます' : 'この日の乗車記録はありません。'}</li>`;
     return;
   }
   // 乗車と待機・休憩を新しい順に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
@@ -3142,7 +3143,7 @@ $('#payOk').addEventListener('click', savePay);
 $('#payDelete').addEventListener('click', deletePay);
 $('#paySheet [data-close]').addEventListener('click', () => closeSheet($('#paySheet')));
 $('#appSheet [data-close]').addEventListener('click', () => closeSheet($('#appSheet')));
-$('#calBtn').addEventListener('click', () => { haptic(); openCal(); });
+$('#calBtn').addEventListener('click', () => { haptic(); const sh = logShift(); openCal(sh ? sh.start : Date.now()); });
 $('#logPrev').addEventListener('click', () => moveLogDay(-1));
 $('#logNext').addEventListener('click', () => moveLogDay(1));
 $('#logReport').addEventListener('click', () => { const sh = logShift(); if (sh) { haptic(); openReport(sh.id); } });
