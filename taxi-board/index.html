@@ -288,8 +288,6 @@ svg{display:block}
 .text-in[type="time"]{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;padding:0 10px}
 .ps-dur{text-align:center;color:var(--muted);font-size:14px;margin-top:14px}
 .ps-dur b{color:var(--st-wait);font-size:22px;margin-left:6px}
-.pause-sum{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 14px;border-radius:var(--r-md);background:var(--surface-2);font-size:14px;color:var(--muted)}
-.pause-sum b{color:var(--st-wait);font-size:18px}
 .row .amt.dur{font-size:17px;color:var(--st-wait)}
 
 /* 需要マップ */
@@ -751,7 +749,6 @@ svg{display:block}
             <button class="btn sm" id="logAddPause">＋ 待機・休憩</button>
           </div>
         </div>
-        <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
         <div class="sec-h"><h3>この日の記録</h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩も表示</button></div></div>
@@ -2213,16 +2210,13 @@ function renderLog() {
     $('#logOut').textContent = hhmm(sh.start);
     $('#logIn').textContent = sh.end ? hhmm(sh.end) : '営業中';
     $('#logIn').classList.toggle('ongoing', !sh.end);
-    $('#logHours').textContent = `営業時間 ${dur((sh.end || Date.now()) - sh.start)}` + (st.time.wait ? ` ・ 待機・休憩 ${dur(st.time.wait)}` : '');
+    $('#logHours').textContent = `営業時間 ${dur((sh.end || Date.now()) - sh.start)}` + (st.pauses.length ? ` ・ 待機・休憩 ${dur(st.time.wait)}（${st.pauses.length}回）` : '');
   }
   $('#logTotal').textContent = yen(st ? st.sales : 0);
   $('#logReport').hidden = !st;
   $('#logShiftEdit').hidden = !sh;
   $('#logAddRide').hidden = $('#logAddPause').hidden = !sh;
 
-  const ps = $('#pauseSum');
-  ps.hidden = !st || !st.pauses.length;
-  if (st && st.pauses.length) ps.innerHTML = `<span class="tag pause">待機・休憩</span>合計 <b>${dur(st.time.wait)}</b>（${st.pauses.length}回）`;
 
   $('#pauseFilter').setAttribute('aria-pressed', !!S.settings.histPause);
   const list = $('#rideList');
