@@ -311,37 +311,69 @@ svg{display:block}
 .fold-b > .group:first-child,.fold-b > .setting:first-child{margin-top:6px}
 .fold-b .sub-h{font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 2px}
 .fold-b .sub-h:first-child{margin-top:12px}
-.dem-toggle{width:100%;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;margin-bottom:8px;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--surface);text-align:left}
-.dem-toggle .k{font-size:13px;font-weight:700;color:var(--muted)}
-.dem-toggle .v{flex:1;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dem-toggle svg{flex:none;color:var(--muted);transition:transform .2s}
-.dem-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
-.dem-filter{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
-.dem-filter > span{flex:none;width:3.5em;font-size:12px;font-weight:700;color:var(--muted);line-height:40px}
-.dem-filter .seg{margin:0}
-.map-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;background:#0D1014;border:1px solid var(--line);margin-top:4px}
-.pinmap{display:block;width:100%;aspect-ratio:4/3;max-height:56vh;cursor:pointer;touch-action:manipulation}
-/* OpenStreetMap（Leaflet）：夜でも見やすいよう地図タイルを暗く反転 */
-#leafmap{background:#0D1014;font:inherit}
-#leafmap .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
-#leafmap .leaflet-control-attribution{background:rgba(10,12,15,.7);color:var(--faint);font-size:10px}
-#leafmap .leaflet-control-attribution a{color:var(--muted)}
-#leafmap .leaflet-bar a{background:var(--surface-2);color:var(--text);border-color:var(--line-2);width:40px;height:40px;line-height:40px;font-size:20px}
-.lf-pin{width:30px;height:30px;border-radius:50% 50% 50% 0;background:var(--c);transform:rotate(-45deg);border:2px solid rgba(10,12,15,.85);display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
-.lf-pin span{transform:rotate(45deg);font-size:12px;font-weight:800;color:#0A0C0F;font-variant-numeric:tabular-nums}
-.lf-pin.sel{border:3px solid #fff;width:36px;height:36px}
-.lf-me{width:14px;height:14px;border-radius:50%;background:#5B9BFF;border:2px solid #fff;box-shadow:0 0 0 6px rgba(91,155,255,.25)}
-.map-note{font-size:11px;color:var(--faint);margin-top:4px}
-.pin-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:12px;color:var(--muted);margin-top:8px}
-.pin-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-.pin-legend .spacer{flex:1}
-.dem-sel{margin-top:12px;padding:14px;border-radius:var(--r-md);background:var(--surface-2)}
-.dem-sel .ttl{font-size:16px;font-weight:700}
-.dem-sel .meta{font-size:13px;color:var(--muted);margin-top:4px}
-.dows{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:12px;align-items:end;height:64px}
-.dows div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--muted);gap:3px}
-.dows i{display:block;width:100%;max-width:26px;border-radius:4px 4px 0 0;background:var(--accent);min-height:2px}
-.dot-n{width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;color:#0A0C0F}
+/* ===== 分析 ===== */
+.ana-range{margin:0 0 14px}
+.ana-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;margin-bottom:12px}
+.ana-card h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;white-space:nowrap}
+.ana-card h3 small{font-weight:500;letter-spacing:0;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
+.ana-tip{font-size:13px;color:var(--text);min-height:1.5em;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ana-tip:empty::before{content:"グラフをタップすると数値を表示";color:var(--faint)}
+.ana-note{font-size:12px;color:var(--faint);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ana-empty{padding:28px 8px;text-align:center;color:var(--faint);font-size:14px;line-height:1.7}
+.ins{list-style:none;display:grid;gap:10px}
+.ins li{display:flex;gap:10px;align-items:flex-start;line-height:1.45}
+.ins li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:.6em}
+.ins li.weak::before{background:var(--muted)}
+.ins .b{min-width:0;flex:1}
+.ins .h{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ins .d{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ins .conf{margin-left:auto;flex:none}
+.ins .conf{display:inline-block;font-size:11px;font-weight:700;color:var(--faint);border:1px solid var(--line-2);border-radius:999px;padding:0 6px;white-space:nowrap}
+.ins .conf.hi{color:var(--ok);border-color:rgba(61,214,140,.45)}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.kpi{background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px;min-width:0}
+.kpi .k{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v{font-size:clamp(16px,4.8vw,22px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v small{font-size:.6em;color:var(--muted);font-weight:600;margin-left:1px}
+/* 横棒（曜日・種別）：ラベル｜棒｜値 */
+.hbars{display:grid;gap:4px}
+.hbar{display:grid;grid-template-columns:2.4em minmax(0,1fr) auto;align-items:center;gap:10px;min-height:36px;width:100%;text-align:left;border-radius:6px}
+.hbar.wide{grid-template-columns:5.4em minmax(0,1fr) auto}
+.hbar .l{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbar .t{height:14px;border-radius:0 4px 4px 0;background:var(--surface-2);overflow:hidden}
+.hbar .t i{display:block;height:100%;border-radius:0 4px 4px 0;background:#6B7584}
+.hbar.hi .t i{background:var(--accent)}
+.hbar .v{font-size:14px;font-weight:700;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.hbar .v small{font-size:11px;color:var(--faint);font-weight:500;margin-left:4px}
+.hbar.low .l,.hbar.low .v{color:var(--faint)}
+.hbar[aria-pressed="true"]{background:var(--surface-2)}
+/* 縦棒（時間帯）・推移 */
+.cols{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;align-items:end;height:120px}
+.cols button{height:100%;display:flex;align-items:flex-end;padding:0}
+.cols button i{display:block;width:100%;border-radius:4px 4px 0 0;background:#6B7584;min-height:2px}
+.cols button.hi i{background:var(--accent)}
+.cols button.na i{background:var(--surface-2)}
+.cols button[aria-pressed="true"] i{outline:2px solid var(--text);outline-offset:1px}
+.axis{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;font-size:10px;color:var(--faint);margin-top:4px;font-variant-numeric:tabular-nums}
+.axis span{text-align:left;white-space:nowrap}
+.heat{display:grid;grid-template-columns:1.6em repeat(24,minmax(0,1fr));gap:2px}
+.heat .r{font-size:11px;color:var(--muted);font-weight:700;display:flex;align-items:center}
+.heat button{aspect-ratio:1/1.3;border-radius:3px;background:var(--surface-2);padding:0}
+.heat button[aria-pressed="true"]{outline:2px solid var(--text);outline-offset:1px}
+.heat-axis{margin-left:calc(1.6em + 2px)}
+.heat-legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--faint);margin-top:8px;white-space:nowrap}
+.heat-legend i{display:inline-block;width:16px;height:10px;border-radius:2px}
+.trend svg{display:block;width:100%;height:140px;overflow:visible}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;white-space:nowrap}
+.legend i{display:inline-block;width:12px;height:4px;border-radius:2px;margin-right:5px;vertical-align:2px}
+.trend rect.tb[aria-pressed="true"]{fill:var(--text)}
+.plist{list-style:none}
+.plist li{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.plist li:last-child{border-bottom:0}
+.plist .n{font-size:13px;font-weight:800;color:var(--muted);text-align:center}
+.plist .nm{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plist .sb{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plist .a{font-size:15px;font-weight:800;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
 .rank{width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--surface-3);color:var(--muted)}
 .rank.top{background:var(--accent-soft);color:var(--accent)}
 .dir{flex:none;text-align:right}
@@ -724,28 +756,10 @@ svg{display:block}
     </div></section>
 
     <!-- 需要 -->
-    <section class="view pane" data-view="demand" hidden><div class="view-body">
-      <header class="view-head"><h2>需要マップ</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
-      <button class="dem-toggle" id="demToggle" aria-expanded="false" aria-controls="demFilters">
-        <span class="k">絞り込み</span><span class="v" id="demSummary"></span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      <div id="demFilters" hidden>
-      <div class="dem-filter"><span>時間帯</span><div class="seg" id="demHour">
-        <button data-v="all">全時間</button><button data-v="now">いま±1時間</button><button data-v="morning">朝 6–10</button><button data-v="day">昼 10–16</button><button data-v="evening">夕 16–20</button><button data-v="night">夜 20–24</button><button data-v="late">深夜 0–6</button>
-      </div></div>
-      <div class="dem-filter"><span>曜日</span><div class="seg" id="demDow">
-        <button data-v="all">全曜日</button><button data-v="weekday">平日</button><button data-v="weekend">土日</button><button data-v="0">日</button><button data-v="1">月</button><button data-v="2">火</button><button data-v="3">水</button><button data-v="4">木</button><button data-v="5">金</button><button data-v="6">土</button>
-      </div></div>
-      </div>
-      <div class="map-wrap"><div class="pinmap" id="leafmap" hidden></div><canvas class="pinmap" id="pinmap" aria-label="乗車地のピン"></canvas></div>
-      <div class="map-note" id="mapNote" hidden>地図を読み込めないため、地図なしで表示しています（通信できる時は OpenStreetMap を表示）</div>
-      <div class="pin-legend" id="pinLegend"></div>
-      <div class="dem-sel" id="demSel" hidden></div>
-      <div class="pane-sec">
-        <div class="sec-h"><h3>乗車の多い場所</h3><span class="aside">約100m単位</span></div>
-        <ul class="list" id="hotList"></ul>
-      </div>
+    <section class="view pane" data-view="ana" hidden><div class="view-body">
+      <header class="view-head"><h2>分析</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
+      <div class="seg ana-range" id="anaRange"><button data-v="30">直近30日</button><button data-v="90">直近90日</button><button data-v="all">全期間</button></div>
+      <div id="anaBody"></div>
     </div></section>
 
     <!-- 出力・設定 -->
@@ -849,7 +863,7 @@ svg{display:block}
 <nav class="tabbar" aria-label="画面切り替え">
   <button class="tab-btn" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></button>
   <button class="tab-btn" data-go="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>履歴</span></button>
-  <button class="tab-btn" data-go="demand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>需要</span></button>
+  <button class="tab-btn" data-go="ana"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>分析</span></button>
   <button class="tab-btn" data-go="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg><span>出力・設定</span></button>
 </nav>
 </div>
@@ -1206,7 +1220,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, holidays: [], histPause: false, tab: 'home', demHour: 'all', demDow: 'all' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -2234,24 +2248,11 @@ function renderLog() {
 }
 
 /* ============================================================
-   描画：需要マップ（乗車地にピンを立てる）
-   約100m以内の乗車は同じ場所として1本のピンにまとめ、回数で色を変える
+   乗車地のまとめ（分析の「よく乗る場所」）
+   約100m以内の乗車、同じ施設・同じ手入力住所は同じ場所にまとめる
    ============================================================ */
 const SAME_PLACE_M = 100;   // この距離以内の乗車地は同じ場所
-const HOUR_BANDS = { morning: [6, 10], day: [10, 16], evening: [16, 20], night: [20, 24], late: [0, 6] };
-const PIN_COLORS = [[5, '#FF5D5D', '5回以上'], [3, '#FFB020', '3〜4回'], [2, '#3DD68C', '2回'], [1, '#5B9BFF', '1回']];
-const pinColor = n => PIN_COLORS.find(([min]) => n >= min)[1];
-const DEM = { sel: null, hit: [], focus: null, pan: null };
 
-function demandPass(t) {
-  const d = new Date(t), h = d.getHours(), w = d.getDay();
-  const hf = S.settings.demHour, wf = S.settings.demDow;
-  if (hf === 'now') { const dh = Math.abs(h - new Date().getHours()); if (Math.min(dh, 24 - dh) > 1) return false; }
-  else if (hf !== 'all') { const [a, b] = HOUR_BANDS[hf]; if (h < a || h >= b) return false; }
-  if (wf === 'weekday') return w >= 1 && w <= 5;
-  if (wf === 'weekend') return w === 0 || w === 6;
-  return wf === 'all' || w === +wf;
-}
 // 乗車地を場所ごとにまとめる（多い順）。既存の場所の中心から SAME_PLACE_M 以内なら同じ場所に入れる
 // ピンの位置：施設の位置が分かっていればそこ、なければ乗車地の平均
 const pinCenter = c => c.fn ? { lat: c.flat / c.fn, lng: c.flng / c.fn } : { lat: c.lat / c.n, lng: c.lng / c.n };
@@ -2272,9 +2273,9 @@ const ridePos = f => f.place && f.place.lat != null ? f.place
   : f.lat != null ? f : null;
 // 同じ場所としてまとめる鍵：施設名、または手入力した住所（GPSの位置がずれていても1本のピンに）
 const placeKey = f => f.place ? 'p:' + normName(f.place.name) : f.manual && f.addr ? 'a:' + normName(f.addr) : null;
-function demandPlaces() {
+function demandPlaces(src = S.rides) {
   const list = [], byKey = new Map();
-  const rides = S.rides.filter(r => r.from && ridePos(r.from) && demandPass(r.start || r.ts))
+  const rides = src.filter(r => r.from && ridePos(r.from))
     .sort((a, b) => !!placeKey(b.from) - !!placeKey(a.from) || (a.start || a.ts) - (b.start || b.ts));   // 施設・手入力を先にまとめる
   for (const r of rides) {
     const f = r.from, t = r.start || r.ts, pos = ridePos(f), k = placeKey(f);
@@ -2301,195 +2302,231 @@ function demandPlaces() {
 }
 const placeName = c => c.name ? c.name + (c.exact ? '' : ' 付近') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4);
 
-function drawPins(places) {
-  const cv = $('#pinmap');
-  const w = cv.clientWidth, h = cv.clientHeight;
-  if (!w || !h) return;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-  const ctx = cv.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = '#0D1014'; ctx.fillRect(0, 0, w, h);
-  const font = getComputedStyle(document.body).fontFamily;
-  DEM.hit = [];
-  const me = geo.pos;
-  if (!places.length) {
-    ctx.fillStyle = '#5A6472'; ctx.font = '14px ' + font; ctx.textAlign = 'center';
-    ctx.fillText(S.rides.length ? 'この条件の乗車はありません' : '乗車を記録すると乗車地にピンが立ちます', w / 2, h / 2);
+/* ============================================================
+   分析：記録から今後の営業に役立つ傾向を出す
+   ・曜日は「出庫日」の曜日（深夜の営業も出庫日に含める）
+   ・時間単価＝その時間帯に乗せた売上 ÷ その時間帯に営業していた時間
+   ・差の確からしさは標準誤差で判断（平均との差が標準誤差の2倍以上なら「明確」）
+   ============================================================ */
+const HOUR_ORDER = [...Array.from({ length: 19 }, (_, i) => i + 5), 0, 1, 2, 3, 4];   // 5時〜翌4時
+const ANA_RAMP = ['#6E5018', '#9A6C1A', '#CC8E1D', '#FFB020'];   // ヒートマップ：少→多（暗→明、単一色相）
+const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+const sd = a => { if (a.length < 2) return 0; const m = mean(a); return Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / (a.length - 1)); };
+const quant = (a, q) => { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y), i = (b.length - 1) * q, lo = Math.floor(i); return b[lo] + (b[Math.ceil(i)] - b[lo]) * (i - lo); };
+const pct = v => (v >= 0 ? '+' : '') + Math.round(v * 100) + '%';
+// 最小二乗法：傾きとその標準誤差
+function regress(xs, ys) {
+  const n = xs.length, mx = mean(xs), my = mean(ys);
+  let sxx = 0, sxy = 0;
+  for (let i = 0; i < n; i++) { sxx += (xs[i] - mx) ** 2; sxy += (xs[i] - mx) * (ys[i] - my); }
+  if (n < 3 || !sxx) return null;
+  const b = sxy / sxx, a = my - b * mx;
+  const sse = ys.reduce((acc, y, i) => acc + (y - (a + b * xs[i])) ** 2, 0);
+  return { a, b, se: Math.sqrt(sse / (n - 2) / sxx) };
+}
+function analyze(range) {
+  const now = Date.now(), from = range === 'all' ? -Infinity : now - +range * 86400e3;
+  const shifts = S.shifts.filter(sh => sh.start >= from).sort((a, b) => a.start - b.start);
+  const ids = new Set(shifts.map(sh => sh.id)), byId = new Map(shifts.map(sh => [sh.id, sh]));
+  const rides = S.rides.filter(r => ids.has(r.shiftId));
+  // 営業日ごと（出庫日でまとめる）
+  const days = new Map();
+  for (const sh of shifts) {
+    const k = dayKey(new Date(sh.start)), st = shiftStats(sh);
+    const d = days.get(k) || { k, t: sh.start, dow: new Date(sh.start).getDay(), sales: 0, n: 0, ms: 0, occ: 0, work: 0 };
+    d.sales += st.sales; d.n += st.count; d.ms += st.elapsed; d.occ += st.time.occupied; d.work += st.working;
+    days.set(k, d);
+  }
+  const dayList = [...days.values()];
+  // 時間帯ごとの稼働時間（分）と売上：曜日×時
+  const duty = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const sales = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const cnt = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  for (const sh of shifts) {
+    const dow = new Date(sh.start).getDay(), end = sh.end || now;
+    for (let t = sh.start; t < end;) {
+      const d = new Date(t), next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime();
+      duty[dow][d.getHours()] += (Math.min(next, end) - t) / 60000;
+      t = next;
+    }
+  }
+  for (const r of rides) {
+    const sh = byId.get(r.shiftId), dow = new Date(sh.start).getDay(), h = new Date(r.start || r.ts).getHours();
+    sales[dow][h] += r.total; cnt[dow][h]++;
+  }
+  return { shifts, rides, dayList, duty, sales, cnt };
+}
+const anaTip = (el, text) => { const card = el.closest('.ana-card'); card.querySelectorAll('[aria-pressed]').forEach(x => x.setAttribute('aria-pressed', x === el)); card.querySelector('.ana-tip').textContent = text; };
+
+function renderAnalysis() {
+  const range = S.settings.anaRange || '90';
+  $$('#anaRange [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === range));
+  const A = analyze(range), body = $('#anaBody');
+  const D = A.dayList;
+  if (D.length < 2 || A.rides.length < 3) {
+    body.innerHTML = `<div class="ana-card"><div class="ana-empty">分析には2日以上・3件以上の乗車記録が必要です。<br>記録が増えるほど傾向がはっきりします。<br><span class="num">（この期間：${D.length}日・${A.rides.length}件）</span></div></div>`;
     return;
   }
+  const allSales = D.map(d => d.sales), avgDay = mean(allSales);
+  const totSales = A.rides.reduce((a, r) => a + r.total, 0);
+  const totMs = D.reduce((a, d) => a + d.ms, 0), totOcc = D.reduce((a, d) => a + d.occ, 0), totWork = D.reduce((a, d) => a + d.work, 0);
+  const hourly = totMs ? totSales / (totMs / 3600e3) : 0;
+  const ins = [];   // [文, 強さ(true=明確)]
+  const conf = hi => `<span class="conf ${hi ? 'hi' : ''}">${hi ? '明確' : '参考'}</span>`;
 
-  // 正距円筒図法（経度をcos(緯度)で補正）。表示範囲はピンの位置を軸に決める（現在地は含めない）
-  const all = places;
-  const lat0 = all.reduce((a, p) => a + p.lat, 0) / all.length;
-  const kx = Math.cos(rad(lat0));
-  const X = p => p.lng * kx, Y = p => -p.lat;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const p of all) { minX = Math.min(minX, X(p)); maxX = Math.max(maxX, X(p)); minY = Math.min(minY, Y(p)); maxY = Math.max(maxY, Y(p)); }
-  const spanX = Math.max(maxX - minX, 0.006) * 1.35, spanY = Math.max(maxY - minY, 0.006) * 1.35;
-  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2 - spanY * 0.04;   // ピンの頭が切れないよう少し上に余白
-  const scale = Math.min(w / spanX, h / spanY);
-  const px = p => (X(p) - cx) * scale + w / 2, py = p => (Y(p) - cy) * scale + h / 2;
-  const mPerPx = 111320 / scale;
-
-  // 縮尺に合わせたグリッドと縮尺バー
-  const nice = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
-  const step = nice.find(n => n / mPerPx >= 60) || nice[nice.length - 1];
-  const stepPx = step / mPerPx;
-  ctx.strokeStyle = 'rgba(255,255,255,.045)'; ctx.lineWidth = 1;
-  for (let x = (w / 2) % stepPx; x < w; x += stepPx) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, h); ctx.stroke(); }
-  for (let y = (h / 2) % stepPx; y < h; y += stepPx) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); ctx.stroke(); }
-
-  // 現在地（表示範囲に入っている時だけ）
-  if (me && px(me) >= 0 && px(me) <= w && py(me) >= 0 && py(me) <= h) {
-    const x = px(me), y = py(me);
-    ctx.fillStyle = 'rgba(91,155,255,.22)'; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#5B9BFF'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  }
-
-  // ピン（回数の少ない順に描き、多い場所・選択中を手前に）
-  const order = places.slice().sort((a, b) => (a.key === DEM.sel) - (b.key === DEM.sel) || a.n - b.n);
-  for (const c of order) {
-    const x = px(c), y = py(c), sel = c.key === DEM.sel;
-    const r = sel ? 13 : 10 + Math.min(c.n, 6) * 0.5;
-    const hy = y - r * 1.7;   // 頭の中心
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.bezierCurveTo(x - r * 0.4, hy + r * 0.9, x - r, hy + r * 0.5, x - r, hy);
-    ctx.arc(x, hy, r, Math.PI, 0);
-    ctx.bezierCurveTo(x + r, hy + r * 0.5, x + r * 0.4, hy + r * 0.9, x, y);
-    ctx.closePath();
-    ctx.fillStyle = pinColor(c.n); ctx.fill();
-    ctx.lineWidth = sel ? 3 : 1.5; ctx.strokeStyle = sel ? '#fff' : 'rgba(10,12,15,.8)'; ctx.stroke();
-    ctx.fillStyle = '#0A0C0F'; ctx.font = `800 ${c.n > 99 ? 9 : 11}px ${font}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(c.n), x, hy + 0.5);
-    DEM.hit.push({ x, y: hy, r: r + 8, key: c.key });
-  }
-
-  ctx.textBaseline = 'alphabetic';
-  ctx.strokeStyle = '#8C96A4'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(12, h - 14); ctx.lineTo(12 + stepPx, h - 14); ctx.stroke();
-  ctx.fillStyle = '#8C96A4'; ctx.font = '600 11px ' + font; ctx.textAlign = 'left';
-  ctx.fillText(fmtDist(step), 12, h - 20);
-  ctx.textAlign = 'center'; ctx.fillText('N', w - 16, 20);
-  ctx.beginPath(); ctx.moveTo(w - 16, 26); ctx.lineTo(w - 16, 40); ctx.stroke();
-}
-
-/* ---------- OpenStreetMap（Leaflet、APIキー不要）。読めない時は地図なしのピン表示 ---------- */
-const LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-const LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-let leafletPromise = null;
-function loadLeaflet() {
-  if (window.L) return Promise.resolve(window.L);
-  if (navigator.onLine === false) return Promise.resolve(null);
-  if (!leafletPromise) leafletPromise = new Promise(resolve => {
-    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = LEAFLET_CSS;
-    document.head.appendChild(css);
-    const sc = document.createElement('script'); sc.src = LEAFLET_JS;
-    sc.onload = () => resolve(window.L || null);
-    sc.onerror = () => { sc.remove(); css.remove(); leafletPromise = null; resolve(null); };
-    document.head.appendChild(sc);
+  // ---- 曜日別：1日平均売上（平均との差を標準誤差で判定）
+  const dows = WEEKDAYS.split('').map((w, i) => {
+    const v = D.filter(d => d.dow === i).map(d => d.sales);
+    const m = mean(v), se = v.length > 1 ? sd(v) / Math.sqrt(v.length) : Infinity;
+    return { i, w, n: v.length, m, diff: avgDay ? m / avgDay - 1 : 0, sure: v.length >= 3 && Math.abs(m - avgDay) >= 2 * se };
   });
-  return leafletPromise;
-}
-const MAP = { map: null, pins: null, me: null, fitKey: '' };
-function ensureMap() {
-  if (MAP.map) return MAP.map;
-  const m = L.map('leafmap', { zoomControl: true, attributionControl: true });
-  L.tileLayer(OSM_TILES, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }).addTo(m);
-  MAP.pins = L.layerGroup().addTo(m);
-  m.on('click', () => { if (DEM.sel) { DEM.sel = null; renderDemand(); } });
-  m.setView([35.681, 139.767], 12);
-  return MAP.map = m;
-}
-function renderMap(places) {
-  const useMap = !!window.L && navigator.onLine !== false;
-  $('#leafmap').hidden = !useMap;
-  $('#pinmap').hidden = useMap;
-  $('#mapNote').hidden = useMap || !places.length;
-  if (!useMap) {
-    drawPins(places);
-    loadLeaflet().then(ok => { if (ok && S.settings.tab === 'demand') renderDemand(); });
-    return;
+  const dowOk = dows.filter(d => d.n >= 2).sort((a, b) => b.m - a.m);
+  if (dowOk.length >= 2) {
+    const best = dowOk[0], worst = dowOk.at(-1);
+    if (best.diff > 0.05) ins.push([`${best.w}曜が最も稼げる`, `1日平均 ${yen(Math.round(best.m))}・平均比 ${pct(best.diff)}`, best.sure]);
+    if (worst.diff < -0.1) ins.push([`${worst.w}曜は低め`, `1日平均 ${yen(Math.round(worst.m))}・${pct(worst.diff)}・休みの候補`, worst.sure]);
   }
-  const m = ensureMap();
-  m.invalidateSize();
-  MAP.pins.clearLayers();
-  for (const c of places) {
-    const sel = c.key === DEM.sel;
-    const icon = L.divIcon({ className: '', html: `<div class="lf-pin${sel ? ' sel' : ''}" style="--c:${pinColor(c.n)}"><span>${c.n}</span></div>`,
-      iconSize: sel ? [36, 36] : [30, 30], iconAnchor: sel ? [18, 44] : [15, 37] });
-    L.marker([c.lat, c.lng], { icon, zIndexOffset: (sel ? 10000 : 0) + c.n * 10, title: placeName(c) })
-      .on('click', e => { L.DomEvent.stopPropagation(e); DEM.sel = c.key; DEM.pan = c.key; haptic(); renderDemand(); })
-      .addTo(MAP.pins);
-  }
-  if (geo.pos) {
-    if (!MAP.me) MAP.me = L.marker([geo.pos.lat, geo.pos.lng], { icon: L.divIcon({ className: '', html: '<div class="lf-me"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }), interactive: false, zIndexOffset: -1000 }).addTo(m);
-    else MAP.me.setLatLng([geo.pos.lat, geo.pos.lng]);
-  }
-  // 絞り込みが変わった時だけ全体が入るように合わせる（選択だけでは動かさない）
-  const fitKey = S.settings.demHour + '|' + S.settings.demDow + '|' + places.map(c => c.key).join(',');
-  // 表示はピンの位置を軸にする：一覧から選んだ場所は拡大して中央へ、ピンをタップしたらそのピンを中央へ、
-  // 絞り込みが変わった時はピン全体が入るように合わせる（現在地は範囲に含めない）
-  if (DEM.focus) {
-    const c = places.find(p => p.key === DEM.focus);
-    if (c) m.setView([c.lat, c.lng], Math.max(m.getZoom(), 16));
-  } else if (DEM.pan) {
-    const c = places.find(p => p.key === DEM.pan);
-    if (c) m.panTo([c.lat, c.lng]);
-  } else if (fitKey !== MAP.fitKey && places.length) {
-    const pts = places.map(c => [c.lat, c.lng]);
-    if (pts.length === 1) m.setView(pts[0], 16);
-    else m.fitBounds(pts, { paddingTopLeft: [36, 56], paddingBottomRight: [36, 24], maxZoom: 16 });   // 上はピンの頭の分を多めに
-  }
-  DEM.focus = DEM.pan = null;
-  MAP.fitKey = fitKey;
-}
+  const maxDow = Math.max(...dows.map(d => d.m), 1);
 
-function renderDemand() {
-  $$('#demHour [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.settings.demHour));
-  $$('#demDow [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.settings.demDow));
-  // 絞り込みは折りたたみ：見出しに現在の条件を表示
-  const lbl = (id, v) => $(`#${id} [data-v="${v}"]`).textContent;
-  $('#demSummary').textContent = `${lbl('demHour', S.settings.demHour)}・${lbl('demDow', S.settings.demDow)}`;
-  const places = demandPlaces();
-  if (DEM.sel && !places.some(c => c.key === DEM.sel)) DEM.sel = null;
-  renderMap(places);
-  const rides = places.reduce((a, c) => a + c.n, 0);
-  $('#pinLegend').innerHTML = PIN_COLORS.slice().reverse().map(([, col, lab]) => `<span><i style="background:${col}"></i>${lab}</span>`).join('') +
-    `<span class="spacer"></span><span class="num">${places.length}か所 ・ 乗車${rides}件</span>`;
+  // ---- 時間帯別：時間単価（その時間に2時間以上営業したデータのみ評価）
+  const hours = Array.from({ length: 24 }, (_, h) => {
+    const du = A.duty.reduce((a, r) => a + r[h], 0), sa = A.sales.reduce((a, r) => a + r[h], 0), c = A.cnt.reduce((a, r) => a + r[h], 0);
+    return { h, du, sa, c, rate: du >= 120 ? sa / (du / 60) : null };
+  });
+  const rated = hours.filter(x => x.rate != null).sort((a, b) => b.rate - a.rate);
+  const topH = new Set(rated.slice(0, 3).map(x => x.h));
+  if (rated.length >= 4 && hourly) {
+    const t = rated.slice(0, 3).sort((a, b) => (a.h + (a.h < 5 ? 24 : 0)) - (b.h + (b.h < 5 ? 24 : 0))).map(x => x.h).join('・');   // 深夜は前日の続きとして並べる
+    ins.push([`${t}時台が高単価`, `最高 ${yen(Math.round(rated[0].rate))}/時・平均の${(rated[0].rate / hourly).toFixed(1)}倍`, rated[0].du >= 600]);
+    const low = rated.at(-1);
+    if (low.rate < hourly * 0.6) ins.push([`${low.h}時台は低単価`, `${yen(Math.round(low.rate))}/時・休憩の候補`, low.du >= 600]);
+  }
+  const maxRate = Math.max(...hours.map(x => x.rate || 0), 1);
 
-  // 選択中の場所の内訳
-  const c = places.find(p => p.key === DEM.sel);
-  const box = $('#demSel');
-  box.hidden = !c;
-  if (c) {
-    const topH = c.hours.map((v, h) => [h, v]).filter(([, v]) => v).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([h, v]) => `${h}時台 ${v}回`).join(' ・ ');
-    const maxD = Math.max(...c.dows);
-    const dir = geo.pos ? ` ・ ${dirLabel(bearing(geo.pos, c))} ${fmtDist(haversine(geo.pos, c))}` : '';
-    box.innerHTML = `<div class="ttl">${esc(placeName(c))}</div>
-      <div class="meta num">乗車 ${c.n}回 ・ 売上 ${yen(c.sales)}${dir}</div>
-      <div class="meta num">多い時間帯：${topH}</div>
-      <div class="dows">${'日月火水木金土'.split('').map((wd, i) => `<div><span class="num">${c.dows[i] || ''}</span><i style="height:${maxD ? Math.max(4, 40 * c.dows[i] / maxD) : 2}px;opacity:${c.dows[i] ? 1 : .25}"></i>${wd}</div>`).join('')}</div>`;
+  // ---- 曜日×時間帯（1時間以上のデータがあるマス）
+  const cells = [];
+  for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) {
+    const du = A.duty[d][h];
+    if (du >= 60) cells.push({ d, h, du, rate: A.sales[d][h] / (du / 60), c: A.cnt[d][h] });
+  }
+  const rates = cells.map(c => c.rate);
+  const q = [quant(rates, .25), quant(rates, .5), quant(rates, .75)];
+  const step = v => v <= q[0] ? 0 : v <= q[1] ? 1 : v <= q[2] ? 2 : 3;
+  const bestCell = cells.filter(c => c.du >= 120).sort((a, b) => b.rate - a.rate)[0];
+  if (bestCell) ins.push([`狙い目 ${WEEKDAYS[bestCell.d]}曜 ${bestCell.h}時台`, `${yen(Math.round(bestCell.rate))}/時・乗車${(bestCell.c / (bestCell.du / 60)).toFixed(1)}回/時`, bestCell.du >= 300]);
+
+  // ---- 推移：営業日ごとの売上、7営業日移動平均、回帰の傾き（1週間あたり）
+  const xs = D.map(d => (d.t - D[0].t) / 86400e3), ys = D.map(d => d.sales);
+  const reg = regress(xs, ys);
+  if (reg && D.length >= 6) {
+    const wk = reg.b * 7, sure = Math.abs(reg.b) >= 2 * reg.se;
+    ins.push(sure ? [`売上は${wk > 0 ? '上昇' : '下降'}傾向`, `1日あたり 週に ${wk > 0 ? '+' : '−'}${yen(Math.abs(Math.round(wk)))}`, true] : ['売上は横ばい', '大きな上がり下がりなし', false]);
   }
 
-  const list = $('#hotList');
-  if (!places.length) { list.innerHTML = `<li class="empty">${S.rides.length ? 'この条件の乗車はありません。' : '乗車を記録すると、乗車の多い場所が表示されます。'}</li>`; return; }
-  list.innerHTML = places.slice(0, 10).map(c => {
-    const peak = c.hours.indexOf(Math.max(...c.hours));
-    const dir = geo.pos ? `<b>${dirLabel(bearing(geo.pos, c))}</b><span class="num">${fmtDist(haversine(geo.pos, c))}</span>` : '<span>—</span>';
-    return `<li><button class="row" data-place="${c.key}" aria-pressed="${c.key === DEM.sel}">
-      <span class="dot-n num" style="background:${pinColor(c.n)}">${c.n}</span>
-      <span class="body">
-        <div class="main">${esc(placeName(c))}</div>
-        <div class="sub num">乗車 ${c.n}回 ・ ピーク ${peak}時台 ・ ${yen(c.sales)}</div>
-      </span>
-      <span class="dir">${dir}</span>
-    </button></li>`;
-  }).join('');
+  // ---- 運賃の分布
+  const fares = A.rides.map(r => r.total).sort((a, b) => a - b);
+  const long = A.rides.filter(r => r.total >= 10000), longSales = long.reduce((a, r) => a + r.total, 0);
+  if (long.length) ins.push([`1万円以上が売上の${Math.round(longSales / totSales * 100)}%`, `件数では${Math.round(long.length / fares.length * 100)}%（${long.length}件）`, long.length >= 5]);
+  const bins = [[0, 1000], [1000, 2000], [2000, 3000], [3000, 5000], [5000, 10000], [10000, Infinity]];
+  const hist = bins.map(([a, b]) => ({ a, b, n: fares.filter(f => f >= a && f < b).length }));
+  const maxHist = Math.max(...hist.map(x => x.n), 1);
+
+  // ---- よく乗る場所
+  const places = demandPlaces(A.rides).filter(c => c.n >= 2).slice(0, 8);
+  if (places[0] && places[0].n >= 3) {
+    const c = places[0], peak = c.hours.indexOf(Math.max(...c.hours));
+    ins.push([`よく乗る：${esc(placeName(c))}`, `${c.n}回・平均${yen(Math.round(c.sales / c.n))}・${peak}時台が多い`, c.n >= 5]);
+  }
+  // ---- 乗車種別
+  const kinds = new Map();
+  for (const r of A.rides) { const l = kindLabel(r.kind, r.app), x = kinds.get(l) || { n: 0, s: 0 }; x.n++; x.s += r.total; kinds.set(l, x); }
+  const kindList = [...kinds].map(([l, x]) => ({ l, ...x, avg: x.s / x.n })).sort((a, b) => b.s - a.s);
+  const bestKind = kindList.filter(k => k.n >= 3).sort((a, b) => b.avg - a.avg)[0];
+  if (bestKind && kindList.length > 1) ins.push([`高単価の種別：${esc(bestKind.l)}`, `平均 ${yen(Math.round(bestKind.avg))}（${bestKind.n}件）`, bestKind.n >= 10]);
+  const maxKind = Math.max(...kindList.map(k => k.s), 1);
+
+  const fewNote = D.length < 14 ? `<div class="ana-note">営業${D.length}日分のため参考値です</div>` : '';
+  const kv = n => n >= 100000 ? compactYen(n) : yen(n);   // 狭い欄に収める
+  // ---- 描画
+  const trendW = 320, trendH = 120, maxY = Math.max(...ys, 1);
+  const bx = i => D.length === 1 ? trendW / 2 : 6 + i * (trendW - 12) / (D.length - 1);
+  const by = v => trendH - v / maxY * (trendH - 6);
+  const bw = Math.max(2, Math.min(10, (trendW - 12) / D.length - 2));
+  const ma = ys.map((_, i) => mean(ys.slice(Math.max(0, i - 6), i + 1)));
+  body.innerHTML = `
+    <div class="ana-card">
+      <h3><span>今後の営業のヒント</span><small>${D.length}日・${A.rides.length}件から</small></h3>
+      <ul class="ins">${ins.sort((a, b) => b[2] - a[2]).map(([t, d, hi]) => `<li class="${hi ? '' : 'weak'}"><span class="b"><span class="h">${t}${conf(hi)}</span><span class="d num">${d}</span></span></li>`).join('') || '<li class="weak"><span class="b"><span class="h">目立った傾向はまだありません</span></span></li>'}</ul>
+      ${fewNote}
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="k">1日平均売上</div><div class="v num">${kv(Math.round(avgDay))}</div></div>
+      <div class="kpi"><div class="k">時間単価</div><div class="v num">${kv(Math.round(hourly))}</div></div>
+      <div class="kpi"><div class="k">平均単価</div><div class="v num">${kv(Math.round(totSales / A.rides.length))}</div></div>
+      <div class="kpi"><div class="k">営業日数</div><div class="v num">${D.length}<small>日</small></div></div>
+      <div class="kpi"><div class="k">1日平均乗車</div><div class="v num">${(A.rides.length / D.length).toFixed(1)}<small>回</small></div></div>
+      <div class="kpi"><div class="k">実車率</div><div class="v num">${totOcc && totWork ? Math.round(totOcc / totWork * 100) + '<small>%</small>' : '—'}</div></div>
+    </div>
+    <div class="ana-card">
+      <h3><span>曜日別 1日平均売上</span><small>()は日数</small></h3>
+      <div class="hbars">${dows.map(d => `<button class="hbar ${dowOk[0] && d.i === dowOk[0].i ? 'hi' : ''} ${d.n < 2 ? 'low' : ''}" aria-pressed="false"
+        data-tip="${d.w}曜：1日平均 ${yen(Math.round(d.m))}（${d.n}日）・平均比 ${d.n ? pct(d.diff) : '—'}${d.n >= 3 ? (d.sure ? '・差は明確' : '・差は誤差の範囲') : '・日数が少なく参考'}">
+        <span class="l">${d.w}</span><span class="t"><i style="width:${(d.m / maxDow * 100).toFixed(1)}%"></i></span>
+        <span class="v num">${d.n ? yen(Math.round(d.m)) : '—'}<small>(${d.n})</small></span></button>`).join('')}</div>
+      <div class="ana-tip"></div>
+    </div>
+    <div class="ana-card">
+      <h3><span>時間帯別 時間単価</span><small>上位3つ</small></h3>
+      <div class="cols">${HOUR_ORDER.map(h => hours[h]).map(x => `<button class="${x.rate == null ? 'na' : topH.has(x.h) ? 'hi' : ''}" aria-pressed="false" aria-label="${x.h}時台"
+        data-tip="${x.h}時台：${x.rate == null ? `データ不足（営業${(x.du / 60).toFixed(1)}時間）` : `${yen(Math.round(x.rate))}/時・乗車${x.c}回・営業${(x.du / 60).toFixed(1)}時間`}"><i style="height:${x.rate == null ? 2 : Math.max(3, x.rate / maxRate * 100).toFixed(1)}%"></i></button>`).join('')}</div>
+      <div class="axis">${HOUR_ORDER.map(h => `<span>${h % 3 === 0 ? h : ''}</span>`).join('')}</div>
+      <div class="ana-tip"></div>
+    </div>
+    <div class="ana-card">
+      <h3><span>曜日×時間帯の時間単価</span><small>明るいほど高い</small></h3>
+      <div class="heat">${WEEKDAYS.split('').map((w, d) => `<span class="r">${w}</span>` + HOUR_ORDER.map(h => {
+        const c = cells.find(x => x.d === d && x.h === h);
+        return c ? `<button style="background:${ANA_RAMP[step(c.rate)]}" aria-pressed="false" aria-label="${w}曜${h}時台" data-tip="${w}曜 ${h}時台：${yen(Math.round(c.rate))}/時・乗車${c.c}回・営業${(c.du / 60).toFixed(1)}時間"></button>`
+          : `<button aria-pressed="false" data-tip="${w}曜 ${h}時台：データなし"></button>`;
+      }).join('')).join('')}</div>
+      <div class="axis heat-axis">${HOUR_ORDER.map(h => `<span>${h % 6 === 0 ? h : ''}</span>`).join('')}</div>
+      <div class="heat-legend">低<i style="background:${ANA_RAMP[0]}"></i><i style="background:${ANA_RAMP[1]}"></i><i style="background:${ANA_RAMP[2]}"></i><i style="background:${ANA_RAMP[3]}"></i>高　<i style="background:var(--surface-2)"></i>データなし</div>
+      <div class="ana-tip"></div>
+    </div>
+    <div class="ana-card trend">
+      <h3><span>売上の推移</span><small>営業日ごと</small></h3>
+      <svg viewBox="0 0 ${trendW} ${trendH}" preserveAspectRatio="none" role="img" aria-label="営業日ごとの売上と7日移動平均">
+        <line x1="0" y1="${trendH}" x2="${trendW}" y2="${trendH}" stroke="var(--line-2)" stroke-width="1"/>
+        <line x1="0" y1="${by(avgDay).toFixed(1)}" x2="${trendW}" y2="${by(avgDay).toFixed(1)}" stroke="var(--line-2)" stroke-dasharray="3 4" stroke-width="1"/>
+        ${D.map((d, i) => `<rect class="tb" x="${(bx(i) - bw / 2).toFixed(1)}" y="${by(d.sales).toFixed(1)}" width="${bw.toFixed(1)}" height="${(trendH - by(d.sales)).toFixed(1)}" rx="2" fill="#6B7584"
+          data-tip="${ymd(d.t)}（${WEEKDAYS[d.dow]}）：${yen(d.sales)}・${d.n}回・7日平均 ${yen(Math.round(ma[i]))}" aria-pressed="false"/>`).join('')}
+        <polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" points="${ma.map((v, i) => `${bx(i).toFixed(1)},${by(v).toFixed(1)}`).join(' ')}"/>
+      </svg>
+      <div class="legend"><span><i style="background:#6B7584"></i>日別売上</span><span><i style="background:var(--accent)"></i>7日移動平均</span><span><i style="background:var(--line-2)"></i>平均</span></div>
+      <div class="ana-tip"></div>
+    </div>
+    <div class="ana-card">
+      <h3><span>運賃の分布</span><small>件数</small></h3>
+      <div class="ana-note" style="margin:-4px 0 8px">中央値 ${yen(Math.round(quant(fares, .5)))}・上位10%は${yen(Math.round(quant(fares, .9)))}以上</div>
+      <div class="hbars">${hist.map(x => `<button class="hbar wide ${x.n === maxHist ? 'hi' : ''}" aria-pressed="false" data-tip="${x.b === Infinity ? yen(x.a) + '以上' : yen(x.a) + '〜' + yen(x.b - 1)}：${x.n}件（${Math.round(x.n / fares.length * 100)}%）">
+        <span class="l num">${x.b === Infinity ? '1万〜' : x.a ? (x.a / 1000) + '千〜' : '〜1千'}</span><span class="t"><i style="width:${(x.n / maxHist * 100).toFixed(1)}%"></i></span><span class="v num">${x.n}<small>件</small></span></button>`).join('')}</div>
+      <div class="ana-tip"></div>
+    </div>
+    <div class="ana-card">
+      <h3><span>乗車種別</span><small>売上・平均単価</small></h3>
+      <div class="hbars">${kindList.map((k, i) => `<button class="hbar wide ${i === 0 ? 'hi' : ''}" aria-pressed="false" data-tip="${esc(k.l)}：${k.n}件・売上 ${yen(k.s)}（${Math.round(k.s / totSales * 100)}%）・平均 ${yen(Math.round(k.avg))}">
+        <span class="l">${esc(k.l)}</span><span class="t"><i style="width:${(k.s / maxKind * 100).toFixed(1)}%"></i></span><span class="v num">${yen(Math.round(k.avg))}<small>${k.n}件</small></span></button>`).join('')}</div>
+      <div class="ana-tip"></div>
+    </div>
+    <div class="ana-card">
+      <h3><span>よく乗る場所</span><small>2回以上・乗車地</small></h3>
+      ${places.length ? `<ol class="plist">${places.map((c, i) => { const peak = c.hours.indexOf(Math.max(...c.hours)), pd = c.dows.indexOf(Math.max(...c.dows));
+        return `<li><span class="n num">${i + 1}</span><span style="min-width:0"><div class="nm">${esc(placeName(c))}</div><div class="sb num">${c.n}回・${peak}時台・${WEEKDAYS[pd]}曜</div></span><span class="a num">${yen(Math.round(c.sales / c.n))}</span></li>`; }).join('')}</ol>`
+        : '<div class="ana-empty">2回以上乗せた場所を表示します</div>'}
+    </div>`;
 }
+$('#anaRange').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); S.settings.anaRange = b.dataset.v; saveSoon(); renderAnalysis(); });
+$('#anaBody').addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) { haptic(); anaTip(el, el.dataset.tip); } });
 
 /* ============================================================
    描画：出力・設定
@@ -2582,20 +2619,17 @@ function renderAll() {
   const t = S.settings.tab;
   if (t === 'home') return;
   if (t === 'log') renderLog();
-  else if (t === 'demand') renderDemand();
+  else if (t === 'ana') renderAnalysis();
   else if (t === 'data') renderData();
 }
 
 function setView(v) {
   if (!$(`.view[data-view="${v}"]`)) v = 'home';
-  if (v === 'demand' && S.settings.tab !== 'demand') { $('#demFilters').hidden = true; $('#demToggle').setAttribute('aria-expanded', false); }   // 開くたびに折りたたみから
   S.settings.tab = v; saveSoon();
   $$('.tab-btn').forEach(b => b.setAttribute('aria-current', b.dataset.go === v ? 'page' : 'false'));
   $$('.view').forEach(p => p.hidden = p.dataset.view !== v);
   $(`.view[data-view="${v}"]`).scrollTop = 0;
   renderAll();
-  // 現在地からの方角・距離を出す画面を開いた時だけ位置を取得
-  if (v === 'demand') { loadLeaflet(); getPos(60000).then(() => { if (S.settings.tab === v) renderAll(); }); }
 }
 
 /* ============================================================
@@ -3267,26 +3301,6 @@ $('#ssSave').addEventListener('click', saveShiftEdit);
 $('#shiftSheet [data-close]').addEventListener('click', () => closeSheet($('#shiftSheet')));
 $('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pauseSheet')));
 
-$('#demToggle').addEventListener('click', e => {
-  haptic();
-  const open = $('#demFilters').hidden;
-  $('#demFilters').hidden = !open;
-  e.currentTarget.setAttribute('aria-expanded', open);
-});
-['demHour', 'demDow'].forEach(k => $('#' + k).addEventListener('click', e => {
-  const b = e.target.closest('[data-v]'); if (!b) return;
-  haptic(); S.settings[k] = b.dataset.v; saveSoon(); renderDemand();
-}));
-$('#pinmap').addEventListener('click', e => {
-  const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-  const hit = DEM.hit.filter(p => Math.hypot(p.x - x, p.y - y) <= p.r).sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
-  DEM.sel = hit ? hit.key : null; haptic(); renderDemand();
-});
-$('#hotList').addEventListener('click', e => {
-  const b = e.target.closest('[data-place]'); if (!b) return;
-  haptic(); DEM.sel = DEM.focus = b.dataset.place; renderDemand();
-  $('.map-wrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
-});
 
 $('#shiftBtn').addEventListener('click', endShift);
 $('#endBtn').addEventListener('click', endShift);
@@ -3406,7 +3420,7 @@ document.addEventListener('keydown', e => {
 let resizeTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (S.settings.tab === 'demand') { if (MAP.map) MAP.map.invalidateSize(); renderDemand(); } }, 150);
+  resizeTimer = setTimeout(() => { if (S.settings.tab === 'ana') renderAnalysis(); }, 150);
 });
 
 /* ============================================================
