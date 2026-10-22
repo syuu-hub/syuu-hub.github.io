@@ -243,6 +243,17 @@ svg{display:block}
 .split > div{background:var(--surface-2);border-radius:var(--r-md);padding:12px 14px}
 .split .k{font-size:12px;color:var(--muted)}
 .split .v{font-size:22px;font-weight:700}
+.log-day{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.log-day .cal-nav:disabled{opacity:.3}
+.ld-body{flex:1;min-width:0;text-align:center}
+.ld-date{font-size:18px;font-weight:800}
+.ld-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.log-total .k{font-size:13px;color:var(--muted)}
+.log-total .v{font-size:30px;font-weight:800}
+.rp-tbl.log-pays td{padding:8px 4px;font-size:15px}
+.rp-tbl.log-pays td.a{font-size:18px}
+.log-rp{width:100%;margin-top:12px}
 .chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
 .chips-row b{color:var(--text);font-weight:600;margin-left:4px}
 
@@ -633,15 +644,22 @@ svg{display:block}
         月間カレンダー
       </button>
       <div class="pane-sec">
+        <div class="log-day">
+          <button class="cal-nav" id="logPrev" aria-label="前の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <div class="ld-body"><div class="ld-date num" id="logDate"></div><div class="ld-sub num" id="logSub"></div></div>
+          <button class="cal-nav" id="logNext" aria-label="次の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
+        <div class="log-total"><span class="k">営業収入 合計</span><span class="v num" id="logTotal">¥0</span></div>
         <div class="split">
           <div><div class="k">現金</div><div class="v num" id="sumCash">¥0</div></div>
           <div><div class="k">キャッシュレス</div><div class="v num" id="sumCashless">¥0</div></div>
         </div>
-        <div class="chips-row num" id="payBreakdown"></div>
+        <table class="rp-tbl log-pays num" id="payTable"></table>
+        <button class="btn log-rp" id="logReport">日報を開く（内訳・時間も表示）</button>
         <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>このシフトの記録<span style="font-weight:500;color:var(--faint);margin-left:8px">タップで修正</span></h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩を表示</button></div></div>
+        <div class="sec-h"><h3>この日の記録<span style="font-weight:500;color:var(--faint);margin-left:8px">タップで修正</span></h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩を表示</button></div></div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -1751,15 +1769,35 @@ function deletePause() {
   toast('待機・休憩を削除しました');
 }
 
+// 履歴で表示する営業日（シフト）。未選択なら営業中のシフト、なければ直近のシフト
+let LOG_SH = null;
+function logShifts() { return S.shifts.slice().sort((a, b) => a.start - b.start); }
+function logShift() {
+  return (LOG_SH && S.shifts.find(s => s.id === LOG_SH)) || curShift() || logShifts().at(-1) || null;
+}
+function moveLogDay(d) {
+  const list = logShifts(), cur = logShift();
+  const i = list.indexOf(cur) + d;
+  if (!cur || i < 0 || i >= list.length) return;
+  haptic(); LOG_SH = list[i].id; renderLog();
+  $('section[data-view="log"]').scrollTop = 0;
+}
 function renderLog() {
-  const sh = curShift();
+  const sh = logShift();
   const st = sh ? shiftStats(sh) : null;
-  const byPay = st ? st.byPay : {};
-  const cash = byPay.cash || 0;
+  const list0 = logShifts(), idx = sh ? list0.indexOf(sh) : -1;
+  $('#logPrev').disabled = idx <= 0;
+  $('#logNext').disabled = idx < 0 || idx >= list0.length - 1;
+  $('#logDate').textContent = sh ? `${ymd(sh.start)}（${WEEKDAYS[new Date(sh.start).getDay()]}）` : '記録なし';
+  $('#logSub').textContent = !sh ? '' : sh === curShift() ? `${hhmm(sh.start)} 出庫 ・ 営業中` : `${hhmm(sh.start)}–${hhmm(sh.end)} ・ ${st.count}回`;
+  const pays = st ? reportPays(st.rides) : [];
+  const cash = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.amt, 0);
+  $('#logTotal').textContent = yen(st ? st.sales : 0);
   $('#sumCash').textContent = yen(cash);
   $('#sumCashless').textContent = yen((st ? st.sales : 0) - cash);
-  $('#payBreakdown').innerHTML = allPays().filter(p => p.k !== 'cash' && byPay[p.k])
-    .map(p => `<span>${p.label}<b>${yen(byPay[p.k])}</b></span>`).join('');
+  $('#payTable').innerHTML = pays.map(p => `<tr class="${p.n ? '' : 'zero'}"><td>${esc(p.label)}</td><td class="n">${p.n}回</td><td class="a">${yen(p.amt)}</td></tr>`).join('');
+  $('#payTable').hidden = !st;
+  $('#logReport').hidden = !st;
 
   const ps = $('#pauseSum');
   ps.hidden = !st || !st.pauses.length;
@@ -1768,7 +1806,7 @@ function renderLog() {
   $('#pauseFilter').setAttribute('aria-pressed', !!S.settings.histPause);
   const list = $('#rideList');
   if (!st || (!st.rides.length && !st.pauses.length)) {
-    list.innerHTML = `<li class="empty">${sh ? 'まだ乗車記録はありません。<br>「実車」→「空車」で自動的に入力画面が開きます。' : '出庫前です。ホームの「出庫」から営業を開始します。'}</li>`;
+    list.innerHTML = `<li class="empty">${!sh ? '出庫前です。ホームの「出庫」から営業を開始します。' : sh === curShift() ? 'まだ乗車記録はありません。<br>「実車」→「空車」で自動的に入力画面が開きます。' : 'この日の乗車記録はありません。'}</li>`;
     return;
   }
   // 乗車と待機・休憩を新しい順に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
@@ -2098,6 +2136,7 @@ function renderMini() {
 function depart() {
   if (curShift()) return;
   const sh = startShift();
+  LOG_SH = null;
   logEvent(sh, 'vacant', 'off');
   sh.status = 'vacant'; sh.statusSince = Date.now();
   save(); haptic(25);
@@ -2631,6 +2670,9 @@ $('#payDelete').addEventListener('click', deletePay);
 $('#paySheet [data-close]').addEventListener('click', () => closeSheet($('#paySheet')));
 $('#appSheet [data-close]').addEventListener('click', () => closeSheet($('#appSheet')));
 $('#calBtn').addEventListener('click', () => { haptic(); openCal(); });
+$('#logPrev').addEventListener('click', () => moveLogDay(-1));
+$('#logNext').addEventListener('click', () => moveLogDay(1));
+$('#logReport').addEventListener('click', () => { const sh = logShift(); if (sh) { haptic(); openReport(sh.id); } });
 $('#pauseFilter').addEventListener('click', () => { haptic(); S.settings.histPause = !S.settings.histPause; save(); renderLog(); });
 $('#calPrev').addEventListener('click', () => shiftCal(-1));
 $('#calNext').addEventListener('click', () => shiftCal(1));
