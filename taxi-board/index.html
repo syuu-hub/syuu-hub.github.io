@@ -1299,13 +1299,26 @@ function stations() {
   });
   return STA;
 }
+// 名前を比べやすくする（全角半角・大小文字・カタカナ／ひらがな・空白や記号の違いを無視）
+const normName = s => toHira(s).toLowerCase().replace(/[\s・･\-ー‐_.,、。'’"()（）|｜]/g, '');
+// 地図データに無い・名前が変わった施設（住所は確認済みのもの）。alias は旧名や別表記
+const EXTRA_PLACES = [
+  { name: 'ジ オリエント 神戸', kind: 'ホテル', info: '神戸市中央区京町', note: 'THE ORIENT KOBE・旧オリエンタルホテル', addr: '兵庫県神戸市中央区京町25',
+    alias: ['THE ORIENT KOBE', 'ザ オリエント 神戸', 'オリエンタルホテル', 'ORIENTAL HOTEL'] },
+];
 function stationSuggest(q) {
-  const k = q.replace(/駅$/, '');
+  const k = normName(q.replace(/駅$/, '')), kq = normName(q);
   if (!k) return [];
   const head = [], mid = [];
+  for (const pl of EXTRA_PLACES) {
+    const keys = [pl.name, ...pl.alias].map(normName);
+    if (keys.some(x => x.startsWith(kq))) head.push(pl);
+    else if (kq.length >= 2 && keys.some(x => x.includes(kq))) mid.push(pl);
+  }
   for (const st of stations()) {
-    if (st.base.startsWith(k)) head.push(st);
-    else if (k.length >= 2 && st.base.includes(k)) mid.push(st);
+    const b = normName(st.base);
+    if (b.startsWith(k)) head.push(st);
+    else if (k.length >= 2 && b.includes(k)) mid.push(st);
   }
   return head.concat(mid).slice(0, 6).map(placeOpt);
 }
@@ -2455,7 +2468,7 @@ function renderEntryTimes() {
 }
 const addrFailed = new WeakSet();
 // 住所欄の下に出す取得状況
-const placeLine = (pl, addr) => pl.kind + (pl.info && pl.kind === '駅' ? '（' + pl.info + '）' : '') + ' ・ ' + (addr ? shortAddr(addr) : '住所不明');
+const placeLine = (pl, addr) => pl.kind + (pl.info && pl.kind === '駅' ? '（' + pl.info + '）' : pl.note ? '（' + pl.note + '）' : '') + ' ・ ' + (addr ? shortAddr(addr) : '住所不明');
 function locLine(o, w) {
   const pk = E.dirty[w] && E.pick[w];
   if (pk) return placeLine(pk, pk.addr || (pk.addrFail ? '' : '住所を取得中…'));
@@ -2487,10 +2500,10 @@ function renderEntryLoc() {
 function commitAddr(w) {
   if (!E.dirty[w]) return;
   const o = E[w], v = addrInput(w).value.trim().replace(/\s+/g, ''), pk = E.pick[w];
-  if (pk && v === pk.name) {
+  if (pk && v === pk.name.replace(/\s+/g, '')) {
     // 施設：名前と種類を残し、住所は施設の位置から。GPSが無ければ施設の位置を使う
-    o.place = { name: pk.name, kind: pk.kind, ...(pk.info ? { info: pk.info } : {}) };
-    if (o.lat == null) { o.lat = +pk.lat.toFixed(6); o.lng = +pk.lng.toFixed(6); delete o.acc; }
+    o.place = { name: pk.name, kind: pk.kind, ...(pk.info ? { info: pk.info } : {}), ...(pk.note ? { note: pk.note } : {}) };
+    if (o.lat == null && pk.lat != null) { o.lat = +pk.lat.toFixed(6); o.lng = +pk.lng.toFixed(6); delete o.acc; }
     if (pk.addr) o.addr = pk.addr;
     o.manual = true;
     return;
@@ -2922,7 +2935,7 @@ $$('.sug').forEach(box => {
       // 施設を選んだら住所を施設の位置から求める
       const pl = opt.place = { ...opt.place };
       E.pick[w] = pl;
-      reverseGeocode(pl).then(a => { if (a !== undefined) pl.addr = a; else pl.addrFail = true; if (E && E.pick[w] === pl) renderEntryLoc(); });
+      if (!pl.addr && pl.lat != null) reverseGeocode(pl).then(a => { if (a !== undefined) pl.addr = a; else pl.addrFail = true; if (E && E.pick[w] === pl) renderEntryLoc(); });
       $(sugId(w)).innerHTML = '';
       inp.blur();
     } else {
