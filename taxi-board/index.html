@@ -474,6 +474,20 @@ svg{display:block}
 .rp-tbl tr.sum td{border-bottom:none;border-top:2px solid var(--line-2);font-weight:700}
 .rp-tbl tr.sum + tr.sum td{border-top:none}
 
+/* 乗車の詳細 */
+.rd-amt{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:16px}
+.rd-amt .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
+.rd-amt .tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:14px;color:var(--muted)}
+.rd-time{font-size:20px;font-weight:700}
+.rd-time small{font-size:13px;color:var(--muted);font-weight:600;margin-left:8px}
+.rd-place{padding:10px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.rd-place .k{flex:none;width:2.6em;font-size:14px;font-weight:700;color:var(--muted);padding-top:2px}
+.rd-place .b{flex:1;min-width:0}
+.rd-place .nm{font-size:17px;font-weight:700;word-break:break-all}
+.rd-place .sm{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-all}
+.rd-place .sm em{font-style:normal;color:var(--accent);font-weight:700}
+.rd-place a{flex:none;font-size:13px;font-weight:700;color:var(--accent);padding:6px 4px}
+
 /* 月間カレンダー */
 .cal-btn{width:100%;margin-bottom:12px}
 .cal-btn svg{color:var(--accent)}
@@ -880,6 +894,23 @@ svg{display:block}
       <span class="sub num" id="rpDate"></span>
     </header>
     <div class="rp-body" id="rpBody"></div>
+  </div>
+</div>
+
+<div class="sheet" id="rideSheet" hidden role="dialog" aria-modal="true" aria-labelledby="rdTitle">
+  <div class="sheet-inner rp-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="rdTitle">乗車の詳細</h2>
+      <span class="spacer"></span>
+      <span class="sub num" id="rdDate"></span>
+    </header>
+    <div class="rp-body" id="rdBody"></div>
+    <footer class="e-foot">
+      <button class="btn primary" id="rdEdit">編集する</button>
+    </footer>
   </div>
 </div>
 
@@ -1446,6 +1477,56 @@ function reportPays(rides) {
   }
   return [...g.entries()].map(([k, v]) => ({ k, ...v }));
 }
+// 乗車の詳細（履歴から開く）。編集は「編集する」ボタンから
+let RD = null;
+function openRide(id) {
+  const r = S.rides.find(x => x.id === id);
+  if (!r) return;
+  RD = id;
+  const f = r.fare, gross = r.total + (f.long || 0) + (f.handi || 0);
+  const row = (label, amt, cls = '') => `<tr class="${cls}"><td>${esc(label)}</td><td class="n"></td><td class="a">${amt}</td></tr>`;
+  const place = (k, p) => {
+    if (!p || (p.lat == null && !p.addr && !p.place)) return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="sm">記録なし</div></div></div>`;
+    const nm = p.place ? p.place.name : shortAddr(p.addr) || 'GPS ' + p.lat.toFixed(5) + ', ' + p.lng.toFixed(5);
+    const sub = [p.place && `<em>${esc(p.place.kind)}</em>` + (p.place.info && p.place.kind === '駅' ? '（' + esc(p.place.info) + '）' : ''),
+      p.place && p.addr && esc(shortAddr(p.addr)), !p.place && p.manual && '手入力', p.lat != null && esc(fmtLL(p))].filter(Boolean).join(' ・ ');
+    const map = p.lat != null ? `<a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" rel="noopener">地図</a>` : '';
+    return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="nm">${esc(nm)}</div>${sub ? `<div class="sm num">${sub}</div>` : ''}</div>${map}</div>`;
+  };
+  $('#rdDate').textContent = ymd(r.ts);
+  $('#rdBody').innerHTML = `
+    <div class="rd-amt">
+      <div class="v num">${yen(r.total)}</div>
+      <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span>${esc(kindLabel(r.kind, r.app))}${paxHtml(r.pax) ? ' ・ ' + paxHtml(r.pax) : ''}</div>
+    </div>
+    <section class="rp-sec">
+      <h3><span>時刻</span></h3>
+      <div class="rd-time num">${r.start ? hhmm(r.start) + ' → ' : ''}${hhmm(r.ts)}${r.start ? `<small>乗車 ${Math.round((r.ts - r.start) / 60000)}分</small>` : '<small>乗車時刻は未記録</small>'}</div>
+    </section>
+    <section class="rp-sec">
+      <h3><span>乗車地・降車地</span></h3>
+      ${place('乗車', r.from)}${place('降車', r.to)}
+    </section>
+    <section class="rp-sec">
+      <h3><span>料金</span></h3>
+      <table class="rp-tbl num">
+        ${row('メーター総額', yen(gross))}
+        ${f.pickup ? row('迎車料金', yen(f.pickup)) : r.noPickup ? row('迎車料金', '迎車なし', 'zero') : ''}
+        ${f.appFee ? row('アプリ手数料', yen(f.appFee)) : ''}
+        ${f.long ? row('遠距離割', '−' + yen(f.long)) : ''}
+        ${f.handi ? row('障害者割', '−' + yen(f.handi)) : ''}
+        ${row('運賃', yen(f.meter))}
+        ${row('お支払い', yen(r.total), 'sum')}
+      </table>
+    </section>
+    <section class="rp-sec">
+      <h3><span>乗客</span></h3>
+      <table class="rp-tbl num">${PAX.map(x => row(x.label, (r.pax && r.pax[x.k] || 0) + '人', r.pax && r.pax[x.k] ? '' : 'zero')).join('')}</table>
+    </section>`;
+  $('#rideSheet .rp-body').scrollTop = 0;
+  openSheet($('#rideSheet'));
+}
+
 function openReport(id) {
   const sh = S.shifts.find(s => s.id === id);
   if (!sh) return;
@@ -2706,13 +2787,15 @@ $('#calNext').addEventListener('click', () => shiftCal(1));
 $('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { haptic(); CAL.sel = b.dataset.day; renderCal(); } });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
 $('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#reportSheet')));
+$('#rideSheet [data-close]').addEventListener('click', () => closeSheet($('#rideSheet')));
+$('#rdEdit').addEventListener('click', () => { haptic(); closeSheet($('#rideSheet')); if (RD) openEntry(RD); });
 $('#dLast').addEventListener('click', e => { haptic(); openReport(e.currentTarget.dataset.id); });
 $('#shiftList').addEventListener('click', e => { const b = e.target.closest('[data-report]'); if (b) { haptic(); openReport(b.dataset.report); } });
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
 
 $('#rideList').addEventListener('click', e => {
   const b = e.target.closest('[data-ride],[data-pause]'); if (!b) return;
-  if (b.dataset.ride) openEntry(b.dataset.ride); else openPause(b.dataset.pause);
+  if (b.dataset.ride) openRide(b.dataset.ride); else openPause(b.dataset.pause);
 });
 ['#psStart', '#psEnd'].forEach(sel => $(sel).addEventListener('input', renderPauseSheet));
 ['#eStart', '#eEnd'].forEach(sel => $(sel).addEventListener('input', () => { if (E) renderEntryTimes(); }));
@@ -2847,10 +2930,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#rideSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
