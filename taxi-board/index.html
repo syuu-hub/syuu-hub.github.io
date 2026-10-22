@@ -294,7 +294,6 @@ svg{display:block}
 .rc-top{display:flex;align-items:baseline;gap:8px;min-width:0}
 .rc-time{font-size:17px;font-weight:800;white-space:nowrap}
 .rc-time i{font-style:normal;font-weight:400;color:var(--faint);margin:0 4px}
-.rc-dur{font-size:12px;color:var(--muted);white-space:nowrap}
 .rc-amt{margin-left:auto;flex:none;font-size:20px;font-weight:800;white-space:nowrap}
 .rc-amt.dur{color:var(--st-wait)}
 .rc-route{position:relative;display:grid;gap:3px;min-width:0}
@@ -2257,16 +2256,16 @@ function renderLog() {
   const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => b.t - a.t);
   if (!items.length) { list.innerHTML = '<li class="empty">まだ乗車記録はありません。<br>待機・休憩は「待機・休憩を表示」で確認できます。</li>'; return; }
   // 1件＝1カード。情報の順位：①時刻と金額 ②乗車地→降車地 ③決済・種別
-  const top = (t1, t2, mins, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span>${mins != null ? `<span class="rc-dur num">${mins}分</span>` : ''}<span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
+  const top = (t1, t2, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span><span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
   const route = (a, b) => `<div class="rc-route"><div class="rc-pl from">${esc(a)}</div>${b != null ? `<div class="rc-pl to">${esc(b)}</div>` : ''}</div>`;
   list.innerHTML = items.map(({ r, p }) => p ? `
     <li><button class="rcard pause" data-pause="${p.ev.id}">
-      ${top(hhmm(p.start), p.end ? hhmm(p.end) : '継続中', null, dur(p.ms), 'dur')}
+      ${top(hhmm(p.start), p.end ? hhmm(p.end) : '継続中', dur(p.ms), 'dur')}
       ${p.ev.lat != null ? route(placeText(p.ev), null) : ''}
       <div class="rc-meta"><span class="tag pause">待機・休憩</span></div>
     </button></li>` : `
     <li><button class="rcard" data-ride="${r.id}">
-      ${top(r.start ? hhmm(r.start) : '--:--', hhmm(r.ts), r.start ? Math.round((r.ts - r.start) / 60000) : null, yen(r.total))}
+      ${top(r.start ? hhmm(r.start) : '--:--', hhmm(r.ts), yen(r.total))}
       ${route(placeText(r.from), placeText(r.to))}
       <div class="rc-meta"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span><span class="rc-kind">${esc(kindLabel(r.kind, r.app))}</span>${[r.fare.long || r.fare.handi ? '割引' : '', r.toll ? '高速代' : ''].filter(Boolean).map(x => `<span class="rc-flag">${x}</span>`).join('')}</div>
     </button></li>`).join('');
