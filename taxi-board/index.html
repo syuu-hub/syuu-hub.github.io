@@ -515,6 +515,18 @@ svg{display:block}
 .cal-cell .m{font-size:clamp(9px,2.5vw,12px);color:var(--muted);white-space:nowrap;line-height:1.25}
 .cal-cell[aria-pressed="true"]{border:2px solid var(--accent);padding:3px 4px}
 .cal-cell.empty{background:transparent;border-color:transparent}
+.cal-cell.hol{background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 6px,var(--surface-2) 6px,var(--surface-2) 12px)}
+.cal-cell .hol-tag{font-size:10px;font-weight:700;color:var(--faint)}
+.cal-cap{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;font-size:13px;color:var(--muted);margin:-6px 0 14px}
+.cal-cap b{color:var(--text);font-weight:800}
+.cal-cap .bar{flex:1 1 100%;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.cal-cap .bar i{display:block;height:100%;background:var(--accent)}
+.cal-cap.warn .bar i{background:var(--st-wait)}
+.cal-cap.over .bar i{background:var(--danger)}
+.cal-cap.over b.used{color:var(--danger)}
+.hol-setting{flex-wrap:wrap}
+.seg.hol{flex:1 1 100%;margin:8px 0 0}
+.seg.hol button{flex:1;min-width:0;padding:0}
 .cal-day{margin-top:16px}
 .cal-day .row .sub{white-space:normal}
 #calSheet .close-btn{white-space:nowrap}
@@ -595,6 +607,7 @@ svg{display:block}
     </div>
     <div class="d-info">
       <button class="d-row" id="dGoal"><span class="k">本日の目標</span><span class="v num" id="dGoalVal">¥0</span><span class="chev">変更</span></button>
+      <button class="d-row" id="dHours"><span class="k">今月の労働時間<span class="sub num" id="dHoursSub"></span></span><span class="v num" id="dHoursVal"></span><span class="chev">カレンダー</span></button>
       <button class="d-row" id="dLast"><span class="k">前回の営業<span class="sub num" id="dLastSub"></span></span><span class="v num" id="dLastVal"></span><span class="chev">日報</span></button>
     </div>
     <div>
@@ -737,6 +750,14 @@ svg{display:block}
         <div class="setting">
           <div><div class="k">締め日</div><div class="d" id="closingDesc"></div></div>
           <button class="btn sm num" id="closingBtn">末日</button>
+        </div>
+        <div class="setting">
+          <div><div class="k">月の労働時間の上限</div><div class="d">締め期間ごと。隔勤などに合わせて変更（0で上限なし）</div></div>
+          <button class="btn sm num" id="hoursCapBtn">288時間</button>
+        </div>
+        <div class="setting hol-setting">
+          <div><div class="k">固定休日</div><div class="d">カレンダーに表示し、残りの出勤日数の計算に使用（複数選択可）</div></div>
+          <div class="seg hol" id="holidaySeg"></div>
         </div>
         <div class="setting">
           <div><div class="k">減光モード</div><div class="d">夜間の車内で画面を暗く</div></div>
@@ -965,6 +986,7 @@ svg{display:block}
     </header>
     <div class="cal-body">
       <div class="cal-sum" id="calSum"></div>
+      <div id="calCap"></div>
       <div class="cal-grid" id="calGrid"></div>
       <div class="cal-day" id="calDay"></div>
     </div>
@@ -1146,7 +1168,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', demHour: 'all', demDow: 'all' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, holidays: [], histPause: false, tab: 'home', demHour: 'all', demDow: 'all' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,pax,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -1914,6 +1936,36 @@ function monthData(y, m) {
   return days;
 }
 
+// 月の労働時間の上限と残り出勤日（固定休日を除く）
+const capMs = () => (S.settings.hoursCap || 0) * 3600000;
+const isHoliday = d => (S.settings.holidays || []).includes(d.getDay());
+function periodHours(y, m) {
+  return Object.values(monthData(y, m)).reduce((a, o) => a + o.ms, 0);
+}
+// 今日から締め期間の終わりまでの出勤予定日数（固定休日・今日すでに出庫した日を除く）
+function remainingWorkdays(y, m) {
+  const [from, to] = periodRange(y, m);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const worked = new Set(S.shifts.map(sh => dayKey(new Date(sh.start))));
+  let n = 0;
+  for (let d = new Date(Math.max(from, today)); d <= to; d.setDate(d.getDate() + 1)) {
+    if (!isHoliday(d) && !worked.has(dayKey(d))) n++;
+  }
+  return n;
+}
+function capHtml(y, m, used) {
+  const cap = capMs();
+  if (!cap) return '';
+  const left = cap - used, r = used / cap;
+  const [, to] = periodRange(y, m);
+  const days = Date.now() < +to + 86400000 ? remainingWorkdays(y, m) : 0;
+  const per = days && left > 0 ? `・ 残り出勤 <b>${days}</b>日（1日あたり <b>${dur(left / days)}</b>）` : '';
+  return `<div class="cal-cap num ${r >= 1 ? 'over' : r >= 0.9 ? 'warn' : ''}">
+    <span>労働時間 <b class="used">${dur(used)}</b> / ${S.settings.hoursCap}時間</span>
+    <span>${left >= 0 ? `残り <b>${dur(left)}</b>` : `<b class="used">${dur(-left)} 超過</b>`}</span><span>${per}</span>
+    <span class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></span>
+  </div>`;
+}
 function renderCal() {
   const { y, m } = CAL;
   const days = monthData(y, m);
@@ -1928,6 +1980,7 @@ function renderCal() {
     <div><div class="k">労働時間</div><div class="v num">${dur(tot.ms)}</div></div>
     <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>
     <div><div class="k">待機・休憩</div><div class="v num" style="color:var(--st-wait)">${dur(tot.wait)}</div></div>`;
+  $('#calCap').innerHTML = capHtml(y, m, tot.ms);
 
   const max = Math.max(0, ...list.map(o => o.sales));
   const today = dayKey(new Date());
@@ -1938,8 +1991,9 @@ function renderCal() {
     const h = o && max ? (0.12 + 0.43 * o.sales / max).toFixed(2) : 0;   // 売上が多いほど濃く
     // 期間が月をまたぐ時は、各月の初日（と期間の初日）に月を付ける
     const label = d.getDate() === 1 || +d === +from ? md(d) : d.getDate();
-    html += `<button class="cal-cell ${k === today ? 'today' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}" style="--h:${h}">
-      <span class="d num">${label}</span>
+    const hol = isHoliday(d);
+    html += `<button class="cal-cell ${k === today ? 'today' : ''} ${hol ? 'hol' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}" style="--h:${h}">
+      <span class="d num">${label}${hol && !o ? ' <span class="hol-tag">休</span>' : ''}</span>
       ${o ? `<span class="s num">${compactYen(o.sales)}</span><span class="m num">${o.count}回</span><span class="m num">${hours(o.ms)}</span>` : ''}
     </button>`;
   }
@@ -2386,6 +2440,8 @@ function renderData() {
   $('#goalSetBtn').textContent = yen(S.settings.goal);
   $('#paxMaxBtn').textContent = S.settings.paxMax + '人';
   $('#closingBtn').textContent = closingLabel();
+  $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
+  $('#holidaySeg').innerHTML = WEEKDAYS.split('').map((w, i) => `<button data-hol="${i}" aria-pressed="${S.settings.holidays.includes(i)}">${w}</button>`).join('');
   $('#closingDesc').textContent = '月間カレンダー・日報の集計期間（' + (S.settings.closingDay ? `前月${S.settings.closingDay + 1}日〜当月${S.settings.closingDay}日` : '1日〜末日') + '）';
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
   $('#ticketList').innerHTML = TICKETS().length ? TICKETS().map(t => `<li><button class="row" data-ticket-edit="${esc(t.id)}">
@@ -2429,6 +2485,11 @@ function renderDepart() {
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
   $('#dGoalVal').textContent = yen(S.settings.goal);
+  const pd = periodOf(Date.now()), used = periodHours(pd.y, pd.m), cap = capMs();
+  $('#dHoursVal').textContent = cap ? `${dur(used)} / ${S.settings.hoursCap}h` : dur(used);
+  $('#dHoursVal').style.color = cap && used >= cap ? 'var(--danger)' : cap && used >= cap * 0.9 ? 'var(--st-wait)' : '';
+  const days = remainingWorkdays(pd.y, pd.m);
+  $('#dHoursSub').textContent = cap ? (used < cap ? `残り ${dur(cap - used)}` + (days ? ` ・ 出勤予定 ${days}日（1日 ${dur((cap - used) / days)}）` : '') : `${dur(used - cap)} 超過`) : '';
   const last = S.shifts.filter(s => s.end).sort((a, b) => b.end - a.end)[0];
   $('#dLast').hidden = !last;
   $('#dLast').dataset.id = last ? last.id : '';
@@ -2999,6 +3060,18 @@ $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setVi
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
 $('#paxMaxBtn').addEventListener('click', editPaxMax);
+$('#hoursCapBtn').addEventListener('click', () => openNumpad('月の労働時間の上限（0で上限なし）', S.settings.hoursCap, v => {
+  S.settings.hoursCap = Math.min(v, 744);
+  save(); renderData();
+}, { unit: '時間', label: '上限', digits: 3 }));
+$('#holidaySeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-hol]'); if (!b) return;
+  haptic();
+  const i = +b.dataset.hol, h = S.settings.holidays;
+  S.settings.holidays = h.includes(i) ? h.filter(x => x !== i) : [...h, i].sort();
+  save(); renderData();
+});
+$('#dHours').addEventListener('click', () => { haptic(); openCal(); });
 $('#closingBtn').addEventListener('click', () => openNumpad('締め日（末日締めは0）', S.settings.closingDay, v => {
   S.settings.closingDay = v >= 1 && v <= 28 ? v : 0;
   if (v > 28) toast('29日以降は末日締めとして扱います');
