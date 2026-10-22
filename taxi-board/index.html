@@ -2050,8 +2050,18 @@ function demandPass(t) {
 // ピンの位置：施設の位置が分かっていればそこ、なければ乗車地の平均
 const pinCenter = c => c.fn ? { lat: c.flat / c.fn, lng: c.flng / c.fn } : { lat: c.lat / c.n, lng: c.lng / c.n };
 // 乗車地の位置：施設を選んだ乗車は施設の位置、手入力の住所は住所の位置、それ以外はGPS
+// 施設名 → 内蔵データ（駅など）の位置。位置を保存していない古い記録でも施設の場所に置く
+let KNOWN_POS = null;
+function knownPos(name) {
+  if (!KNOWN_POS) {
+    KNOWN_POS = new Map();
+    for (const pl of [...stations(), ...EXTRA_PLACES]) if (pl.lat != null) KNOWN_POS.set(normName(pl.name), { lat: pl.lat, lng: pl.lng });
+  }
+  return KNOWN_POS.get(normName(name)) || null;
+}
 // 手入力の住所は住所から求めた位置（まだ求めていない・見つからない時はGPSの位置がずれているため使わない）
 const ridePos = f => f.place && f.place.lat != null ? f.place
+  : f.place && knownPos(f.place.name) ? knownPos(f.place.name)
   : f.manual && f.addr ? (f.alat != null ? { lat: f.alat, lng: f.alng } : null)
   : f.lat != null ? f : null;
 // 同じ場所としてまとめる鍵：施設名、または手入力した住所（GPSの位置がずれていても1本のピンに）
@@ -2072,7 +2082,8 @@ function demandPlaces() {
       if (k) byKey.set(k, c);
     }
     c.n++; c.lat += pos.lat; c.lng += pos.lng; c.sales += r.total;
-    if (f.place && f.place.lat != null) { c.flat += f.place.lat; c.flng += f.place.lng; c.fn++; }
+    const fp = f.place && (f.place.lat != null ? f.place : knownPos(f.place.name));
+    if (fp) { c.flat += fp.lat; c.flng += fp.lng; c.fn++; }
     const d = new Date(t); c.hours[d.getHours()]++; c.dows[d.getDay()]++;
     const nm = (f.place && f.place.name) || shortAddr(f.addr);
     if (nm) c.names[nm] = (c.names[nm] || 0) + 1;
