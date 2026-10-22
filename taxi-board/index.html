@@ -320,16 +320,11 @@ svg{display:block}
 .ana-tip:empty::before{content:"グラフをタップすると数値を表示";color:var(--faint)}
 .ana-note{font-size:12px;color:var(--faint);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-empty{padding:28px 8px;text-align:center;color:var(--faint);font-size:14px;line-height:1.7}
-.ins{list-style:none;display:grid;gap:10px}
-.ins li{display:flex;gap:10px;align-items:flex-start;line-height:1.45}
-.ins li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:.6em}
-.ins li.weak::before{background:var(--muted)}
-.ins .b{min-width:0;flex:1}
-.ins .h{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ins .d{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ins .conf{margin-left:auto;flex:none}
-.ins .conf{display:inline-block;font-size:11px;font-weight:700;color:var(--faint);border:1px solid var(--line-2);border-radius:999px;padding:0 6px;white-space:nowrap}
-.ins .conf.hi{color:var(--ok);border-color:rgba(61,214,140,.45)}
+.hls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.hl{background:var(--accent-soft);border:1px solid rgba(255,176,32,.35);border-radius:var(--r-md);padding:12px 8px;min-width:0;text-align:center}
+.hl .k{font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl .v{font-size:clamp(17px,5.6vw,26px);font-weight:800;color:var(--accent);margin:4px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl .s{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
 .kpi{background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px;min-width:0}
 .kpi .k{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2303,27 +2298,14 @@ function demandPlaces(src = S.rides) {
 const placeName = c => c.name ? c.name + (c.exact ? '' : ' 付近') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4);
 
 /* ============================================================
-   分析：記録から今後の営業に役立つ傾向を出す
+   分析：記録を見てすぐ分かるグラフにする
    ・曜日は「出庫日」の曜日（深夜の営業も出庫日に含める）
    ・時間単価＝その時間帯に乗せた売上 ÷ その時間帯に営業していた時間
-   ・差の確からしさは標準誤差で判断（平均との差が標準誤差の2倍以上なら「明確」）
    ============================================================ */
 const HOUR_ORDER = [...Array.from({ length: 19 }, (_, i) => i + 5), 0, 1, 2, 3, 4];   // 5時〜翌4時
 const ANA_RAMP = ['#6E5018', '#9A6C1A', '#CC8E1D', '#FFB020'];   // ヒートマップ：少→多（暗→明、単一色相）
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
-const sd = a => { if (a.length < 2) return 0; const m = mean(a); return Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / (a.length - 1)); };
 const quant = (a, q) => { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y), i = (b.length - 1) * q, lo = Math.floor(i); return b[lo] + (b[Math.ceil(i)] - b[lo]) * (i - lo); };
-const pct = v => (v >= 0 ? '+' : '') + Math.round(v * 100) + '%';
-// 最小二乗法：傾きとその標準誤差
-function regress(xs, ys) {
-  const n = xs.length, mx = mean(xs), my = mean(ys);
-  let sxx = 0, sxy = 0;
-  for (let i = 0; i < n; i++) { sxx += (xs[i] - mx) ** 2; sxy += (xs[i] - mx) * (ys[i] - my); }
-  if (n < 3 || !sxx) return null;
-  const b = sxy / sxx, a = my - b * mx;
-  const sse = ys.reduce((acc, y, i) => acc + (y - (a + b * xs[i])) ** 2, 0);
-  return { a, b, se: Math.sqrt(sse / (n - 2) / sxx) };
-}
 function analyze(range) {
   const now = Date.now(), from = range === 'all' ? -Infinity : now - +range * 86400e3;
   const shifts = S.shifts.filter(sh => sh.start >= from).sort((a, b) => a.start - b.start);
@@ -2361,168 +2343,103 @@ const anaTip = (el, text) => { const card = el.closest('.ana-card'); card.queryS
 function renderAnalysis() {
   const range = S.settings.anaRange || '90';
   $$('#anaRange [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === range));
-  const A = analyze(range), body = $('#anaBody');
-  const D = A.dayList;
+  const A = analyze(range), body = $('#anaBody'), D = A.dayList;
   if (D.length < 2 || A.rides.length < 3) {
-    body.innerHTML = `<div class="ana-card"><div class="ana-empty">分析には2日以上・3件以上の乗車記録が必要です。<br>記録が増えるほど傾向がはっきりします。<br><span class="num">（この期間：${D.length}日・${A.rides.length}件）</span></div></div>`;
+    body.innerHTML = `<div class="ana-card"><div class="ana-empty">記録がたまるとグラフが表示されます<br><span class="num">（いま ${D.length}日・${A.rides.length}件）</span></div></div>`;
     return;
   }
-  const allSales = D.map(d => d.sales), avgDay = mean(allSales);
-  const totSales = A.rides.reduce((a, r) => a + r.total, 0);
-  const totMs = D.reduce((a, d) => a + d.ms, 0), totOcc = D.reduce((a, d) => a + d.occ, 0), totWork = D.reduce((a, d) => a + d.work, 0);
-  const hourly = totMs ? totSales / (totMs / 3600e3) : 0;
-  const ins = [];   // [文, 強さ(true=明確)]
-  const conf = hi => `<span class="conf ${hi ? 'hi' : ''}">${hi ? '明確' : '参考'}</span>`;
+  const totSales = A.rides.reduce((a, r) => a + r.total, 0), totMs = D.reduce((a, d) => a + d.ms, 0);
+  const avgDay = mean(D.map(d => d.sales)), perHour = totMs ? totSales / (totMs / 3600e3) : 0;
+  const kv = n => n >= 100000 ? compactYen(n) : yen(n);
 
-  // ---- 曜日別：1日平均売上（平均との差を標準誤差で判定）
-  const dows = WEEKDAYS.split('').map((w, i) => {
-    const v = D.filter(d => d.dow === i).map(d => d.sales);
-    const m = mean(v), se = v.length > 1 ? sd(v) / Math.sqrt(v.length) : Infinity;
-    return { i, w, n: v.length, m, diff: avgDay ? m / avgDay - 1 : 0, sure: v.length >= 3 && Math.abs(m - avgDay) >= 2 * se };
-  });
-  const dowOk = dows.filter(d => d.n >= 2).sort((a, b) => b.m - a.m);
-  if (dowOk.length >= 2) {
-    const best = dowOk[0], worst = dowOk.at(-1);
-    if (best.diff > 0.05) ins.push([`${best.w}曜が最も稼げる`, `1日平均 ${yen(Math.round(best.m))}・平均比 ${pct(best.diff)}`, best.sure]);
-    if (worst.diff < -0.1) ins.push([`${worst.w}曜は低め`, `1日平均 ${yen(Math.round(worst.m))}・${pct(worst.diff)}・休みの候補`, worst.sure]);
-  }
+  // 曜日：1日あたりの売上（平均）
+  const dows = WEEKDAYS.split('').map((w, i) => { const v = D.filter(d => d.dow === i).map(d => d.sales); return { i, w, n: v.length, m: mean(v) }; });
+  const bestDow = dows.filter(d => d.n).sort((a, b) => b.m - a.m)[0];
   const maxDow = Math.max(...dows.map(d => d.m), 1);
-
-  // ---- 時間帯別：時間単価（その時間に2時間以上営業したデータのみ評価）
+  // 時間帯：1時間あたりの売上（その時間に1時間以上営業したもの）
   const hours = Array.from({ length: 24 }, (_, h) => {
     const du = A.duty.reduce((a, r) => a + r[h], 0), sa = A.sales.reduce((a, r) => a + r[h], 0), c = A.cnt.reduce((a, r) => a + r[h], 0);
-    return { h, du, sa, c, rate: du >= 120 ? sa / (du / 60) : null };
+    return { h, du, sa, c, rate: du >= 60 ? sa / (du / 60) : null };
   });
-  const rated = hours.filter(x => x.rate != null).sort((a, b) => b.rate - a.rate);
-  const topH = new Set(rated.slice(0, 3).map(x => x.h));
-  if (rated.length >= 4 && hourly) {
-    const t = rated.slice(0, 3).sort((a, b) => (a.h + (a.h < 5 ? 24 : 0)) - (b.h + (b.h < 5 ? 24 : 0))).map(x => x.h).join('・');   // 深夜は前日の続きとして並べる
-    ins.push([`${t}時台が高単価`, `最高 ${yen(Math.round(rated[0].rate))}/時・平均の${(rated[0].rate / hourly).toFixed(1)}倍`, rated[0].du >= 600]);
-    const low = rated.at(-1);
-    if (low.rate < hourly * 0.6) ins.push([`${low.h}時台は低単価`, `${yen(Math.round(low.rate))}/時・休憩の候補`, low.du >= 600]);
-  }
+  const bestHour = hours.filter(x => x.rate != null).sort((a, b) => b.rate - a.rate)[0];
   const maxRate = Math.max(...hours.map(x => x.rate || 0), 1);
-
-  // ---- 曜日×時間帯（1時間以上のデータがあるマス）
+  // 曜日×時間帯
   const cells = [];
-  for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) {
-    const du = A.duty[d][h];
-    if (du >= 60) cells.push({ d, h, du, rate: A.sales[d][h] / (du / 60), c: A.cnt[d][h] });
-  }
-  const rates = cells.map(c => c.rate);
-  const q = [quant(rates, .25), quant(rates, .5), quant(rates, .75)];
+  for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) { const du = A.duty[d][h]; if (du >= 60) cells.push({ d, h, du, rate: A.sales[d][h] / (du / 60), c: A.cnt[d][h] }); }
+  const rates = cells.map(c => c.rate), q = [quant(rates, .25), quant(rates, .5), quant(rates, .75)];
   const step = v => v <= q[0] ? 0 : v <= q[1] ? 1 : v <= q[2] ? 2 : 3;
-  const bestCell = cells.filter(c => c.du >= 120).sort((a, b) => b.rate - a.rate)[0];
-  if (bestCell) ins.push([`狙い目 ${WEEKDAYS[bestCell.d]}曜 ${bestCell.h}時台`, `${yen(Math.round(bestCell.rate))}/時・乗車${(bestCell.c / (bestCell.du / 60)).toFixed(1)}回/時`, bestCell.du >= 300]);
-
-  // ---- 推移：営業日ごとの売上、7営業日移動平均、回帰の傾き（1週間あたり）
-  const xs = D.map(d => (d.t - D[0].t) / 86400e3), ys = D.map(d => d.sales);
-  const reg = regress(xs, ys);
-  if (reg && D.length >= 6) {
-    const wk = reg.b * 7, sure = Math.abs(reg.b) >= 2 * reg.se;
-    ins.push(sure ? [`売上は${wk > 0 ? '上昇' : '下降'}傾向`, `1日あたり 週に ${wk > 0 ? '+' : '−'}${yen(Math.abs(Math.round(wk)))}`, true] : ['売上は横ばい', '大きな上がり下がりなし', false]);
-  }
-
-  // ---- 運賃の分布
-  const fares = A.rides.map(r => r.total).sort((a, b) => a - b);
-  const long = A.rides.filter(r => r.total >= 10000), longSales = long.reduce((a, r) => a + r.total, 0);
-  if (long.length) ins.push([`1万円以上が売上の${Math.round(longSales / totSales * 100)}%`, `件数では${Math.round(long.length / fares.length * 100)}%（${long.length}件）`, long.length >= 5]);
-  const bins = [[0, 1000], [1000, 2000], [2000, 3000], [3000, 5000], [5000, 10000], [10000, Infinity]];
-  const hist = bins.map(([a, b]) => ({ a, b, n: fares.filter(f => f >= a && f < b).length }));
-  const maxHist = Math.max(...hist.map(x => x.n), 1);
-
-  // ---- よく乗る場所
-  const places = demandPlaces(A.rides).filter(c => c.n >= 2).slice(0, 8);
-  if (places[0] && places[0].n >= 3) {
-    const c = places[0], peak = c.hours.indexOf(Math.max(...c.hours));
-    ins.push([`よく乗る：${esc(placeName(c))}`, `${c.n}回・平均${yen(Math.round(c.sales / c.n))}・${peak}時台が多い`, c.n >= 5]);
-  }
-  // ---- 乗車種別
+  // 場所・種類
+  const places = demandPlaces(A.rides).filter(c => c.n >= 2).slice(0, 5);
   const kinds = new Map();
   for (const r of A.rides) { const l = kindLabel(r.kind, r.app), x = kinds.get(l) || { n: 0, s: 0 }; x.n++; x.s += r.total; kinds.set(l, x); }
-  const kindList = [...kinds].map(([l, x]) => ({ l, ...x, avg: x.s / x.n })).sort((a, b) => b.s - a.s);
-  const bestKind = kindList.filter(k => k.n >= 3).sort((a, b) => b.avg - a.avg)[0];
-  if (bestKind && kindList.length > 1) ins.push([`高単価の種別：${esc(bestKind.l)}`, `平均 ${yen(Math.round(bestKind.avg))}（${bestKind.n}件）`, bestKind.n >= 10]);
+  const kindList = [...kinds].map(([l, x]) => ({ l, ...x })).sort((a, b) => b.s - a.s);
   const maxKind = Math.max(...kindList.map(k => k.s), 1);
-
-  const fewNote = D.length < 14 ? `<div class="ana-note">営業${D.length}日分のため参考値です</div>` : '';
-  const kv = n => n >= 100000 ? compactYen(n) : yen(n);   // 狭い欄に収める
-  // ---- 描画
-  const trendW = 320, trendH = 120, maxY = Math.max(...ys, 1);
-  const bx = i => D.length === 1 ? trendW / 2 : 6 + i * (trendW - 12) / (D.length - 1);
+  // 推移
+  const trendW = 320, trendH = 110, ys = D.map(d => d.sales), maxY = Math.max(...ys, 1);
+  const bx = i => 6 + i * (trendW - 12) / Math.max(1, D.length - 1);
   const by = v => trendH - v / maxY * (trendH - 6);
   const bw = Math.max(2, Math.min(10, (trendW - 12) / D.length - 2));
-  const ma = ys.map((_, i) => mean(ys.slice(Math.max(0, i - 6), i + 1)));
+  const pname = c => c.name ? placeName(c) : '住所不明の地点';
+  const hl = (label, value, sub) => `<div class="hl"><div class="k">${label}</div><div class="v">${value}</div><div class="s num">${sub}</div></div>`;
+
   body.innerHTML = `
-    <div class="ana-card">
-      <h3><span>今後の営業のヒント</span><small>${D.length}日・${A.rides.length}件から</small></h3>
-      <ul class="ins">${ins.sort((a, b) => b[2] - a[2]).map(([t, d, hi]) => `<li class="${hi ? '' : 'weak'}"><span class="b"><span class="h">${t}${conf(hi)}</span><span class="d num">${d}</span></span></li>`).join('') || '<li class="weak"><span class="b"><span class="h">目立った傾向はまだありません</span></span></li>'}</ul>
-      ${fewNote}
+    <div class="hls">
+      ${bestDow ? hl('稼げる曜日', `${bestDow.w}曜`, `${compactYen(Math.round(bestDow.m))}/日`) : ''}
+      ${bestHour ? hl('稼げる時間', `${bestHour.h}時台`, `${compactYen(Math.round(bestHour.rate))}/時`) : ''}
+      ${places[0] ? hl('多い乗車地', esc(pname(places[0])), `${places[0].n}回`) : ''}
     </div>
     <div class="kpis">
-      <div class="kpi"><div class="k">1日平均売上</div><div class="v num">${kv(Math.round(avgDay))}</div></div>
-      <div class="kpi"><div class="k">時間単価</div><div class="v num">${kv(Math.round(hourly))}</div></div>
-      <div class="kpi"><div class="k">平均単価</div><div class="v num">${kv(Math.round(totSales / A.rides.length))}</div></div>
-      <div class="kpi"><div class="k">営業日数</div><div class="v num">${D.length}<small>日</small></div></div>
-      <div class="kpi"><div class="k">1日平均乗車</div><div class="v num">${(A.rides.length / D.length).toFixed(1)}<small>回</small></div></div>
-      <div class="kpi"><div class="k">実車率</div><div class="v num">${totOcc && totWork ? Math.round(totOcc / totWork * 100) + '<small>%</small>' : '—'}</div></div>
+      <div class="kpi"><div class="k">1日の売上</div><div class="v num">${kv(Math.round(avgDay))}</div></div>
+      <div class="kpi"><div class="k">1時間の売上</div><div class="v num">${kv(Math.round(perHour))}</div></div>
+      <div class="kpi"><div class="k">1回の売上</div><div class="v num">${kv(Math.round(totSales / A.rides.length))}</div></div>
     </div>
+    <div class="ana-note" style="margin:-4px 2px 12px">いずれも平均・${D.length}日分</div>
     <div class="ana-card">
-      <h3><span>曜日別 1日平均売上</span><small>()は日数</small></h3>
-      <div class="hbars">${dows.map(d => `<button class="hbar ${dowOk[0] && d.i === dowOk[0].i ? 'hi' : ''} ${d.n < 2 ? 'low' : ''}" aria-pressed="false"
-        data-tip="${d.w}曜：1日平均 ${yen(Math.round(d.m))}（${d.n}日）・平均比 ${d.n ? pct(d.diff) : '—'}${d.n >= 3 ? (d.sure ? '・差は明確' : '・差は誤差の範囲') : '・日数が少なく参考'}">
+      <h3><span>曜日ごとの売上</span><small>1日の平均</small></h3>
+      <div class="hbars">${dows.map(d => `<div class="hbar ${bestDow && d.i === bestDow.i ? 'hi' : ''} ${d.n ? '' : 'low'}">
         <span class="l">${d.w}</span><span class="t"><i style="width:${(d.m / maxDow * 100).toFixed(1)}%"></i></span>
-        <span class="v num">${d.n ? yen(Math.round(d.m)) : '—'}<small>(${d.n})</small></span></button>`).join('')}</div>
+        <span class="v num">${d.n ? kv(Math.round(d.m)) : '—'}</span></div>`).join('')}</div>
+    </div>
+    <div class="ana-card">
+      <h3><span>時間帯ごとの稼ぎやすさ</span><small>1時間あたりの売上</small></h3>
+      <div class="cols">${HOUR_ORDER.map(h => hours[h]).map(x => `<button class="${x.rate == null ? 'na' : bestHour && x.h === bestHour.h ? 'hi' : ''}" aria-pressed="false" aria-label="${x.h}時台"
+        data-tip="${x.h}時台：${x.rate == null ? '記録が少ない時間です' : `1時間あたり ${yen(Math.round(x.rate))}・乗車${x.c}回`}"><i style="height:${x.rate == null ? 2 : Math.max(3, x.rate / maxRate * 100).toFixed(1)}%"></i></button>`).join('')}</div>
+      <div class="axis">${HOUR_ORDER.map(h => `<span>${h % 3 === 0 ? h + '時' : ''}</span>`).join('')}</div>
       <div class="ana-tip"></div>
     </div>
     <div class="ana-card">
-      <h3><span>時間帯別 時間単価</span><small>上位3つ</small></h3>
-      <div class="cols">${HOUR_ORDER.map(h => hours[h]).map(x => `<button class="${x.rate == null ? 'na' : topH.has(x.h) ? 'hi' : ''}" aria-pressed="false" aria-label="${x.h}時台"
-        data-tip="${x.h}時台：${x.rate == null ? `データ不足（営業${(x.du / 60).toFixed(1)}時間）` : `${yen(Math.round(x.rate))}/時・乗車${x.c}回・営業${(x.du / 60).toFixed(1)}時間`}"><i style="height:${x.rate == null ? 2 : Math.max(3, x.rate / maxRate * 100).toFixed(1)}%"></i></button>`).join('')}</div>
-      <div class="axis">${HOUR_ORDER.map(h => `<span>${h % 3 === 0 ? h : ''}</span>`).join('')}</div>
-      <div class="ana-tip"></div>
-    </div>
-    <div class="ana-card">
-      <h3><span>曜日×時間帯の時間単価</span><small>明るいほど高い</small></h3>
+      <h3><span>いつ稼げる？</span><small>明るいほど稼げる</small></h3>
       <div class="heat">${WEEKDAYS.split('').map((w, d) => `<span class="r">${w}</span>` + HOUR_ORDER.map(h => {
         const c = cells.find(x => x.d === d && x.h === h);
-        return c ? `<button style="background:${ANA_RAMP[step(c.rate)]}" aria-pressed="false" aria-label="${w}曜${h}時台" data-tip="${w}曜 ${h}時台：${yen(Math.round(c.rate))}/時・乗車${c.c}回・営業${(c.du / 60).toFixed(1)}時間"></button>`
-          : `<button aria-pressed="false" data-tip="${w}曜 ${h}時台：データなし"></button>`;
+        return c ? `<button style="background:${ANA_RAMP[step(c.rate)]}" aria-pressed="false" aria-label="${w}曜${h}時台" data-tip="${w}曜 ${h}時台：1時間あたり ${yen(Math.round(c.rate))}・乗車${c.c}回"></button>`
+          : `<button aria-pressed="false" data-tip="${w}曜 ${h}時台：記録なし"></button>`;
       }).join('')).join('')}</div>
-      <div class="axis heat-axis">${HOUR_ORDER.map(h => `<span>${h % 6 === 0 ? h : ''}</span>`).join('')}</div>
-      <div class="heat-legend">低<i style="background:${ANA_RAMP[0]}"></i><i style="background:${ANA_RAMP[1]}"></i><i style="background:${ANA_RAMP[2]}"></i><i style="background:${ANA_RAMP[3]}"></i>高　<i style="background:var(--surface-2)"></i>データなし</div>
+      <div class="axis heat-axis">${HOUR_ORDER.map(h => `<span>${h % 6 === 0 ? h + '時' : ''}</span>`).join('')}</div>
+      <div class="heat-legend">少ない<i style="background:${ANA_RAMP[0]}"></i><i style="background:${ANA_RAMP[1]}"></i><i style="background:${ANA_RAMP[2]}"></i><i style="background:${ANA_RAMP[3]}"></i>多い　<i style="background:var(--surface-2)"></i>記録なし</div>
       <div class="ana-tip"></div>
     </div>
     <div class="ana-card trend">
-      <h3><span>売上の推移</span><small>営業日ごと</small></h3>
-      <svg viewBox="0 0 ${trendW} ${trendH}" preserveAspectRatio="none" role="img" aria-label="営業日ごとの売上と7日移動平均">
+      <h3><span>売上の推移</span><small>点線は平均</small></h3>
+      <svg viewBox="0 0 ${trendW} ${trendH}" preserveAspectRatio="none" role="img" aria-label="営業日ごとの売上">
         <line x1="0" y1="${trendH}" x2="${trendW}" y2="${trendH}" stroke="var(--line-2)" stroke-width="1"/>
-        <line x1="0" y1="${by(avgDay).toFixed(1)}" x2="${trendW}" y2="${by(avgDay).toFixed(1)}" stroke="var(--line-2)" stroke-dasharray="3 4" stroke-width="1"/>
-        ${D.map((d, i) => `<rect class="tb" x="${(bx(i) - bw / 2).toFixed(1)}" y="${by(d.sales).toFixed(1)}" width="${bw.toFixed(1)}" height="${(trendH - by(d.sales)).toFixed(1)}" rx="2" fill="#6B7584"
-          data-tip="${ymd(d.t)}（${WEEKDAYS[d.dow]}）：${yen(d.sales)}・${d.n}回・7日平均 ${yen(Math.round(ma[i]))}" aria-pressed="false"/>`).join('')}
-        <polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" points="${ma.map((v, i) => `${bx(i).toFixed(1)},${by(v).toFixed(1)}`).join(' ')}"/>
+        ${D.map((d, i) => `<rect class="tb" x="${(bx(i) - bw / 2).toFixed(1)}" y="${by(d.sales).toFixed(1)}" width="${bw.toFixed(1)}" height="${(trendH - by(d.sales)).toFixed(1)}" rx="2"
+          fill="${d.sales >= avgDay ? 'var(--accent)' : '#6B7584'}" data-tip="${ymd(d.t)}（${WEEKDAYS[d.dow]}）：${yen(d.sales)}・${d.n}回" aria-pressed="false"/>`).join('')}
+        <line x1="0" y1="${by(avgDay).toFixed(1)}" x2="${trendW}" y2="${by(avgDay).toFixed(1)}" stroke="var(--text)" stroke-opacity=".5" stroke-dasharray="4 4" stroke-width="1"/>
       </svg>
-      <div class="legend"><span><i style="background:#6B7584"></i>日別売上</span><span><i style="background:var(--accent)"></i>7日移動平均</span><span><i style="background:var(--line-2)"></i>平均</span></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>平均より多い日</span><span><i style="background:#6B7584"></i>少ない日</span></div>
       <div class="ana-tip"></div>
     </div>
     <div class="ana-card">
-      <h3><span>運賃の分布</span><small>件数</small></h3>
-      <div class="ana-note" style="margin:-4px 0 8px">中央値 ${yen(Math.round(quant(fares, .5)))}・上位10%は${yen(Math.round(quant(fares, .9)))}以上</div>
-      <div class="hbars">${hist.map(x => `<button class="hbar wide ${x.n === maxHist ? 'hi' : ''}" aria-pressed="false" data-tip="${x.b === Infinity ? yen(x.a) + '以上' : yen(x.a) + '〜' + yen(x.b - 1)}：${x.n}件（${Math.round(x.n / fares.length * 100)}%）">
-        <span class="l num">${x.b === Infinity ? '1万〜' : x.a ? (x.a / 1000) + '千〜' : '〜1千'}</span><span class="t"><i style="width:${(x.n / maxHist * 100).toFixed(1)}%"></i></span><span class="v num">${x.n}<small>件</small></span></button>`).join('')}</div>
-      <div class="ana-tip"></div>
-    </div>
-    <div class="ana-card">
-      <h3><span>乗車種別</span><small>売上・平均単価</small></h3>
-      <div class="hbars">${kindList.map((k, i) => `<button class="hbar wide ${i === 0 ? 'hi' : ''}" aria-pressed="false" data-tip="${esc(k.l)}：${k.n}件・売上 ${yen(k.s)}（${Math.round(k.s / totSales * 100)}%）・平均 ${yen(Math.round(k.avg))}">
-        <span class="l">${esc(k.l)}</span><span class="t"><i style="width:${(k.s / maxKind * 100).toFixed(1)}%"></i></span><span class="v num">${yen(Math.round(k.avg))}<small>${k.n}件</small></span></button>`).join('')}</div>
-      <div class="ana-tip"></div>
-    </div>
-    <div class="ana-card">
-      <h3><span>よく乗る場所</span><small>2回以上・乗車地</small></h3>
-      ${places.length ? `<ol class="plist">${places.map((c, i) => { const peak = c.hours.indexOf(Math.max(...c.hours)), pd = c.dows.indexOf(Math.max(...c.dows));
-        return `<li><span class="n num">${i + 1}</span><span style="min-width:0"><div class="nm">${esc(placeName(c))}</div><div class="sb num">${c.n}回・${peak}時台・${WEEKDAYS[pd]}曜</div></span><span class="a num">${yen(Math.round(c.sales / c.n))}</span></li>`; }).join('')}</ol>`
+      <h3><span>よく乗る場所</span><small>1回の平均</small></h3>
+      ${places.length ? `<ol class="plist">${places.map((c, i) => { const peak = c.hours.indexOf(Math.max(...c.hours));
+        return `<li><span class="n num">${i + 1}</span><span style="min-width:0"><div class="nm">${esc(pname(c))}</div><div class="sb num">${c.n}回・${peak}時台に多い</div></span><span class="a num">${yen(Math.round(c.sales / c.n))}</span></li>`; }).join('')}</ol>`
         : '<div class="ana-empty">2回以上乗せた場所を表示します</div>'}
+    </div>
+    <div class="ana-card">
+      <h3><span>乗車の種類</span><small>売上の割合</small></h3>
+      <div class="hbars">${kindList.map((k, i) => `<div class="hbar wide ${i === 0 ? 'hi' : ''}">
+        <span class="l">${esc(k.l)}</span><span class="t"><i style="width:${(k.s / maxKind * 100).toFixed(1)}%"></i></span>
+        <span class="v num">${Math.round(k.s / totSales * 100)}%<small>${k.n}回</small></span></div>`).join('')}</div>
     </div>`;
 }
 $('#anaRange').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); S.settings.anaRange = b.dataset.v; saveSoon(); renderAnalysis(); });
