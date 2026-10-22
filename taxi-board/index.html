@@ -420,6 +420,11 @@ svg{display:block}
 .loc input:focus{outline:none;border-color:var(--accent)}
 .loc-gps{font-size:12px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .loc-gps.manual{color:var(--accent)}
+.loc-gps.place{white-space:normal}
+.sug button.pl{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;max-width:82%;min-height:52px;padding:4px 12px;border-color:var(--accent);text-align:left}
+.sug button.pl b,.sug button.pl small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sug button.pl small{margin:0}
+.sug button.pl em{font-style:normal;color:var(--accent);font-weight:800}
 .sug{display:flex;gap:6px;margin-top:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .sug::-webkit-scrollbar{display:none}
 .sug:empty{display:none}
@@ -773,15 +778,15 @@ svg{display:block}
           </div>
         </div>
         <div class="group">
-          <div class="glabel"><span>乗車地・降車地</span><span>GPSで自動入力・手入力も可</span></div>
+          <div class="glabel"><span>乗車地・降車地</span><span>GPS自動・住所や施設名も入力可</span></div>
           <div class="loc">
             <span class="loc-k">乗車</span>
-            <div class="loc-body"><input id="eFromAddr" data-addr="from" placeholder="住所（例：姫路市本町）" autocomplete="off" enterkeyhint="next"><div class="sug" id="eFromSug"></div><div class="loc-gps num" id="eFromGps"></div></div>
+            <div class="loc-body"><input id="eFromAddr" data-addr="from" placeholder="住所・施設名（例：姫路市本町、新神戸駅）" autocomplete="off" enterkeyhint="next"><div class="sug" id="eFromSug"></div><div class="loc-gps num" id="eFromGps"></div></div>
             <button class="btn sm ghost" data-regps="from">現在地</button>
           </div>
           <div class="loc">
             <span class="loc-k">降車</span>
-            <div class="loc-body"><input id="eToAddr" data-addr="to" placeholder="住所（例：神戸市中央区三宮町）" autocomplete="off" enterkeyhint="done"><div class="sug" id="eToSug"></div><div class="loc-gps num" id="eToGps"></div></div>
+            <div class="loc-body"><input id="eToAddr" data-addr="to" placeholder="住所・施設名（例：神戸市中央区三宮町）" autocomplete="off" enterkeyhint="done"><div class="sug" id="eToSug"></div><div class="loc-gps num" id="eToGps"></div></div>
             <button class="btn sm ghost" data-regps="to">現在地</button>
           </div>
         </div>
@@ -1180,7 +1185,7 @@ function hyogoSuggest(q) {
   const h = toHira(q);
   const score = c => c.n.startsWith(q) || c.s.startsWith(q) || c.k.startsWith(h) ? 0 : c.n.includes(q) || c.k.includes(h) ? 1 : -1;
   const cities = hyogo().map(c => [c, score(c)]).filter(([, sc]) => sc >= 0).sort((a, b) => a[1] - b[1]).map(([c]) => c);
-  const list = cities.slice(0, 8).map(c => ({ v: '兵庫県' + c.n, label: c.n }));
+  const list = cities.slice(0, 8).map(c => ({ v: '兵庫県' + c.n, label: c.n, city: true }));
   // 町名から直接さがす（2文字以上）
   if (q.length >= 2 && list.length < 8) {
     for (const c of hyogo()) for (const t of c.towns) {
@@ -1189,6 +1194,97 @@ function hyogoSuggest(q) {
     }
   }
   return list.length ? { list } : { hint: '兵庫県内の候補はありません（そのまま入力できます）' };
+}
+
+/* ============================================================
+   施設名での補完：兵庫県内の駅（内蔵）＋ 通信できればOpenStreetMapの施設検索
+   候補は {v: 欄に入れる名前, label, sub, place: {name, kind, info, lat, lng}}
+   ============================================================ */
+let STA = null;
+function stations() {
+  if (!STA) STA = HYOGO_STATIONS.split('\n').map(l => {
+    const [n, lines, lat, lng] = l.split('|');
+    return { name: n + '駅', base: n, kind: '駅', info: lines, lat: +lat, lng: +lng };
+  });
+  return STA;
+}
+function stationSuggest(q) {
+  const k = q.replace(/駅$/, '');
+  if (!k) return [];
+  const head = [], mid = [];
+  for (const st of stations()) {
+    if (st.base.startsWith(k)) head.push(st);
+    else if (k.length >= 2 && st.base.includes(k)) mid.push(st);
+  }
+  return head.concat(mid).slice(0, 6).map(placeOpt);
+}
+const placeOpt = pl => ({ v: pl.name, label: pl.name, sub: pl.kind + (pl.info ? ' ' + pl.info : ''), place: pl });
+
+// OpenStreetMapのタグ → 施設の種類
+const OSM_KIND = {
+  'railway:station': '駅', 'railway:halt': '駅', 'public_transport:station': '駅', 'railway:subway_entrance': '駅出入口',
+  'aeroway:aerodrome': '空港', 'amenity:ferry_terminal': 'フェリー乗り場', 'amenity:bus_station': 'バスターミナル', 'highway:bus_stop': 'バス停',
+  'amenity:hospital': '病院', 'amenity:clinic': 'クリニック', 'amenity:doctors': '医院', 'amenity:dentist': '歯科', 'amenity:pharmacy': '薬局', 'healthcare:hospital': '病院',
+  'amenity:nursing_home': '介護施設', 'social_facility:nursing_home': '介護施設',
+  'tourism:hotel': 'ホテル', 'tourism:motel': 'ホテル', 'tourism:guest_house': '旅館・民宿', 'tourism:hostel': 'ホステル',
+  'amenity:university': '大学', 'amenity:college': '専門学校', 'amenity:school': '学校', 'amenity:kindergarten': '幼稚園・保育園',
+  'amenity:townhall': '役所', 'office:government': '官公庁', 'amenity:police': '警察', 'amenity:fire_station': '消防署', 'amenity:post_office': '郵便局', 'amenity:courthouse': '裁判所',
+  'shop:mall': 'ショッピングモール', 'shop:department_store': '百貨店', 'shop:supermarket': 'スーパー', 'shop:convenience': 'コンビニ', 'shop:electronics': '家電量販店',
+  'amenity:restaurant': '飲食店', 'amenity:cafe': 'カフェ', 'amenity:fast_food': '飲食店', 'amenity:bar': 'バー', 'amenity:pub': '居酒屋', 'amenity:izakaya': '居酒屋',
+  'amenity:bank': '銀行', 'amenity:fuel': 'ガソリンスタンド', 'amenity:parking': '駐車場', 'amenity:theatre': '劇場', 'amenity:cinema': '映画館',
+  'amenity:place_of_worship': '寺社', 'amenity:community_centre': '公民館', 'amenity:library': '図書館', 'amenity:events_venue': 'イベント会場', 'amenity:conference_centre': '会議場',
+  'tourism:attraction': '観光地', 'tourism:museum': '博物館・美術館', 'tourism:zoo': '動物園', 'tourism:aquarium': '水族館', 'tourism:theme_park': 'テーマパーク', 'tourism:viewpoint': '展望地',
+  'leisure:stadium': 'スタジアム', 'leisure:sports_centre': 'スポーツ施設', 'leisure:park': '公園', 'leisure:golf_course': 'ゴルフ場', 'leisure:water_park': 'プール',
+  'historic:castle': '城', 'natural:hot_spring': '温泉', 'amenity:public_bath': '温泉・銭湯', 'office:company': '会社', 'man_made:pier': '桟橋',
+};
+const osmKind = (k, v) => OSM_KIND[k + ':' + v] || { amenity: '施設', shop: '店舗', tourism: '観光', leisure: 'レジャー施設', office: '事業所', building: '建物', railway: '鉄道', aeroway: '空港', healthcare: '医療機関' }[k] || '';
+const PHOTON = 'https://photon.komoot.io/api/';
+const HYOGO_BBOX = '134.2,34.1,135.5,35.7';
+const placeCache = new Map();   // 検索語 → 候補（null は検索中）
+let placeTimer = null, placeRetryAt = 0;
+function placeSearch(q, done) {
+  if (q.length < 2 || placeCache.has(q) || navigator.onLine === false || Date.now() < placeRetryAt) return;
+  clearTimeout(placeTimer);
+  placeTimer = setTimeout(async () => {
+    placeCache.set(q, null);
+    try {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 8000);
+      const bias = geo.pos ? `&lat=${geo.pos.lat}&lon=${geo.pos.lng}` : '&lat=34.69&lon=135.19';
+      const res = await fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=12&lang=default&bbox=${HYOGO_BBOX}${bias}`, { signal: ctl.signal });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(res.status);
+      const feats = ((await res.json()) || {}).features || [];
+      const list = [];
+      for (const f of feats) {
+        const pr = f.properties || {}, c = f.geometry && f.geometry.coordinates;
+        if (!pr.name || !c) continue;
+        const kind = osmKind(pr.osm_key, pr.osm_value);
+        if (!kind || ['place', 'boundary', 'highway'].includes(pr.osm_key) && kind !== 'バス停') continue;   // 地名・道路は住所補完に任せる
+        const name = kind === '駅' && !/駅$/.test(pr.name) ? pr.name + '駅' : pr.name;
+        const info = [pr.state !== '兵庫県' && pr.state, pr.city, pr.district, pr.locality].filter(Boolean).join('');   // 県外は県名から
+        if (list.some(x => x.name === name && haversine(x, { lat: c[1], lng: c[0] }) < 300)) continue;
+        list.push({ name, kind, info, lat: c[1], lng: c[0] });
+      }
+      placeCache.set(q, list);
+    } catch (e) {
+      placeCache.delete(q);
+      placeRetryAt = Date.now() + 30000;
+    }
+    done();
+  }, 400);
+}
+// 施設の候補（駅＋オンライン検索）。住所補完の候補と合わせて出す
+function placeSuggest(q, w) {
+  q = q.trim().replace(/\s+/g, '');
+  if (!q || hyogoCity(q.replace(/^兵庫県/, ''))) return { list: [], loading: false };
+  const list = stationSuggest(q);
+  const online = placeCache.get(q);
+  if (online) for (const pl of online) {
+    if (list.length >= 10) break;
+    if (!list.some(x => x.place.name === pl.name && haversine(x.place, pl) < 800)) list.push(placeOpt(pl));
+  } else placeSearch(q, () => { if (E && addrInput(w).value.trim().replace(/\s+/g, '') === q) renderSug(w); });
+  return { list, loading: online === null || (online === undefined && q.length >= 2 && navigator.onLine !== false && Date.now() >= placeRetryAt) };
 }
 
 // 住所が未変換の記録を新しい順に埋める
@@ -1366,7 +1462,7 @@ function renderClock() {
 // 配車アプリの乗車では「アプリ決済」を「GO決済」のようにアプリ名で表す
 const payLabel = (k, app) => k === 'app' && app ? app.name + '決済' : (payDef(k) || {}).label || k;
 const kindLabel = (k, app) => k === 'app' ? (app ? app.name : 'アプリ配車') : (KIND.find(p => p.k === k) || {}).label || '';
-function placeText(p) { return p ? (shortAddr(p.addr) || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
+function placeText(p) { return p ? ((p.place && p.place.name) || shortAddr(p.addr) || (p.lat != null ? 'GPS ' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4) : '—')) : '—'; }
 
 /* ============================================================
    月間カレンダー（出庫日ごとに売上・乗車数・労働時間を集計）
@@ -1620,7 +1716,7 @@ function demandPlaces() {
     if (!c) list.push(c = { key: r.id, n: 0, lat: 0, lng: 0, sales: 0, hours: new Array(24).fill(0), dows: new Array(7).fill(0), names: {} });
     c.n++; c.lat += f.lat; c.lng += f.lng; c.sales += r.total;
     const d = new Date(t); c.hours[d.getHours()]++; c.dows[d.getDay()]++;
-    const nm = shortAddr(f.addr);
+    const nm = (f.place && f.place.name) || shortAddr(f.addr);
     if (nm) c.names[nm] = (c.names[nm] || 0) + 1;
   }
   return list.map(c => ({
@@ -1992,7 +2088,8 @@ function openEntry(rideId) {
   $('#eDelete').hidden = !r;
   $('#eStart').value = E.start ? toHM(E.start) : '';
   $('#eEnd').value = toHM(E.ts);
-  for (const w of ['from', 'to']) { E.dirty[w] = false; addrInput(w).value = E[w].addr || ''; $(sugId(w)).innerHTML = ''; }
+  E.pick = {};
+  for (const w of ['from', 'to']) { E.dirty[w] = false; addrInput(w).value = E[w].place ? E[w].place.name : E[w].addr || ''; $(sugId(w)).innerHTML = ''; }
   renderEntry(); renderEntryLoc();
   openSheet($('#entry'));
 }
@@ -2075,7 +2172,11 @@ function renderEntryTimes() {
 }
 const addrFailed = new WeakSet();
 // 住所欄の下に出す取得状況
+const placeLine = (pl, addr) => pl.kind + (pl.info && pl.kind === '駅' ? '（' + pl.info + '）' : '') + ' ・ ' + (addr ? shortAddr(addr) : '住所不明');
 function locLine(o, w) {
+  const pk = E.dirty[w] && E.pick[w];
+  if (pk) return placeLine(pk, pk.addr || (pk.addrFail ? '' : '住所を取得中…'));
+  if (!E.dirty[w] && o.place) return placeLine(o.place, o.addr);
   if (E.dirty[w]) return '手入力' + (o.lat != null ? '（GPS位置は保持）' : '');
   if (o.manual) return '手入力';
   if (o.lat == null) return E.editId ? '位置情報なし・住所は手入力できます' : 'GPS取得中…';
@@ -2093,15 +2194,25 @@ function renderEntryLoc() {
   for (const w of ['from', 'to']) {
     const o = E[w], inp = addrInput(w), gps = $(w === 'from' ? '#eFromGps' : '#eToGps');
     // 手入力していなければ自動取得した住所を反映
-    if (!E.dirty[w]) inp.value = o.addr || '';
+    if (!E.dirty[w]) inp.value = o.place ? o.place.name : o.addr || '';
     gps.textContent = locLine(o, w);
     gps.classList.toggle('manual', !!(E.dirty[w] || o.manual));
+    gps.classList.toggle('place', !!(E.dirty[w] ? E.pick[w] : o.place));
   }
 }
 // 住所欄の確定：手入力があれば手入力を優先、空にしたら自動取得に戻す
 function commitAddr(w) {
   if (!E.dirty[w]) return;
-  const o = E[w], v = addrInput(w).value.trim().replace(/\s+/g, '');
+  const o = E[w], v = addrInput(w).value.trim().replace(/\s+/g, ''), pk = E.pick[w];
+  if (pk && v === pk.name) {
+    // 施設：名前と種類を残し、住所は施設の位置から。GPSが無ければ施設の位置を使う
+    o.place = { name: pk.name, kind: pk.kind, ...(pk.info ? { info: pk.info } : {}) };
+    if (o.lat == null) { o.lat = +pk.lat.toFixed(6); o.lng = +pk.lng.toFixed(6); delete o.acc; }
+    if (pk.addr) o.addr = pk.addr;
+    o.manual = true;
+    return;
+  }
+  delete o.place;
   if (!v) { delete o.addr; delete o.manual; return; }
   if (!o.manual && v === o.addr) return;
   o.addr = withPref(v);
@@ -2267,12 +2378,13 @@ function download(name, text, type = 'text/csv;charset=utf-8') {
 const fileDate = () => { const d = new Date(); return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()); };
 const shiftDay = id => { const s = S.shifts.find(x => x.id === id); return s ? ymd(s.start) : ''; };
 
-const addrSrc = o => o?.manual ? '手入力' : o?.addr ? 'GPS' : '';
+const addrSrc = o => o?.place ? '施設' : o?.manual ? '手入力' : o?.addr ? 'GPS' : '';
+const placeCsv = o => o?.place ? `${o.place.name}（${o.place.kind}）` : '';
 
 function exportLog(onlyShiftId) {
   const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)', '住所',
     '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '迎車なし', '決済方法', '乗車種別', '配車アプリ', '男性', '女性',
-    '乗車時刻', '乗車住所', '乗車住所の入力', '乗車緯度', '乗車経度', '降車住所', '降車住所の入力', '降車緯度', '降車経度'];
+    '乗車時刻', '乗車施設', '乗車住所', '乗車住所の入力', '乗車緯度', '乗車経度', '降車施設', '降車住所', '降車住所の入力', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
   const rows = [];
   // ステータスの継続時間（同じシフトの次のステータスまで。営業中は現在まで）
@@ -2289,7 +2401,7 @@ function exportLog(onlyShiftId) {
   for (const r of S.rides.filter(keep)) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
       r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.noPickup ? '○' : '', payLabel(r.pay, r.app), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
-      r.start ? stamp(r.start) : '', r.from?.addr, addrSrc(r.from), r.from?.lat, r.from?.lng, r.to?.addr, addrSrc(r.to), r.to?.lat, r.to?.lng]]);
+      r.start ? stamp(r.start) : '', placeCsv(r.from), r.from?.addr, addrSrc(r.from), r.from?.lat, r.from?.lng, placeCsv(r.to), r.to?.addr, addrSrc(r.to), r.to?.lat, r.to?.lng]]);
   }
   if (!rows.length) { toast('出力するデータがありません'); return; }
   rows.sort((a, b) => a[0] - b[0]);
@@ -2487,19 +2599,19 @@ $$('[data-regps]').forEach(b => b.addEventListener('click', async () => {
   $(which === 'from' ? '#eFromGps' : '#eToGps').textContent = '取得中…';
   const p = await getPos(3000);
   if (!E) return;
-  if (p) { setLL(E[which], p); delete E[which].manual; E.dirty[which] = false; $(sugId(which)).innerHTML = ''; }
+  if (p) { setLL(E[which], p); delete E[which].manual; delete E[which].place; E.dirty[which] = false; E.pick[which] = null; $(sugId(which)).innerHTML = ''; }
   else toast('位置情報を取得できませんでした');
   renderEntryLoc();
 }));
 // 住所欄：入力すると手入力扱い。兵庫県内は市区町 → 町名の順に候補を出す
 $$('[data-addr]').forEach(inp => {
   const w = inp.dataset.addr;
-  inp.addEventListener('input', () => { E.dirty[w] = true; renderSug(w); renderEntryLoc(); });
+  inp.addEventListener('input', () => { E.dirty[w] = true; E.pick[w] = null; renderSug(w); renderEntryLoc(); });
   inp.addEventListener('focus', () => renderSug(w));
   inp.addEventListener('blur', () => setTimeout(() => {
     if (document.activeElement === inp) return;
     $(sugId(w)).innerHTML = '';
-    if (E && E.dirty[w]) inp.value = withPref(inp.value.trim());
+    if (E && E.dirty[w] && !E.pick[w]) inp.value = withPref(inp.value.trim());
   }, 150));
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $(sugId(w)).innerHTML = ''; w === 'from' ? addrInput('to').focus() : inp.blur(); } });
 });
@@ -2510,17 +2622,35 @@ $$('.sug').forEach(box => {
     if (!b) return;
     haptic();
     const w = box.id === 'eFromSug' ? 'from' : 'to', inp = addrInput(w);
-    inp.value = b.dataset.sug; E.dirty[w] = true;
-    inp.focus();
-    renderSug(w); renderEntryLoc();
+    const opt = SUG[w][+b.dataset.sug];
+    inp.value = opt.v; E.dirty[w] = true; E.pick[w] = opt.place || null;
+    if (opt.place) {
+      // 施設を選んだら住所を施設の位置から求める
+      const pl = opt.place = { ...opt.place };
+      E.pick[w] = pl;
+      reverseGeocode(pl).then(a => { if (a !== undefined) pl.addr = a; else pl.addrFail = true; if (E && E.pick[w] === pl) renderEntryLoc(); });
+      $(sugId(w)).innerHTML = '';
+      inp.blur();
+    } else {
+      inp.focus();
+      renderSug(w);
+    }
+    renderEntryLoc();
   });
 });
+const SUG = { from: [], to: [] };
 function renderSug(w) {
   const inp = addrInput(w), box = $(sugId(w));
-  if (!E || !E.dirty[w]) { box.innerHTML = ''; return; }
-  const r = hyogoSuggest(inp.value);
-  box.innerHTML = r.hint ? `<span class="hint">${esc(r.hint)}</span>` :
-    r.list.map(s => `<button type="button" data-sug="${esc(s.v)}">${esc(s.label)}${s.sub ? `<small>${esc(s.sub)}</small>` : ''}</button>`).join('');
+  if (!E || !E.dirty[w] || E.pick[w]) { box.innerHTML = ''; return; }
+  const r = hyogoSuggest(inp.value), pr = placeSuggest(inp.value, w);
+  // 市区町 → 施設（駅など） → 町名の順
+  const hy = r.list || [];
+  const list = SUG[w] = hy.filter(x => x.city).concat(pr.list, hy.filter(x => !x.city)).slice(0, 12);
+  const hint = pr.loading ? '施設を検索中…' : !list.length ? r.hint || '' : '';
+  box.innerHTML = list.map((s, i) => s.place
+    ? `<button type="button" class="pl" data-sug="${i}"><b>${esc(s.label)}</b><small><em>${esc(s.place.kind)}</em> ${esc(s.place.info || '')}</small></button>`
+    : `<button type="button" data-sug="${i}">${esc(s.label)}${s.sub ? `<small>${esc(s.sub)}</small>` : ''}</button>`).join('') +
+    (hint ? `<span class="hint">${esc(hint)}</span>` : '');
 }
 $('#eSave').addEventListener('click', saveEntry);
 $('#eDelete').addEventListener('click', deleteEntry);
@@ -2561,6 +2691,358 @@ setInterval(() => { renderHome(); renderMini(); renderClock(); renderGps(); }, 1
 </script>
 <script>
 // 兵庫県の市区町と町域名（日本郵便 郵便番号データより）。形式：市区町名|よみ|町名,町名,…
+// 兵庫県内の駅（駅データ.jp 由来の open-data-jp-railway-stations より）。形式：駅名|路線|緯度|経度
+const HYOGO_STATIONS = `尼崎|JR神戸線・JR東西線・JR宝塚線|34.73179|135.43168
+立花|JR神戸線|34.73788|135.39957
+甲子園口|JR神戸線|34.73905|135.37443
+西宮|JR神戸線|34.73898|135.34870
+芦屋|JR神戸線|34.73421|135.30710
+甲南山手|JR神戸線|34.73062|135.29279
+摂津本山|JR神戸線|34.72666|135.27699
+住吉|JR神戸線・六甲ライナー|34.71955|135.26208
+六甲道|JR神戸線|34.71495|135.23859
+灘|JR神戸線|34.70592|135.21658
+三宮|JR神戸線・阪急神戸線・阪神本線・神戸高速線・地下鉄西神・山手線・地下鉄海岸線・ポートライナー|34.69358|135.19425
+元町|JR神戸線・阪神本線・神戸高速線|34.68962|135.18738
+神戸|JR神戸線・地下鉄海岸線|34.67915|135.17837
+さくら夙川|JR神戸線|34.73908|135.33109
+摩耶|JR神戸線|34.70867|135.22517
+兵庫|JR神戸線・JR和田岬線|34.66834|135.16471
+新長田|JR神戸線・地下鉄西神・山手線・地下鉄海岸線|34.65750|135.14501
+鷹取|JR神戸線|34.65167|135.13528
+須磨|JR神戸線・山陽電車|34.64288|135.11251
+塩屋|JR神戸線・山陽電車|34.63354|135.08288
+垂水|JR神戸線・山陽電車|34.62936|135.05375
+舞子|JR神戸線・山陽電車|34.63359|135.03402
+朝霧|JR神戸線|34.64420|135.01748
+明石|JR神戸線・山陽電車|34.64890|134.99273
+西明石|山陽新幹線・JR神戸線|34.66591|134.96015
+大久保|JR神戸線|34.68191|134.93919
+魚住|JR神戸線|34.69640|134.90603
+土山|JR神戸線|34.72048|134.88892
+東加古川|JR神戸線|34.74586|134.86924
+加古川|JR神戸線・JR加古川線|34.76767|134.83945
+宝殿|JR神戸線|34.78480|134.81216
+曽根|JR神戸線|34.79330|134.76984
+ひめじ別所|JR神戸線|34.80554|134.75331
+御着|JR神戸線|34.81694|134.73549
+姫路|山陽新幹線・JR神戸線・JR山陽本線・JR姫新線・JR播但線・山陽電車|34.82788|134.69047
+須磨海浜公園|JR神戸線|34.64719|135.12662
+東姫路|JR神戸線|34.82436|134.71247
+英賀保|JR山陽本線|34.81323|134.64476
+網干|JR山陽本線|34.81410|134.58404
+竜野|JR山陽本線|34.82552|134.52200
+相生|山陽新幹線・JR山陽本線・JR赤穂線|34.81805|134.47341
+有年|JR山陽本線|34.82926|134.39557
+上郡|JR山陽本線・智頭急行|34.86613|134.35358
+はりま勝原|JR山陽本線|34.81016|134.61410
+和田岬|JR和田岬線・地下鉄海岸線|34.65762|135.17518
+梁瀬|JR山陰本線|35.32280|134.88068
+和田山|JR山陰本線・JR播但線|35.34141|134.85137
+養父|JR山陰本線|35.37131|134.81173
+八鹿|JR山陰本線|35.41429|134.78140
+江原|JR山陰本線|35.46948|134.77575
+国府|JR山陰本線|35.49621|134.80002
+豊岡|JR山陰本線・京都丹後鉄道|35.54408|134.81360
+玄武洞|JR山陰本線|35.58864|134.79931
+城崎温泉|JR山陰本線|35.62376|134.81344
+竹野|JR山陰本線|35.64981|134.75641
+佐津|JR山陰本線|35.65314|134.68586
+柴山|JR山陰本線|35.64645|134.66389
+香住|JR山陰本線|35.63534|134.62359
+鎧|JR山陰本線|35.65169|134.57514
+餘部|JR山陰本線|35.64866|134.55692
+久谷|JR山陰本線|35.62755|134.51737
+浜坂|JR山陰本線|35.62062|134.45256
+諸寄|JR山陰本線|35.61953|134.43430
+居組|JR山陰本線|35.60698|134.39374
+塚口|JR宝塚線|34.75103|135.42495
+猪名寺|JR宝塚線|34.76409|135.42260
+伊丹|JR宝塚線|34.78065|135.42169
+北伊丹|JR宝塚線|34.80135|135.41933
+川西池田|JR宝塚線|34.82486|135.40990
+中山寺|JR宝塚線|34.81663|135.37399
+宝塚|JR宝塚線・阪急宝塚線・阪急今津線|34.81083|135.34084
+生瀬|JR宝塚線|34.81916|135.32506
+西宮名塩|JR宝塚線|34.82713|135.30887
+武田尾|JR宝塚線|34.85532|135.30584
+道場|JR宝塚線|34.86730|135.25553
+三田|JR宝塚線・神戸電鉄三田線・神戸電鉄公園都市線|34.88843|135.23028
+新三田|JR宝塚線|34.91018|135.20861
+広野|JR宝塚線|34.92842|135.19127
+相野|JR宝塚線|34.94748|135.15600
+藍本|JR宝塚線|34.97704|135.15553
+草野|JR宝塚線|34.99689|135.15240
+古市|JR宝塚線|35.02193|135.15481
+南矢代|JR宝塚線|35.03770|135.17487
+篠山口|JR宝塚線・JR福知山線|35.05622|135.17745
+丹波大山|JR福知山線|35.07237|135.16853
+下滝|JR福知山線|35.08791|135.09427
+谷川|JR福知山線・JR加古川線|35.08272|135.04967
+柏原|JR福知山線|35.12721|135.07708
+石生|JR福知山線|35.15271|135.06372
+黒井|JR福知山線|35.16855|135.09730
+市島|JR福知山線|35.20787|135.13020
+丹波竹田|JR福知山線|35.24373|135.13391
+西相生|JR赤穂線|34.80130|134.45056
+坂越|JR赤穂線|34.76868|134.41724
+播州赤穂|JR赤穂線|34.75660|134.39298
+天和|JR赤穂線|34.74910|134.35142
+備前福河|JR赤穂線|34.74668|134.33166
+日岡|JR加古川線|34.77864|134.85715
+神野|JR加古川線|34.79092|134.87885
+厄神|JR加古川線|34.79462|134.90682
+市場|JR加古川線|34.81935|134.93249
+小野町|JR加古川線|34.83360|134.91847
+粟生|JR加古川線・神戸電鉄粟生線・北条鉄道|34.85711|134.90950
+河合西|JR加古川線|34.87922|134.91952
+青野ケ原|JR加古川線|34.89730|134.92793
+社町|JR加古川線|34.92034|134.93451
+滝野|JR加古川線|34.94103|134.95492
+滝|JR加古川線|34.94881|134.96237
+西脇市|JR加古川線|34.97170|134.96880
+新西脇|JR加古川線|34.97791|134.97756
+比延|JR加古川線|34.98877|134.99573
+日本へそ公園|JR加古川線|35.00207|134.99763
+黒田庄|JR加古川線|35.02269|134.99252
+本黒田|JR加古川線|35.05294|134.99591
+船町口|JR加古川線|35.06291|135.00934
+久下村|JR加古川線|35.07581|135.03056
+播磨高岡|JR姫新線|34.84192|134.65867
+余部|JR姫新線|34.85648|134.64278
+太市|JR姫新線|34.86400|134.60709
+本竜野|JR姫新線|34.86176|134.55561
+東觜崎|JR姫新線|34.88763|134.55768
+播磨新宮|JR姫新線|34.92144|134.54577
+千本|JR姫新線|34.94251|134.49433
+西栗栖|JR姫新線|34.95238|134.47065
+三日月|JR姫新線|34.98485|134.43532
+播磨徳久|JR姫新線|34.99047|134.38571
+佐用|JR姫新線・智頭急行|35.00358|134.35654
+上月|JR姫新線|34.98342|134.32251
+京口|JR播但線|34.83467|134.70535
+野里|JR播但線|34.85614|134.71125
+砥堀|JR播但線|34.86643|134.72483
+仁豊野|JR播但線|34.88514|134.72832
+香呂|JR播但線|34.91139|134.73589
+溝口|JR播但線|34.92786|134.74235
+福崎|JR播但線|34.96064|134.75062
+甘地|JR播但線|34.98814|134.75852
+鶴居|JR播但線|35.02374|134.75472
+新野|JR播但線|35.05028|134.75248
+寺前|JR播但線|35.06546|134.74326
+長谷|JR播但線|35.11703|134.74810
+生野|JR播但線|35.16323|134.78926
+新井|JR播但線|35.23647|134.79508
+青倉|JR播但線|35.26719|134.81179
+竹田|JR播但線|35.29846|134.83542
+園田|阪急神戸線|34.75191|135.44819
+塚口|阪急神戸線・阪急伊丹線|34.75283|135.41585
+武庫之荘|阪急神戸線|34.75159|135.39382
+西宮北口|阪急神戸線・阪急今津線|34.74595|135.35670
+夙川|阪急神戸線・阪急甲陽線|34.74225|135.32821
+芦屋川|阪急神戸線|34.73634|135.30065
+岡本|阪急神戸線|34.72917|135.27594
+御影|阪急神戸線|34.72451|135.25180
+六甲|阪急神戸線|34.71989|135.23437
+王子公園|阪急神戸線|34.71035|135.21855
+春日野道|阪急神戸線|34.70299|135.20540
+川西能勢口|阪急宝塚線・能勢電鉄妙見線|34.82765|135.41339
+雲雀丘花屋敷|阪急宝塚線|34.82736|135.40295
+山本|阪急宝塚線|34.82192|135.38850
+中山観音|阪急宝塚線|34.81952|135.36924
+売布神社|阪急宝塚線|34.81586|135.36134
+清荒神|阪急宝塚線|34.81127|135.35352
+今津|阪急今津線・阪神本線|34.73148|135.35157
+阪神国道|阪急今津線|34.73715|135.35470
+門戸厄神|阪急今津線|34.75709|135.35822
+甲東園|阪急今津線|34.76676|135.35976
+仁川|阪急今津線|34.77512|135.35685
+小林|阪急今津線|34.78940|135.35228
+逆瀬川|阪急今津線|34.79718|135.35071
+宝塚南口|阪急今津線|34.80426|135.34592
+苦楽園口|阪急甲陽線|34.75006|135.32889
+甲陽園|阪急甲陽線|34.76092|135.32996
+稲野|阪急伊丹線|34.76482|135.41553
+新伊丹|阪急伊丹線|34.77257|135.41548
+伊丹|阪急伊丹線|34.77987|135.41362
+杭瀬|阪神本線|34.71827|135.43884
+大物|阪神本線・阪神なんば線|34.71658|135.42555
+尼崎|阪神本線・阪神なんば線|34.71863|135.41731
+出屋敷|阪神本線|34.71823|135.40460
+尼崎センタープール前|阪神本線|34.71776|135.39504
+武庫川|阪神本線・阪神武庫川線|34.71815|135.38365
+鳴尾|阪神本線|34.71968|135.37036
+甲子園|阪神本線|34.72399|135.36316
+久寿川|阪神本線|34.72698|135.35681
+西宮|阪神本線|34.73686|135.33776
+香櫨園|阪神本線|34.73434|135.32893
+打出|阪神本線|34.73162|135.31548
+芦屋|阪神本線|34.72805|135.30397
+深江|阪神本線|34.72258|135.29135
+青木|阪神本線|34.71695|135.28062
+魚崎|阪神本線・六甲ライナー|34.71315|135.26890
+住吉|阪神本線|34.71303|135.26165
+御影|阪神本線|34.71489|135.25569
+石屋川|阪神本線|34.71327|135.24933
+新在家|阪神本線|34.71057|135.24057
+大石|阪神本線|34.70767|135.23105
+西灘|阪神本線|34.70578|135.22464
+岩屋|阪神本線|34.70406|135.21796
+春日野道|阪神本線|34.69951|135.20797
+東鳴尾|阪神武庫川線|34.71265|135.37906
+洲先|阪神武庫川線|34.70905|135.37805
+武庫川団地前|阪神武庫川線|34.70489|135.37476
+コウノトリの郷|京都丹後鉄道|35.55282|134.83539
+絹延橋|能勢電鉄妙見線|34.83481|135.42302
+滝山|能勢電鉄妙見線|34.84307|135.42120
+鶯の森|能勢電鉄妙見線|34.84775|135.41889
+鼓滝|能勢電鉄妙見線|34.85473|135.41834
+多田|能勢電鉄妙見線|34.86082|135.41650
+平野|能勢電鉄妙見線|34.86872|135.41727
+一の鳥居|能勢電鉄妙見線|34.87960|135.41989
+畦野|能勢電鉄妙見線|34.88495|135.41559
+山下|能勢電鉄妙見線・能勢電鉄日生線|34.89293|135.41217
+笹部|能勢電鉄妙見線|34.89377|135.41627
+花隈|神戸高速線|34.68612|135.18152
+西元町|神戸高速線|34.68390|135.17959
+高速神戸|神戸高速線|34.67936|135.17444
+新開地|神戸高速線|34.67598|135.16929
+大開|神戸高速線|34.67118|135.16171
+高速長田|神戸高速線|34.66725|135.15155
+西代|神戸高速線・山陽電車|34.66237|135.14408
+湊川|神戸高速線・神戸電鉄有馬線・地下鉄西神・山手線|34.67916|135.16664
+長田|神戸電鉄有馬線|34.68160|135.14959
+丸山|神戸電鉄有馬線|34.68591|135.14399
+鵯越|神戸電鉄有馬線|34.69258|135.14223
+鈴蘭台|神戸電鉄有馬線・神戸電鉄粟生線|34.72366|135.14587
+北鈴蘭台|神戸電鉄有馬線|34.73955|135.15192
+山の街|神戸電鉄有馬線|34.74617|135.15321
+箕谷|神戸電鉄有馬線|34.75697|135.15560
+谷上|神戸電鉄有馬線・北神線|34.76169|135.17142
+花山|神戸電鉄有馬線|34.76965|135.18731
+大池|神戸電鉄有馬線|34.78098|135.19869
+神鉄六甲|神戸電鉄有馬線|34.78520|135.20604
+唐櫃台|神戸電鉄有馬線|34.79030|135.21146
+有馬口|神戸電鉄有馬線・神戸電鉄三田線|34.79648|135.22102
+有馬温泉|神戸電鉄有馬線|34.79939|135.24587
+五社|神戸電鉄三田線|34.80625|135.21624
+岡場|神戸電鉄三田線|34.82171|135.22244
+田尾寺|神戸電鉄三田線|34.83566|135.22615
+二郎|神戸電鉄三田線|34.84882|135.22702
+道場南口|神戸電鉄三田線|34.85602|135.22314
+神鉄道場|神戸電鉄三田線|34.86681|135.22615
+横山|神戸電鉄三田線・神戸電鉄公園都市線|34.87663|135.21970
+三田本町|神戸電鉄三田線・神戸電鉄公園都市線|34.88180|135.22961
+フラワータウン|神戸電鉄公園都市線|34.88546|135.20233
+南ウッディタウン|神戸電鉄公園都市線|34.90173|135.18961
+ウッディタウン中央|神戸電鉄公園都市線|34.90977|135.18371
+鈴蘭台西口|神戸電鉄粟生線|34.72636|135.14058
+西鈴蘭台|神戸電鉄粟生線|34.72584|135.13501
+藍那|神戸電鉄粟生線|34.73243|135.11803
+木津|神戸電鉄粟生線|34.74411|135.08841
+木幡|神戸電鉄粟生線|34.74831|135.07122
+栄|神戸電鉄粟生線|34.75524|135.05654
+押部谷|神戸電鉄粟生線|34.75661|135.03932
+緑が丘|神戸電鉄粟生線|34.76511|135.02571
+広野ゴルフ場前|神戸電鉄粟生線|34.77027|135.02307
+志染|神戸電鉄粟生線|34.78246|135.00760
+恵比須|神戸電鉄粟生線|34.79780|134.99861
+三木上の丸|神戸電鉄粟生線|34.80001|134.98881
+三木|神戸電鉄粟生線|34.79981|134.98148
+大村|神戸電鉄粟生線|34.80871|134.97146
+樫山|神戸電鉄粟生線|34.82049|134.94974
+市場|神戸電鉄粟生線|34.82441|134.94436
+小野|神戸電鉄粟生線|34.84317|134.93415
+葉多|神戸電鉄粟生線|34.85020|134.91985
+新神戸|山陽新幹線・北神線・地下鉄西神・山手線|34.70590|135.19579
+板宿|山陽電車・地下鉄西神・山手線|34.66010|135.13389
+東須磨|山陽電車|34.65524|135.12764
+月見山|山陽電車|34.64999|135.12195
+須磨寺|山陽電車|34.64603|135.11622
+須磨浦公園|山陽電車|34.63788|135.10014
+滝の茶屋|山陽電車|34.63107|135.07298
+東垂水|山陽電車|34.62922|135.06365
+霞ヶ丘|山陽電車|34.63024|135.04275
+西舞子|山陽電車|34.63865|135.02819
+大蔵谷|山陽電車|34.64659|135.00837
+人丸前|山陽電車|34.64756|135.00259
+西新町|山陽電車|34.64966|134.98075
+林崎松江海岸|山陽電車|34.65229|134.96506
+藤江|山陽電車|34.66338|134.94757
+中八木|山陽電車|34.67083|134.93613
+江井ヶ島|山陽電車|34.67902|134.91988
+西江井ヶ島|山陽電車|34.68569|134.90811
+山陽魚住|山陽電車|34.68925|134.90195
+東二見|山陽電車|34.70036|134.88792
+西二見|山陽電車|34.70717|134.87693
+播磨町|山陽電車|34.71657|134.86816
+別府|山陽電車|34.73021|134.85070
+浜の宮|山陽電車|34.74091|134.83397
+尾上の松|山陽電車|34.74858|134.82079
+高砂|山陽電車|34.75198|134.80234
+荒井|山陽電車|34.75783|134.79362
+伊保|山陽電車|34.76717|134.78705
+山陽曽根|山陽電車|34.77553|134.77321
+大塩|山陽電車|34.77935|134.75753
+的形|山陽電車|34.77988|134.74205
+八家|山陽電車|34.78414|134.72188
+白浜の宮|山陽電車|34.78682|134.70712
+妻鹿|山陽電車|34.79227|134.69297
+飾磨|山陽電車・山陽電車網干線|34.79975|134.67540
+亀山|山陽電車|34.81067|134.67676
+手柄|山陽電車|34.81986|134.68140
+西飾磨|山陽電車網干線|34.80304|134.65118
+夢前川|山陽電車網干線|34.79870|134.63946
+広畑|山陽電車網干線|34.79774|134.62815
+山陽天満|山陽電車網干線|34.79638|134.61741
+平松|山陽電車網干線|34.79075|134.60100
+山陽網干|山陽電車網干線|34.78700|134.58795
+日生中央|能勢電鉄日生線|34.90645|135.39322
+網引|北条鉄道|34.86202|134.87798
+田原|北条鉄道|34.86549|134.86674
+法華口|北条鉄道|34.87526|134.85638
+播磨下里|北条鉄道|34.88626|134.84011
+長|北条鉄道|34.89648|134.82566
+播磨横田|北条鉄道|34.91048|134.82525
+北条町|北条鉄道|34.92966|134.83262
+苔縄|智頭急行|34.89683|134.35408
+河野原円心|智頭急行|34.91960|134.35252
+久崎|智頭急行|34.96015|134.34424
+平福|智頭急行|35.04421|134.37208
+石井|智頭急行|35.08226|134.35727
+妙法寺|地下鉄西神・山手線|34.67519|135.11000
+名谷|地下鉄西神・山手線|34.67936|135.09473
+総合運動公園|地下鉄西神・山手線|34.68186|135.07584
+学園都市|地下鉄西神・山手線|34.68147|135.05769
+伊川谷|地下鉄西神・山手線|34.68785|135.04131
+西神南|地下鉄西神・山手線|34.69936|135.03029
+西神中央|地下鉄西神・山手線|34.71954|135.01737
+県庁前|地下鉄西神・山手線|34.69092|135.18386
+大倉山|地下鉄西神・山手線|34.68461|135.17453
+上沢|地下鉄西神・山手線|34.67325|135.15833
+長田|地下鉄西神・山手線|34.66850|135.15150
+駒ヶ林|地下鉄海岸線|34.65211|135.14955
+苅藻|地下鉄海岸線|34.65365|135.15660
+御崎公園|地下鉄海岸線|34.65464|135.16500
+中央市場前|地下鉄海岸線|34.66620|135.17587
+みなと元町|地下鉄海岸線|34.68588|135.18397
+旧居留地・大丸前|地下鉄海岸線|34.68937|135.18984
+貿易センター|ポートライナー|34.68934|135.19947
+ポートターミナル|ポートライナー|34.68150|135.20220
+中公園|ポートライナー|34.67312|135.20748
+みなとじま|ポートライナー|34.66886|135.21010
+市民広場|ポートライナー|34.66490|135.21246
+医療センター|ポートライナー|34.65858|135.21634
+京コンピュータ前|ポートライナー|34.65489|135.22187
+神戸空港|ポートライナー|34.63719|135.22904
+南公園|ポートライナー|34.66467|135.21701
+中埠頭|ポートライナー|34.66927|135.21710
+北埠頭|ポートライナー|34.67357|135.21463
+南魚崎|六甲ライナー|34.70675|135.26766
+アイランド北口|六甲ライナー|34.69285|135.26875
+アイランドセンター|六甲ライナー|34.68910|135.26935
+マリンパーク|六甲ライナー|34.68418|135.27008`;
 const HYOGO_DATA = `神戸市東灘区|こうべしひがしなだく|住吉南町,住吉台,住吉宮町,住吉山手,住吉本町,住吉東町,住吉浜町,北青木,向洋町中,向洋町東,向洋町西,岡本,御影,御影中町,御影塚町,御影山手,御影本町,御影浜町,御影石町,御影郡家,本山中町,本山北町,本山南町,本山町北畑,本山町岡本,本山町森,本山町田中,本山町田辺,本庄町,森北町,森南町,深江北町,深江南町,深江本町,深江浜町,渦森台,田中町,甲南台,甲南町,西岡本,青木,魚崎中町,魚崎北町,魚崎南町,魚崎浜町,魚崎西町,鴨子ケ原
 神戸市灘区|こうべしなだく|一王山町,上河原通,上野,上野通,下河原通,中原通,中郷町,五毛,五毛通,倉石通,備後町,八幡町,六甲台町,六甲山町,六甲町,千旦通,原田,原田通,友田町,味泥町,国玉通,土山町,城の下通,城内通,大内通,大和町,大土平町,大月台,大石北町,大石南町,大石東町,天城通,宮山町,寺口町,将軍通,山田町,岩屋,岩屋中町,岩屋北町,岩屋南町,岸地通,弓木町,徳井町,摩耶埠頭,摩耶山,摩耶山町,摩耶海岸通,新在家北町,新在家南町,日尾町,曾和町,桜ケ丘町,桜口町,森後町,楠丘町,水車新田,水道筋,永手町,泉通,浜田町,深田町,灘北通,灘南通,灘浜東町,灘浜町,烏帽子町,王子町,琵琶町,畑原,畑原通,神ノ木通,神前町,福住通,稗原町,箕岡通,篠原,篠原中町,篠原伯母野山町,篠原北町,篠原南町,篠原台,篠原本町,船寺通,薬師通,記田町,赤坂通,赤松町,都通,長峰台,青谷町,高尾通,高徳町,高羽,高羽町,鶴甲,鹿ノ下通
 神戸市兵庫区|こうべしひょうごく|七宮町,三川口町,三石通,上三条町,上庄通,上沢通,上祇園町,下三条町,下沢通,下祇園町,中之島,中道通,五宮町,今出在家町,会下山町,佐比江町,入江通,兵庫町,出在家町,切戸町,北山町,北逆瀬川町,千鳥町,南仲町,南逆瀬川町,吉田町,和田宮通,和田山通,和田崎町,塚本通,夢野町,大井通,大同町,大開通,天王町,小山町,小松通,小河通,山王町,島上町,平野町,御崎本町,御崎町,御所通,新開地,明和通,本町,材木町,東出町,東山町,東柳原町,松原通,松本通,梅元町,楠谷町,水木通,氷室町,永沢町,浜中町,浜山通,浜崎通,清水町,湊山町,湊川町,湊町,滝山町,烏原町,熊野町,矢部町,石井町,磯之町,神明町,神田町,福原町,笠松通,築地町,羽坂通,船大工町,芦原通,荒田町,菊水町,西上橘通,西仲町,西出町,西多聞通,西宮内町,西柳原町,西橘通,遠矢浜町,都由乃町,里山町,金平町,鍛冶屋町,門口町,雪御所町,須佐野通,馬場町,駅前通,駅南通,高松町,鵯越町,鵯越筋
