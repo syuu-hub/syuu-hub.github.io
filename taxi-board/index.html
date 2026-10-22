@@ -1765,70 +1765,36 @@ function saveShiftEdit() {
   toast('出庫・入庫の時刻を修正しました');
 }
 
+// 日報：紙の日報に書き写す項目だけ（支払い種別ごとの件数・金額、合計、高速代、遠距離割、障害者割）
 function openReport(id) {
   const sh = S.shifts.find(s => s.id === id);
   if (!sh) return;
   const st = shiftStats(sh), rides = st.rides;
-  const pays = reportPays(rides, true);
-  const cash = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.amt, 0);
-  const cashN = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.n, 0);
-  const other = pays.filter(p => p.k !== 'cash'), otherToll = other.reduce((a, p) => a + p.toll, 0);
-  const cashToll = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.toll, 0);
-  const row = (label, n, amt, cls = '', note = '') => `<tr class="${cls}"><td>${esc(label)}${note ? `<small class="rp-note">${esc(note)}</small>` : ''}</td><td class="n">${n != null ? n + '回' : ''}</td><td class="a">${yen(amt)}</td></tr>`;
-  const tollNote = v => v ? `うち高速代 ${yen(v)}` : '';
-  // 乗車種別（配車アプリはアプリ名）
-  const kinds = new Map();
-  for (const r of rides) {
-    const l = kindLabel(r.kind, r.app);
-    const x = kinds.get(l) || { n: 0, amt: 0 };
-    x.n++; x.amt += r.total; kinds.set(l, x);
-  }
-  const t = st.time;
+  const pays = reportPays(rides, true).filter(p => p.n);
+  const row = (label, n, amt, cls = '', note = '') => `<tr class="${cls}"><td>${esc(label)}${note ? `<small class="rp-note">${esc(note)}</small>` : ''}</td><td class="n">${n != null ? n + '件' : ''}</td><td class="a">${yen(amt)}</td></tr>`;
+  const cnt = f => rides.filter(f).length;
+  const extras = [
+    st.toll && row('高速代', st.tollN, st.toll, '', '営業収入に含まない'),
+    st.fare.long && row('遠距離割', cnt(r => r.fare.long), st.fare.long, '', '営業収入から差引済'),
+    st.fare.handi && row('障害者割', cnt(r => r.fare.handi), st.fare.handi, '', '営業収入から差引済'),
+  ].filter(Boolean);
   $('#rpDate').textContent = ymd(sh.start);
   $('#rpBody').innerHTML = `
-    <div class="rp-meta num">${hhmm(sh.start)} 出庫 → ${sh.end ? hhmm(sh.end) + ' 入庫' : '営業中'} ・ 営業時間 ${dur(st.elapsed)}</div>
+    <div class="rp-meta num">${hhmm(sh.start)} 出庫 → ${sh.end ? hhmm(sh.end) + ' 入庫' : '営業中'}</div>
     <div class="rp-total">
-      <div><div class="k">営業収入 合計</div><div class="v num">${yen(st.sales)}</div></div>
-      <div class="side num">乗車 <b>${st.count}</b>回</div>
+      <div><div class="k">合計金額（営業収入）</div><div class="v num">${yen(st.sales)}</div></div>
+      <div class="side num"><b>${st.count}</b>件</div>
     </div>
     <section class="rp-sec">
-      <h3><span>支払い種別</span><span>回数・金額</span></h3>
+      <h3><span>支払い種別</span><span>件数・金額</span></h3>
       <table class="rp-tbl num">
-        ${pays.filter(p => p.n).map(p => row(p.label, p.n, p.amt, '', tollNote(p.toll))).join('') || '<tr class="zero"><td>乗車記録なし</td><td class="n"></td><td class="a"></td></tr>'}
-        ${cashN ? row('現金 計', cashN, cash, 'sum', tollNote(cashToll)) : ''}
-        ${st.count - cashN ? row('現金以外 計', st.count - cashN, other.reduce((a, p) => a + p.amt, 0), 'sum', tollNote(otherToll)) : ''}
+        ${pays.map(p => row(p.label, p.n, p.amt, '', p.toll ? `うち高速代 ${yen(p.toll)}` : '')).join('') || '<tr class="zero"><td>乗車記録なし</td><td class="n"></td><td class="a"></td></tr>'}
       </table>
     </section>
-    <section class="rp-sec" ${st.count ? '' : 'hidden'}>
-      <h3><span>営業収入の内訳</span><span>割引は差引済</span></h3>
-      <table class="rp-tbl num">
-        ${st.fare.meter ? row('運賃', null, st.fare.meter) : ''}
-        ${st.fare.pickup ? row('迎車料金', rides.filter(r => r.fare.pickup).length, st.fare.pickup) : ''}
-        ${st.fare.appFee ? row('アプリ手数料', rides.filter(r => r.fare.appFee).length, st.fare.appFee) : ''}
-        ${st.fare.long ? row('遠距離割', rides.filter(r => r.fare.long).length, st.fare.long) : ''}
-        ${st.fare.handi ? row('障害者割', rides.filter(r => r.fare.handi).length, st.fare.handi) : ''}
-      </table>
-    </section>
-    ${st.toll ? `<section class="rp-sec">
-      <h3><span>高速代</span><span>売上外・支払い種別には含む</span></h3>
-      <table class="rp-tbl num">
-        ${row('高速代 計', st.tollN, st.toll)}
-        ${cashToll ? row('うち現金', rides.filter(r => r.toll && r.pay === 'cash').length, cashToll) : ''}
-        ${otherToll ? row('うち現金以外', rides.filter(r => r.toll && r.pay !== 'cash').length, otherToll) : ''}
-      </table>
-    </section>` : ''}
-    ${kinds.size ? `<section class="rp-sec">
-      <h3><span>乗車種別</span><span>回数・金額</span></h3>
-      <table class="rp-tbl num">${[...kinds].map(([l, x]) => row(l, x.n, x.amt)).join('')}</table>
-    </section>` : ''}
-    <section class="rp-sec" ${t.occupied + t.vacant + t.wait >= 60000 ? '' : 'hidden'}>
-      <h3><span>時間</span></h3>
-      <table class="rp-tbl two num">
-        ${[['実車', t.occupied], ['空車', t.vacant], ['待機・休憩', t.wait]].filter(([, v]) => v >= 60000)
-          .map(([l, v]) => `<tr><td>${l}</td><td class="n"></td><td class="a">${dur(v)}</td></tr>`).join('')}
-        ${st.occRate != null ? `<tr><td>実車率</td><td class="n"></td><td class="a">${Math.round(st.occRate * 100)}%</td></tr>` : ''}
-      </table>
-    </section>`;
+    ${extras.length ? `<section class="rp-sec">
+      <h3><span>高速代・割引</span><span>件数・金額</span></h3>
+      <table class="rp-tbl num">${extras.join('')}</table>
+    </section>` : ''}`;
   $('#reportSheet .rp-body').scrollTop = 0;
   openSheet($('#reportSheet'));
 }
