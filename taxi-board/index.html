@@ -119,7 +119,6 @@ svg{display:block}
 .d-row .sub{display:block;font-size:12px;color:var(--faint);font-weight:500}
 .d-row .chev{font-size:13px;color:var(--accent);font-weight:700}
 .depart-btn{width:100%;height:clamp(88px,14vh,120px);font-size:clamp(28px,4.4vh,36px);letter-spacing:.2em;border-radius:var(--r-lg)}
-.d-hint{font-size:13px;color:var(--faint);line-height:1.6}
 .d-gps{display:flex;justify-content:center;gap:16px;color:var(--muted);font-size:13px}
 
 /* 下部タブバー */
@@ -221,6 +220,11 @@ svg{display:block}
   transition:background .15s,transform .08s,opacity .15s;
 }
 .btn:active{transform:scale(.97)}
+/* 折り返し・はみ出し防止：短いラベルは1行で、長い内容は … で省略 */
+.btn,.seg button,.badge,.close-btn,.chev,.opt,.fold-h .t,.setting .k,.sec-h h3,.glabel > *,.view-head h2{white-space:nowrap}
+.ell{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.setting > div:first-child{min-width:0;flex:1}
+.setting .d{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.danger{color:var(--danger);border-color:rgba(255,107,107,.4);background:transparent}
 .btn.ghost{background:transparent}
@@ -230,7 +234,7 @@ svg{display:block}
 
 .pane-sec + .pane-sec,.pin-legend + .pane-sec,.dem-sel + .pane-sec{margin-top:28px}
 .sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
-.sec-h h3{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.sec-h h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .sec-h .aside{font-size:12px;color:var(--faint)}
 .empty{padding:28px 8px;text-align:center;color:var(--faint);font-size:14px;line-height:1.7}
 
@@ -247,9 +251,9 @@ svg{display:block}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted)}
 .log-total .v{font-size:30px;font-weight:800}
-.log-card{background:var(--surface-2);border-radius:var(--r-md);padding:12px 14px;margin-bottom:12px}
+.log-card{background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:12px}
 .log-card .log-total{margin-bottom:2px}
-.log-split{display:flex;gap:16px;font-size:13px;color:var(--muted)}
+.log-split{display:flex;gap:16px;font-size:13px;color:var(--muted);white-space:nowrap}
 .log-split b{color:var(--text);font-size:16px;margin-left:4px}
 .log-acts{display:grid;grid-template-columns:1fr 1.6fr 1.2fr;gap:8px;margin-top:12px}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
@@ -291,6 +295,13 @@ svg{display:block}
 .fold-h .s.on{color:var(--accent);font-weight:700}
 .fold-h .s.warn{color:var(--danger);font-weight:700}
 .fold-h svg{flex:none;color:var(--muted);transition:transform .2s}
+@media (max-width:420px){
+  .fold-h{display:grid;grid-template-columns:1fr auto;grid-template-areas:"t c" "s s";row-gap:2px;padding:10px 14px;min-height:60px}
+  .fold-h .t{grid-area:t}
+  .fold-h svg{grid-area:c}
+  .fold-h .s{grid-area:s;text-align:left}
+  .fold-h .s:empty{display:none}
+}
 .fold-h[aria-expanded="true"] svg{transform:rotate(180deg)}
 .fold-b{padding:2px 14px 14px;border-top:1px solid var(--line)}
 .fold-b > .group:first-child,.fold-b > .setting:first-child{margin-top:6px}
@@ -364,8 +375,9 @@ svg{display:block}
 }
 .sheet.open .sheet-inner{transform:none}
 .sheet-head{display:flex;align-items:center;gap:12px;height:56px;flex:none}
-.sheet-head h2{font-size:18px;font-weight:700}
-.sheet-head .sub{font-size:13px;color:var(--muted)}
+.sheet-head h2{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sheet-head .sub{font-size:13px;color:var(--muted);white-space:nowrap}
+.close-btn{flex:none}
 .sheet-head .spacer{flex:1}
 .close-btn{height:48px;padding:0 14px 0 8px;border-radius:var(--r-sm);display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-weight:600}
 
@@ -379,10 +391,11 @@ svg{display:block}
 
 /* 金額表示 */
 .total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:4px 4px 10px}
-.total .lbl{font-size:14px;color:var(--muted);font-weight:600}
-.total .v{font-size:clamp(44px,8vh,72px);font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--accent)}
+.total .lbl{font-size:14px;color:var(--muted);font-weight:600;white-space:nowrap}
+.total .v{white-space:nowrap;font-size:clamp(36px,min(8vh,14vw),72px);font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--accent)}
 .total .v .cur{font-size:.5em;margin-right:.08em;vertical-align:.32em;color:var(--muted)}
-.breakdown{font-size:14px;color:var(--muted);text-align:right;padding:0 4px 10px;min-height:1.4em}
+.breakdown{font-size:14px;color:var(--muted);padding:0 4px 10px;min-height:1.4em;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px 14px}
+.breakdown .bi{white-space:nowrap}
 .breakdown b{color:var(--text);font-weight:700}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .field{min-height:var(--tap);border-radius:var(--r-md);border:2px solid var(--line-2);background:var(--surface);padding:6px 10px;text-align:left;display:flex;flex-direction:column;justify-content:center}
@@ -400,7 +413,8 @@ svg{display:block}
 
 /* 選択肢（決済・種別） — ステータスボタンと同じ「塗りで選択」パターン */
 .group + .group{margin-top:18px}
-.glabel{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+.glabel{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.04em;margin-bottom:8px;display:flex;justify-content:space-between;gap:12px}
+.glabel > *:last-child:not(:first-child){font-weight:500;letter-spacing:0;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
 .opts{display:grid;gap:8px}
 .opts.pay{grid-template-columns:repeat(3,minmax(0,1fr))}
 .opts.kind{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
@@ -415,8 +429,9 @@ svg{display:block}
 .opts.kind .opt.app-opt[aria-pressed="true"] small{color:var(--accent-ink)}
 .no-pick{width:100%;margin-top:8px;min-height:52px;flex-direction:row;gap:10px;justify-content:center}
 .no-pick small{margin:0}
-.opts.tk{grid-template-columns:repeat(3,minmax(0,1fr))}
-.opts.tk .opt{min-height:52px;font-size:15px}
+.opts.tk{grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}
+.opts.tk .opt{min-height:52px;font-size:14px;padding:4px 8px}
+.opt small{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .disc{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .disc .opt small{font-variant-numeric:tabular-nums}
 .breakdown .disc-amt{color:var(--accent)}
@@ -438,7 +453,6 @@ svg{display:block}
 .loc input:focus{outline:none;border-color:var(--accent)}
 .loc-gps{font-size:12px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .loc-gps.manual{color:var(--accent)}
-.loc-gps.place{white-space:normal}
 .sug button.pl{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;max-width:82%;min-height:52px;padding:4px 12px;border-color:var(--accent);text-align:left}
 .sug button.pl b,.sug button.pl small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sug button.pl small{margin:0}
@@ -466,34 +480,40 @@ svg{display:block}
 .rp-total{background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:16px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .rp-total .k{font-size:13px;color:var(--muted)}
 .rp-total .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
-.rp-total .side{margin-left:auto;text-align:right;font-size:14px;color:var(--muted);line-height:1.6}
+.rp-total .side{margin-left:auto;text-align:right;font-size:14px;color:var(--muted);line-height:1.6;white-space:nowrap}
 .rp-total .side b{color:var(--text);font-size:17px}
 .rp-sec{margin-bottom:18px}
-.rp-sec h3{font-size:13px;font-weight:700;color:var(--muted);margin:0 0 4px;display:flex;justify-content:space-between}
-.rp-tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-.rp-tbl td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:17px;white-space:nowrap}
-.rp-tbl td:first-child{white-space:normal}
-.rp-tbl td.n{text-align:right;color:var(--muted);font-size:15px;width:4.5em}
-.rp-tbl td.a{text-align:right;font-weight:800;font-size:22px;width:7.5em}
+.rp-sec h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin:0 0 4px;display:flex;justify-content:space-between;gap:12px;white-space:nowrap}
+.rp-sec h3 > *:last-child:not(:first-child){font-weight:500;letter-spacing:0;color:var(--faint)}
+.rp-tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;table-layout:fixed}
+.rp-tbl td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp-tbl td.n{text-align:right;color:var(--muted);font-size:14px;width:3.6em}
+.rp-tbl td.a{text-align:right;font-weight:800;font-size:clamp(17px,5.4vw,22px);width:6.4em}
 .rp-tbl tr.zero td{color:var(--faint)}
 .rp-tbl tr.zero td.a{font-weight:600}
-.rp-note{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.rp-note{display:block;font-size:12px;color:var(--muted);font-weight:500;overflow:hidden;text-overflow:ellipsis}
 .rp-tbl tr.sum td{border-bottom:none;border-top:2px solid var(--line-2);font-weight:700}
 .rp-tbl tr.sum + tr.sum td{border-top:none}
 
 /* 乗車の詳細 */
 .rd-amt{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:16px}
 .rd-amt .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
-.rd-amt .tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:14px;color:var(--muted)}
-.rd-time{font-size:20px;font-weight:700}
+.rd-amt .tags{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);min-width:0;max-width:100%;white-space:nowrap}
+.rd-amt .tags .tag{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rd-time{font-size:20px;font-weight:700;white-space:nowrap}
 .rd-time small{font-size:13px;color:var(--muted);font-weight:600;margin-left:8px}
 .rd-place{padding:10px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
 .rd-place .k{flex:none;width:2.6em;font-size:14px;font-weight:700;color:var(--muted);padding-top:2px}
 .rd-place .b{flex:1;min-width:0}
-.rd-place .nm{font-size:17px;font-weight:700;word-break:break-all}
-.rd-place .sm{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-all}
+.rd-place .nm{font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-place .sm{font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-place .sm.ll{color:var(--faint);font-size:12px}
 .rd-place .sm em{font-style:normal;color:var(--accent);font-weight:700}
-.rd-place a{flex:none;font-size:13px;font-weight:700;color:var(--accent);padding:6px 4px}
+.rd-place .sm:has(a){display:flex;gap:10px;align-items:baseline}
+.rd-place .si{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.rd-place a{flex:none;font-size:13px;font-weight:700;color:var(--accent);padding:2px 0}
+.rd-place .nm{font-size:clamp(15px,4.6vw,17px)}
+.rp-tbl.two td.n{width:0;padding:0}
 
 /* 月間カレンダー */
 .cal-btn{width:100%;margin-bottom:12px}
@@ -532,8 +552,9 @@ svg{display:block}
 .seg.hol{flex:1 1 100%;margin:8px 0 0}
 .seg.hol button{flex:1;min-width:0;padding:0}
 .cal-day{margin-top:16px}
-.cal-day .row .sub{white-space:normal}
+#calTitle{white-space:nowrap}
 #calSheet .close-btn{white-space:nowrap}
+@media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0 10px} }
 @media (max-width:480px){
   .cal-sum{grid-template-columns:repeat(2,minmax(0,1fr))}
   .cal-sum > div:last-child{grid-column:1 / -1}
@@ -611,12 +632,9 @@ svg{display:block}
     </div>
     <div class="d-info">
       <button class="d-row" id="dGoal"><span class="k">本日の目標</span><span class="v num" id="dGoalVal">¥0</span><span class="chev">変更</span></button>
-      <button class="d-row" id="dHours"><span class="k">今月の労働時間<span class="sub num" id="dHoursSub"></span></span><span class="v num" id="dHoursVal"></span><span class="chev">カレンダー</span></button>
-      <button class="d-row" id="dLast"><span class="k">前回の営業<span class="sub num" id="dLastSub"></span></span><span class="v num" id="dLastVal"></span><span class="chev">日報</span></button>
     </div>
     <div>
       <button class="btn primary depart-btn" id="departBtn">出庫</button>
-      <p class="d-hint" style="margin-top:12px">出庫すると、売上・ステータス・乗車記録の画面に切り替わります</p>
     </div>
   </div>
 
@@ -685,14 +703,14 @@ svg{display:block}
           <div class="log-split num"><span>現金 <b id="sumCash">¥0</b></span><span>キャッシュレス <b id="sumCashless">¥0</b></span></div>
           <div class="log-acts">
             <button class="btn sm" id="logReport">日報</button>
-            <button class="btn sm" id="logShiftEdit">出庫・入庫の修正</button>
+            <button class="btn sm" id="logShiftEdit">時刻修正</button>
             <button class="btn sm" id="calBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>月間</button>
           </div>
         </div>
         <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>この日の記録<span style="font-weight:500;color:var(--faint);margin-left:8px">タップで詳細</span></h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩を表示</button></div></div>
+        <div class="sec-h"><h3>この日の記録</h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩も表示</button></div></div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -717,7 +735,7 @@ svg{display:block}
       <div class="pin-legend" id="pinLegend"></div>
       <div class="dem-sel" id="demSel" hidden></div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>乗車の多い場所（約100m）</h3><span class="aside">タップでピンを表示</span></div>
+        <div class="sec-h"><h3>乗車の多い場所</h3><span class="aside">約100m単位</span></div>
         <ul class="list" id="hotList"></ul>
       </div>
     </div></section>
@@ -751,7 +769,7 @@ svg{display:block}
           <button class="fold-h" aria-expanded="false" aria-controls="gWorkB"><span class="t">営業・勤務</span><span class="s num" id="gWorkSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gWorkB" hidden>
           <div class="setting">
-          <div><div class="k">1日の目標金額</div><div class="d">次の出庫から既定値として使用</div></div>
+          <div><div class="k">1日の目標金額</div><div class="d">次の出庫から適用</div></div>
           <button class="btn sm num" id="goalSetBtn">¥0</button>
         </div>
           <div class="setting">
@@ -759,11 +777,11 @@ svg{display:block}
           <button class="btn sm num" id="closingBtn">末日</button>
         </div>
           <div class="setting">
-          <div><div class="k">月の労働時間の上限</div><div class="d">締め期間ごと。隔勤などに合わせて変更（0で上限なし）</div></div>
+          <div><div class="k">月の労働時間の上限</div><div class="d">締め期間ごと・0で上限なし</div></div>
           <button class="btn sm num" id="hoursCapBtn">288時間</button>
         </div>
           <div class="setting hol-setting">
-          <div><div class="k">固定休日</div><div class="d">カレンダーに表示し、残りの出勤日数の計算に使用（複数選択可）</div></div>
+          <div><div class="k">固定休日</div><div class="d">複数選択・残り出勤日数に反映</div></div>
           <div class="seg hol" id="holidaySeg"></div>
         </div>
           </div>
@@ -779,7 +797,7 @@ svg{display:block}
         <button class="btn sm" style="width:100%;margin-top:10px" id="ticketAddBtn">＋ チケットを追加</button>
           <div class="sub-h">配車アプリ</div>
           <div class="setting">
-          <div><div class="k">迎車料金（会社共通）</div><div class="d">アプリ配車の総額から差し引く。会社の料金に合わせて変更</div></div>
+          <div><div class="k">迎車料金（会社共通）</div><div class="d">アプリ配車の総額から差し引き</div></div>
           <button class="btn sm num" id="pickupFeeBtn">¥0</button>
         </div>
         <ul class="list" id="appList"></ul>
@@ -790,15 +808,15 @@ svg{display:block}
           <button class="fold-h" aria-expanded="false" aria-controls="gInputB"><span class="t">入力・表示</span><span class="s num" id="gInputSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gInputB" hidden>
           <div class="setting">
-          <div><div class="k">減光モード</div><div class="d">夜間の車内で画面を暗く</div></div>
+          <div><div class="k">減光モード</div><div class="d">夜間の車内向け</div></div>
           <button class="switch" role="switch" aria-checked="false" data-setting="dim" aria-label="減光モード"></button>
         </div>
           <div class="setting">
-          <div><div class="k">画面を常時点灯</div><div class="d">営業中はスリープしない（対応端末のみ）</div></div>
+          <div><div class="k">画面を常時点灯</div><div class="d">営業中はスリープしない</div></div>
           <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
         </div>
           <div class="setting">
-          <div><div class="k">GPSを住所に変換</div><div class="d">通信できる時のみ（国土地理院の逆ジオコーダー）</div></div>
+          <div><div class="k">GPSを住所に変換</div><div class="d">通信時のみ・国土地理院</div></div>
           <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="GPSを住所に変換"></button>
         </div>
           </div>
@@ -980,7 +998,7 @@ svg{display:block}
       <button class="close-btn" data-close>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
       </button>
-      <h2 id="rdTitle">乗車の詳細</h2>
+      <h2 id="rdTitle">乗車詳細</h2>
       <span class="spacer"></span>
       <span class="sub num" id="rdDate"></span>
     </header>
@@ -1653,11 +1671,11 @@ function openRide(id) {
   const place = (k, p) => {
     if (!p || (p.lat == null && !p.addr && !p.place)) return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="sm">記録なし</div></div></div>`;
     const nm = p.place ? p.place.name : shortAddr(p.addr) || 'GPS ' + p.lat.toFixed(5) + ', ' + p.lng.toFixed(5);
-    const sub = [p.place && `<em>${esc(p.place.kind)}</em>` + (p.place.info && p.place.kind === '駅' ? '（' + esc(p.place.info) + '）' : ''),
-      p.place && p.addr && esc(shortAddr(p.addr)), !p.place && p.manual && '手入力', p.lat != null && esc(fmtLL(p))].filter(Boolean).join(' ・ ');
+    const sub = [p.place && `<em>${esc(p.place.kind)}</em>`, p.place && p.addr && esc(shortAddr(p.addr)), !p.place && p.manual && '手入力'].filter(Boolean).join(' ・ ');
+    const ll = p.lat != null ? `<div class="sm ll num">GPS ${esc(fmtLL(p))}</div>` : '';
     const mp = ridePos(p) || (p.lat != null ? p : null);
     const map = mp ? `<a href="https://www.google.com/maps?q=${mp.lat},${mp.lng}" target="_blank" rel="noopener">地図</a>` : '';
-    return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="nm">${esc(nm)}</div>${sub ? `<div class="sm num">${sub}</div>` : ''}</div>${map}</div>`;
+    return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="nm">${esc(nm)}</div>${sub || map ? `<div class="sm num"><span class="si">${sub}</span>${map}</div>` : ''}${ll}</div></div>`;
   };
   $('#rdDate').textContent = ymd(r.ts);
   $('#rdBody').innerHTML = `
@@ -1675,7 +1693,7 @@ function openRide(id) {
     </section>` : ''}
     <section class="rp-sec">
       <h3><span>料金</span></h3>
-      <table class="rp-tbl num">
+      <table class="rp-tbl two num">
         ${row('メーター総額', yen(gross))}
         ${f.pickup ? row('迎車料金', yen(f.pickup)) : r.noPickup ? row('迎車料金', '迎車なし', 'zero') : ''}
         ${f.appFee ? row('アプリ手数料', yen(f.appFee)) : ''}
@@ -1683,7 +1701,7 @@ function openRide(id) {
         ${f.handi ? row('障害者割', '−' + yen(f.handi)) : ''}
         ${row('運賃', yen(f.meter))}
         ${row('お支払い', yen(r.total), 'sum')}
-        ${r.toll ? row('高速代（売上に含まない）', yen(r.toll)) : ''}
+        ${r.toll ? row('高速代（売上外）', yen(r.toll)) : ''}
       </table>
     </section>`;
   $('#rideSheet .rp-body').scrollTop = 0;
@@ -1718,7 +1736,7 @@ function ssValues() {
 function renderShiftSheet() {
   const { c, start, end } = ssValues();
   $('#ssDur').innerHTML = `営業時間<b>${dur(Math.max(0, (end ?? Date.now()) - start))}</b>`;
-  $('#ssRange').textContent = c.hasInner ? `出庫は ${toHM(c.maxStart)} 以前${c.sh.end ? `、入庫は ${toHM(c.minEnd)} 以降` : ''}（記録がある時間）` : '';
+  $('#ssRange').textContent = c.hasInner ? `出庫は${toHM(c.maxStart)}まで${c.sh.end ? `・入庫は${toHM(c.minEnd)}以降` : ''}` : '';
 }
 function openShiftEdit(id) {
   const c = shiftCtx(id);
@@ -1782,17 +1800,17 @@ function openReport(id) {
       </table>
     </section>
     <section class="rp-sec">
-      <h3><span>営業収入の内訳</span><span>回数・金額</span></h3>
+      <h3><span>営業収入の内訳</span><span>割引は差引済</span></h3>
       <table class="rp-tbl num">
         ${row('運賃', null, st.fare.meter)}
         ${st.fare.pickup ? row('迎車料金', rides.filter(r => r.fare.pickup).length, st.fare.pickup) : ''}
         ${st.fare.appFee ? row('アプリ手数料', rides.filter(r => r.fare.appFee).length, st.fare.appFee) : ''}
-        ${st.fare.long ? row('遠距離割（差し引き済み）', rides.filter(r => r.fare.long).length, st.fare.long) : ''}
-        ${st.fare.handi ? row('障害者割（差し引き済み）', rides.filter(r => r.fare.handi).length, st.fare.handi) : ''}
+        ${st.fare.long ? row('遠距離割', rides.filter(r => r.fare.long).length, st.fare.long) : ''}
+        ${st.fare.handi ? row('障害者割', rides.filter(r => r.fare.handi).length, st.fare.handi) : ''}
       </table>
     </section>
     ${st.toll ? `<section class="rp-sec">
-      <h3><span>高速代（営業収入に含まない・支払い種別には含む）</span></h3>
+      <h3><span>高速代</span><span>売上外・支払い種別には含む</span></h3>
       <table class="rp-tbl num">
         ${row('高速代 計', st.tollN, st.toll)}
         ${row('うち現金', rides.filter(r => r.toll && r.pay === 'cash').length, cashToll, cashToll ? '' : 'zero')}
@@ -1805,7 +1823,7 @@ function openReport(id) {
     </section>` : ''}
     <section class="rp-sec">
       <h3><span>時間</span></h3>
-      <table class="rp-tbl num">
+      <table class="rp-tbl two num">
         <tr><td>実車</td><td class="n"></td><td class="a">${dur(t.occupied)}</td></tr>
         <tr><td>空車</td><td class="n"></td><td class="a">${dur(t.vacant)}</td></tr>
         <tr><td>待機・休憩</td><td class="n"></td><td class="a">${dur(t.wait)}</td></tr>
@@ -1870,9 +1888,10 @@ function renderHud() {
   $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `目標達成 ＋${yen(sales - goal)}` : `目標まで あと ${yen(goal - sales)}`;
 
   $('#stCount').innerHTML = (st ? st.count : 0) + '<small>回</small>';
-  $('#stAvg').textContent = st && st.avg != null ? yen(st.avg) : '—';
+  const fit = n => n >= 100000 ? compactYen(n) : yen(n);   // 狭い欄に収める
+  $('#stAvg').textContent = st && st.avg != null ? fit(st.avg) : '—';
   $('#stOcc').innerHTML = st && st.occRate != null ? Math.round(st.occRate * 100) + '<small>%</small>' : '—';
-  $('#stHourly').textContent = st && st.hourly != null ? yen(st.hourly) : '—';
+  $('#stHourly').textContent = st && st.hourly != null ? fit(st.hourly) : '—';
   $('#stTime').textContent = st ? dur(st.elapsed) : '0:00';
 
   const badge = $('#shiftBadge');
@@ -1952,9 +1971,6 @@ function monthData(y, m) {
 // 月の労働時間の上限と残り出勤日（固定休日を除く）
 const capMs = () => (S.settings.hoursCap || 0) * 3600000;
 const isHoliday = d => (S.settings.holidays || []).includes(d.getDay());
-function periodHours(y, m) {
-  return Object.values(monthData(y, m)).reduce((a, o) => a + o.ms, 0);
-}
 // 今日から締め期間の終わりまでの出勤予定日数（固定休日・今日すでに出庫した日を除く）
 function remainingWorkdays(y, m) {
   const [from, to] = periodRange(y, m);
@@ -2018,7 +2034,8 @@ function renderCal() {
     : `<div class="sec-h"><h3>${sd.getMonth() + 1}月${sd.getDate()}日（${WEEKDAYS[sd.getDay()]}）</h3>${o ? `<span class="aside num">${yen(o.sales)} ・ ${o.count}回 ・ ${dur(o.ms)}</span>` : ''}</div>` +
       (o ? `<ul class="list">${o.shifts.map(({ sh, st }) => `<li class="row">
         <span class="body"><div class="main num">${hhmm(sh.start)}–${sh.end ? hhmm(sh.end) : '営業中'}</div>
-        <div class="sub num">${st.count}回 ・ 労働 ${dur(st.elapsed)} ・ 待機・休憩 ${dur(st.time.wait)}（${st.pauses.length}回） ・ 実車率 ${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'} ・ 時間単価 ${st.hourly != null ? yen(st.hourly) : '—'}</div></span>
+        <div class="sub num">${st.count}回・労働${dur(st.elapsed)}・時間単価${st.hourly != null ? yen(st.hourly) : '—'}</div>
+        <div class="sub num">待機休憩${dur(st.time.wait)}${st.pauses.length ? `（${st.pauses.length}回）` : ''}・実車率${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'}</div></span>
         <span class="amt num">${yen(st.sales)}</span></li>`).join('')}</ul>`
         : '<div class="empty">この日の営業記録はありません。</div>');
 }
@@ -2454,7 +2471,7 @@ function renderData() {
   $('#closingBtn').textContent = closingLabel();
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
   $('#holidaySeg').innerHTML = WEEKDAYS.split('').map((w, i) => `<button data-hol="${i}" aria-pressed="${S.settings.holidays.includes(i)}">${w}</button>`).join('');
-  $('#closingDesc').textContent = '月間カレンダー・日報の集計期間（' + (S.settings.closingDay ? `前月${S.settings.closingDay + 1}日〜当月${S.settings.closingDay}日` : '1日〜末日') + '）';
+  $('#closingDesc').textContent = '集計期間 ' + (S.settings.closingDay ? `前月${S.settings.closingDay + 1}日〜当月${S.settings.closingDay}日` : '1日〜末日');
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
   $('#ticketList').innerHTML = TICKETS().length ? TICKETS().map(t => `<li><button class="row" data-ticket-edit="${esc(t.id)}">
       <span class="body"><div class="main">${esc(t.name)}</div></span>
@@ -2465,7 +2482,7 @@ function renderData() {
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('');
   $('#appList').innerHTML = S.settings.apps.length ? S.settings.apps.map(a => `<li><button class="row" data-app-edit="${esc(a.id)}">
-      <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 ${esc(payLabel(appPayKey(a), a))} ${yen(a.fee)} / 他 ${yen(a.feeOther)}</div></span>
+      <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 ${yen(a.fee)}／他 ${yen(a.feeOther)}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') : '<li class="empty">配車アプリが登録されていません。</li>';
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
@@ -2474,7 +2491,7 @@ function renderData() {
   $('#shiftList').innerHTML = past.length ? past.map(s => {
     const st = shiftStats(s);
     return `<li><button class="row" data-report="${s.id}">
-      <span class="body"><div class="main num">${ymd(s.start)}</div><div class="sub num">${hhmm(s.start)}–${hhmm(s.end)} ・ ${st.count}回 ・ 実車率 ${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'}</div></span>
+      <span class="body"><div class="main num">${ymd(s.start)}</div><div class="sub num">${hhmm(s.start)}–${hhmm(s.end)} ・ ${st.count}回</div></span>
       <span class="amt num">${yen(st.sales)}</span>
     </button></li>`;
   }).join('') : '<li class="empty">入庫したシフトがここに並びます。</li>';
@@ -2484,9 +2501,9 @@ function renderData() {
   // 折りたたみの見出しに今の設定を1行で
   const done = S.shifts.filter(x => x.end).length;
   setFoldSum('gShifts', done ? `${done}件（新しい順に30件）` : 'まだありません');
-  setFoldSum('gWork', [yen(S.settings.goal), closingLabel(), S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし',
-    S.settings.holidays.length ? '休 ' + S.settings.holidays.map(i => WEEKDAYS[i]).join('') : ''].filter(Boolean).join(' ・ '));
-  setFoldSum('gPay', `決済 ${PAYS().length} ・ チケット ${TICKETS().length} ・ アプリ ${S.settings.apps.length}`);
+  setFoldSum('gWork', [yen(S.settings.goal), S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし',
+    S.settings.holidays.length ? S.settings.holidays.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
+  setFoldSum('gPay', `決済${PAYS().length}・チケット${TICKETS().length}・アプリ${S.settings.apps.length}`);
   setFoldSum('gInput', [S.settings.dim ? '減光' : '', S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : ''].filter(Boolean).join(' ・ '));
   setFoldSum('gData', (bytes / 1024).toFixed(0) + ' KB');
 }
@@ -2505,19 +2522,6 @@ function renderDepart() {
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
   $('#dGoalVal').textContent = yen(S.settings.goal);
-  const pd = periodOf(Date.now()), used = periodHours(pd.y, pd.m), cap = capMs();
-  $('#dHoursVal').textContent = cap ? `${dur(used)} / ${S.settings.hoursCap}h` : dur(used);
-  $('#dHoursVal').style.color = cap && used >= cap ? 'var(--danger)' : cap && used >= cap * 0.9 ? 'var(--st-wait)' : '';
-  const days = remainingWorkdays(pd.y, pd.m);
-  $('#dHoursSub').textContent = cap ? (used < cap ? `残り ${dur(cap - used)}` + (days ? ` ・ 出勤予定 ${days}日（1日 ${dur((cap - used) / days)}）` : '') : `${dur(used - cap)} 超過`) : '';
-  const last = S.shifts.filter(s => s.end).sort((a, b) => b.end - a.end)[0];
-  $('#dLast').hidden = !last;
-  $('#dLast').dataset.id = last ? last.id : '';
-  if (last) {
-    const st = shiftStats(last);
-    $('#dLastVal').textContent = `${yen(st.sales)} ・ ${st.count}回`;
-    $('#dLastSub').textContent = `${new Date(last.start).getMonth() + 1}/${new Date(last.start).getDate()} ${hhmm(last.start)}–${hhmm(last.end)}`;
-  }
 }
 
 // 各画面右上のステータス表示（タップでホームへ）
@@ -2685,14 +2689,16 @@ function renderEntry() {
   const brk = $('#eBreak');
   const short = total > 0 && bd.meter + bd.long + bd.handi < 0;
   brk.classList.toggle('warn', short);
-  brk.innerHTML = short ? `総額が ${parts.join('＋')} より少なくなっています`
-    : !parts.length && !discs.length ? '迎車料金・アプリ手数料を含む総額を入力'
-    : [parts.length && `うち ${parts.join(' ・ ')}`, discs.length && `<span class="disc-amt">${discs.join(' ・ ')}</span>`].filter(Boolean).join('　') +
-      `　運賃 <b>${yen(Math.max(0, bd.meter))}</b>` + (discs.length ? `　お支払い <b>${yen(bd.total)}</b>` : '');
-  if (E.toll && !short) brk.innerHTML = (parts.length || discs.length ? brk.innerHTML + '　' : '') + `＋高速代 <b>${yen(E.toll)}</b>（売上に含まない）`;
+  const bi = (t, cls = '') => `<span class="bi ${cls}">${t}</span>`;   // 項目の途中では折り返さない
+  brk.innerHTML = short ? bi(`総額が ${parts.join('＋')} より少ない`)
+    : !parts.length && !discs.length && !E.toll ? bi('迎車料金・手数料込みの総額を入力')
+    : [...parts.map(t => bi(t)), ...discs.map(t => bi(t, 'disc-amt')),
+       (parts.length || discs.length) && bi(`運賃 <b>${yen(Math.max(0, bd.meter))}</b>`),
+       discs.length && bi(`お支払い <b>${yen(bd.total)}</b>`),
+       E.toll && bi(`＋高速代 <b>${yen(E.toll)}</b>（売上外）`)].filter(Boolean).join('');
   $('#eDiscLong').setAttribute('aria-pressed', !!E.long);
   $('#eDiscLongSub').textContent = !E.long ? '9,000円超の1割' : bd.meter + bd.long + bd.handi > LONG_FROM ? '−' + yen(bd.long) : '対象外（9,000円以下）';
-  const dsum = [E.long && (bd.long ? '遠距離割−' + yen(bd.long) : '遠距離割 対象外'), bd.handi && '障害者割−' + yen(bd.handi), E.toll && '高速代' + yen(E.toll)].filter(Boolean);
+  const dsum = [bd.long + bd.handi ? '割引−' + yen(bd.long + bd.handi) : E.long ? '遠距離割 対象外' : '', E.toll && '高速代' + yen(E.toll)].filter(Boolean);
   setFoldSum('fDisc', dsum.length ? dsum.join(' ・ ') : 'なし', dsum.length ? 'on' : '');
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
   $('#eTollSub').textContent = E.toll ? yen(E.toll) + '（タップで変更・0で解除）' : '金額を入力';
@@ -2714,17 +2720,17 @@ function renderEntry() {
   if (E.pay === 'ticket') {
     const tks = TICKETS().slice();
     if (E.ticket && !tks.some(t => t.id === E.ticket.id)) tks.push(E.ticket);   // 削除済みの種類で記録した乗車
-    $('#eTicket').innerHTML = tks.map(t => `<button class="opt" data-ticket="${esc(t.id)}" aria-pressed="${!!E.ticket && E.ticket.id === t.id}">${esc(t.name)}</button>`).join('') +
+    $('#eTicket').innerHTML = tks.map(t => `<button class="opt" data-ticket="${esc(t.id)}" aria-pressed="${!!E.ticket && E.ticket.id === t.id}"><span class="ell">${esc(t.name)}</span></button>`).join('') +
       '<button class="opt" data-ticket-add>＋ 追加</button>';
   }
-  $('#ePay').innerHTML = pays.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}">${esc(p.label)}${p.sub ? `<small>${p.sub}</small>` : ''}</button>`).join('');
+  $('#ePay').innerHTML = pays.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}"><span class="ell">${esc(p.label)}</span>${p.sub ? `<small>${esc(p.sub)}</small>` : ''}</button>`).join('');
   // 編集中の記録が削除済みアプリなら、その名前でボタンを残す
   const apps = S.settings.apps.slice();
   if (E.app && !apps.some(a => a.id === E.app.id)) apps.push({ ...E.app });
   $('#eKind').innerHTML = KIND.map(p => `<button class="opt" data-kind="${p.k}" aria-pressed="${E.kind === p.k}">${p.label}</button>`).join('') +
     apps.map(a => {
       const sub = [a.fee && '手数料' + yen(a.fee), (a.feeOther || 0) !== (a.fee || 0) && '他決済' + yen(a.feeOther)].filter(Boolean).join(' ');
-      return `<button class="opt app-opt" data-app="${esc(a.id)}" aria-pressed="${E.kind === 'app' && !!E.app && E.app.id === a.id}">${esc(a.name)}${sub ? `<small class="num">${sub}</small>` : ''}</button>`;
+      return `<button class="opt app-opt" data-app="${esc(a.id)}" aria-pressed="${E.kind === 'app' && !!E.app && E.app.id === a.id}"><span class="ell">${esc(a.name)}</span>${sub ? `<small class="num">${sub}</small>` : ''}</button>`;
     }).join('');
   const save = $('#eSave');
   save.disabled = total <= 0;
@@ -2747,7 +2753,7 @@ function renderEntryTimes() {
 }
 const addrFailed = new WeakSet();
 // 住所欄の下に出す取得状況
-const placeLine = (pl, addr) => pl.kind + (pl.info && pl.kind === '駅' ? '（' + pl.info + '）' : pl.note ? '（' + pl.note + '）' : '') + ' ・ ' + (addr ? shortAddr(addr) : '住所不明');
+const placeLine = (pl, addr) => pl.kind + (pl.note ? '（' + pl.note + '）' : '') + ' ・ ' + (addr ? shortAddr(addr) : '住所不明');
 function locLine(o, w) {
   const pk = E.dirty[w] && E.pick[w];
   if (pk) return placeLine(pk, pk.addr || (pk.lat == null ? o.addr : pk.addrFail ? '' : '住所を取得中…'));
@@ -2761,7 +2767,7 @@ function locLine(o, w) {
     fillAddr(o).then(ok => { if (!ok) addrFailed.add(o); if (E && (E.from === o || E.to === o)) renderEntryLoc(); });
     return '住所を取得中…' + acc;
   }
-  return fmtLL(o) + '（住所に変換できません）';
+  return '住所未取得' + acc;
 }
 const addrInput = w => $(w === 'from' ? '#eFromAddr' : '#eToAddr');
 const sugId = w => w === 'from' ? '#eFromSug' : '#eToSug';
@@ -3103,10 +3109,10 @@ $('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
-$('#hoursCapBtn').addEventListener('click', () => openNumpad('月の労働時間の上限（0で上限なし）', S.settings.hoursCap, v => {
+$('#hoursCapBtn').addEventListener('click', () => openNumpad('月の労働時間の上限', S.settings.hoursCap, v => {
   S.settings.hoursCap = Math.min(v, 744);
   save(); renderData();
-}, { unit: '時間', label: '上限', digits: 3 }));
+}, { unit: '時間', label: '0で上限なし', digits: 3 }));
 $('#holidaySeg').addEventListener('click', e => {
   const b = e.target.closest('[data-hol]'); if (!b) return;
   haptic();
@@ -3114,19 +3120,19 @@ $('#holidaySeg').addEventListener('click', e => {
   S.settings.holidays = h.includes(i) ? h.filter(x => x !== i) : [...h, i].sort();
   save(); renderData();
 });
-$('#dHours').addEventListener('click', () => { haptic(); openCal(); });
-$('#closingBtn').addEventListener('click', () => openNumpad('締め日（末日締めは0）', S.settings.closingDay, v => {
+
+$('#closingBtn').addEventListener('click', () => openNumpad('締め日', S.settings.closingDay, v => {
   S.settings.closingDay = v >= 1 && v <= 28 ? v : 0;
   if (v > 28) toast('29日以降は末日締めとして扱います');
   save(); renderData();
-}, { unit: '日', label: '締め日', digits: 2 }));
+}, { unit: '日', label: '末日締めは0', digits: 2 }));
 $('#appList').addEventListener('click', e => { const b = e.target.closest('[data-app-edit]'); if (b) openAppEditor(b.dataset.appEdit); });
 $('#appAddBtn').addEventListener('click', () => openAppEditor(null));
 $('#appOk').addEventListener('click', saveApp);
 $('#appOwnPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.payKey = b.dataset.pay; renderAppSheet(); } });
-$('#pickupFeeBtn').addEventListener('click', () => openNumpad('迎車料金（会社共通）', S.settings.pickupFee, v => { S.settings.pickupFee = v; save(); renderData(); }));
-$('#appFee').addEventListener('click', () => openNumpad('手数料（アプリ決済の時）', AE.fee, v => { AE.fee = v; renderAppSheet(); }));
-$('#appFeeOther').addEventListener('click', () => openNumpad('手数料（それ以外の決済の時）', AE.feeOther, v => { AE.feeOther = v; renderAppSheet(); }));
+$('#pickupFeeBtn').addEventListener('click', () => openNumpad('迎車料金', S.settings.pickupFee, v => { S.settings.pickupFee = v; save(); renderData(); }, { label: '会社共通' }));
+$('#appFee').addEventListener('click', () => openNumpad('アプリ決済の手数料', AE.fee, v => { AE.fee = v; renderAppSheet(); }));
+$('#appFeeOther').addEventListener('click', () => openNumpad('他の決済の手数料', AE.feeOther, v => { AE.feeOther = v; renderAppSheet(); }));
 $('#appPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.defaultPay = b.dataset.pay; renderAppSheet(); } });
 $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
@@ -3183,7 +3189,7 @@ $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSh
 $('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#reportSheet')));
 $('#rideSheet [data-close]').addEventListener('click', () => closeSheet($('#rideSheet')));
 $('#rdEdit').addEventListener('click', () => { haptic(); closeSheet($('#rideSheet')); if (RD) openEntry(RD); });
-$('#dLast').addEventListener('click', e => { haptic(); openReport(e.currentTarget.dataset.id); });
+
 $('#shiftList').addEventListener('click', e => { const b = e.target.closest('[data-report]'); if (b) { haptic(); openReport(b.dataset.report); } });
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
 
