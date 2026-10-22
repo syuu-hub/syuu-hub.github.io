@@ -1301,12 +1301,11 @@ function stations() {
 }
 // 名前を比べやすくする（全角半角・大小文字・カタカナ／ひらがな・空白や記号の違いを無視）
 const normName = s => toHira(s).toLowerCase().replace(/[\s・･\-ー‐_.,、。'’"()（）|｜]/g, '');
-// 地図データに無い・名前が変わった施設（住所は確認済みのもの）。alias は旧名や別表記
+// 地図データに無い・名前が変わった施設。alias は旧名や別表記。addr が無ければその時のGPSの住所を使う
 const EXTRA_PLACES = [
   { name: 'ジ オリエント 神戸', kind: 'ホテル', info: '神戸市中央区京町', note: 'THE ORIENT KOBE・旧オリエンタルホテル', addr: '兵庫県神戸市中央区京町25',
     alias: ['THE ORIENT KOBE', 'ザ オリエント 神戸', 'オリエンタルホテル', 'ORIENTAL HOTEL'] },
-  // 住所が未登録の施設は、その時のGPSの住所を使う
-  { name: '神戸マリオットホテル', kind: 'ホテル', note: '旧ホテルクラウンパレス神戸',
+  { name: '神戸マリオットホテル', kind: 'ホテル', info: '神戸市中央区東川崎町', note: '旧ホテルクラウンパレス神戸', addr: '兵庫県神戸市中央区東川崎町1丁目3-5',
     alias: ['Kobe Marriott Hotel', 'マリオット', 'ホテルクラウンパレス神戸', 'クラウンパレス神戸', 'クラウンパレス'] },
 ];
 function stationSuggest(q) {
