@@ -251,8 +251,13 @@ svg{display:block}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted)}
 .log-total .v{font-size:30px;font-weight:800}
-.log-rp{width:100%}
-.log-shift-edit{width:100%;margin-bottom:14px}
+.log-card{background:var(--surface-2);border-radius:var(--r-md);padding:12px 14px;margin-bottom:12px}
+.log-card .log-total{margin-bottom:2px}
+.log-split{display:flex;gap:16px;font-size:13px;color:var(--muted)}
+.log-split b{color:var(--text);font-size:16px;margin-left:4px}
+.log-acts{display:grid;grid-template-columns:1fr 1.6fr 1.2fr;gap:8px;margin-top:12px}
+.log-acts .btn{min-width:0;padding:0 8px;gap:6px}
+.log-acts svg{color:var(--accent);flex:none}
 .chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
 .chips-row b{color:var(--text);font-weight:600;margin-left:4px}
 
@@ -281,6 +286,20 @@ svg{display:block}
 .seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .seg button{height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;font-weight:600;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--bg)}
+/* 折りたたみ（見出しに現在の内容を1行で表示） */
+.fold{border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--surface)}
+.fold + .fold,.group + .fold,.fold + .group,.btn-col + .fold{margin-top:12px}
+.fold-h{width:100%;display:flex;align-items:center;gap:10px;min-height:56px;padding:0 14px;text-align:left}
+.fold-h .t{flex:none;font-size:15px;font-weight:700}
+.fold-h .s{flex:1;min-width:0;font-size:13px;color:var(--muted);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fold-h .s.on{color:var(--accent);font-weight:700}
+.fold-h .s.warn{color:var(--danger);font-weight:700}
+.fold-h svg{flex:none;color:var(--muted);transition:transform .2s}
+.fold-h[aria-expanded="true"] svg{transform:rotate(180deg)}
+.fold-b{padding:2px 14px 14px;border-top:1px solid var(--line)}
+.fold-b > .group:first-child,.fold-b > .setting:first-child{margin-top:6px}
+.fold-b .sub-h{font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 2px}
+.fold-b .sub-h:first-child{margin-top:12px}
 .dem-toggle{width:100%;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;margin-bottom:8px;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--surface);text-align:left}
 .dem-toggle .k{font-size:13px;font-weight:700;color:var(--muted)}
 .dem-toggle .v{flex:1;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -671,27 +690,25 @@ svg{display:block}
     <!-- 履歴 -->
     <section class="view pane" data-view="log" hidden><div class="view-body">
       <header class="view-head"><h2>履歴</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
-      <button class="btn cal-btn" id="calBtn">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
-        月間カレンダー
-      </button>
       <div class="pane-sec">
         <div class="log-day">
           <button class="cal-nav" id="logPrev" aria-label="前の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
           <div class="ld-body"><div class="ld-date num" id="logDate"></div><div class="ld-sub num" id="logSub"></div></div>
           <button class="cal-nav" id="logNext" aria-label="次の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
-        <button class="btn sm log-shift-edit" id="logShiftEdit">出庫・入庫の時刻を修正</button>
-        <div class="log-total"><span class="k">営業収入 合計</span><span class="v num" id="logTotal">¥0</span></div>
-        <div class="split">
-          <div><div class="k">現金</div><div class="v num" id="sumCash">¥0</div></div>
-          <div><div class="k">キャッシュレス</div><div class="v num" id="sumCashless">¥0</div></div>
+        <div class="log-card">
+          <div class="log-total"><span class="k">営業収入</span><span class="v num" id="logTotal">¥0</span></div>
+          <div class="log-split num"><span>現金 <b id="sumCash">¥0</b></span><span>キャッシュレス <b id="sumCashless">¥0</b></span></div>
+          <div class="log-acts">
+            <button class="btn sm" id="logReport">日報</button>
+            <button class="btn sm" id="logShiftEdit">出庫・入庫の修正</button>
+            <button class="btn sm" id="calBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>月間</button>
+          </div>
         </div>
-        <button class="btn log-rp" id="logReport">日報を開く（支払い種別・内訳・時間）</button>
         <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>この日の記録<span style="font-weight:500;color:var(--faint);margin-left:8px">タップで修正</span></h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩を表示</button></div></div>
+        <div class="sec-h"><h3>この日の記録<span style="font-weight:500;color:var(--faint);margin-left:8px">タップで詳細</span></h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩を表示</button></div></div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -729,7 +746,7 @@ svg{display:block}
         <button class="btn danger" style="width:100%" id="shiftBtn">入庫（営業終了）</button>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>CSV出力</h3><span class="aside">Excel対応（UTF-8 BOM）</span></div>
+        <div class="sec-h"><h3>日報・出力</h3><span class="aside">CSVはExcel対応</span></div>
         <div class="btn-col">
           <button class="btn stack" data-export="log-all">営業ログ（全期間）<span class="hint">乗車・ステータスを時系列で</span></button>
           <div class="btn-grid">
@@ -737,73 +754,87 @@ svg{display:block}
             <button class="btn stack" data-export="summary">日報サマリー<span class="hint">シフト別の集計</span></button>
           </div>
         </div>
+        <div class="fold" id="gShifts">
+          <button class="fold-h" aria-expanded="false" aria-controls="gShiftsB"><span class="t">過去の日報</span><span class="s num" id="gShiftsSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="gShiftsB" hidden>
+          <ul class="list" id="shiftList"></ul>
+          </div>
+        </div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>設定</h3></div>
-        <div class="setting">
+        <div class="sec-h"><h3>設定</h3><span class="aside">タップで開く</span></div>
+        <div class="fold" id="gWork">
+          <button class="fold-h" aria-expanded="false" aria-controls="gWorkB"><span class="t">営業・勤務</span><span class="s num" id="gWorkSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="gWorkB" hidden>
+          <div class="setting">
           <div><div class="k">1日の目標金額</div><div class="d">次の出庫から既定値として使用</div></div>
           <button class="btn sm num" id="goalSetBtn">¥0</button>
         </div>
-        <div class="setting">
-          <div><div class="k">乗客人数の上限</div><div class="d">男性・女性ボタンはこの人数の次で0に戻る</div></div>
-          <button class="btn sm num" id="paxMaxBtn">5人</button>
-        </div>
-        <div class="setting">
+          <div class="setting">
           <div><div class="k">締め日</div><div class="d" id="closingDesc"></div></div>
           <button class="btn sm num" id="closingBtn">末日</button>
         </div>
-        <div class="setting">
+          <div class="setting">
           <div><div class="k">月の労働時間の上限</div><div class="d">締め期間ごと。隔勤などに合わせて変更（0で上限なし）</div></div>
           <button class="btn sm num" id="hoursCapBtn">288時間</button>
         </div>
-        <div class="setting hol-setting">
+          <div class="setting hol-setting">
           <div><div class="k">固定休日</div><div class="d">カレンダーに表示し、残りの出勤日数の計算に使用（複数選択可）</div></div>
           <div class="seg hol" id="holidaySeg"></div>
         </div>
-        <div class="setting">
-          <div><div class="k">減光モード</div><div class="d">夜間の車内で画面を暗く</div></div>
-          <button class="switch" role="switch" aria-checked="false" data-setting="dim" aria-label="減光モード"></button>
+          </div>
         </div>
-        <div class="setting">
-          <div><div class="k">画面を常時点灯</div><div class="d">営業中はスリープしない（対応端末のみ）</div></div>
-          <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
-        </div>
-        <div class="setting">
-          <div><div class="k">GPSを住所に変換</div><div class="d">通信できる時のみ（国土地理院の逆ジオコーダー）</div></div>
-          <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="GPSを住所に変換"></button>
-        </div>
-      </div>
-      <div class="pane-sec">
-        <div class="sec-h"><h3>決済方法</h3><span class="aside">乗車記録で選ぶ支払い方法</span></div>
-        <ul class="list" id="payList"></ul>
+        <div class="fold" id="gPay">
+          <button class="fold-h" aria-expanded="false" aria-controls="gPayB"><span class="t">料金・決済</span><span class="s num" id="gPaySum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="gPayB" hidden>
+          <div class="sub-h">決済方法</div>
+          <ul class="list" id="payList"></ul>
         <button class="btn sm" style="width:100%;margin-top:10px" id="payAddBtn">＋ 決済方法を追加</button>
-      </div>
-      <div class="pane-sec">
-        <div class="sec-h"><h3>タクシーチケット</h3><span class="aside">決済方法「チケット」で選ぶ種類</span></div>
-        <ul class="list" id="ticketList"></ul>
+          <div class="sub-h">タクシーチケット</div>
+          <ul class="list" id="ticketList"></ul>
         <button class="btn sm" style="width:100%;margin-top:10px" id="ticketAddBtn">＋ チケットを追加</button>
-      </div>
-      <div class="pane-sec">
-        <div class="sec-h"><h3>配車アプリ</h3><span class="aside">総額から迎車料金・手数料を差し引いて記録</span></div>
-        <div class="setting">
+          <div class="sub-h">配車アプリ</div>
+          <div class="setting">
           <div><div class="k">迎車料金（会社共通）</div><div class="d">アプリ配車の総額から差し引く。会社の料金に合わせて変更</div></div>
           <button class="btn sm num" id="pickupFeeBtn">¥0</button>
         </div>
         <ul class="list" id="appList"></ul>
         <button class="btn sm" style="width:100%;margin-top:10px" id="appAddBtn">＋ アプリを追加</button>
-      </div>
-      <div class="pane-sec">
-        <div class="sec-h"><h3>過去のシフト</h3></div>
-        <ul class="list" id="shiftList"></ul>
-      </div>
-      <div class="pane-sec">
-        <div class="sec-h"><h3>バックアップ</h3><span class="aside num" id="storageInfo"></span></div>
-        <div class="btn-grid">
+          </div>
+        </div>
+        <div class="fold" id="gInput">
+          <button class="fold-h" aria-expanded="false" aria-controls="gInputB"><span class="t">入力・表示</span><span class="s num" id="gInputSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="gInputB" hidden>
+          <div class="setting">
+          <div><div class="k">乗客人数の上限</div><div class="d">男性・女性ボタンはこの人数の次で0に戻る</div></div>
+          <button class="btn sm num" id="paxMaxBtn">5人</button>
+        </div>
+          <div class="setting">
+          <div><div class="k">減光モード</div><div class="d">夜間の車内で画面を暗く</div></div>
+          <button class="switch" role="switch" aria-checked="false" data-setting="dim" aria-label="減光モード"></button>
+        </div>
+          <div class="setting">
+          <div><div class="k">画面を常時点灯</div><div class="d">営業中はスリープしない（対応端末のみ）</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
+        </div>
+          <div class="setting">
+          <div><div class="k">GPSを住所に変換</div><div class="d">通信できる時のみ（国土地理院の逆ジオコーダー）</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="GPSを住所に変換"></button>
+        </div>
+          </div>
+        </div>
+        <div class="fold" id="gData">
+          <button class="fold-h" aria-expanded="false" aria-controls="gDataB"><span class="t">バックアップ・データ</span><span class="s num" id="gDataSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="gDataB" hidden>
+          <div class="sub-h">端末内の使用量 <span class="num" id="storageInfo"></span></div>
+          <div class="btn-grid">
           <button class="btn sm" id="backupBtn">JSONで保存</button>
           <button class="btn sm" id="restoreBtn">復元</button>
         </div>
         <input type="file" id="restoreFile" accept="application/json,.json" hidden>
         <button class="btn sm danger" style="width:100%;margin-top:10px" id="wipeBtn">全データを削除</button>
+          </div>
+        </div>
       </div>
     </div></section>
 </main>
@@ -841,20 +872,9 @@ svg{display:block}
 
       <section class="e-meta">
         <div class="group">
-          <div class="glabel"><span>乗車種別</span><span>アプリは設定の決済方法を自動選択</span></div>
+          <div class="glabel">乗車種別</div>
           <div class="opts kind" id="eKind"></div>
           <button class="opt no-pick" id="eNoPick" aria-pressed="false" hidden>迎車なし<small>メーターの迎車を押し忘れた時</small></button>
-        </div>
-        <div class="group">
-          <div class="glabel"><span>割引</span><span>メーター総額から差し引き</span></div>
-          <div class="disc">
-            <button class="opt" id="eDiscLong" aria-pressed="false">遠距離割<small id="eDiscLongSub">9,000円超の1割</small></button>
-            <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub">運賃の1割</small></button>
-          </div>
-        </div>
-        <div class="group">
-          <div class="glabel"><span>高速代</span><span>売上・合計に含めず日報に別に表示</span></div>
-          <button class="opt no-pick" id="eToll" aria-pressed="false">高速代<small id="eTollSub">金額を入力</small></button>
         </div>
         <div class="group">
           <div class="glabel">決済方法</div>
@@ -868,6 +888,25 @@ svg{display:block}
           <div class="glabel"><span>乗客</span><span id="ePaxHint"></span></div>
           <div class="opts pax" id="ePax"></div>
         </div>
+        <div class="fold" id="fDisc">
+          <button class="fold-h" aria-expanded="false" aria-controls="fDiscB"><span class="t">割引・高速代</span><span class="s num" id="fDiscSum">なし</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="fDiscB" hidden>
+          <div class="group">
+            <div class="glabel"><span>割引</span><span>メーター総額から差し引き</span></div>
+            <div class="disc">
+              <button class="opt" id="eDiscLong" aria-pressed="false">遠距離割<small id="eDiscLongSub">9,000円超の1割</small></button>
+              <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub">運賃の1割</small></button>
+            </div>
+          </div>
+          <div class="group">
+            <div class="glabel"><span>高速代</span><span>営業収入に含めない</span></div>
+            <button class="opt no-pick" id="eToll" aria-pressed="false">高速代<small id="eTollSub">金額を入力</small></button>
+          </div>
+          </div>
+        </div>
+        <div class="fold" id="fTrip">
+          <button class="fold-h" aria-expanded="false" aria-controls="fTripB"><span class="t">時刻・乗降地</span><span class="s num" id="fTripSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="fTripB" hidden>
         <div class="group">
           <div class="glabel"><span>乗車・降車時刻</span><span class="num" id="eDur"></span></div>
           <div class="e-times">
@@ -877,7 +916,7 @@ svg{display:block}
           </div>
         </div>
         <div class="group">
-          <div class="glabel"><span>乗車地・降車地</span><span>GPS自動・住所や施設名も入力可</span></div>
+          <div class="glabel"><span>乗車地・降車地</span><span>GPSで自動入力</span></div>
           <div class="loc">
             <span class="loc-k">乗車</span>
             <div class="loc-body"><input id="eFromAddr" data-addr="from" placeholder="住所・施設名（例：姫路市本町、新神戸駅）" autocomplete="off" enterkeyhint="next"><div class="sug" id="eFromSug"></div><div class="loc-gps num" id="eFromGps"></div></div>
@@ -887,6 +926,8 @@ svg{display:block}
             <span class="loc-k">降車</span>
             <div class="loc-body"><input id="eToAddr" data-addr="to" placeholder="住所・施設名（例：神戸市中央区三宮町）" autocomplete="off" enterkeyhint="done"><div class="sug" id="eToSug"></div><div class="loc-gps num" id="eToGps"></div></div>
             <button class="btn sm ghost" data-regps="to">現在地</button>
+          </div>
+        </div>
           </div>
         </div>
       </section>
@@ -1775,27 +1816,23 @@ function openReport(id) {
       </table>
     </section>
     <section class="rp-sec">
-      <h3><span>営業収入の内訳</span></h3>
+      <h3><span>営業収入の内訳</span><span>回数・金額</span></h3>
       <table class="rp-tbl num">
         ${row('運賃', null, st.fare.meter)}
-        ${row('迎車料金', null, st.fare.pickup, st.fare.pickup ? '' : 'zero')}
-        ${row('アプリ手数料', null, st.fare.appFee, st.fare.appFee ? '' : 'zero')}
+        ${st.fare.pickup ? row('迎車料金', rides.filter(r => r.fare.pickup).length, st.fare.pickup) : ''}
+        ${st.fare.appFee ? row('アプリ手数料', rides.filter(r => r.fare.appFee).length, st.fare.appFee) : ''}
+        ${st.fare.long ? row('遠距離割（差し引き済み）', rides.filter(r => r.fare.long).length, st.fare.long) : ''}
+        ${st.fare.handi ? row('障害者割（差し引き済み）', rides.filter(r => r.fare.handi).length, st.fare.handi) : ''}
       </table>
     </section>
-    <section class="rp-sec">
-      <h3><span>割引（営業収入から差し引き済み）</span><span>回数・金額</span></h3>
-      <table class="rp-tbl num">
-        ${row('遠距離割', rides.filter(r => r.fare.long).length, st.fare.long, st.fare.long ? '' : 'zero')}
-        ${row('障害者割', rides.filter(r => r.fare.handi).length, st.fare.handi, st.fare.handi ? '' : 'zero')}
-      </table>
-    </section>
-    <section class="rp-sec">
+    ${st.toll ? `<section class="rp-sec">
       <h3><span>高速代（営業収入に含まない・支払い種別には含む）</span></h3>
       <table class="rp-tbl num">
-        ${row('高速代 計', st.tollN, st.toll, st.toll ? '' : 'zero')}
-        ${st.toll ? row('うち現金', rides.filter(r => r.toll && r.pay === 'cash').length, cashToll) + row('うち現金以外', rides.filter(r => r.toll && r.pay !== 'cash').length, otherToll) : ''}
+        ${row('高速代 計', st.tollN, st.toll)}
+        ${row('うち現金', rides.filter(r => r.toll && r.pay === 'cash').length, cashToll, cashToll ? '' : 'zero')}
+        ${row('うち現金以外', rides.filter(r => r.toll && r.pay !== 'cash').length, otherToll, otherToll ? '' : 'zero')}
       </table>
-    </section>
+    </section>` : ''}
     ${kinds.size ? `<section class="rp-sec">
       <h3><span>乗車種別</span><span>回数・金額</span></h3>
       <table class="rp-tbl num">${[...kinds].map(([l, x]) => row(l, x.n, x.amt)).join('')}</table>
@@ -2175,8 +2212,8 @@ function renderLog() {
     <li><button class="row" data-ride="${r.id}">
       <span class="time num">${hhmm(r.ts)}</span>
       <span class="body">
-        <div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
-        <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>
+        ${placeText(r.from) !== '—' || placeText(r.to) !== '—' ? `<div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
+        <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>` : `<div class="main">${esc(kindLabel(r.kind, r.app))}</div>`}
         <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.long ? '遠距離割−' + yen(r.fare.long) : '', r.fare.handi ? '障害者割−' + yen(r.fare.handi) : '', r.toll ? '高速代' + yen(r.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
       </span>
       <span class="amt num">${yen(r.total)}</span>
@@ -2479,7 +2516,15 @@ function renderData() {
   }).join('') : '<li class="empty">入庫したシフトがここに並びます。</li>';
 
   let bytes = 0; try { bytes = (localStorage.getItem(STORE_KEY) || '').length * 2; } catch (e) {}
-  $('#storageInfo').textContent = '使用量 ' + (bytes / 1024).toFixed(0) + ' KB';
+  $('#storageInfo').textContent = (bytes / 1024).toFixed(0) + ' KB';
+  // 折りたたみの見出しに今の設定を1行で
+  const done = S.shifts.filter(x => x.end).length;
+  setFoldSum('gShifts', done ? `${done}件（新しい順に30件）` : 'まだありません');
+  setFoldSum('gWork', [yen(S.settings.goal), closingLabel(), S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし',
+    S.settings.holidays.length ? '休 ' + S.settings.holidays.map(i => WEEKDAYS[i]).join('') : ''].filter(Boolean).join(' ・ '));
+  setFoldSum('gPay', `決済 ${PAYS().length} ・ チケット ${TICKETS().length} ・ アプリ ${S.settings.apps.length}`);
+  setFoldSum('gInput', [`乗客 ${S.settings.paxMax}人まで`, S.settings.dim ? '減光' : '', S.settings.addr ? '住所変換' : ''].filter(Boolean).join(' ・ '));
+  setFoldSum('gData', (bytes / 1024).toFixed(0) + ' KB');
 }
 
 // ホーム：出庫前は出庫画面、出庫後はコックピット
@@ -2684,6 +2729,8 @@ function renderEntry() {
   if (E.toll && !short) brk.innerHTML = (parts.length || discs.length ? brk.innerHTML + '　' : '') + `＋高速代 <b>${yen(E.toll)}</b>（売上に含まない）`;
   $('#eDiscLong').setAttribute('aria-pressed', !!E.long);
   $('#eDiscLongSub').textContent = !E.long ? '9,000円超の1割' : bd.meter + bd.long + bd.handi > LONG_FROM ? '−' + yen(bd.long) : '対象外（9,000円以下）';
+  const dsum = [E.long && (bd.long ? '遠距離割−' + yen(bd.long) : '遠距離割 対象外'), bd.handi && '障害者割−' + yen(bd.handi), E.toll && '高速代' + yen(E.toll)].filter(Boolean);
+  setFoldSum('fDisc', dsum.length ? dsum.join(' ・ ') : 'なし', dsum.length ? 'on' : '');
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
   $('#eTollSub').textContent = E.toll ? yen(E.toll) + '（タップで変更・0で解除）' : '金額を入力';
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
@@ -2731,6 +2778,7 @@ function entryTimes() {
 }
 function renderEntryTimes() {
   const { start, end } = entryTimes();
+  renderTripSum();
   $('#eTime').textContent = (start ? hhmm(start) + ' → ' : '') + hhmm(end);
   const d = $('#eDur');
   d.classList.toggle('warn', start != null && start > end);
@@ -2756,6 +2804,36 @@ function locLine(o, w) {
 }
 const addrInput = w => $(w === 'from' ? '#eFromAddr' : '#eToAddr');
 const sugId = w => w === 'from' ? '#eFromSug' : '#eToSug';
+// 折りたたみ：見出しのタップで開閉（入力シートの開閉状態は営業中ずっと覚えておく）
+function setFoldSum(id, text, cls = '') {
+  const el = $('#' + id + 'Sum');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 's num ' + cls;
+}
+function setFold(id, open) {
+  const f = $('#' + id);
+  f.querySelector('.fold-h').setAttribute('aria-expanded', open);
+  f.querySelector('.fold-b').hidden = !open;
+}
+document.addEventListener('click', e => {
+  const h = e.target.closest('.fold-h'); if (!h) return;
+  haptic();
+  setFold(h.parentElement.id, h.getAttribute('aria-expanded') !== 'true');
+});
+// 「時刻・乗降地」の見出し：07:00→07:20（20分） ・ 新神戸駅 → 三宮町
+function renderTripSum() {
+  if (!E) return;
+  const { start, end } = entryTimes();
+  const nm = w => {
+    const v = addrInput(w).value.trim();
+    if (!v) return '—';
+    const t = shortAddr(v).replace(/^[^市郡]{1,5}[市郡]/, '').replace(/^[^区]{1,4}区/, '');   // 市区を省いて短く
+    return (t || v).slice(0, 10);
+  };
+  const bad = start != null && start > end;
+  setFoldSum('fTrip', `${start ? hhmm(start) + '→' : ''}${hhmm(end)} ・ ${nm('from')} → ${nm('to')}`, bad ? 'warn' : '');
+}
 function renderEntryLoc() {
   for (const w of ['from', 'to']) {
     const o = E[w], inp = addrInput(w), gps = $(w === 'from' ? '#eFromGps' : '#eToGps');
@@ -2765,6 +2843,7 @@ function renderEntryLoc() {
     gps.classList.toggle('manual', !!(E.dirty[w] || o.manual));
     gps.classList.toggle('place', !!(E.dirty[w] ? E.pick[w] : o.place));
   }
+  renderTripSum();
 }
 // 住所欄の確定：手入力があれば手入力を優先、空にしたら自動取得に戻す
 function commitAddr(w) {
