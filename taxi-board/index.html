@@ -253,7 +253,7 @@ svg{display:block}
 .ld-date svg{color:var(--accent);flex:none}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted)}
-.log-total .v{font-size:30px;font-weight:800}
+.log-total .v{font-size:clamp(30px,9vw,38px);font-weight:800;line-height:1.1}
 .log-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
 .log-card .log-total{margin-bottom:0}
 .log-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
@@ -261,12 +261,12 @@ svg{display:block}
 .log-times{display:flex;align-items:flex-end;gap:10px}
 .log-times .tm{min-width:0}
 .log-times .k{display:block;font-size:12px;color:var(--muted);font-weight:700}
-.log-times .v{display:block;font-size:clamp(26px,8vw,34px);font-weight:800;line-height:1.1;white-space:nowrap}
+.log-times .v{display:block;font-size:clamp(20px,6vw,24px);font-weight:700;line-height:1.2;white-space:nowrap}
 .log-times .v.ongoing{font-size:clamp(17px,5vw,20px);color:var(--ok);line-height:1.6}
-.log-times .ar{color:var(--faint);font-size:20px;padding-bottom:4px}
+.log-times .ar{color:var(--faint);font-size:16px;padding-bottom:3px}
 .log-times .btn{margin-left:auto;align-self:center;flex:none}
-.log-card .log-times{margin-bottom:12px}
-.log-card .log-total{padding-top:10px;border-top:1px solid var(--line)}
+.log-card .log-times{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.log-card .log-total{align-items:center}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
 .log-acts svg{color:var(--accent);flex:none}
 .chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -286,24 +286,28 @@ svg{display:block}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface-3);color:var(--muted);margin-right:6px;vertical-align:1px}
 .tag.cash{background:rgba(255,176,32,.14);color:var(--accent)}
 .tag.pause{background:rgba(244,114,182,.16);color:var(--st-wait)}
-/* 履歴：乗車1件＝カード1枚（近接） */
+/* 履歴：乗車1件＝カード1枚。①時刻・金額（大）②経路（中）③決済・種別（小） */
 #rideList{display:grid;gap:8px}
-.rcard{width:100%;display:grid;grid-template-columns:minmax(0,1fr);row-gap:8px;align-items:start;text-align:left;padding:12px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line)}
+.rcard{width:100%;display:grid;gap:8px;text-align:left;padding:12px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line)}
 .rcard:active{background:var(--surface-2)}
 .rcard.pause{border-left:3px solid var(--st-wait)}
-.rc-trip{display:grid;gap:4px;min-width:0}
-.rc-line{display:grid;grid-template-columns:1.4em 3.1em minmax(0,1fr);align-items:baseline;gap:6px}
-.rc-line .pt{font-size:12px;font-weight:700;color:var(--faint)}
-.rc-line .tm{font-size:16px;font-weight:800}
-.rc-line .pl{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rc-amt{margin-left:auto;flex:none;padding-left:6px;font-size:19px;font-weight:800;white-space:nowrap}
+.rc-top{display:flex;align-items:baseline;gap:8px;min-width:0}
+.rc-time{font-size:17px;font-weight:800;white-space:nowrap}
+.rc-time i{font-style:normal;font-weight:400;color:var(--faint);margin:0 4px}
+.rc-dur{font-size:12px;color:var(--muted);white-space:nowrap}
+.rc-amt{margin-left:auto;flex:none;font-size:20px;font-weight:800;white-space:nowrap}
 .rc-amt.dur{color:var(--st-wait)}
-.rc-foot{grid-column:1 / -1;display:flex;align-items:center;gap:5px;min-width:0;padding-top:8px;border-top:1px solid var(--line)}
-.rc-foot .tag{margin:0;flex:none}
-.rc-meta{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rc-flag{flex:none;font-size:10px;font-weight:700;line-height:18px;padding:0 5px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
-.rc-flag+.rc-amt{margin-left:0}
-.rc-meta{flex:1 1 auto;min-width:0}
+.rc-route{position:relative;display:grid;gap:3px;min-width:0}
+.rc-pl{position:relative;padding-left:16px;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-pl::before{content:'';position:absolute;left:1px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;box-sizing:border-box}
+.rc-pl.from::before{border:2px solid var(--muted)}
+.rc-pl.to::before{background:var(--accent)}
+.rc-route:has(.to)::before{content:'';position:absolute;left:5px;top:calc(.7em + 6px);bottom:calc(.7em + 6px);border-left:1px dashed var(--faint)}
+.rc-meta{display:flex;align-items:center;gap:6px;min-width:0}
+.rc-meta .tag{margin:0;flex:none}
+.rc-kind{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rc-flag{flex:none;font-size:11px;font-weight:700;line-height:18px;padding:0 6px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+.rc-kind+.rc-flag{margin-left:auto}
 .text-in[type="time"]{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;padding:0 10px}
 .ps-dur{text-align:center;color:var(--muted);font-size:14px;margin-top:14px}
 .ps-dur b{color:var(--st-wait);font-size:22px;margin-left:6px}
@@ -760,13 +764,13 @@ svg{display:block}
           <button class="cal-nav" id="logNext" aria-label="次の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
         <div class="log-card">
+          <div class="log-total"><span class="k">営業収入</span><span class="v num" id="logTotal">¥0</span></div>
           <div class="log-times" id="logTimes">
             <div class="tm"><span class="k">出庫</span><span class="v num" id="logOut">--:--</span></div>
             <span class="ar">→</span>
             <div class="tm"><span class="k">入庫</span><span class="v num" id="logIn">--:--</span></div>
             <button class="btn sm" id="logShiftEdit">修正</button>
           </div>
-          <div class="log-total"><span class="k">営業収入</span><span class="v num" id="logTotal">¥0</span></div>
           <div class="log-acts">
             <button class="btn sm wide" id="logReport">日報</button>
             <button class="btn sm" id="logAddRide">＋ 乗車</button>
@@ -2252,16 +2256,19 @@ function renderLog() {
   const showPause = !!S.settings.histPause;
   const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => b.t - a.t);
   if (!items.length) { list.innerHTML = '<li class="empty">まだ乗車記録はありません。<br>待機・休憩は「待機・休憩を表示」で確認できます。</li>'; return; }
-  // 1件ずつカードにまとめる：乗車時刻・乗車地／降車時刻・降車地、下に決済と金額
-  const tline = (k, t, place) => `<div class="rc-line"><span class="pt">${k}</span><span class="tm num">${t}</span><span class="pl">${esc(place)}</span></div>`;
+  // 1件＝1カード。情報の順位：①時刻と金額 ②乗車地→降車地 ③決済・種別
+  const top = (t1, t2, mins, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span>${mins != null ? `<span class="rc-dur num">${mins}分</span>` : ''}<span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
+  const route = (a, b) => `<div class="rc-route"><div class="rc-pl from">${esc(a)}</div>${b != null ? `<div class="rc-pl to">${esc(b)}</div>` : ''}</div>`;
   list.innerHTML = items.map(({ r, p }) => p ? `
     <li><button class="rcard pause" data-pause="${p.ev.id}">
-      <div class="rc-trip">${tline('始', hhmm(p.start), placeText(p.ev.lat != null ? p.ev : null))}${tline('終', p.end ? hhmm(p.end) : '継続中', '')}</div>
-      <div class="rc-foot"><span class="tag pause">待機・休憩</span><span class="rc-amt num dur">${dur(p.ms)}</span></div>
+      ${top(hhmm(p.start), p.end ? hhmm(p.end) : '継続中', null, dur(p.ms), 'dur')}
+      ${p.ev.lat != null ? route(placeText(p.ev), null) : ''}
+      <div class="rc-meta"><span class="tag pause">待機・休憩</span></div>
     </button></li>` : `
     <li><button class="rcard" data-ride="${r.id}">
-      <div class="rc-trip">${tline('乗', r.start ? hhmm(r.start) : '--:--', placeText(r.from))}${tline('降', hhmm(r.ts), placeText(r.to))}</div>
-      <div class="rc-foot num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span><span class="rc-meta">${[esc(kindLabel(r.kind, r.app)), r.start ? Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</span>${[r.fare.long || r.fare.handi ? '割引' : '', r.toll ? '高速' : ''].filter(Boolean).map(x => `<span class="rc-flag">${x}</span>`).join('')}<span class="rc-amt num">${yen(r.total)}</span></div>
+      ${top(r.start ? hhmm(r.start) : '--:--', hhmm(r.ts), r.start ? Math.round((r.ts - r.start) / 60000) : null, yen(r.total))}
+      ${route(placeText(r.from), placeText(r.to))}
+      <div class="rc-meta"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span><span class="rc-kind">${esc(kindLabel(r.kind, r.app))}</span>${[r.fare.long || r.fare.handi ? '割引' : '', r.toll ? '高速代' : ''].filter(Boolean).map(x => `<span class="rc-flag">${x}</span>`).join('')}</div>
     </button></li>`).join('');
 }
 
