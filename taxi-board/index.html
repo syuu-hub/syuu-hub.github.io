@@ -2000,19 +2000,22 @@ function remainingWorkdays(y, m) {
   }
   return n;
 }
-// 労働時間のカード：合計・上限・残り・待機休憩をひとまとめに
+// 時間を「150時間27分」の形で（「150:27」より読み取りやすく）
+const hm = ms => { const m = Math.max(0, Math.round(ms / 60000)), h = Math.floor(m / 60), r = m % 60; return h ? `${h}時間${r ? r + '分' : ''}` : `${r}分`; };
+// 労働時間のカード：いま何時間か・上限の何%か・あと何時間か・1日あたり何時間か
 function capHtml(y, m, used, wait) {
   const cap = capMs();
-  const waitRow = `<span class="wait">待機・休憩 <b>${dur(wait)}</b></span>`;
-  if (!cap) return `<div class="cal-cap num"><div class="top"><span>労働時間</span><span class="v">${dur(used)}</span></div><div class="cr">${waitRow}</div></div>`;
+  const waitRow = `<div class="cr"><span class="wait">うち待機・休憩 <b>${hm(wait)}</b></span></div>`;
+  if (!cap) return `<div class="cal-cap num"><div class="top"><span>労働時間</span><span class="v">${hm(used)}</span></div>${waitRow}</div>`;
   const left = cap - used, r = used / cap;
   const [, to] = periodRange(y, m);
   const days = Date.now() < +to + 86400000 ? remainingWorkdays(y, m) : 0;
   return `<div class="cal-cap num ${r >= 1 ? 'over' : r >= 0.9 ? 'warn' : ''}">
-    <div class="top"><span>労働時間</span><span class="v used">${dur(used)}<small>/ ${S.settings.hoursCap}時間</small></span></div>
+    <div class="top"><span>労働時間</span><span class="v used">${hm(used)}<small>/ ${S.settings.hoursCap}時間</small></span></div>
     <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div>
-    <div class="cr"><span>${left >= 0 ? `残り <b>${dur(left)}</b>` : `<b class="used">${dur(-left)} 超過</b>`}</span><span>${days && left > 0 ? `出勤あと<b>${days}</b>日・1日<b>${dur(left / days)}</b>` : ''}</span></div>
-    <div class="cr">${waitRow}</div>
+    <div class="cr"><span>上限の <b class="used">${Math.round(r * 100)}%</b></span><span>${left >= 0 ? `あと <b>${hm(left)}</b>` : `<b class="used">${hm(-left)} 超過</b>`}</span></div>
+    ${days && left > 0 ? `<div class="cr"><span>出勤あと <b>${days}日</b></span><span>1日あたり <b>${hm(left / days)}</b>まで</span></div>` : ''}
+    ${waitRow}
   </div>`;
 }
 function renderCal() {
