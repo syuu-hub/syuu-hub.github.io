@@ -1333,48 +1333,71 @@ const PHOTON = 'https://photon.komoot.io/api/';
 const HYOGO_BBOX = '134.2,34.1,135.5,35.7';
 const placeCache = new Map();   // 検索語 → 候補（null は検索中）
 let placeTimer = null, placeRetryAt = 0;
+const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+const SKIP_KEYS = ['place', 'boundary', 'highway', 'landuse', 'natural', 'waterway', 'route'];
+// 検索結果1件を候補に。地名・道路などは住所補完に任せる
+function toPlace(key, val, rawName, lat, lng, info, list) {
+  if (!rawName || lat == null || isNaN(lat)) return;
+  const kind = osmKind(key, val) || (SKIP_KEYS.includes(key) ? '' : '施設');
+  if (!kind || SKIP_KEYS.includes(key) && kind !== 'バス停') return;
+  const name = kind === '駅' && !/駅$/.test(rawName) ? rawName + '駅' : rawName;
+  if (list.some(x => x.name === name && haversine(x, { lat, lng }) < 300)) return;
+  list.push({ name, kind, info, lat, lng });
+}
+async function getJson(url) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const res = await fetch(url, { signal: ctl.signal });
+    if (!res.ok) throw new Error(res.status);
+    return await res.json();
+  } finally { clearTimeout(timer); }
+}
+// OpenStreetMapの施設検索（Photon と Nominatim に同時に問い合わせて合わせる）
 function placeSearch(q, done) {
-  if (q.length < 2 || placeCache.has(q) || navigator.onLine === false || Date.now() < placeRetryAt) return;
+  if (q.replace(/\s/g, '').length < 2 || placeCache.has(q) || navigator.onLine === false || Date.now() < placeRetryAt) return;
   clearTimeout(placeTimer);
   placeTimer = setTimeout(async () => {
     placeCache.set(q, null);
-    try {
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 8000);
-      const bias = geo.pos ? `&lat=${geo.pos.lat}&lon=${geo.pos.lng}` : '&lat=34.69&lon=135.19';
-      const res = await fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=12&lang=default&bbox=${HYOGO_BBOX}${bias}`, { signal: ctl.signal });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(res.status);
-      const feats = ((await res.json()) || {}).features || [];
-      const list = [];
-      for (const f of feats) {
-        const pr = f.properties || {}, c = f.geometry && f.geometry.coordinates;
-        if (!pr.name || !c) continue;
-        const kind = osmKind(pr.osm_key, pr.osm_value);
-        if (!kind || ['place', 'boundary', 'highway'].includes(pr.osm_key) && kind !== 'バス停') continue;   // 地名・道路は住所補完に任せる
-        const name = kind === '駅' && !/駅$/.test(pr.name) ? pr.name + '駅' : pr.name;
-        const info = [pr.state !== '兵庫県' && pr.state, pr.city, pr.district, pr.locality].filter(Boolean).join('');   // 県外は県名から
-        if (list.some(x => x.name === name && haversine(x, { lat: c[1], lng: c[0] }) < 300)) continue;
-        list.push({ name, kind, info, lat: c[1], lng: c[0] });
-      }
-      placeCache.set(q, list);
-    } catch (e) {
+    const bias = geo.pos || { lat: 34.69, lng: 135.19 };
+    const [ph, no] = await Promise.allSettled([
+      getJson(`${PHOTON}?q=${encodeURIComponent(q)}&limit=12&lang=default&bbox=${HYOGO_BBOX}&lat=${bias.lat}&lon=${bias.lng}`),
+      getJson(`${NOMINATIM}?format=jsonv2&q=${encodeURIComponent(q)}&countrycodes=jp&accept-language=ja&addressdetails=1&limit=10&viewbox=${HYOGO_BBOX}`),
+    ]);
+    if (ph.status === 'rejected' && no.status === 'rejected') {
       placeCache.delete(q);
       placeRetryAt = Date.now() + 30000;
+      return done();
     }
+    const list = [];
+    if (no.status === 'fulfilled' && Array.isArray(no.value)) for (const x of no.value) {
+      const a = x.address || {};
+      const info = [a.province !== '兵庫県' && a.state !== '兵庫県' && (a.province || a.state), a.city || a.town || a.village, a.city_district || a.suburb, a.quarter || a.neighbourhood].filter(Boolean).join('');
+      toPlace(x.category, x.type, x.name || (x.display_name || '').split(',')[0].trim(), +x.lat, +x.lon, info, list);
+    }
+    if (ph.status === 'fulfilled') for (const f of (ph.value || {}).features || []) {
+      const pr = f.properties || {}, c = f.geometry && f.geometry.coordinates;
+      if (!c) continue;
+      const info = [pr.state !== '兵庫県' && pr.state, pr.city, pr.district, pr.locality].filter(Boolean).join('');   // 県外は県名から
+      toPlace(pr.osm_key, pr.osm_value, pr.name, c[1], c[0], info, list);
+    }
+    // 兵庫県内を先に
+    list.sort((a, b) => (!a.info || !/[都道府県]/.test(a.info) ? 0 : 1) - (!b.info || !/[都道府県]/.test(b.info) ? 0 : 1));
+    placeCache.set(q, list);
     done();
-  }, 400);
+  }, 600);
 }
 // 施設の候補（駅＋オンライン検索）。住所補完の候補と合わせて出す
-function placeSuggest(q, w) {
-  q = q.trim().replace(/\s+/g, '');
+function placeSuggest(raw, w) {
+  const sq = raw.trim().replace(/\s+/g, ' ');   // オンライン検索は空白（「京町 オリエンタル」など）を残す
+  const q = sq.replace(/ /g, '');
   if (!q || hyogoCity(q.replace(/^兵庫県/, ''))) return { list: [], loading: false };
   const list = stationSuggest(q);
-  const online = placeCache.get(q);
+  const online = placeCache.get(sq);
   if (online) for (const pl of online) {
     if (list.length >= 10) break;
     if (!list.some(x => x.place.name === pl.name && haversine(x.place, pl) < 800)) list.push(placeOpt(pl));
-  } else placeSearch(q, () => { if (E && addrInput(w).value.trim().replace(/\s+/g, '') === q) renderSug(w); });
+  } else placeSearch(sq, () => { if (E && addrInput(w).value.trim().replace(/\s+/g, ' ') === sq) renderSug(w); });
   return { list, loading: online === null || (online === undefined && q.length >= 2 && navigator.onLine !== false && Date.now() >= placeRetryAt) };
 }
 
