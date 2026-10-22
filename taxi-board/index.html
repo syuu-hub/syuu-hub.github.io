@@ -286,6 +286,24 @@ svg{display:block}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--surface-3);color:var(--muted);margin-right:6px;vertical-align:1px}
 .tag.cash{background:rgba(255,176,32,.14);color:var(--accent)}
 .tag.pause{background:rgba(244,114,182,.16);color:var(--st-wait)}
+/* 履歴：乗車1件＝カード1枚（近接） */
+#rideList{display:grid;gap:8px}
+.rcard{width:100%;display:grid;grid-template-columns:minmax(0,1fr);row-gap:8px;align-items:start;text-align:left;padding:12px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line)}
+.rcard:active{background:var(--surface-2)}
+.rcard.pause{border-left:3px solid var(--st-wait)}
+.rc-trip{display:grid;gap:4px;min-width:0}
+.rc-line{display:grid;grid-template-columns:1.4em 3.1em minmax(0,1fr);align-items:baseline;gap:6px}
+.rc-line .pt{font-size:12px;font-weight:700;color:var(--faint)}
+.rc-line .tm{font-size:16px;font-weight:800}
+.rc-line .pl{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-amt{margin-left:auto;flex:none;padding-left:6px;font-size:19px;font-weight:800;white-space:nowrap}
+.rc-amt.dur{color:var(--st-wait)}
+.rc-foot{grid-column:1 / -1;display:flex;align-items:center;gap:5px;min-width:0;padding-top:8px;border-top:1px solid var(--line)}
+.rc-foot .tag{margin:0;flex:none}
+.rc-meta{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-flag{flex:none;font-size:10px;font-weight:700;line-height:18px;padding:0 5px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+.rc-flag+.rc-amt{margin-left:0}
+.rc-meta{flex:1 1 auto;min-width:0}
 .text-in[type="time"]{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;padding:0 10px}
 .ps-dur{text-align:center;color:var(--muted);font-size:14px;margin-top:14px}
 .ps-dur b{color:var(--st-wait);font-size:22px;margin-left:6px}
@@ -2234,23 +2252,16 @@ function renderLog() {
   const showPause = !!S.settings.histPause;
   const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => b.t - a.t);
   if (!items.length) { list.innerHTML = '<li class="empty">まだ乗車記録はありません。<br>待機・休憩は「待機・休憩を表示」で確認できます。</li>'; return; }
+  // 1件ずつカードにまとめる：乗車時刻・乗車地／降車時刻・降車地、下に決済と金額
+  const tline = (k, t, place) => `<div class="rc-line"><span class="pt">${k}</span><span class="tm num">${t}</span><span class="pl">${esc(place)}</span></div>`;
   list.innerHTML = items.map(({ r, p }) => p ? `
-    <li><button class="row" data-pause="${p.ev.id}">
-      <span class="time num">${hhmm(p.start)}</span>
-      <span class="body">
-        <div class="main"><span class="tag pause">待機・休憩</span><span class="num">${hhmm(p.start)}–${p.end ? hhmm(p.end) : '継続中'}</span></div>
-        <div class="sub">${esc(placeText(p.ev.lat != null ? p.ev : null))}</div>
-      </span>
-      <span class="amt num dur">${dur(p.ms)}</span>
+    <li><button class="rcard pause" data-pause="${p.ev.id}">
+      <div class="rc-trip">${tline('始', hhmm(p.start), placeText(p.ev.lat != null ? p.ev : null))}${tline('終', p.end ? hhmm(p.end) : '継続中', '')}</div>
+      <div class="rc-foot"><span class="tag pause">待機・休憩</span><span class="rc-amt num dur">${dur(p.ms)}</span></div>
     </button></li>` : `
-    <li><button class="row" data-ride="${r.id}">
-      <span class="time num">${hhmm(r.ts)}</span>
-      <span class="body">
-        ${placeText(r.from) !== '—' || placeText(r.to) !== '—' ? `<div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
-        <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>` : `<div class="main">${esc(kindLabel(r.kind, r.app))}</div>`}
-        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${[esc(kindLabel(r.kind, r.app)), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.long ? '遠距離割−' + yen(r.fare.long) : '', r.fare.handi ? '障害者割−' + yen(r.fare.handi) : '', r.toll ? '高速代' + yen(r.toll) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
-      </span>
-      <span class="amt num">${yen(r.total)}</span>
+    <li><button class="rcard" data-ride="${r.id}">
+      <div class="rc-trip">${tline('乗', r.start ? hhmm(r.start) : '--:--', placeText(r.from))}${tline('降', hhmm(r.ts), placeText(r.to))}</div>
+      <div class="rc-foot num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span><span class="rc-meta">${[esc(kindLabel(r.kind, r.app)), r.start ? Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</span>${[r.fare.long || r.fare.handi ? '割引' : '', r.toll ? '高速' : ''].filter(Boolean).map(x => `<span class="rc-flag">${x}</span>`).join('')}<span class="rc-amt num">${yen(r.total)}</span></div>
     </button></li>`).join('');
 }
 
