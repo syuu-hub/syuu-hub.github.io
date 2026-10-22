@@ -252,6 +252,7 @@ svg{display:block}
 .log-total .k{font-size:13px;color:var(--muted)}
 .log-total .v{font-size:30px;font-weight:800}
 .log-rp{width:100%}
+.log-shift-edit{width:100%;margin-bottom:14px}
 .chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
 .chips-row b{color:var(--text);font-weight:600;margin-left:4px}
 
@@ -666,6 +667,7 @@ svg{display:block}
           <div class="ld-body"><div class="ld-date num" id="logDate"></div><div class="ld-sub num" id="logSub"></div></div>
           <button class="cal-nav" id="logNext" aria-label="次の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
+        <button class="btn sm log-shift-edit" id="logShiftEdit">出庫・入庫の時刻を修正</button>
         <div class="log-total"><span class="k">営業収入 合計</span><span class="v num" id="logTotal">¥0</span></div>
         <div class="split">
           <div><div class="k">現金</div><div class="v num" id="sumCash">¥0</div></div>
@@ -889,6 +891,27 @@ svg{display:block}
     <footer class="e-foot">
       <button class="btn danger" id="psDelete">削除</button>
       <button class="btn primary" id="psSave">保存</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ===== 出庫・入庫時刻の修正 ===== -->
+<div class="sheet center" id="shiftSheet" hidden role="dialog" aria-modal="true" aria-labelledby="ssTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="ssTitle">出庫・入庫の修正</h2>
+    </header>
+    <div class="fields">
+      <label class="group" style="margin:0"><div class="glabel">出庫</div><input class="text-in num" type="time" id="ssStart"></label>
+      <label class="group" style="margin:0"><div class="glabel">入庫</div><input class="text-in num" type="time" id="ssEnd"><div class="text-in num" id="ssOngoing" style="display:flex;align-items:center;color:var(--muted)" hidden>営業中</div></label>
+    </div>
+    <div class="ps-dur num" id="ssDur"></div>
+    <div class="glabel" style="margin-top:6px;justify-content:center;text-align:center" id="ssRange"></div>
+    <footer class="e-foot">
+      <button class="btn primary" id="ssSave">保存</button>
     </footer>
   </div>
 </div>
@@ -1628,6 +1651,63 @@ function openRide(id) {
   openSheet($('#rideSheet'));
 }
 
+// 出庫・入庫時刻の修正。記録（乗車・ステータス）を外に出さない範囲、前後のシフトと重ならない範囲で
+const SS = { id: null };
+function shiftCtx(id) {
+  const sh = S.shifts.find(s => s.id === id);
+  if (!sh) return null;
+  const evs = S.events.filter(e => e.shiftId === id).sort((a, b) => a.ts - b.ts);
+  const departEv = evs.find(e => e.prev === 'off') || null;
+  const endEv = sh.end ? evs.filter(e => e.status === 'off').at(-1) || null : null;
+  const inner = [...evs.filter(e => e !== departEv && e !== endEv).map(e => e.ts),
+    ...S.rides.filter(r => r.shiftId === id).flatMap(r => [r.start || r.ts, r.ts])];
+  const sorted = S.shifts.slice().sort((a, b) => a.start - b.start), i = sorted.indexOf(sh);
+  const prev = sorted[i - 1], next = sorted[i + 1];
+  return {
+    sh, departEv, endEv, hasInner: inner.length > 0,
+    maxStart: inner.length ? Math.min(...inner) : sh.end || Date.now(),
+    minEnd: inner.length ? Math.max(...inner) : sh.start,
+    minStart: prev ? prev.end || prev.start : -Infinity,
+    maxEnd: next ? next.start : Date.now(),
+  };
+}
+function ssValues() {
+  const c = shiftCtx(SS.id);
+  const pick = (v, orig) => !v || v === toHM(orig) ? orig : fromHM(v, orig);
+  return { c, start: pick($('#ssStart').value, c.sh.start), end: c.sh.end ? pick($('#ssEnd').value, c.sh.end) : null };
+}
+function renderShiftSheet() {
+  const { c, start, end } = ssValues();
+  $('#ssDur').innerHTML = `営業時間<b>${dur(Math.max(0, (end ?? Date.now()) - start))}</b>`;
+  $('#ssRange').textContent = c.hasInner ? `出庫は ${toHM(c.maxStart)} 以前${c.sh.end ? `、入庫は ${toHM(c.minEnd)} 以降` : ''}（記録がある時間）` : '';
+}
+function openShiftEdit(id) {
+  const c = shiftCtx(id);
+  if (!c) return;
+  SS.id = id;
+  $('#ssStart').value = toHM(c.sh.start);
+  $('#ssEnd').hidden = !c.sh.end;
+  $('#ssOngoing').hidden = !!c.sh.end;
+  if (c.sh.end) $('#ssEnd').value = toHM(c.sh.end);
+  renderShiftSheet();
+  openSheet($('#shiftSheet'));
+}
+function saveShiftEdit() {
+  const { c, start, end } = ssValues();
+  if (start > Date.now()) return toast('出庫が現在より後になっています');
+  if (start > c.maxStart) return toast(c.hasInner ? `出庫は ${toHM(c.maxStart)} 以前にしてください（それ以降に記録があります）` : '出庫が入庫より後になっています');
+  if (end != null && end < c.minEnd) return toast(`入庫は ${toHM(c.minEnd)} 以降にしてください（それ以前に記録があります）`);
+  if (end != null && start >= end) return toast('出庫が入庫より後になっています');
+  if (start < c.minStart) return toast(`出庫が前のシフトの入庫（${toHM(c.minStart)}）より前になっています`);
+  if (end != null && end > c.maxEnd) return toast(c.maxEnd >= Date.now() - 60000 ? '入庫が現在より後になっています' : `入庫が次のシフトの出庫（${toHM(c.maxEnd)}）より後になっています`);
+  if (c.departEv && c.sh.statusSince === c.departEv.ts) c.sh.statusSince = start;   // 出庫後ステータスを変えていない
+  c.sh.start = start;
+  if (c.departEv) c.departEv.ts = start;
+  if (end != null) { c.sh.end = end; if (c.endEv) c.endEv.ts = end; }
+  save(); haptic(25); closeSheet($('#shiftSheet')); renderAll();
+  toast('出庫・入庫の時刻を修正しました');
+}
+
 function openReport(id) {
   const sh = S.shifts.find(s => s.id === id);
   if (!sh) return;
@@ -1992,6 +2072,7 @@ function renderLog() {
   $('#sumCash').textContent = yen(cash);
   $('#sumCashless').textContent = yen((st ? st.sales : 0) - cash);
   $('#logReport').hidden = !st;
+  $('#logShiftEdit').hidden = !sh;
 
   const ps = $('#pauseSum');
   ps.hidden = !st || !st.pauses.length;
@@ -2984,6 +3065,10 @@ $('#rideList').addEventListener('click', e => {
 ['#eStart', '#eEnd'].forEach(sel => $(sel).addEventListener('input', () => { if (E) renderEntryTimes(); }));
 $('#psSave').addEventListener('click', savePause);
 $('#psDelete').addEventListener('click', deletePause);
+$('#logShiftEdit').addEventListener('click', () => { const sh = logShift(); if (sh) { haptic(); openShiftEdit(sh.id); } });
+['#ssStart', '#ssEnd'].forEach(sel => $(sel).addEventListener('input', renderShiftSheet));
+$('#ssSave').addEventListener('click', saveShiftEdit);
+$('#shiftSheet [data-close]').addEventListener('click', () => closeSheet($('#shiftSheet')));
 $('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pauseSheet')));
 
 $('#demToggle').addEventListener('click', e => {
@@ -3113,10 +3198,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#rideSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
