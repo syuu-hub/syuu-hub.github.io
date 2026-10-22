@@ -399,6 +399,8 @@ svg{display:block}
 .opts.kind .opt.app-opt[aria-pressed="true"] small{color:var(--accent-ink)}
 .no-pick{width:100%;margin-top:8px;min-height:52px;flex-direction:row;gap:10px;justify-content:center}
 .no-pick small{margin:0}
+.opts.tk{grid-template-columns:repeat(3,minmax(0,1fr))}
+.opts.tk .opt{min-height:52px;font-size:15px}
 .disc{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .disc .opt small{font-variant-numeric:tabular-nums}
 .breakdown .disc-amt{color:var(--accent)}
@@ -753,6 +755,11 @@ svg{display:block}
         <button class="btn sm" style="width:100%;margin-top:10px" id="payAddBtn">＋ 決済方法を追加</button>
       </div>
       <div class="pane-sec">
+        <div class="sec-h"><h3>タクシーチケット</h3><span class="aside">決済方法「チケット」で選ぶ種類</span></div>
+        <ul class="list" id="ticketList"></ul>
+        <button class="btn sm" style="width:100%;margin-top:10px" id="ticketAddBtn">＋ チケットを追加</button>
+      </div>
+      <div class="pane-sec">
         <div class="sec-h"><h3>配車アプリ</h3><span class="aside">総額から迎車料金・手数料を差し引いて記録</span></div>
         <div class="setting">
           <div><div class="k">迎車料金（会社共通）</div><div class="d">アプリ配車の総額から差し引く。会社の料金に合わせて変更</div></div>
@@ -824,6 +831,10 @@ svg{display:block}
         <div class="group">
           <div class="glabel">決済方法</div>
           <div class="opts pay" id="ePay"></div>
+          <div class="tickets" id="eTicketWrap" hidden>
+            <div class="glabel" style="margin-top:10px"><span>チケットの種類</span><span>設定で追加・編集</span></div>
+            <div class="opts tk" id="eTicket"></div>
+          </div>
         </div>
         <div class="group">
           <div class="glabel"><span>乗客</span><span id="ePaxHint"></span></div>
@@ -1033,6 +1044,11 @@ const DEFAULT_PAYS = [
   { k: 'ticket', label: 'チケット' },
 ];
 const FIXED_PAYS = ['cash', 'app'];
+// タクシーチケットの種類（決済方法「チケット」で選ぶ）。設定で追加・名前変更・削除できる
+const DEFAULT_TICKETS = ['JCB', '三井住友カード', 'UC', 'DC', '自社チケット', '福祉タクシー券'].map((name, i) => ({ id: 't' + i, name }));
+const TICKETS = () => S.settings.tickets;
+// 決済方法の表示（チケットは種類まで）
+const rideLabel = (pay, app, ticket) => payLabel(pay, app) + (pay === 'ticket' && ticket ? '（' + ticket.name + '）' : '');
 const allPays = () => S.settings.pays;                       // 削除済み（hidden）も含む：過去の記録の表示用
 const PAYS = () => S.settings.pays.filter(p => !p.hidden);    // 選択肢として出すもの
 const payDef = k => S.settings.pays.find(p => p.k === k);
@@ -1103,7 +1119,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', demHour: 'all', demDow: 'all' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, paxMax: 5, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, histPause: false, tab: 'home', demHour: 'all', demDow: 'all' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,pax,from,to}
     events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
@@ -1510,9 +1526,11 @@ function reportPays(rides) {
   };
   for (const p of PAYS()) if (p.k !== 'app') add(p.k, p.label);
   for (const r of rides.slice().sort((a, b) => a.ts - b.ts)) {
-    const key = r.pay === 'app' && r.app ? 'app:' + r.app.id : r.pay;
-    add(key, payLabel(r.pay, r.app), r);
+    const key = r.pay === 'app' && r.app ? 'app:' + r.app.id : r.pay === 'ticket' && r.ticket ? 'ticket:' + r.ticket.name : r.pay;
+    add(key, rideLabel(r.pay, r.app, r.ticket), r);
   }
+  // チケットを種類別に出した時は、種類なしの「チケット 0回」は省く
+  if (g.has('ticket') && !g.get('ticket').n && [...g.keys()].some(k => k.startsWith('ticket:'))) g.delete('ticket');
   return [...g.entries()].map(([k, v]) => ({ k, ...v }));
 }
 // 乗車の詳細（履歴から開く）。編集は「編集する」ボタンから
@@ -1535,7 +1553,7 @@ function openRide(id) {
   $('#rdBody').innerHTML = `
     <div class="rd-amt">
       <div class="v num">${yen(r.total)}</div>
-      <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span>${esc(kindLabel(r.kind, r.app))}${paxHtml(r.pax) ? ' ・ ' + paxHtml(r.pax) : ''}</div>
+      <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${esc(kindLabel(r.kind, r.app))}${paxHtml(r.pax) ? ' ・ ' + paxHtml(r.pax) : ''}</div>
     </div>
     <section class="rp-sec">
       <h3><span>時刻</span></h3>
@@ -1958,7 +1976,7 @@ function renderLog() {
       <span class="body">
         <div class="main"><span class="pt">乗</span>${esc(placeText(r.from))}</div>
         <div class="main"><span class="pt">降</span>${esc(placeText(r.to))}</div>
-        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.long ? '遠距離割−' + yen(r.fare.long) : '', r.fare.handi ? '障害者割−' + yen(r.fare.handi) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
+        <div class="sub num"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${[esc(kindLabel(r.kind, r.app)), paxHtml(r.pax), r.fare.pickup ? '迎車' + yen(r.fare.pickup) : r.noPickup ? '迎車なし' : '', r.fare.appFee ? '手数料' + yen(r.fare.appFee) : '', r.fare.long ? '遠距離割−' + yen(r.fare.long) : '', r.fare.handi ? '障害者割−' + yen(r.fare.handi) : '', r.start ? hhmm(r.start) + '乗車 ' + Math.round((r.ts - r.start) / 60000) + '分' : ''].filter(Boolean).join(' ・ ')}</div>
       </span>
       <span class="amt num">${yen(r.total)}</span>
     </button></li>`).join('');
@@ -1984,25 +2002,39 @@ function demandPass(t) {
   return wf === 'all' || w === +wf;
 }
 // 乗車地を場所ごとにまとめる（多い順）。既存の場所の中心から SAME_PLACE_M 以内なら同じ場所に入れる
+// ピンの位置：施設の位置が分かっていればそこ、なければ乗車地の平均
+const pinCenter = c => c.fn ? { lat: c.flat / c.fn, lng: c.flng / c.fn } : { lat: c.lat / c.n, lng: c.lng / c.n };
+// 乗車地の位置：施設を選んだ乗車は施設の位置、それ以外はGPS
+const ridePos = f => f.place && f.place.lat != null ? f.place : f.lat != null ? f : null;
+// 同じ場所としてまとめる鍵：施設名、または手入力した住所（GPSの位置がずれていても1本のピンに）
+const placeKey = f => f.place ? 'p:' + normName(f.place.name) : f.manual && f.addr ? 'a:' + normName(f.addr) : null;
 function demandPlaces() {
-  const list = [];
-  const rides = S.rides.filter(r => r.from && r.from.lat != null && demandPass(r.start || r.ts)).sort((a, b) => (a.start || a.ts) - (b.start || b.ts));
+  const list = [], byKey = new Map();
+  const rides = S.rides.filter(r => r.from && ridePos(r.from) && demandPass(r.start || r.ts))
+    .sort((a, b) => !!placeKey(b.from) - !!placeKey(a.from) || (a.start || a.ts) - (b.start || b.ts));   // 施設・手入力を先にまとめる
   for (const r of rides) {
-    const f = r.from, t = r.start || r.ts;
-    let c = null, best = SAME_PLACE_M;
-    for (const p of list) { const d = haversine({ lat: p.lat / p.n, lng: p.lng / p.n }, f); if (d <= best) { best = d; c = p; } }
-    if (!c) list.push(c = { key: r.id, n: 0, lat: 0, lng: 0, sales: 0, hours: new Array(24).fill(0), dows: new Array(7).fill(0), names: {} });
-    c.n++; c.lat += f.lat; c.lng += f.lng; c.sales += r.total;
+    const f = r.from, t = r.start || r.ts, pos = ridePos(f), k = placeKey(f);
+    let c = k ? byKey.get(k) : null;
+    if (!c && !k) {
+      let best = SAME_PLACE_M;
+      for (const p of list) { const d = haversine(pinCenter(p), pos); if (d <= best) { best = d; c = p; } }
+    }
+    if (!c) {
+      list.push(c = { key: r.id, n: 0, lat: 0, lng: 0, flat: 0, flng: 0, fn: 0, sales: 0, hours: new Array(24).fill(0), dows: new Array(7).fill(0), names: {}, exact: !!(f.place) });
+      if (k) byKey.set(k, c);
+    }
+    c.n++; c.lat += pos.lat; c.lng += pos.lng; c.sales += r.total;
+    if (f.place && f.place.lat != null) { c.flat += f.place.lat; c.flng += f.place.lng; c.fn++; }
     const d = new Date(t); c.hours[d.getHours()]++; c.dows[d.getDay()]++;
     const nm = (f.place && f.place.name) || shortAddr(f.addr);
     if (nm) c.names[nm] = (c.names[nm] || 0) + 1;
   }
   return list.map(c => ({
-    ...c, lat: c.lat / c.n, lng: c.lng / c.n,
+    ...c, ...pinCenter(c),
     name: Object.entries(c.names).sort((a, b) => b[1] - a[1])[0]?.[0] || '',   // 最も多い住所
   })).sort((a, b) => b.n - a.n);
 }
-const placeName = c => c.name ? c.name + ' 付近' : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4);
+const placeName = c => c.name ? c.name + (c.exact ? '' : ' 付近') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4);
 
 function drawPins(places) {
   const cv = $('#pinmap');
@@ -2206,6 +2238,10 @@ function renderData() {
   $('#closingBtn').textContent = closingLabel();
   $('#closingDesc').textContent = '月間カレンダー・日報の集計期間（' + (S.settings.closingDay ? `前月${S.settings.closingDay + 1}日〜当月${S.settings.closingDay}日` : '1日〜末日') + '）';
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
+  $('#ticketList').innerHTML = TICKETS().length ? TICKETS().map(t => `<li><button class="row" data-ticket-edit="${esc(t.id)}">
+      <span class="body"><div class="main">${esc(t.name)}</div></span>
+      <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
+    </button></li>`).join('') : '<li class="empty">チケットが登録されていません。</li>';
   $('#payList').innerHTML = PAYS().map(p => `<li><button class="row" data-pay-edit="${esc(p.k)}">
       <span class="body"><div class="main">${esc(p.label)}</div>${p.sub ? `<div class="sub">${esc(p.sub)}</div>` : ''}</span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
@@ -2345,7 +2381,7 @@ function openEntry(rideId) {
       editId: r.id, start: r.start, ts: r.ts,
       amount: r.total ? String(r.total + (r.fare.long || 0) + (r.fare.handi || 0)) : '', app: r.app || null, noPickup: !!r.noPickup,
       long: !!r.fare.long, handi: !!r.fare.handi,
-      pay: r.pay, kind: r.kind || 'street', pax: { m: 0, f: 0, ...r.pax },
+      pay: r.pay, kind: r.kind || 'street', pax: { m: 0, f: 0, ...r.pax }, ticket: r.ticket || null,
       from: { ...(r.from || {}) }, to: { ...(r.to || {}) }, dirty: {},
     };
   } else {
@@ -2439,6 +2475,13 @@ function renderEntry() {
        ...PAYS().filter(p => p.k !== 'cash' && p.k !== own && p.k !== 'app')]   // 汎用の「アプリ決済」は他アプリのものなので出さない
     : PAYS();
   if (!pays.some(p => p.k === E.pay)) pays.push({ k: E.pay, label: payLabel(E.pay, E.app) });   // 削除済みの決済で記録した乗車
+  $('#eTicketWrap').hidden = E.pay !== 'ticket';
+  if (E.pay === 'ticket') {
+    const tks = TICKETS().slice();
+    if (E.ticket && !tks.some(t => t.id === E.ticket.id)) tks.push(E.ticket);   // 削除済みの種類で記録した乗車
+    $('#eTicket').innerHTML = tks.map(t => `<button class="opt" data-ticket="${esc(t.id)}" aria-pressed="${!!E.ticket && E.ticket.id === t.id}">${esc(t.name)}</button>`).join('') +
+      '<button class="opt" data-ticket-add>＋ 追加</button>';
+  }
   $('#ePay').innerHTML = pays.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${E.pay === p.k}">${esc(p.label)}${p.sub ? `<small>${p.sub}</small>` : ''}</button>`).join('');
   $('#ePaxHint').textContent = `タップで人数（${S.settings.paxMax}人の次は0）`;
   $('#ePax').innerHTML = PAX.map(p => `<button class="opt" data-pax="${p.k}" aria-pressed="${E.pax[p.k] > 0}" aria-label="${p.label} ${E.pax[p.k]}人">${p.label}<span class="cnt num">${E.pax[p.k]}<small>人</small></span></button>`).join('');
@@ -2504,7 +2547,8 @@ function commitAddr(w) {
   const o = E[w], v = addrInput(w).value.trim().replace(/\s+/g, ''), pk = E.pick[w];
   if (pk && v === pk.name.replace(/\s+/g, '')) {
     // 施設：名前と種類を残し、住所は施設の位置から。GPSが無ければ施設の位置を使う
-    o.place = { name: pk.name, kind: pk.kind, ...(pk.info ? { info: pk.info } : {}), ...(pk.note ? { note: pk.note } : {}) };
+    o.place = { name: pk.name, kind: pk.kind, ...(pk.info ? { info: pk.info } : {}), ...(pk.note ? { note: pk.note } : {}),
+      ...(pk.lat != null ? { lat: +pk.lat.toFixed(6), lng: +pk.lng.toFixed(6) } : {}) };
     if (o.lat == null && pk.lat != null) { o.lat = +pk.lat.toFixed(6); o.lng = +pk.lng.toFixed(6); delete o.acc; }
     if (pk.addr) o.addr = pk.addr;
     o.manual = true;
@@ -2532,18 +2576,20 @@ function saveEntry() {
   if (bd.long) fare.long = bd.long;
   if (bd.handi) fare.handi = bd.handi;
   const noPickup = E.kind === 'app' && !!E.noPickup;
+  const ticket = E.pay === 'ticket' && E.ticket ? { id: E.ticket.id, name: E.ticket.name } : null;
   if (E.editId) {
     const r = S.rides.find(x => x.id === E.editId);
     Object.assign(r, { ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
+    if (ticket) r.ticket = ticket; else delete r.ticket;
     toast('修正しました');
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to });
+    S.rides.push({ id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, pax: { ...E.pax }, from: E.from, to: E.to, ...(ticket ? { ticket } : {}) });
     sh.trip = null;
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    toast(`${yen(total)}（${payLabel(E.pay, E.app)}）を記録しました`);
+    toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録しました`);
   }
   save(); haptic(25); queueAddr();
   E = null;
@@ -2682,7 +2728,7 @@ const placeCsv = o => o?.place ? `${o.place.name}（${o.place.kind}）` : '';
 
 function exportLog(onlyShiftId) {
   const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)', '住所',
-    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', '迎車なし', '決済方法', '乗車種別', '配車アプリ', '男性', '女性',
+    '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', '迎車なし', '決済方法', 'チケットの種類', '乗車種別', '配車アプリ', '男性', '女性',
     '乗車時刻', '乗車施設', '乗車住所', '乗車住所の入力', '乗車緯度', '乗車経度', '降車施設', '降車住所', '降車住所の入力', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
   const rows = [];
@@ -2699,7 +2745,7 @@ function exportLog(onlyShiftId) {
   }
   for (const r of S.rides.filter(keep)) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
-      r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.fare.long || '', r.fare.handi || '', r.noPickup ? '○' : '', payLabel(r.pay, r.app), kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
+      r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.fare.long || '', r.fare.handi || '', r.noPickup ? '○' : '', payLabel(r.pay, r.app), r.ticket ? r.ticket.name : '', kindLabel(r.kind, r.app), r.app ? r.app.name : '', r.pax?.m ?? '', r.pax?.f ?? '',
       r.start ? stamp(r.start) : '', placeCsv(r.from), r.from?.addr, addrSrc(r.from), r.from?.lat, r.from?.lng, placeCsv(r.to), r.to?.addr, addrSrc(r.to), r.to?.lat, r.to?.lng]]);
   }
   if (!rows.length) { toast('出力するデータがありません'); return; }
@@ -2815,6 +2861,41 @@ $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
 $('#payList').addEventListener('click', e => { const b = e.target.closest('[data-pay-edit]'); if (b) openPayEditor(b.dataset.payEdit); });
 $('#payAddBtn').addEventListener('click', () => openPayEditor(null));
+// タクシーチケットの追加・名前変更・削除
+function addTicket() {
+  const name = (prompt('追加するチケットの名前（例：○○交通 チケット）') || '').trim().slice(0, 20);
+  if (!name) return null;
+  const dup = TICKETS().find(t => normName(t.name) === normName(name));
+  if (dup) { toast(`${dup.name} は登録済みです`); return dup; }
+  const t = { id: 't' + uid(), name };
+  S.settings.tickets.push(t);
+  save(); toast(`${name} を追加しました`);
+  return t;
+}
+function editTicket(id) {
+  const t = TICKETS().find(x => x.id === id);
+  if (!t) return;
+  const v = prompt('チケットの名前（空にすると削除）', t.name);
+  if (v === null) return;
+  const name = v.trim().slice(0, 20);
+  if (!name) {
+    if (!confirm(`${t.name} を削除しますか？\n（記録済みの乗車の表示はそのまま残ります）`)) return;
+    S.settings.tickets = TICKETS().filter(x => x !== t);
+  } else t.name = name;
+  save(); renderData();
+}
+$('#ticketAddBtn').addEventListener('click', () => { if (addTicket()) renderData(); });
+$('#ticketList').addEventListener('click', e => { const b = e.target.closest('[data-ticket-edit]'); if (b) editTicket(b.dataset.ticketEdit); });
+$('#eTicket').addEventListener('click', e => {
+  const b = e.target.closest('[data-ticket],[data-ticket-add]'); if (!b || !E) return;
+  haptic();
+  if (b.hasAttribute('data-ticket-add')) { const t = addTicket(); if (t) E.ticket = { id: t.id, name: t.name }; }
+  else {
+    const t = TICKETS().find(x => x.id === b.dataset.ticket) || (E.ticket && E.ticket.id === b.dataset.ticket ? E.ticket : null);
+    E.ticket = E.ticket && t && E.ticket.id === t.id ? null : t && { id: t.id, name: t.name };   // 同じボタンで解除
+  }
+  renderEntry();
+});
 $('#payOk').addEventListener('click', savePay);
 $('#payDelete').addEventListener('click', deletePay);
 $('#paySheet [data-close]').addEventListener('click', () => closeSheet($('#paySheet')));
