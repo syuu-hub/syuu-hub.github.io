@@ -441,6 +441,27 @@ svg{display:block}
 .np-inner .total{padding:8px 4px 16px}
 .np-inner .keypad{grid-auto-rows:64px}
 
+/* 日報（入庫後の振り返り） */
+.rp-inner{max-width:720px}
+.rp-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
+.rp-meta{font-size:14px;color:var(--muted);margin:2px 0 12px}
+.rp-total{background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:16px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.rp-total .k{font-size:13px;color:var(--muted)}
+.rp-total .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
+.rp-total .side{margin-left:auto;text-align:right;font-size:14px;color:var(--muted);line-height:1.6}
+.rp-total .side b{color:var(--text);font-size:17px}
+.rp-sec{margin-bottom:18px}
+.rp-sec h3{font-size:13px;font-weight:700;color:var(--muted);margin:0 0 4px;display:flex;justify-content:space-between}
+.rp-tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.rp-tbl td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:17px;white-space:nowrap}
+.rp-tbl td:first-child{white-space:normal}
+.rp-tbl td.n{text-align:right;color:var(--muted);font-size:15px;width:4.5em}
+.rp-tbl td.a{text-align:right;font-weight:800;font-size:22px;width:7.5em}
+.rp-tbl tr.zero td{color:var(--faint)}
+.rp-tbl tr.zero td.a{font-weight:600}
+.rp-tbl tr.sum td{border-bottom:none;border-top:2px solid var(--line-2);font-weight:700}
+.rp-tbl tr.sum + tr.sum td{border-top:none}
+
 /* 月間カレンダー */
 .cal-btn{width:100%;margin-bottom:12px}
 .cal-btn svg{color:var(--accent)}
@@ -545,7 +566,7 @@ svg{display:block}
     </div>
     <div class="d-info">
       <button class="d-row" id="dGoal"><span class="k">本日の目標</span><span class="v num" id="dGoalVal">¥0</span><span class="chev">変更</span></button>
-      <div class="d-row" id="dLast"><span class="k">前回の営業<span class="sub num" id="dLastSub"></span></span><span class="v num" id="dLastVal"></span></div>
+      <button class="d-row" id="dLast"><span class="k">前回の営業<span class="sub num" id="dLastSub"></span></span><span class="v num" id="dLastVal"></span><span class="chev">日報</span></button>
     </div>
     <div>
       <button class="btn primary depart-btn" id="departBtn">出庫</button>
@@ -823,6 +844,20 @@ svg{display:block}
 </div>
 
 <!-- ===== 月間カレンダー ===== -->
+<div class="sheet" id="reportSheet" hidden role="dialog" aria-modal="true" aria-labelledby="rpTitle">
+  <div class="sheet-inner rp-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="rpTitle">日報</h2>
+      <span class="spacer"></span>
+      <span class="sub num" id="rpDate"></span>
+    </header>
+    <div class="rp-body" id="rpBody"></div>
+  </div>
+</div>
+
 <div class="sheet" id="calSheet" hidden role="dialog" aria-modal="true" aria-labelledby="calTitle">
   <div class="sheet-inner cal-inner">
     <header class="sheet-head">
@@ -1366,6 +1401,80 @@ function endShift() {
   applyWakeLock();
   setView('home');
   toast('入庫しました。お疲れさまでした');
+  openReport(sh.id);   // 紙の日報に書き写せるよう振り返りを表示
+}
+
+/* ============================================================
+   日報（入庫後の振り返り）：支払い種別ごとの金額など
+   ============================================================ */
+function reportPays(rides) {
+  // 決済方法の並び順で。配車アプリの「アプリ決済」はアプリごとに分ける
+  const g = new Map();
+  const add = (key, label, r) => {
+    if (!g.has(key)) g.set(key, { label, n: 0, amt: 0 });
+    if (r) { const x = g.get(key); x.n++; x.amt += r.total; }
+  };
+  for (const p of PAYS()) if (p.k !== 'app') add(p.k, p.label);
+  for (const r of rides.slice().sort((a, b) => a.ts - b.ts)) {
+    const key = r.pay === 'app' && r.app ? 'app:' + r.app.id : r.pay;
+    add(key, payLabel(r.pay, r.app), r);
+  }
+  return [...g.entries()].map(([k, v]) => ({ k, ...v }));
+}
+function openReport(id) {
+  const sh = S.shifts.find(s => s.id === id);
+  if (!sh) return;
+  const st = shiftStats(sh), rides = st.rides;
+  const pays = reportPays(rides);
+  const cash = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.amt, 0);
+  const cashN = pays.filter(p => p.k === 'cash').reduce((a, p) => a + p.n, 0);
+  const row = (label, n, amt, cls = '') => `<tr class="${cls}"><td>${esc(label)}</td><td class="n">${n != null ? n + '回' : ''}</td><td class="a">${yen(amt)}</td></tr>`;
+  // 乗車種別（配車アプリはアプリ名）
+  const kinds = new Map();
+  for (const r of rides) {
+    const l = kindLabel(r.kind, r.app);
+    const x = kinds.get(l) || { n: 0, amt: 0 };
+    x.n++; x.amt += r.total; kinds.set(l, x);
+  }
+  const t = st.time;
+  $('#rpDate').textContent = ymd(sh.start);
+  $('#rpBody').innerHTML = `
+    <div class="rp-meta num">${hhmm(sh.start)} 出庫 → ${sh.end ? hhmm(sh.end) + ' 入庫' : '営業中'} ・ 営業時間 ${dur(st.elapsed)}</div>
+    <div class="rp-total">
+      <div><div class="k">営業収入 合計</div><div class="v num">${yen(st.sales)}</div></div>
+      <div class="side num">乗車 <b>${st.count}</b>回<br>乗客 <span class="px m">男${st.pax.m}</span> <span class="px f">女${st.pax.f}</span></div>
+    </div>
+    <section class="rp-sec">
+      <h3><span>支払い種別</span><span>回数・金額</span></h3>
+      <table class="rp-tbl num">
+        ${pays.map(p => row(p.label, p.n, p.amt, p.n ? '' : 'zero')).join('')}
+        ${row('現金 計', cashN, cash, 'sum')}
+        ${row('現金以外 計', st.count - cashN, st.sales - cash, 'sum')}
+      </table>
+    </section>
+    <section class="rp-sec">
+      <h3><span>営業収入の内訳</span></h3>
+      <table class="rp-tbl num">
+        ${row('運賃', null, st.fare.meter)}
+        ${row('迎車料金', null, st.fare.pickup, st.fare.pickup ? '' : 'zero')}
+        ${row('アプリ手数料', null, st.fare.appFee, st.fare.appFee ? '' : 'zero')}
+      </table>
+    </section>
+    ${kinds.size ? `<section class="rp-sec">
+      <h3><span>乗車種別</span><span>回数・金額</span></h3>
+      <table class="rp-tbl num">${[...kinds].map(([l, x]) => row(l, x.n, x.amt)).join('')}</table>
+    </section>` : ''}
+    <section class="rp-sec">
+      <h3><span>時間</span></h3>
+      <table class="rp-tbl num">
+        <tr><td>実車</td><td class="n"></td><td class="a">${dur(t.occupied)}</td></tr>
+        <tr><td>空車</td><td class="n"></td><td class="a">${dur(t.vacant)}</td></tr>
+        <tr><td>待機・休憩</td><td class="n"></td><td class="a">${dur(t.wait)}</td></tr>
+        <tr><td>実車率</td><td class="n"></td><td class="a">${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'}</td></tr>
+      </table>
+    </section>`;
+  $('#reportSheet .rp-body').scrollTop = 0;
+  openSheet($('#reportSheet'));
 }
 
 /* ============================================================
@@ -1941,10 +2050,10 @@ function renderData() {
   const past = S.shifts.filter(s => s.end).sort((a, b) => b.start - a.start).slice(0, 30);
   $('#shiftList').innerHTML = past.length ? past.map(s => {
     const st = shiftStats(s);
-    return `<li class="row">
+    return `<li><button class="row" data-report="${s.id}">
       <span class="body"><div class="main num">${ymd(s.start)}</div><div class="sub num">${hhmm(s.start)}–${hhmm(s.end)} ・ ${st.count}回 ・ 実車率 ${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'}</div></span>
       <span class="amt num">${yen(st.sales)}</span>
-    </li>`;
+    </button></li>`;
   }).join('') : '<li class="empty">入庫したシフトがここに並びます。</li>';
 
   let bytes = 0; try { bytes = (localStorage.getItem(STORE_KEY) || '').length * 2; } catch (e) {}
@@ -1967,6 +2076,7 @@ function renderDepart() {
   $('#dGoalVal').textContent = yen(S.settings.goal);
   const last = S.shifts.filter(s => s.end).sort((a, b) => b.end - a.end)[0];
   $('#dLast').hidden = !last;
+  $('#dLast').dataset.id = last ? last.id : '';
   if (last) {
     const st = shiftStats(last);
     $('#dLastVal').textContent = `${yen(st.sales)} ・ ${st.count}回`;
@@ -2526,6 +2636,9 @@ $('#calPrev').addEventListener('click', () => shiftCal(-1));
 $('#calNext').addEventListener('click', () => shiftCal(1));
 $('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { haptic(); CAL.sel = b.dataset.day; renderCal(); } });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
+$('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#reportSheet')));
+$('#dLast').addEventListener('click', e => { haptic(); openReport(e.currentTarget.dataset.id); });
+$('#shiftList').addEventListener('click', e => { const b = e.target.closest('[data-report]'); if (b) { haptic(); openReport(b.dataset.report); } });
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
 
 $('#rideList').addEventListener('click', e => {
@@ -2663,10 +2776,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
