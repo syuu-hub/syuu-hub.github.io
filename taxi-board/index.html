@@ -1794,15 +1794,15 @@ function openReport(id) {
     <section class="rp-sec">
       <h3><span>支払い種別</span><span>回数・金額</span></h3>
       <table class="rp-tbl num">
-        ${pays.map(p => row(p.label, p.n, p.amt, p.n ? '' : 'zero', tollNote(p.toll))).join('')}
-        ${row('現金 計', cashN, cash, 'sum', tollNote(cashToll))}
-        ${row('現金以外 計', st.count - cashN, other.reduce((a, p) => a + p.amt, 0), 'sum', tollNote(otherToll))}
+        ${pays.filter(p => p.n).map(p => row(p.label, p.n, p.amt, '', tollNote(p.toll))).join('') || '<tr class="zero"><td>乗車記録なし</td><td class="n"></td><td class="a"></td></tr>'}
+        ${cashN ? row('現金 計', cashN, cash, 'sum', tollNote(cashToll)) : ''}
+        ${st.count - cashN ? row('現金以外 計', st.count - cashN, other.reduce((a, p) => a + p.amt, 0), 'sum', tollNote(otherToll)) : ''}
       </table>
     </section>
-    <section class="rp-sec">
+    <section class="rp-sec" ${st.count ? '' : 'hidden'}>
       <h3><span>営業収入の内訳</span><span>割引は差引済</span></h3>
       <table class="rp-tbl num">
-        ${row('運賃', null, st.fare.meter)}
+        ${st.fare.meter ? row('運賃', null, st.fare.meter) : ''}
         ${st.fare.pickup ? row('迎車料金', rides.filter(r => r.fare.pickup).length, st.fare.pickup) : ''}
         ${st.fare.appFee ? row('アプリ手数料', rides.filter(r => r.fare.appFee).length, st.fare.appFee) : ''}
         ${st.fare.long ? row('遠距離割', rides.filter(r => r.fare.long).length, st.fare.long) : ''}
@@ -1813,21 +1813,20 @@ function openReport(id) {
       <h3><span>高速代</span><span>売上外・支払い種別には含む</span></h3>
       <table class="rp-tbl num">
         ${row('高速代 計', st.tollN, st.toll)}
-        ${row('うち現金', rides.filter(r => r.toll && r.pay === 'cash').length, cashToll, cashToll ? '' : 'zero')}
-        ${row('うち現金以外', rides.filter(r => r.toll && r.pay !== 'cash').length, otherToll, otherToll ? '' : 'zero')}
+        ${cashToll ? row('うち現金', rides.filter(r => r.toll && r.pay === 'cash').length, cashToll) : ''}
+        ${otherToll ? row('うち現金以外', rides.filter(r => r.toll && r.pay !== 'cash').length, otherToll) : ''}
       </table>
     </section>` : ''}
     ${kinds.size ? `<section class="rp-sec">
       <h3><span>乗車種別</span><span>回数・金額</span></h3>
       <table class="rp-tbl num">${[...kinds].map(([l, x]) => row(l, x.n, x.amt)).join('')}</table>
     </section>` : ''}
-    <section class="rp-sec">
+    <section class="rp-sec" ${t.occupied + t.vacant + t.wait >= 60000 ? '' : 'hidden'}>
       <h3><span>時間</span></h3>
       <table class="rp-tbl two num">
-        <tr><td>実車</td><td class="n"></td><td class="a">${dur(t.occupied)}</td></tr>
-        <tr><td>空車</td><td class="n"></td><td class="a">${dur(t.vacant)}</td></tr>
-        <tr><td>待機・休憩</td><td class="n"></td><td class="a">${dur(t.wait)}</td></tr>
-        <tr><td>実車率</td><td class="n"></td><td class="a">${st.occRate != null ? Math.round(st.occRate * 100) + '%' : '—'}</td></tr>
+        ${[['実車', t.occupied], ['空車', t.vacant], ['待機・休憩', t.wait]].filter(([, v]) => v >= 60000)
+          .map(([l, v]) => `<tr><td>${l}</td><td class="n"></td><td class="a">${dur(v)}</td></tr>`).join('')}
+        ${st.occRate != null ? `<tr><td>実車率</td><td class="n"></td><td class="a">${Math.round(st.occRate * 100)}%</td></tr>` : ''}
       </table>
     </section>`;
   $('#reportSheet .rp-body').scrollTop = 0;
