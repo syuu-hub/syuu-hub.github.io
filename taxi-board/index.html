@@ -251,9 +251,7 @@ svg{display:block}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted)}
 .log-total .v{font-size:30px;font-weight:800}
-.rp-tbl.log-pays td{padding:8px 4px;font-size:15px}
-.rp-tbl.log-pays td.a{font-size:18px}
-.log-rp{width:100%;margin-top:12px}
+.log-rp{width:100%}
 .chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
 .chips-row b{color:var(--text);font-weight:600;margin-left:4px}
 
@@ -654,8 +652,7 @@ svg{display:block}
           <div><div class="k">現金</div><div class="v num" id="sumCash">¥0</div></div>
           <div><div class="k">キャッシュレス</div><div class="v num" id="sumCashless">¥0</div></div>
         </div>
-        <table class="rp-tbl log-pays num" id="payTable"></table>
-        <button class="btn log-rp" id="logReport">日報を開く（内訳・時間も表示）</button>
+        <button class="btn log-rp" id="logReport">日報を開く（支払い種別・内訳・時間）</button>
         <div class="pause-sum num" id="pauseSum"></div>
       </div>
       <div class="pane-sec">
@@ -1795,8 +1792,6 @@ function renderLog() {
   $('#logTotal').textContent = yen(st ? st.sales : 0);
   $('#sumCash').textContent = yen(cash);
   $('#sumCashless').textContent = yen((st ? st.sales : 0) - cash);
-  $('#payTable').innerHTML = pays.map(p => `<tr class="${p.n ? '' : 'zero'}"><td>${esc(p.label)}</td><td class="n">${p.n}回</td><td class="a">${yen(p.amt)}</td></tr>`).join('');
-  $('#payTable').hidden = !st;
   $('#logReport').hidden = !st;
 
   const ps = $('#pauseSum');
