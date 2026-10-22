@@ -587,7 +587,6 @@ svg{display:block}
 .cal-cap .cr span{overflow:hidden;text-overflow:ellipsis}
 .cal-cap b{color:var(--text);font-weight:800}
 .cal-cap .bar{height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden;margin-top:8px}
-.cal-cap .wait b{color:var(--st-wait)}
 .cal-cap .bar i{display:block;height:100%;background:var(--accent)}
 .cal-cap.warn .bar i{background:var(--st-wait)}
 .cal-cap.over .bar i{background:var(--danger)}
@@ -2003,10 +2002,10 @@ function remainingWorkdays(y, m) {
 // 時間を「150時間27分」の形で（「150:27」より読み取りやすく）
 const hm = ms => { const m = Math.max(0, Math.round(ms / 60000)), h = Math.floor(m / 60), r = m % 60; return h ? `${h}時間${r ? r + '分' : ''}` : `${r}分`; };
 // 労働時間のカード：いま何時間か・上限の何%か・あと何時間か・1日あたり何時間か
-function capHtml(y, m, used, wait) {
+// 労働時間＝出庫〜入庫（待機・休憩を含む）
+function capHtml(y, m, used) {
   const cap = capMs();
-  const waitRow = `<div class="cr"><span class="wait">うち待機・休憩 <b>${hm(wait)}</b></span></div>`;
-  if (!cap) return `<div class="cal-cap num"><div class="top"><span>労働時間</span><span class="v">${hm(used)}</span></div>${waitRow}</div>`;
+  if (!cap) return `<div class="cal-cap num"><div class="top"><span>労働時間</span><span class="v">${hm(used)}</span></div></div>`;
   const left = cap - used, r = used / cap;
   const [, to] = periodRange(y, m);
   const days = Date.now() < +to + 86400000 ? remainingWorkdays(y, m) : 0;
@@ -2015,7 +2014,6 @@ function capHtml(y, m, used, wait) {
     <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div>
     <div class="cr"><span>上限の <b class="used">${Math.round(r * 100)}%</b></span><span>${left >= 0 ? `あと <b>${hm(left)}</b>` : `<b class="used">${hm(-left)} 超過</b>`}</span></div>
     ${days && left > 0 ? `<div class="cr"><span>出勤あと <b>${days}日</b></span><span>1日あたり <b>${hm(left / days)}</b>まで</span></div>` : ''}
-    ${waitRow}
   </div>`;
 }
 function renderCal() {
@@ -2030,7 +2028,7 @@ function renderCal() {
     <div><div class="k">売上</div><div class="v num">${tot.sales >= 100000 ? compactYen(tot.sales) : yen(tot.sales)}</div></div>
     <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
     <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
-  $('#calCap').innerHTML = capHtml(y, m, tot.ms, tot.wait);
+  $('#calCap').innerHTML = capHtml(y, m, tot.ms);
 
   const max = Math.max(0, ...list.map(o => o.sales));
   const today = dayKey(new Date());
