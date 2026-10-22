@@ -36,6 +36,8 @@
   --st-wait:#F472B6;
 
   --r-lg:20px;
+  --card-pad:14px 16px;   /* カードの内側の余白（全画面共通） */
+  --tile-pad:10px 12px;   /* 小さな数値タイルの余白 */
   --r-md:14px;
   --r-sm:10px;
   --gap:12px;
@@ -252,7 +254,7 @@ svg{display:block}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted)}
 .log-total .v{font-size:30px;font-weight:800}
-.log-card{background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:12px}
+.log-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
 .log-card .log-total{margin-bottom:0}
 .log-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .log-acts .wide{grid-column:1 / -1}
@@ -316,7 +318,7 @@ svg{display:block}
 .fold-b .sub-h:first-child{margin-top:12px}
 /* ===== 分析 ===== */
 .ana-range{margin:0 0 14px}
-.ana-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;margin-bottom:12px}
+.ana-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
 .ana-card h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;white-space:nowrap}
 .ana-card h3 small{font-weight:500;letter-spacing:0;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
 .ana-tip{font-size:13px;color:var(--text);min-height:1.5em;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -329,7 +331,7 @@ svg{display:block}
 .hl .v{font-size:clamp(17px,5.6vw,26px);font-weight:800;color:var(--accent);margin:4px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hl .s{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
-.kpi{background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px;min-width:0}
+.kpi{background:var(--surface-2);border-radius:var(--r-md);padding:var(--tile-pad);min-width:0}
 .kpi .k{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .v{font-size:clamp(16px,4.8vw,22px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .v small{font-size:.6em;color:var(--muted);font-weight:600;margin-left:1px}
@@ -450,13 +452,13 @@ svg{display:block}
 .glabel{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.04em;margin-bottom:8px;display:flex;justify-content:space-between;gap:12px}
 .glabel > *:last-child:not(:first-child){font-weight:500;letter-spacing:0;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
 .opts{display:grid;gap:8px}
-.opts.pay{grid-template-columns:repeat(3,minmax(0,1fr))}
-.opts.kind{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+/* 乗車種別・決済方法は同じ列数で並べる（反復） */
+.opts.pay,.opts.kind{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
 .opt{min-height:var(--tap);border-radius:var(--r-md);border:2px solid var(--line-2);background:var(--surface);font-size:16px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;padding:4px}
 .opt small{font-size:11px;font-weight:600;color:var(--muted);margin-top:2px}
 .opt[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--bg)}
 .opt[aria-pressed="true"] small{color:#3A414C}
-.opts.kind .opt{min-height:56px;font-size:14px}
+.opts.kind .opt,.opts.pay .opt{min-height:56px;font-size:15px}
 .opts.kind .opt.app-opt{border-color:rgba(255,176,32,.45)}
 .opts.kind .opt.app-opt small{color:var(--accent)}
 .opts.kind .opt.app-opt[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -510,8 +512,8 @@ svg{display:block}
 /* 日報（入庫後の振り返り） */
 .rp-inner{max-width:720px}
 .rp-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
-.rp-meta{font-size:14px;color:var(--muted);margin:2px 0 12px}
-.rp-total{background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:16px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.rp-total{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.rp-total .meta{flex:1 1 100%;font-size:13px;color:var(--muted);white-space:nowrap;padding-bottom:8px;margin-bottom:2px;border-bottom:1px solid var(--line)}
 .rp-total .k{font-size:13px;color:var(--muted)}
 .rp-total .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
 .rp-total .side{margin-left:auto;text-align:right;font-size:14px;color:var(--muted);line-height:1.6;white-space:nowrap}
@@ -523,6 +525,8 @@ svg{display:block}
 .rp-tbl td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rp-tbl td.n{text-align:right;color:var(--muted);font-size:14px;width:3.6em}
 .rp-tbl td.a{text-align:right;font-weight:800;font-size:clamp(17px,5.4vw,22px);width:6.4em}
+.rp-tbl td:first-child{padding-left:0}
+.rp-tbl td:last-child{padding-right:0}
 .rp-tbl tr.zero td{color:var(--faint)}
 .rp-tbl tr.zero td.a{font-weight:600}
 .rp-note{display:block;font-size:12px;color:var(--muted);font-weight:500;overflow:hidden;text-overflow:ellipsis}
@@ -530,7 +534,7 @@ svg{display:block}
 .rp-tbl tr.sum + tr.sum td{border-top:none}
 
 /* 乗車の詳細 */
-.rd-amt{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--surface-2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:16px}
+.rd-amt{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
 .rd-amt .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
 .rd-amt .tags{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);min-width:0;max-width:100%;white-space:nowrap}
 .rd-amt .tags .tag{overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -555,8 +559,8 @@ svg{display:block}
 .cal-inner{max-width:960px}
 .cal-nav{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--text)}
 .cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
-.cal-sum{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:14px}
-.cal-sum > div{background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px}
+.cal-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.cal-sum > div{background:var(--surface-2);border-radius:var(--r-md);padding:var(--tile-pad);min-width:0}
 .cal-sum .k{font-size:12px;color:var(--muted)}
 .cal-sum .v{font-size:clamp(16px,4.6vw,24px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-sum .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
@@ -575,9 +579,15 @@ svg{display:block}
 .cal-cell.empty{background:transparent;border-color:transparent}
 .cal-cell.hol{background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 6px,var(--surface-2) 6px,var(--surface-2) 12px)}
 .cal-cell .hol-tag{font-size:10px;font-weight:700;color:var(--faint)}
-.cal-cap{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;font-size:13px;color:var(--muted);margin:-6px 0 14px}
+.cal-cap{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:14px;font-size:13px;color:var(--muted)}
+.cal-cap .top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;white-space:nowrap}
+.cal-cap .top .v{font-size:clamp(20px,6vw,26px);font-weight:800;color:var(--text)}
+.cal-cap .top .v small{font-size:13px;font-weight:600;color:var(--muted);margin-left:4px}
+.cal-cap .cr{display:flex;justify-content:space-between;gap:10px;margin-top:6px;white-space:nowrap}
+.cal-cap .cr span{overflow:hidden;text-overflow:ellipsis}
 .cal-cap b{color:var(--text);font-weight:800}
-.cal-cap .bar{flex:1 1 100%;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.cal-cap .bar{height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden;margin-top:8px}
+.cal-cap .wait b{color:var(--st-wait)}
 .cal-cap .bar i{display:block;height:100%;background:var(--accent)}
 .cal-cap.warn .bar i{background:var(--st-wait)}
 .cal-cap.over .bar i{background:var(--danger)}
@@ -591,9 +601,7 @@ svg{display:block}
 #calSheet .close-btn{white-space:nowrap}
 @media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0 10px} }
 @media (max-width:480px){
-  .cal-sum{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .cal-sum > div:last-child{grid-column:1 / -1}
-  .cal-sum .v{font-size:22px}
+  .cal-sum .v{font-size:clamp(16px,5vw,22px)}
   #calTitle{min-width:0 !important;font-size:17px}
   .cal-nav{width:44px;height:44px}
 }
@@ -644,9 +652,6 @@ svg{display:block}
   .stats{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:10px}
   .stat:nth-child(4){border-left:0;padding-left:0}
   .stat .v{font-size:20px}
-}
-@media (max-width:360px){
-  .opts.pay{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
@@ -1822,8 +1827,8 @@ function openReport(id) {
   ].filter(Boolean);
   $('#rpDate').textContent = ymd(sh.start);
   $('#rpBody').innerHTML = `
-    <div class="rp-meta num">${hhmm(sh.start)} 出庫 → ${sh.end ? hhmm(sh.end) + ' 入庫' : '営業中'}</div>
     <div class="rp-total">
+      <div class="meta num">出庫 ${hhmm(sh.start)} → ${sh.end ? '入庫 ' + hhmm(sh.end) : '営業中'}</div>
       <div><div class="k">合計金額（営業収入）</div><div class="v num">${yen(st.sales)}</div></div>
       <div class="side num"><b>${st.count}</b>件</div>
     </div>
@@ -1989,17 +1994,19 @@ function remainingWorkdays(y, m) {
   }
   return n;
 }
-function capHtml(y, m, used) {
+// 労働時間のカード：合計・上限・残り・待機休憩をひとまとめに
+function capHtml(y, m, used, wait) {
   const cap = capMs();
-  if (!cap) return '';
+  const waitRow = `<span class="wait">待機・休憩 <b>${dur(wait)}</b></span>`;
+  if (!cap) return `<div class="cal-cap num"><div class="top"><span>労働時間</span><span class="v">${dur(used)}</span></div><div class="cr">${waitRow}</div></div>`;
   const left = cap - used, r = used / cap;
   const [, to] = periodRange(y, m);
   const days = Date.now() < +to + 86400000 ? remainingWorkdays(y, m) : 0;
-  const per = days && left > 0 ? `・ 残り出勤 <b>${days}</b>日（1日あたり <b>${dur(left / days)}</b>）` : '';
   return `<div class="cal-cap num ${r >= 1 ? 'over' : r >= 0.9 ? 'warn' : ''}">
-    <span>労働時間 <b class="used">${dur(used)}</b> / ${S.settings.hoursCap}時間</span>
-    <span>${left >= 0 ? `残り <b>${dur(left)}</b>` : `<b class="used">${dur(-left)} 超過</b>`}</span><span>${per}</span>
-    <span class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></span>
+    <div class="top"><span>労働時間</span><span class="v used">${dur(used)}<small>/ ${S.settings.hoursCap}時間</small></span></div>
+    <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div>
+    <div class="cr"><span>${left >= 0 ? `残り <b>${dur(left)}</b>` : `<b class="used">${dur(-left)} 超過</b>`}</span><span>${days && left > 0 ? `出勤あと<b>${days}</b>日・1日<b>${dur(left / days)}</b>` : ''}</span></div>
+    <div class="cr">${waitRow}</div>
   </div>`;
 }
 function renderCal() {
@@ -2011,12 +2018,10 @@ function renderCal() {
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
   $('#calTitle').innerHTML = `${periodName(CAL)}<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">${md(from)}〜${md(to)}</small>`;
   $('#calSum').innerHTML = `
-    <div><div class="k">売上</div><div class="v num">${yen(tot.sales)}</div></div>
+    <div><div class="k">売上</div><div class="v num">${tot.sales >= 100000 ? compactYen(tot.sales) : yen(tot.sales)}</div></div>
     <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
-    <div><div class="k">労働時間</div><div class="v num">${dur(tot.ms)}</div></div>
-    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>
-    <div><div class="k">待機・休憩</div><div class="v num" style="color:var(--st-wait)">${dur(tot.wait)}</div></div>`;
-  $('#calCap').innerHTML = capHtml(y, m, tot.ms);
+    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
+  $('#calCap').innerHTML = capHtml(y, m, tot.ms, tot.wait);
 
   const max = Math.max(0, ...list.map(o => o.sales));
   const today = dayKey(new Date());
