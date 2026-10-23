@@ -1650,7 +1650,8 @@ function startShift() {
 function logEvent(sh, status, prev) {
   const ev = { id: uid(), shiftId: sh.id, ts: Date.now(), status, prev, lat: null, lng: null, acc: null };
   S.events.push(ev);
-  getPos(5000).then(p => { if (p) { ev.lat = p.lat; ev.lng = p.lng; ev.acc = p.acc; save(); queueAddr(); } });
+  if (!PAUSE.includes(status))   // 待機・休憩は位置を記録しない
+    getPos(5000).then(p => { if (p) { ev.lat = p.lat; ev.lng = p.lng; ev.acc = p.acc; save(); queueAddr(); } });
   return ev;
 }
 
@@ -2259,11 +2260,10 @@ function renderLog() {
   if (!items.length) { list.innerHTML = '<li class="empty">まだ乗車記録はありません。<br>待機・休憩は「待機・休憩を表示」で確認できます。</li>'; return; }
   // 1件＝1カード。情報の順位：①時刻と金額 ②乗車地→降車地 ③決済・種別
   const top = (t1, t2, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span><span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
-  const route = (a, b) => `<div class="rc-route"><div class="rc-pl from">${esc(a)}</div>${b != null ? `<div class="rc-pl to">${esc(b)}</div>` : ''}</div>`;
+  const route = (a, b) => `<div class="rc-route"><div class="rc-pl from">${esc(a)}</div><div class="rc-pl to">${esc(b)}</div></div>`;
   list.innerHTML = items.map(({ r, p }) => p ? `
     <li><button class="rcard pause" data-pause="${p.ev.id}">
       ${top(hhmm(p.start), p.end ? hhmm(p.end) : '継続中', dur(p.ms), 'dur')}
-      ${p.ev.lat != null ? route(placeText(p.ev), null) : ''}
       <div class="rc-meta"><span class="tag pause">待機・休憩</span></div>
     </button></li>` : `
     <li><button class="rcard" data-ride="${r.id}">
@@ -3036,7 +3036,7 @@ function exportLog(onlyShiftId) {
   for (const e of S.events.filter(keep)) {
     const base = e.status === 'off' ? '入庫' : e.prev === 'off' ? '出庫' : (STATUS[e.prev] ? STATUS[e.prev].label + 'から' : '');
     const note = e.status === 'off' || !nextTs.has(e) ? base : `${base} ・ 継続 ${dur(nextTs.get(e) - e.ts)}`;
-    rows.push([e.ts, [stamp(e.ts), shiftDay(e.shiftId), 'ステータス', STATUS[e.status]?.label || e.status, note, e.lat, e.lng, e.acc, e.addr]]);
+    rows.push([e.ts, [stamp(e.ts), shiftDay(e.shiftId), 'ステータス', STATUS[e.status]?.label || e.status, note, ...(PAUSE.includes(e.status) ? ['', '', '', ''] : [e.lat, e.lng, e.acc, e.addr])]]);   // 待機・休憩は位置なし
   }
   for (const r of S.rides.filter(keep)) {
     rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
