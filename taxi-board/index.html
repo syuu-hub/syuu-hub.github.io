@@ -253,8 +253,7 @@ svg{display:block}
 .log-day .cal-nav:disabled{opacity:.3}
 .ld-body{flex:1;min-width:0;text-align:center;padding:4px 0;border-radius:var(--r-md)}
 .ld-body:active{background:var(--surface)}
-.ld-date{font-size:18px;font-weight:800;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.ld-date svg{color:var(--accent);flex:none}
+.ld-date{font-size:18px;font-weight:800;white-space:nowrap}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted)}
 .log-total .v{font-size:clamp(30px,9vw,38px);font-weight:800;line-height:1.1}
@@ -777,7 +776,7 @@ svg{display:block}
       <div class="pane-sec">
         <div class="log-day">
           <button class="cal-nav" id="logPrev" aria-label="前の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
-          <button class="ld-body" id="calBtn" aria-label="月間カレンダーを開く"><div class="ld-date num"><span id="logDate"></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg></div></button>
+          <button class="ld-body" id="calBtn" aria-label="月間カレンダーを開く"><div class="ld-date num"><span id="logDate"></span></div></button>
           <button class="cal-nav" id="logNext" aria-label="次の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
         <div class="log-card">
