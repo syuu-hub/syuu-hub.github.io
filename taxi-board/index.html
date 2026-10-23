@@ -959,6 +959,18 @@ svg{display:block}
             <div class="opts tk" id="eTicket"></div>
           </div>
         </div>
+        <div class="group">
+          <div class="glabel"><span>乗車地・降車地</span><span>GPSで自動入力</span></div>
+          <div class="loc">
+            <span class="loc-k">乗車</span>
+            <div class="loc-body"><input id="eFromAddr" data-addr="from" placeholder="住所・施設名（例：姫路市本町、新神戸駅）" autocomplete="off" enterkeyhint="next"><div class="sug" id="eFromSug"></div><div class="loc-gps num" id="eFromGps"></div></div>
+            <button class="btn sm ghost" data-regps="from">現在地</button>
+          </div>
+          <div class="loc">
+            <span class="loc-k">降車</span>
+            <div class="loc-body"><input id="eToAddr" data-addr="to" placeholder="住所・施設名（例：神戸市中央区三宮町）" autocomplete="off" enterkeyhint="done"><div class="sug" id="eToSug"></div><div class="loc-gps num" id="eToGps"></div></div>
+            <button class="btn sm ghost" data-regps="to">現在地</button>
+          </div>
         <div class="fold" id="fDisc">
           <button class="fold-h" aria-expanded="false" aria-controls="fDiscB"><span class="t">割引・高速代</span><span class="s num" id="fDiscSum">なし</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="fDiscB" hidden>
@@ -976,7 +988,7 @@ svg{display:block}
           </div>
         </div>
         <div class="fold" id="fTrip">
-          <button class="fold-h" aria-expanded="false" aria-controls="fTripB"><span class="t">時刻・乗降地</span><span class="s num" id="fTripSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="fold-h" aria-expanded="false" aria-controls="fTripB"><span class="t">乗車・降車時刻</span><span class="s num" id="fTripSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="fTripB" hidden>
         <div class="group">
           <div class="glabel"><span>乗車・降車時刻</span><span class="num" id="eDur"></span></div>
@@ -986,18 +998,6 @@ svg{display:block}
             <label><span class="k">降車</span><input class="text-in num" type="time" id="eEnd"></label>
           </div>
         </div>
-        <div class="group">
-          <div class="glabel"><span>乗車地・降車地</span><span>GPSで自動入力</span></div>
-          <div class="loc">
-            <span class="loc-k">乗車</span>
-            <div class="loc-body"><input id="eFromAddr" data-addr="from" placeholder="住所・施設名（例：姫路市本町、新神戸駅）" autocomplete="off" enterkeyhint="next"><div class="sug" id="eFromSug"></div><div class="loc-gps num" id="eFromGps"></div></div>
-            <button class="btn sm ghost" data-regps="from">現在地</button>
-          </div>
-          <div class="loc">
-            <span class="loc-k">降車</span>
-            <div class="loc-body"><input id="eToAddr" data-addr="to" placeholder="住所・施設名（例：神戸市中央区三宮町）" autocomplete="off" enterkeyhint="done"><div class="sug" id="eToSug"></div><div class="loc-gps num" id="eToGps"></div></div>
-            <button class="btn sm ghost" data-regps="to">現在地</button>
-          </div>
         </div>
           </div>
         </div>
@@ -2892,14 +2892,8 @@ document.addEventListener('click', e => {
 function renderTripSum() {
   if (!E) return;
   const { start, end } = entryTimes();
-  const nm = w => {
-    const v = addrInput(w).value.trim();
-    if (!v) return '—';
-    const t = shortAddr(v).replace(/^[^市郡]{1,5}[市郡]/, '').replace(/^[^区]{1,4}区/, '');   // 市区を省いて短く
-    return (t || v).slice(0, 10);
-  };
   const bad = start != null && start > end;
-  setFoldSum('fTrip', `${start ? hhmm(start) + '→' : ''}${hhmm(end)} ・ ${nm('from')} → ${nm('to')}`, bad ? 'warn' : '');
+  setFoldSum('fTrip', `${start ? hhmm(start) + ' → ' : ''}${hhmm(end)}`, bad ? 'warn' : '');
 }
 function renderEntryLoc() {
   for (const w of ['from', 'to']) {
