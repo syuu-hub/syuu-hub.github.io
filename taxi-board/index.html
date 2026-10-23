@@ -904,6 +904,15 @@ svg{display:block}
           <div class="sub-h">タクシーチケット</div>
           <ul class="list" id="ticketList"></ul>
         <button class="btn sm" style="width:100%;margin-top:10px" id="ticketAddBtn">＋ チケットを追加</button>
+          <div class="sub-h">遠距離割</div>
+          <div class="setting">
+          <div><div class="k">遠距離割を自動で適用</div><div class="d">超えた分の1割を差し引き</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="longOn" aria-label="遠距離割を自動で適用"></button>
+        </div>
+          <div class="setting" id="longFromRow">
+          <div><div class="k">適用する金額</div><div class="d">この金額を超えた分が対象</div></div>
+          <button class="btn sm num" id="longFromBtn">¥9,000</button>
+        </div>
           <div class="sub-h">配車アプリ</div>
           <div class="setting">
           <div><div class="k">迎車料金（会社共通）</div><div class="d">アプリ配車の総額から差し引き</div></div>
@@ -1299,7 +1308,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, monthGoal: 0, hoursCap: 288, dayHours: 0, stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hoursCap: 288, dayHours: 0, stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -2604,6 +2613,8 @@ function renderData() {
   $('#holidaySeg').innerHTML = WEEKDAYS.split('').map((w, i) => `<button data-hol="${i}" aria-pressed="${S.settings.holidays.includes(i)}">${w}</button>`).join('');
   $('#closingDesc').textContent = '集計期間 ' + (S.settings.closingDay ? `前月${S.settings.closingDay + 1}日〜当月${S.settings.closingDay}日` : '1日〜末日');
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
+  $('#longFromBtn').textContent = yen(S.settings.longFrom);
+  $('#longFromRow').hidden = !S.settings.longOn;
   $('#ticketList').innerHTML = TICKETS().length ? TICKETS().map(t => `<li><button class="row" data-ticket-edit="${esc(t.id)}">
       <span class="body"><div class="main">${esc(t.name)}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
@@ -2785,10 +2796,9 @@ function entryTotal() { return +E.amount || 0; }   // メーター総額（手�
 // 配車アプリの乗車は、総額から迎車料金・アプリ手数料（決済方法で変わる）を差し引いて運賃を出す
 // 「迎車なし」はメーターの迎車を押し忘れた時用：迎車料金を差し引かず内訳にも含めない
 // 割引（いずれも10円単位で四捨五入）
-// 遠距離割：運賃メーターが9,000円を超えた部分の1割。障害者割：遠距離割後の運賃の1割
-const LONG_FROM = 9000;
+// 遠距離割：運賃メーターが設定の金額（既定9,000円）を超えた部分の1割（設定でオフ可）。障害者割：遠距離割後の運賃の1割
 const tenth = v => Math.round(Math.max(0, v) * 0.1 / 10) * 10;
-const longDisc = fare => tenth(fare - LONG_FROM);
+const longDisc = fare => S.settings.longOn ? tenth(fare - (S.settings.longFrom || 0)) : 0;
 const handiDisc = fare => tenth(fare);
 function entryBreakdown() {
   const gross = entryTotal();
@@ -2796,7 +2806,7 @@ function entryBreakdown() {
   const pickup = cfg && !E.noPickup ? S.settings.pickupFee : 0;
   const appFee = cfg ? appFeeFor(cfg, E.pay) : 0;
   const fare = gross - pickup - appFee;
-  const long = longDisc(fare);   // 遠距離割は常に自動適用（9,000円を超えた時だけ効く）
+  const long = longDisc(fare);   // 遠距離割は自動適用（設定の金額を超えた時だけ効く）
   const handi = E.handi ? handiDisc(fare - long) : 0;
   // total：受け取る金額（割引後）、meter：割引後の運賃
   return { gross, pickup, appFee, long, handi, total: gross - long - handi, meter: fare - long - handi };
@@ -3415,6 +3425,7 @@ $('#appList').addEventListener('click', e => { const b = e.target.closest('[data
 $('#appAddBtn').addEventListener('click', () => openAppEditor(null));
 $('#appOk').addEventListener('click', saveApp);
 $('#appOwnPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.payKey = b.dataset.pay; renderAppSheet(); } });
+$('#longFromBtn').addEventListener('click', () => openNumpad('遠距離割を適用する金額', S.settings.longFrom, v => { S.settings.longFrom = v; save(); renderData(); }, { label: 'この金額を超えた分の1割' }));
 $('#pickupFeeBtn').addEventListener('click', () => openNumpad('迎車料金', S.settings.pickupFee, v => { S.settings.pickupFee = v; save(); renderData(); }, { label: '会社共通' }));
 $('#appFee').addEventListener('click', () => openNumpad('アプリ決済の手数料', AE.fee, v => { AE.fee = v; renderAppSheet(); }));
 $('#appFeeOther').addEventListener('click', () => openNumpad('他の決済の手数料', AE.feeOther, v => { AE.feeOther = v; renderAppSheet(); }));
