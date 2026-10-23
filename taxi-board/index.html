@@ -595,12 +595,9 @@ svg{display:block}
 .rd-fare .fr.zero b{color:var(--faint);font-weight:600;font-size:15px}
 .rd-fare .fr.sum{border-top:2px solid var(--line-2);color:var(--text);font-weight:700;font-size:16px}
 .rd-fare .fr.sum b{font-size:24px;color:var(--accent)}
-.rd-grand{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:8px;padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2);font-size:15px;font-weight:700;white-space:nowrap}
-.rd-grand small{margin-left:8px;font-size:11px;color:var(--faint);font-weight:700}
-.rd-grand b{font-size:22px;font-weight:800}
-.rd-toll{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:8px;padding:12px 14px;border-radius:var(--r-md);border:1px dashed var(--line-2);font-size:15px;color:var(--muted);white-space:nowrap}
-.rd-toll small{margin-left:8px;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--surface-2);color:var(--faint)}
-.rd-toll b{font-size:18px;font-weight:800;color:var(--text)}
+.rd-fare .fr small{margin-left:8px;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--surface-2);color:var(--faint)}
+.rd-fare .fr.sub{border-top:1px dashed var(--line-2)}
+.rd-fare .fr.sub b{font-weight:700}
 .rd-route{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
 .rd-stop{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr) auto;column-gap:10px;row-gap:2px;align-items:center;padding:12px 0}
 .rd-stop + .rd-stop{border-top:1px solid var(--line)}
@@ -1838,7 +1835,8 @@ function openRide(id) {
   if (!r) return;
   RD = id;
   const f = r.fare, gross = r.total + (f.long || 0) + (f.handi || 0);
-  const adj = f.pickup || f.appFee || f.long || f.handi;   // 足し引きがある時だけ最後に「お支払い」を出す
+  // 料金：メーター金額 → 迎車・手数料・割引 → （高速代があれば割引適用後合計と高速代）→ お支払い金額（実際に受け取った額）
+  const adj = f.pickup || f.appFee || f.long || f.handi;
   const frow = (label, amt, cls = '') => `<div class="fr ${cls}"><span>${esc(label)}</span><b>${amt}</b></div>`;   // 料金の1行：項目は左、金額は右
   // 乗車・降車：入力画面・履歴と同じ ○→● の経路で、時刻・場所・住所（省略しない）・地図
   const PIN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
@@ -1870,15 +1868,15 @@ function openRide(id) {
     <section class="rp-sec">
       <h3><span>料金</span></h3>
       <div class="rd-fare num">
-        ${frow('運賃', yen(gross - (f.pickup || 0) - (f.appFee || 0)))}
+        ${frow('メーター金額', yen(gross - (f.pickup || 0) - (f.appFee || 0)))}
         ${f.pickup ? frow('迎車料金', '+' + yen(f.pickup)) : r.noPickup ? frow('迎車料金', '迎車なし', 'zero') : ''}
         ${f.appFee ? frow('アプリ手数料', '+' + yen(f.appFee)) : ''}
         ${f.long ? frow('遠距離割', '−' + yen(f.long), 'disc') : ''}
         ${f.handi ? frow('障害者割', '−' + yen(f.handi), 'disc') : ''}
-        ${adj ? frow('お支払い', yen(r.total), 'sum') : ''}
+        ${adj && r.toll ? frow('割引適用後合計', yen(r.total), 'sub') : ''}
+        ${r.toll ? `<div class="fr"><span>高速代<small>売上外</small></span><b>+${yen(r.toll)}</b></div>` : ''}
+        ${adj || r.toll ? frow('お支払い金額', yen(r.total + (r.toll || 0)), 'sum') : ''}
       </div>
-      ${r.toll ? `<div class="rd-toll num"><span>高速代<small>売上外</small></span><b>${yen(r.toll)}</b></div>
-      <div class="rd-grand num"><span>受け取った合計<small>高速代込み</small></span><b>${yen(r.total + r.toll)}</b></div>` : ''}
     </section>`;
   $('#rideSheet .rp-body').scrollTop = 0;
   openSheet($('#rideSheet'));
