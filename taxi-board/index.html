@@ -845,7 +845,7 @@ svg{display:block}
           <button class="btn sm num" id="closingBtn">末日</button>
         </div>
           <div class="setting">
-          <div><div class="k">月の労働時間の上限</div><div class="d">締め期間ごと・0で上限なし</div></div>
+          <div><div class="k">月の労働時間の上限</div><div class="d">暦月ごと・0で上限なし</div></div>
           <button class="btn sm num" id="hoursCapBtn">288時間</button>
         </div>
           <div class="setting">
@@ -2030,9 +2030,9 @@ function monthData(y, m) {
 // 月の労働時間の上限と残り出勤日（固定休日を除く）
 const capMs = () => (S.settings.hoursCap || 0) * 3600000;
 const isHoliday = d => (S.settings.holidays || []).includes(d.getDay());
-// 出勤予定日：実績のある最後の日の翌日（今日より前なら今日）から締め期間の終わりまで、固定休日を除く
+// 出勤予定日：実績のある最後の日の翌日（今日より前なら今日）から月末まで、固定休日を除く
 function planDays(y, m) {
-  const [from, to] = periodRange(y, m);
+  const from = new Date(y, m, 1), to = new Date(y, m + 1, 0);   // 労働時間は暦月（締め日に関係なく1日〜末日）
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const worked = new Set(S.shifts.map(sh => dayKey(new Date(sh.start))));
   const out = [];
@@ -2041,17 +2041,21 @@ function planDays(y, m) {
   }
   return out;
 }
+// 暦月の労働時間（出庫〜入庫、出庫日の月で数える）
+const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.start); return d.getFullYear() === y && d.getMonth() === m; })
+  .reduce((a, sh) => a + shiftStats(sh).elapsed, 0);
 const planMs = () => (S.settings.dayHours || 0) * 3600000;
 // 労働時間のカード：実績＋予定（残りの出勤予定日×1日の予定時間）＝見込みを上限と比べる
 // 労働時間＝出庫〜入庫（待機・休憩を含む）
 function capHtml(y, m, used) {
   const cap = capMs(), days = planDays(y, m).length, plan = days * planMs(), est = used + plan;
+  const lbl = S.settings.closingDay ? `${m + 1}月の労働時間` : '労働時間';   // 締め期間と暦月がずれる時は月を明示
   const H = v => (Math.max(0, v) / 3600000).toFixed(1);
-  if (!cap) return `<div class="cal-cap num"><div class="top"><span>労働時間</span><span class="v">${hours(used)}${plan ? `<small>＋予定 ${hours(plan)}</small>` : ''}</span></div></div>`;
+  if (!cap) return `<div class="cal-cap num"><div class="top"><span>${lbl}</span><span class="v">${hours(used)}${plan ? `<small>＋予定 ${hours(plan)}</small>` : ''}</span></div></div>`;
   const left = cap - est, r = used / cap, rp = Math.min(1, est / cap);
   const cls = est > cap ? 'over' : est >= cap * 0.9 ? 'warn' : '';
   return `<div class="cal-cap num ${cls}">
-    <div class="top"><span>労働時間</span><span class="v used">${plan ? H(est) : H(used)}<small>${plan ? 'h 見込み' : 'h'} / ${S.settings.hoursCap}h</small></span></div>
+    <div class="top"><span>${lbl}</span><span class="v used">${plan ? H(est) : H(used)}<small>${plan ? 'h 見込み' : 'h'} / ${S.settings.hoursCap}h</small></span></div>
     <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i>${plan ? `<i class="plan" style="width:${Math.max(0, (rp - Math.min(1, r)) * 100).toFixed(1)}%"></i>` : ''}</div>
     <div class="cap-leg">
       <span><i class="sw act"></i>実績 <b>${hours(used)}</b></span>
@@ -2073,11 +2077,14 @@ function renderCal() {
     <div><div class="k">売上</div><div class="v num">${tot.sales >= 100000 ? compactYen(tot.sales) : yen(tot.sales)}</div></div>
     <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
     <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
-  $('#calCap').innerHTML = capHtml(y, m, tot.ms);
+  // 労働時間は暦月で管理：今日を含む期間なら今月、それ以外は期間の月
+  const now = new Date(), cur = now >= from && now < +to + 86400000;
+  const hy = cur ? now.getFullYear() : y, hm = cur ? now.getMonth() : m;
+  $('#calCap').innerHTML = capHtml(hy, hm, monthWorkMs(hy, hm));
 
   const max = Math.max(0, ...list.map(o => o.sales));
   const today = dayKey(new Date());
-  const plan = new Set(planMs() ? planDays(y, m) : []);
+  const plan = new Set(planMs() ? planDays(hy, hm) : []);
   let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
   html += '<div class="cal-cell empty"></div>'.repeat(from.getDay());
   for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
