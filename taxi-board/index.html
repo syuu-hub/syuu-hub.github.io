@@ -1256,7 +1256,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const rad = d => d * Math.PI / 180;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmtDist = m => m < 1000 ? Math.round(m / 10) * 10 + 'm' : (m / 1000).toFixed(1) + 'km';
-const fmtLL = p => p && p.lat != null ? p.lat.toFixed(5) + ', ' + p.lng.toFixed(5) + (p.acc != null ? '  ±' + p.acc + 'm' : '') : '';
+const fmtLL = p => p && p.lat != null ? p.lat.toFixed(5) + ', ' + p.lng.toFixed(5) : '';
 function haversine(a, b) {
   const R = 6371000, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
@@ -1280,7 +1280,7 @@ function freshState() {
     settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, dayHours: 0, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
-    events: [],   // {id,shiftId,ts,status,prev,lat,lng,acc}
+    events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
   };
 }
 function loadState() {
@@ -1288,6 +1288,10 @@ function loadState() {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
     if (s && s.v === 2) {
       const base = freshState();
+      // ステータス変更時の位置・GPSの精度は記録しない（以前のデータからも取り除く）
+      for (const e of s.events || []) { delete e.lat; delete e.lng; delete e.acc; delete e.addr; }
+      for (const r of s.rides || []) for (const o of [r.from, r.to]) if (o) delete o.acc;
+      for (const sh of s.shifts || []) for (const t of [sh.trip, ...(sh.pending || [])]) if (t) for (const o of [t.from, t.to]) if (o) delete o.acc;
       return { ...base, ...s, settings: { ...base.settings, ...s.settings } };
     }
   } catch (e) {}
@@ -1309,8 +1313,8 @@ const curShift = () => S.shifts.find(s => !s.end) || null;
 /* ============================================================
    GPS（Geolocation API）
    ============================================================ */
-// 位置はトリガー式：出庫・入庫・ステータス変更・乗車記録・「現在地」ボタン・
-// 需要画面を開いた時だけ取得する（常時の追跡はしない）
+// 位置はトリガー式：実車の開始・終了（乗車地・降車地）・乗車記録・「現在地」ボタンの時だけ取得する
+// （常時の追跡はしない。ステータス変更時の位置と精度は記録しない）
 const geo = { pos: null, err: null, busy: false };
 const toPos = p => ({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy), t: Date.now() });
 const GPS_FRESH = 10 * 60000;   // この時間以内の取得なら「取得済み」表示
@@ -1412,7 +1416,7 @@ async function fillAddr(o) {
   o.addr = a;
   return true;
 }
-function setLL(o, p) { o.lat = p.lat; o.lng = p.lng; o.acc = p.acc; delete o.addr; }
+function setLL(o, p) { o.lat = p.lat; o.lng = p.lng; delete o.acc; delete o.addr; }   // GPSの精度は記録しない
 
 /* ============================================================
    兵庫県の住所補完（市区町 → 町名）。郵便番号データの町域名を内蔵
@@ -1603,7 +1607,7 @@ async function resolvePending() {
   let changed = 0;
   try {
     const sh = curShift();
-    const targets = [...S.events, ...S.rides.flatMap(r => [r.from, r.to]), sh && sh.trip && sh.trip.from]
+    const targets = [...S.rides.flatMap(r => [r.from, r.to]), sh && sh.trip && sh.trip.from, ...(sh && sh.pending || []).flatMap(t => [t.from, t.to])]
       .filter(o => o && o.lat != null && o.addr === undefined)
       .reverse().slice(0, 80);
     for (const o of targets) {
@@ -1675,10 +1679,8 @@ function startShift() {
 }
 
 function logEvent(sh, status, prev) {
-  const ev = { id: uid(), shiftId: sh.id, ts: Date.now(), status, prev, lat: null, lng: null, acc: null };
-  S.events.push(ev);
-  if (!PAUSE.includes(status))   // 待機・休憩は位置を記録しない
-    getPos(5000).then(p => { if (p) { ev.lat = p.lat; ev.lng = p.lng; ev.acc = p.acc; save(); queueAddr(); } });
+  const ev = { id: uid(), shiftId: sh.id, ts: Date.now(), status, prev };
+  S.events.push(ev);   // ステータス変更時の位置は記録しない（乗車地・降車地は乗車記録に残る）
   return ev;
 }
 
@@ -1692,7 +1694,7 @@ function fixPauseForRide(r) {
   const i = evs.findIndex((e, k) => PAUSE.includes(e.status) && e.ts < t0 && (!evs[k + 1] || evs[k + 1].ts > t0));
   if (i < 0) return null;
   const next = evs[i + 1] || null;
-  const add = (ts, status, prev) => S.events.push({ id: uid(), shiftId: sh.id, ts, status, prev, lat: null, lng: null, acc: null });
+  const add = (ts, status, prev) => S.events.push({ id: uid(), shiftId: sh.id, ts, status, prev });
   add(t0, 'occupied', evs[i].status);
   if (!next || next.ts > t1) {
     if (t1 > t0) add(t1, 'vacant', 'occupied');
@@ -1717,7 +1719,7 @@ function setStatus(st) {
   if (st === 'occupied') {
     const trip = { start: ev.ts, from: null, prev };
     sh.trip = trip;
-    getPos(5000).then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); queueAddr(); } });
+    getPos(5000).then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng }; save(); queueAddr(); } });
   }
   // 実車終了：乗車を「未記録の乗車」に積む（降車時刻・降車地はこの瞬間で確定。入力を閉じても消えない）
   if (prev === 'occupied' && sh.trip) {
@@ -1725,7 +1727,7 @@ function setStatus(st) {
     trip.end = ev.ts; trip.to = null;
     sh.pending = [...(sh.pending || []), trip];
     sh.trip = null;
-    getPos(5000).then(p => { if (p) { trip.to = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); queueAddr(); } });
+    getPos(5000).then(p => { if (p) { trip.to = { lat: p.lat, lng: p.lng }; save(); queueAddr(); } });
   }
   save();
   haptic(18);
@@ -2005,7 +2007,7 @@ function renderGps() {
   el.title = geo.err === 'unsupported' ? 'この端末は位置情報に未対応' :
              geo.err === 1 ? '位置情報の許可がありません' :
              geo.busy ? '測位中…' :
-             geo.pos ? `最終取得 ${hhmm(geo.pos.t)}（±${geo.pos.acc}m）` : '未取得（ステータス変更などで取得）';
+             geo.pos ? `最終取得 ${hhmm(geo.pos.t)}（±${geo.pos.acc}m）` : '未取得（実車・乗車記録で取得）';
 }
 
 function renderClock() {
@@ -2236,7 +2238,7 @@ function addPause() {
   const before = evs.filter(e => e.ts <= start).at(-1);
   const st0 = before ? before.status : 'vacant';
   if (st0 === 'occupied' || PAUSE.includes(st0)) return toast(st0 === 'occupied' ? '実車中の時間です' : 'すでに待機・休憩の時間です');
-  const add = (ts, status, prev) => { const ev = { id: uid(), shiftId: sh.id, ts, status, prev, lat: null, lng: null, acc: null }; S.events.push(ev); return ev; };
+  const add = (ts, status, prev) => { const ev = { id: uid(), shiftId: sh.id, ts, status, prev }; S.events.push(ev); return ev; };
   add(start, 'wait', st0);
   const at = evs.find(e => e.ts >= end && e.ts - end < 60000);   // 同じ「分」の記録（入庫など）にそろえる
   if (at) at.prev = 'wait';                       // 入庫などちょうど終了時刻の記録はそのまま
@@ -2857,13 +2859,12 @@ function locLine(o, w) {
   if (E.dirty[w]) return '手入力' + (o.lat != null ? '（GPS位置は保持）' : '');
   if (o.manual) return '手入力';
   if (o.lat == null) return E.editId ? '位置情報なし・住所は手入力できます' : 'GPS取得中…';
-  const acc = o.acc != null ? '  ±' + o.acc + 'm' : '';
-  if (o.addr) return 'GPSから自動入力' + acc;
+  if (o.addr) return 'GPSから自動入力';
   if (o.addr === undefined && S.settings.addr && navigator.onLine !== false && !addrFailed.has(o)) {
     fillAddr(o).then(ok => { if (!ok) addrFailed.add(o); if (E && (E.from === o || E.to === o)) renderEntryLoc(); });
-    return '住所を取得中…' + acc;
+    return '住所を取得中…';
   }
-  return '住所未取得' + acc;
+  return '住所未取得';
 }
 const addrInput = w => $(w === 'from' ? '#eFromAddr' : '#eToAddr');
 const sugId = w => w === 'from' ? '#eFromSug' : '#eToSug';
@@ -3110,7 +3111,7 @@ const addrSrc = o => o?.place ? '施設' : o?.manual ? '手入力' : o?.addr ? '
 const placeCsv = o => o?.place ? `${o.place.name}（${o.place.kind}）` : '';
 
 function exportLog(onlyShiftId) {
-  const head = ['日時', '営業日', '種別', 'ステータス', '備考', '緯度', '経度', '精度(m)', '住所',
+  const head = ['日時', '営業日', '種別', 'ステータス', '備考',
     '運賃合計', '運賃', '迎車料金', 'アプリ手数料', '遠距離割', '障害者割', '高速代', '迎車なし', '決済方法', 'チケットの種類', '乗車種別', '配車アプリ',
     '乗車時刻', '乗車施設', '乗車住所', '乗車住所の入力', '乗車緯度', '乗車経度', '降車施設', '降車住所', '降車住所の入力', '降車緯度', '降車経度'];
   const keep = x => !onlyShiftId || x.shiftId === onlyShiftId;
@@ -3124,10 +3125,10 @@ function exportLog(onlyShiftId) {
   for (const e of S.events.filter(keep)) {
     const base = e.status === 'off' ? '入庫' : e.prev === 'off' ? '出庫' : (STATUS[e.prev] ? STATUS[e.prev].label + 'から' : '');
     const note = e.status === 'off' || !nextTs.has(e) ? base : `${base} ・ 継続 ${dur(nextTs.get(e) - e.ts)}`;
-    rows.push([e.ts, [stamp(e.ts), shiftDay(e.shiftId), 'ステータス', STATUS[e.status]?.label || e.status, note, ...(PAUSE.includes(e.status) ? ['', '', '', ''] : [e.lat, e.lng, e.acc, e.addr])]]);   // 待機・休憩は位置なし
+    rows.push([e.ts, [stamp(e.ts), shiftDay(e.shiftId), 'ステータス', STATUS[e.status]?.label || e.status, note]]);
   }
   for (const r of S.rides.filter(keep)) {
-    rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '', r.to?.lat, r.to?.lng, r.to?.acc, r.to?.addr,
+    rows.push([r.ts, [stamp(r.ts), shiftDay(r.shiftId), '乗車記録', '実車', '',
       r.total, r.fare.meter, r.fare.pickup, r.fare.appFee, r.fare.long || '', r.fare.handi || '', r.toll || '', r.noPickup ? '○' : '', payLabel(r.pay, r.app), r.ticket ? r.ticket.name : '', kindLabel(r.kind, r.app), r.app ? r.app.name : '',
       r.start ? stamp(r.start) : '', placeCsv(r.from), r.from?.addr, addrSrc(r.from), r.from?.lat, r.from?.lng, placeCsv(r.to), r.to?.addr, addrSrc(r.to), r.to?.lat, r.to?.lng]]);
   }
@@ -3239,7 +3240,7 @@ function importLogCsv(text) {
       if (!status) continue;
       const note = get(r, '備考'), pm = /^(.+?)から/.exec(note);
       const prev = note.startsWith('出庫') ? 'off' : pm ? statusKey(pm[1]) : null;
-      items.push({ type: 'ev', ts, ev: { id: uid(), ts, status, prev, lat: num(r, '緯度'), lng: num(r, '経度'), acc: num(r, '精度(m)'), addr: get(r, '住所') || undefined } });
+      items.push({ type: 'ev', ts, ev: { id: uid(), ts, status, prev } });
     } else if (type === '乗車記録') {
       const appName = get(r, '配車アプリ');
       const app = appName ? (S.settings.apps.find(a => a.name === appName) || { id: 'imp-' + appName, name: appName }) : null;
@@ -3251,7 +3252,7 @@ function importLogCsv(text) {
       if (num(r, '障害者割')) fare.handi = num(r, '障害者割');
       const ride = { id: uid(), ts, start: parseStamp(get(r, '乗車時刻')), fare, total: num(r, '運賃合計') || 0, noPickup: get(r, '迎車なし') === '○',
         pay: payKey(get(r, '決済方法'), app), kind, app: app ? { id: app.id, name: app.name } : null,
-        from: loc(r, '乗車'), to: loc(r, '降車', num(r, '精度(m)') != null ? { acc: num(r, '精度(m)') } : {}) };
+        from: loc(r, '乗車'), to: loc(r, '降車') };
       if (ticket) ride.ticket = { id: ticket.id, name: ticket.name };
       if (num(r, '高速代')) ride.toll = num(r, '高速代');
       items.push({ type: 'ride', ts: ride.start || ts, ride });
