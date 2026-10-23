@@ -587,19 +587,18 @@ svg{display:block}
 .rd-amt .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
 .rd-amt .tags{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);min-width:0;max-width:100%;white-space:nowrap}
 .rd-amt .tags .tag{overflow:hidden;text-overflow:ellipsis;min-width:0}
-.rd-time{font-size:20px;font-weight:700;white-space:nowrap}
-.rd-time small{font-size:13px;color:var(--muted);font-weight:600;margin-left:8px}
-.rd-place{padding:10px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
-.rd-place .k{flex:none;width:2.6em;font-size:14px;font-weight:700;color:var(--muted);padding-top:2px}
-.rd-place .b{flex:1;min-width:0}
-.rd-place .nm{font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rd-place .sm{font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rd-place .sm.ll{color:var(--faint);font-size:12px}
-.rd-place .sm em{font-style:normal;color:var(--accent);font-weight:700}
-.rd-place .sm:has(a){display:flex;gap:10px;align-items:baseline}
-.rd-place .si{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.rd-place a{flex:none;font-size:13px;font-weight:700;color:var(--accent);padding:2px 0}
-.rd-place .nm{font-size:clamp(15px,4.6vw,17px)}
+.rd-route{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
+.rd-stop{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr) auto;column-gap:10px;row-gap:2px;align-items:center;padding:12px 0}
+.rd-stop + .rd-stop{border-top:1px solid var(--line)}
+.rd-stop .sk{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;border:2px solid var(--muted);color:var(--muted);background:var(--surface);position:relative;z-index:1}
+.rd-stop.to .sk{border-color:var(--accent);background:var(--accent);color:#1A1200}
+.rd-stop.from::after{content:'';position:absolute;left:11px;top:38px;bottom:-14px;border-left:2px dashed var(--line-2)}
+.rd-stop .tm{font-size:20px;font-weight:800}
+.rd-stop .map{text-decoration:none;display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;font-weight:700;color:var(--accent)}
+.rd-stop .nm{grid-column:2 / -1;font-size:17px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.rd-stop .nm.none{color:var(--faint);font-weight:600;font-size:15px}
+.rd-stop .sm{grid-column:2 / -1;font-size:13px;color:var(--muted);line-height:1.45;overflow-wrap:anywhere}   /* 住所は省略せず折り返して全部 */
+.rd-stop .sm em{font-style:normal;color:var(--accent);font-weight:700}
 .rp-tbl.two td.n{width:0;padding:0}
 
 /* 月間カレンダー */
@@ -1826,14 +1825,22 @@ function openRide(id) {
   RD = id;
   const f = r.fare, gross = r.total + (f.long || 0) + (f.handi || 0);
   const row = (label, amt, cls = '') => `<tr class="${cls}"><td>${esc(label)}</td><td class="n"></td><td class="a">${amt}</td></tr>`;
-  const place = (k, p) => {
-    if (!p || (p.lat == null && !p.addr && !p.place)) return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="sm">記録なし</div></div></div>`;
-    const nm = p.place ? p.place.name : shortAddr(p.addr) || 'GPS ' + p.lat.toFixed(5) + ', ' + p.lng.toFixed(5);
-    const sub = [p.place && p.place.kind && `<em>${esc(p.place.kind)}</em>`, p.place && p.addr && esc(shortAddr(p.addr)), !p.place && p.manual && '手入力'].filter(Boolean).join(' ・ ');
-    const ll = p.lat != null ? `<div class="sm ll num">GPS ${esc(fmtLL(p))}</div>` : '';
-    const mp = ridePos(p) || (p.lat != null ? p : null);
-    const map = mp ? `<a href="https://www.google.com/maps?q=${mp.lat},${mp.lng}" target="_blank" rel="noopener">地図</a>` : '';
-    return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="nm">${esc(nm)}</div>${sub || map ? `<div class="sm num"><span class="si">${sub}</span>${map}</div>` : ''}${ll}</div></div>`;
+  // 乗車・降車：入力画面・履歴と同じ ○→● の経路で、時刻・場所・住所（省略しない）・地図
+  const PIN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+  const stop = (cls, k, t, p) => {
+    const has = p && (p.lat != null || p.addr || p.place);
+    const nm = !has ? '場所の記録なし' : p.place ? p.place.name : shortAddr(p.addr) || '住所未取得';
+    const sub = has ? [p.place && p.place.kind && `<em>${esc(p.place.kind)}</em>`, p.place && p.place.note && esc(p.place.note), !p.place && p.manual && '手入力'].filter(Boolean).join(' ・ ') : '';
+    const addr = has && p.place && p.addr ? esc(shortAddr(p.addr)) : '';   // 施設の住所は別の行に
+    const mp = has && (ridePos(p) || (p.lat != null ? p : null));
+    return `<div class="rd-stop ${cls}">
+      <span class="sk">${k}</span>
+      <span class="tm num">${t}</span>
+      ${mp ? `<a class="map" href="https://www.google.com/maps?q=${mp.lat},${mp.lng}" target="_blank" rel="noopener">${PIN}地図</a>` : '<span></span>'}
+      <div class="nm ${has ? '' : 'none'}">${esc(nm)}</div>
+      ${sub ? `<div class="sm">${sub}</div>` : ''}
+      ${addr ? `<div class="sm ad">${addr}</div>` : ''}
+    </div>`;
   };
   $('#rdDate').textContent = ymd(r.ts);
   $('#rdBody').innerHTML = `
@@ -1842,13 +1849,9 @@ function openRide(id) {
       <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${esc(kindLabel(r.kind, r.app))}</div>
     </div>
     <section class="rp-sec">
-      <h3><span>時刻</span></h3>
-      <div class="rd-time num">${r.start ? hhmm(r.start) + ' → ' : ''}${hhmm(r.ts)}${r.start ? `<small>乗車 ${Math.round((r.ts - r.start) / 60000)}分</small>` : '<small>乗車時刻は未記録</small>'}</div>
+      <h3><span>乗車・降車</span><span class="num">${r.start ? Math.round((r.ts - r.start) / 60000) + '分' : '乗車時刻は未記録'}</span></h3>
+      <div class="rd-route">${stop('from', '乗', r.start ? hhmm(r.start) : '--:--', r.from)}${stop('to', '降', hhmm(r.ts), r.to)}</div>
     </section>
-    ${placeText(r.from) !== '—' || placeText(r.to) !== '—' ? `<section class="rp-sec">
-      <h3><span>乗車地・降車地</span></h3>
-      ${place('乗車', r.from)}${place('降車', r.to)}
-    </section>` : ''}
     <section class="rp-sec">
       <h3><span>料金</span></h3>
       <table class="rp-tbl two num">
