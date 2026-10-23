@@ -1290,7 +1290,10 @@ function loadState() {
       const base = freshState();
       // ステータス変更時の位置・GPSの精度は記録しない（以前のデータからも取り除く）
       for (const e of s.events || []) { delete e.lat; delete e.lng; delete e.acc; delete e.addr; }
-      for (const r of s.rides || []) for (const o of [r.from, r.to]) if (o) delete o.acc;
+      for (const r of s.rides || []) for (const o of [r.from, r.to]) if (o) {
+        delete o.acc;
+        if (o.manual) { delete o.lat; delete o.lng; if (o.place) { delete o.place.kind; delete o.place.info; } }   // 手入力・施設はカテゴリとGPSを持たない
+      }
       for (const sh of s.shifts || []) for (const t of [sh.trip, ...(sh.pending || [])]) if (t) for (const o of [t.from, t.to]) if (o) delete o.acc;
       return { ...base, ...s, settings: { ...base.settings, ...s.settings } };
     }
@@ -1795,7 +1798,7 @@ function openRide(id) {
   const place = (k, p) => {
     if (!p || (p.lat == null && !p.addr && !p.place)) return `<div class="rd-place"><span class="k">${k}</span><div class="b"><div class="sm">記録なし</div></div></div>`;
     const nm = p.place ? p.place.name : shortAddr(p.addr) || 'GPS ' + p.lat.toFixed(5) + ', ' + p.lng.toFixed(5);
-    const sub = [p.place && `<em>${esc(p.place.kind)}</em>`, p.place && p.addr && esc(shortAddr(p.addr)), !p.place && p.manual && '手入力'].filter(Boolean).join(' ・ ');
+    const sub = [p.place && p.place.kind && `<em>${esc(p.place.kind)}</em>`, p.place && p.addr && esc(shortAddr(p.addr)), !p.place && p.manual && '手入力'].filter(Boolean).join(' ・ ');
     const ll = p.lat != null ? `<div class="sm ll num">GPS ${esc(fmtLL(p))}</div>` : '';
     const mp = ridePos(p) || (p.lat != null ? p : null);
     const map = mp ? `<a href="https://www.google.com/maps?q=${mp.lat},${mp.lng}" target="_blank" rel="noopener">地図</a>` : '';
@@ -2851,12 +2854,12 @@ function renderEntryTimes() {
 }
 const addrFailed = new WeakSet();
 // 住所欄の下に出す取得状況
-const placeLine = (pl, addr) => pl.kind + (pl.note ? '（' + pl.note + '）' : '') + ' ・ ' + (addr ? shortAddr(addr) : '住所不明');
+const placeLine = (pl, addr) => [pl.kind, pl.note].filter(Boolean).join('・') + (pl.kind || pl.note ? ' ・ ' : '') + (addr ? shortAddr(addr) : '住所不明');
 function locLine(o, w) {
   const pk = E.dirty[w] && E.pick[w];
   if (pk) return placeLine(pk, pk.addr || (pk.lat == null ? o.addr : pk.addrFail ? '' : '住所を取得中…'));
   if (!E.dirty[w] && o.place) return placeLine(o.place, o.addr);
-  if (E.dirty[w]) return '手入力' + (o.lat != null ? '（GPS位置は保持）' : '');
+  if (E.dirty[w]) return '手入力';
   if (o.manual) return '手入力';
   if (o.lat == null) return E.editId ? '位置情報なし・住所は手入力できます' : 'GPS取得中…';
   if (o.addr) return 'GPSから自動入力';
@@ -2915,10 +2918,10 @@ function commitAddr(w) {
   const o = E[w], v = addrInput(w).value.trim().replace(/\s+/g, ''), pk = E.pick[w];
   delete o.alat; delete o.alng;   // 住所が変わるので位置は求め直す
   if (pk && v === pk.name.replace(/\s+/g, '')) {
-    // 施設：名前と種類を残し、住所は施設の位置から。GPSが無ければ施設の位置を使う
-    o.place = { name: pk.name, kind: pk.kind, ...(pk.info ? { info: pk.info } : {}), ...(pk.note ? { note: pk.note } : {}),
+    // 施設：名前と住所（と施設の位置）だけ残す。種類（カテゴリ）とGPSの位置は記録しない
+    o.place = { name: pk.name, ...(pk.note ? { note: pk.note } : {}),
       ...(pk.lat != null ? { lat: +pk.lat.toFixed(6), lng: +pk.lng.toFixed(6) } : {}) };
-    if (o.lat == null && pk.lat != null) { o.lat = +pk.lat.toFixed(6); o.lng = +pk.lng.toFixed(6); delete o.acc; }
+    delete o.lat; delete o.lng; delete o.acc;
     if (pk.addr) o.addr = pk.addr;
     o.manual = true;
     return;
@@ -2928,6 +2931,7 @@ function commitAddr(w) {
   if (!o.manual && v === o.addr) return;
   o.addr = withPref(v);
   o.manual = true;
+  delete o.lat; delete o.lng; delete o.acc;   // 手入力の住所にはGPSの位置を残さない
 }
 // 兵庫県の市区町名から始まる住所に「兵庫県」を補う
 const withPref = v => !v.startsWith('兵庫県') && hyogoCity(v) ? '兵庫県' + v : v;
@@ -3108,7 +3112,7 @@ const fileDate = () => { const d = new Date(); return d.getFullYear() + pad2(d.g
 const shiftDay = id => { const s = S.shifts.find(x => x.id === id); return s ? ymd(s.start) : ''; };
 
 const addrSrc = o => o?.place ? '施設' : o?.manual ? '手入力' : o?.addr ? 'GPS' : '';
-const placeCsv = o => o?.place ? `${o.place.name}（${o.place.kind}）` : '';
+const placeCsv = o => o?.place ? o.place.name + (o.place.kind ? `（${o.place.kind}）` : '') : '';
 
 function exportLog(onlyShiftId) {
   const head = ['日時', '営業日', '種別', 'ステータス', '備考',
