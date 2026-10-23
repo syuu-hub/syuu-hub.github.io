@@ -897,6 +897,10 @@ svg{display:block}
           <div><div class="k">GPSを住所に変換</div><div class="d">通信時のみ・国土地理院</div></div>
           <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="GPSを住所に変換"></button>
         </div>
+          <div class="setting">
+          <div><div class="k">駅で乗車したら「乗り場」</div><div class="d">乗車種別を自動で切替</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="stationStand" aria-label="駅で乗車したら乗り場"></button>
+        </div>
           </div>
         </div>
         <div class="fold" id="gData">
@@ -1268,7 +1272,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, dayHours: 0, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, dayHours: 0, stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -2592,7 +2596,7 @@ function renderData() {
   setFoldSum('gWork', [yen(S.settings.goal), S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', S.settings.dayHours ? '1日' + S.settings.dayHours + 'h' : '',
     S.settings.holidays.length ? S.settings.holidays.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
   setFoldSum('gPay', `決済${PAYS().length}・チケット${TICKETS().length}・アプリ${S.settings.apps.length}`);
-  setFoldSum('gInput', [S.settings.dim ? '減光' : '', S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : ''].filter(Boolean).join(' ・ '));
+  setFoldSum('gInput', [S.settings.dim ? '減光' : '', S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : '', S.settings.stationStand ? '駅→乗り場' : ''].filter(Boolean).join(' ・ '));
   setFoldSum('gData', (bytes / 1024).toFixed(0) + ' KB');
 }
 
@@ -3531,6 +3535,10 @@ $$('.sug').forEach(box => {
       const pl = opt.place = { ...opt.place };
       E.pick[w] = pl;
       if (!pl.addr && pl.lat != null) reverseGeocode(pl).then(a => { if (a !== undefined) pl.addr = a; else pl.addrFail = true; if (E && E.pick[w] === pl) renderEntryLoc(); });
+      // 乗車地が駅なら乗車種別を「乗り場」に（配車アプリの乗車は変えない。設定でオフにできる）
+      if (w === 'from' && pl.kind === '駅' && S.settings.stationStand && E.kind !== 'app' && E.kind !== 'stand') {
+        selectKind('stand'); renderEntry(); toast('駅での乗車なので「乗り場」にしました');
+      }
       $(sugId(w)).innerHTML = '';
       inp.blur();
     } else {
