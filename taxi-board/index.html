@@ -447,10 +447,10 @@ svg{display:block}
 .close-btn{height:48px;padding:0 14px 0 8px;border-radius:var(--r-sm);display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-weight:600}
 
 .entry-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);gap:var(--gap);overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
-/* 縦向き：時間・場所 → 金額 → 種別・決済など の順（横向きは左に金額、右に残りをまとめてスクロール） */
+/* 縦向き：金額 → 時刻・場所 → 種別・決済 の順（横向きは左に金額、右に残りをまとめてスクロール） */
 .e-side{display:contents}
-.e-when{order:1}
-.e-amount{order:2}
+.e-amount{order:1}
+.e-when{order:2}
 .e-meta{order:3}
 @media (orientation:landscape) and (min-width:700px){
   .entry-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:calc(var(--gap)*2);overflow:hidden}
