@@ -2030,8 +2030,9 @@ function monthData(y, m) {
 const capMs = () => (S.settings.hoursCap || 0) * 3600000;
 const isHoliday = d => (S.settings.holidays || []).includes(d.getDay());
 // 出勤予定日：実績のある最後の日の翌日（今日より前なら今日）から月末まで、固定休日を除く
-function planDays(y, m) {
-  const from = new Date(y, m, 1), to = new Date(y, m + 1, 0);   // 労働時間は暦月（締め日に関係なく1日〜末日）
+// lo〜hi：カレンダーに表示している範囲。表示していない日は予定に含めない
+function planDays(y, m, lo = -Infinity, hi = Infinity) {
+  const from = new Date(Math.max(new Date(y, m, 1), lo)), to = new Date(Math.min(new Date(y, m + 1, 0), hi));   // 労働時間は暦月（締め日に関係なく1日〜末日）
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const worked = new Set(S.shifts.map(sh => dayKey(new Date(sh.start))));
   const out = [];
@@ -2046,8 +2047,8 @@ const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.star
 const planMs = () => (S.settings.dayHours || 0) * 3600000;
 // 労働時間のカード：実績＋予定（残りの出勤予定日×1日の予定時間）＝見込みを上限と比べる
 // 労働時間＝出庫〜入庫（待機・休憩を含む）
-function capHtml(y, m, used) {
-  const cap = capMs(), days = planDays(y, m).length, plan = days * planMs(), est = used + plan;
+function capHtml(y, m, used, pdays) {
+  const cap = capMs(), days = pdays.length, plan = days * planMs(), est = used + plan;
   const lbl = S.settings.closingDay ? `${m + 1}月の労働時間` : '労働時間';   // 締め期間と暦月がずれる時は月を明示
   const H = v => (Math.max(0, v) / 3600000).toFixed(1);
   if (!cap) return `<div class="cal-cap num"><div class="top"><span>${lbl}</span><span class="v">${hours(used)}${plan ? `<small>＋予定 ${hours(plan)}</small>` : ''}</span></div></div>`;
@@ -2079,11 +2080,12 @@ function renderCal() {
   // 労働時間は暦月で管理：今日を含む期間なら今月、それ以外は期間の月
   const now = new Date(), cur = now >= from && now < +to + 86400000;
   const hy = cur ? now.getFullYear() : y, hm = cur ? now.getMonth() : m;
-  $('#calCap').innerHTML = capHtml(hy, hm, monthWorkMs(hy, hm));
+  const pdays = planDays(hy, hm, from, to);
+  $('#calCap').innerHTML = capHtml(hy, hm, monthWorkMs(hy, hm), pdays);
 
   const max = Math.max(0, ...list.map(o => o.sales));
   const today = dayKey(new Date());
-  const plan = new Set(planMs() ? planDays(hy, hm) : []);
+  const plan = new Set(planMs() ? pdays : []);
   let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
   html += '<div class="cal-cell empty"></div>'.repeat(from.getDay());
   for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
