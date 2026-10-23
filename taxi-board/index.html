@@ -619,6 +619,8 @@ svg{display:block}
 .cal-cap b{color:var(--text);font-weight:800}
 .cal-cap .bar{height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden;margin-top:8px}
 .cal-cap .bar i{display:block;height:100%;background:var(--accent)}
+.cal-cap.done .bar i{background:var(--ok)}
+.cal-cap b.ok{color:var(--ok)}
 .cal-cap.warn .bar i{background:var(--st-wait)}
 .cal-cap .bar{display:flex}
 .cal-cap .bar i.plan{background:repeating-linear-gradient(135deg,var(--accent) 0 4px,transparent 4px 7px);opacity:.6}
@@ -845,6 +847,10 @@ svg{display:block}
           <div class="setting">
           <div><div class="k">1日の目標金額</div><div class="d">次の出庫から適用</div></div>
           <button class="btn sm num" id="goalSetBtn">¥0</button>
+        </div>
+          <div class="setting">
+          <div><div class="k">月の目標金額</div><div class="d">締め期間ごと・0でなし</div></div>
+          <button class="btn sm num" id="monthGoalBtn">未設定</button>
         </div>
           <div class="setting">
           <div><div class="k">締め日</div><div class="d" id="closingDesc"></div></div>
@@ -1096,6 +1102,7 @@ svg{display:block}
     </header>
     <div class="cal-body">
       <div class="cal-sum" id="calSum"></div>
+      <div id="calGoal"></div>
       <div id="calCap"></div>
       <div class="cal-grid" id="calGrid"></div>
       <div class="cal-day" id="calDay"></div>
@@ -1272,7 +1279,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, hoursCap: 288, dayHours: 0, stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, closingDay: 0, monthGoal: 0, hoursCap: 288, dayHours: 0, stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -2062,8 +2069,7 @@ function monthData(y, m) {
 const capMs = () => (S.settings.hoursCap || 0) * 3600000;
 const isHoliday = d => (S.settings.holidays || []).includes(d.getDay());
 // 出勤予定日：実績のある最後の日の翌日（今日より前なら今日）から月末まで、固定休日を除く
-function planDays(y, m) {
-  const from = new Date(y, m, 1), to = new Date(y, m + 1, 0);   // 労働時間は暦月（締め日に関係なく1日〜末日）
+function planDays(y, m, from = new Date(y, m, 1), to = new Date(y, m + 1, 0)) {   // 既定は暦月（労働時間用）。売上目標は締め期間で
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const worked = new Set(S.shifts.map(sh => dayKey(new Date(sh.start))));
   const out = [];
@@ -2076,6 +2082,17 @@ function planDays(y, m) {
 const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.start); return d.getFullYear() === y && d.getMonth() === m; })
   .reduce((a, sh) => a + shiftStats(sh).elapsed, 0);
 const planMs = () => (S.settings.dayHours || 0) * 3600000;
+// 月の目標金額のカード：締め期間の売上と目標、残りの出勤予定日で1日いくら必要か
+function goalHtml(sales, pdays) {
+  const g = S.settings.monthGoal;
+  if (!g) return '';
+  const r = sales / g, left = g - sales, days = pdays.length;
+  return `<div class="cal-cap num ${r >= 1 ? 'done' : ''}">
+    <div class="top"><span>月の目標</span><span class="v">${Math.floor(r * 100)}<small>% / ${yen(g)}</small></span></div>
+    <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div>
+    <div class="cr">${left > 0 ? `<span>あと <b>${yen(left)}</b></span>${days ? `<span>1日 <b>${yen(Math.ceil(left / days))}</b> ×${days}日</span>` : ''}` : `<span><b class="ok">達成</b>（＋${yen(-left)}）</span>`}</div>
+  </div>`;
+}
 // 労働時間のカード：実績＋予定（残りの出勤予定日×1日の予定時間）＝見込みを上限と比べる
 // 労働時間＝出庫〜入庫（待機・休憩を含む）
 function capHtml(y, m, used, pdays) {
@@ -2108,6 +2125,7 @@ function renderCal() {
     <div><div class="k">売上</div><div class="v num">${tot.sales >= 100000 ? compactYen(tot.sales) : yen(tot.sales)}</div></div>
     <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
     <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
+  $('#calGoal').innerHTML = goalHtml(tot.sales, planDays(y, m, from, to));
   // 労働時間はカレンダーに連動して暦月（1日〜末日）で計算：今日を含む期間なら今月、それ以外は期間の月。
   // その月のうち締め期間の外にある日も薄く並べ、労働時間に入る日がすべて見えるようにする
   const now = new Date(), cur = now >= from && now < +to + 86400000;
@@ -2559,6 +2577,7 @@ function renderData() {
   $('#shiftSec').hidden = !sh;
   $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
   $('#goalSetBtn').textContent = yen(S.settings.goal);
+  $('#monthGoalBtn').textContent = S.settings.monthGoal ? yen(S.settings.monthGoal) : '未設定';
   $('#closingBtn').textContent = closingLabel();
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
   $('#dayHoursBtn').textContent = S.settings.dayHours ? S.settings.dayHours + '時間' : '未設定';
@@ -2593,7 +2612,7 @@ function renderData() {
   // 折りたたみの見出しに今の設定を1行で
   const done = S.shifts.filter(x => x.end).length;
   setFoldSum('gShifts', done ? `${done}件（新しい順に30件）` : 'まだありません');
-  setFoldSum('gWork', [yen(S.settings.goal), S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', S.settings.dayHours ? '1日' + S.settings.dayHours + 'h' : '',
+  setFoldSum('gWork', [yen(S.settings.goal), S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', S.settings.dayHours ? '1日' + S.settings.dayHours + 'h' : '',
     S.settings.holidays.length ? S.settings.holidays.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
   setFoldSum('gPay', `決済${PAYS().length}・チケット${TICKETS().length}・アプリ${S.settings.apps.length}`);
   setFoldSum('gInput', [S.settings.dim ? '減光' : '', S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : '', S.settings.stationStand ? '駅→乗り場' : ''].filter(Boolean).join(' ・ '));
@@ -3348,6 +3367,10 @@ $('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
+$('#monthGoalBtn').addEventListener('click', () => openNumpad('月の目標金額', S.settings.monthGoal, v => {
+  S.settings.monthGoal = v;
+  save(); renderAll();
+}, { label: '0で目標なし', digits: 8 }));
 $('#hoursCapBtn').addEventListener('click', () => openNumpad('月の労働時間の上限', S.settings.hoursCap, v => {
   S.settings.hoursCap = Math.min(v, 744);
   save(); renderData();
