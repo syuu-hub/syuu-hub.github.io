@@ -2839,7 +2839,7 @@ function renderEntry() {
     : !parts.length && !discs.length && !E.toll ? bi('迎車料金・手数料込みの総額を入力')
     : [...parts.map(t => bi(t)), ...discs.map(t => bi(t, 'disc-amt')),
        (parts.length || discs.length) && bi(`運賃 <b>${yen(Math.max(0, bd.meter))}</b>`),
-       discs.length && bi(`お支払い <b>${yen(bd.total)}</b>`),
+       discs.length && bd.total !== bd.meter && bi(`お支払い <b>${yen(bd.total)}</b>`),   // 運賃と同じ額なら重複させない
        E.toll && bi(`＋高速代 <b>${yen(E.toll)}</b>（売上外）`)].filter(Boolean).join('');
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
   $('#eTollSub').textContent = E.toll ? yen(E.toll) : '売上外';
