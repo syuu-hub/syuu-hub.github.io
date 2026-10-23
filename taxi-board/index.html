@@ -1476,6 +1476,10 @@ const EXTRA_PLACES = [
     alias: ['THE ORIENT KOBE', 'ザ オリエント 神戸', 'オリエンタルホテル', 'ORIENTAL HOTEL'] },
   { name: '神戸マリオットホテル', kind: 'ホテル', info: '神戸市中央区東川崎町', note: '旧ホテルクラウンパレス神戸', addr: '兵庫県神戸市中央区東川崎町1丁目3-5',
     alias: ['Kobe Marriott Hotel', 'マリオット', 'ホテルクラウンパレス神戸', 'クラウンパレス神戸', 'クラウンパレス'] },
+  { name: '三宮オーパ', kind: '商業施設', info: '神戸市中央区三宮町', addr: '兵庫県神戸市中央区三宮町1丁目5-26',
+    alias: ['三宮OPA', 'Sannomiya OPA', 'オーパ', 'OPA', '三ノ宮オーパ', 'さんのみやオーパ'] },
+  { name: '三宮オーパ2', kind: '商業施設', info: '神戸市中央区雲井通', addr: '兵庫県神戸市中央区雲井通6丁目1-15',
+    alias: ['三宮OPA2', 'Sannomiya OPA2', 'オーパ2', 'OPA2', '三ノ宮オーパ2', 'さんのみやオーパ2'] },
 ];
 function stationSuggest(q) {
   const k = normName(q.replace(/駅$/, '')), kq = normName(q);
