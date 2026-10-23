@@ -514,22 +514,23 @@ svg{display:block}
 /* 場所 */
 /* 乗車・降車：1行＝時刻＋場所＋現在地。履歴のカードと同じ○→●の経路で見せる */
 .trip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:4px 10px}
-.stop{position:relative;display:grid;grid-template-columns:24px 5.6em minmax(0,1fr) 44px;column-gap:8px;align-items:start;padding:8px 0}
+.stop{position:relative;display:grid;grid-template-columns:24px auto minmax(0,1fr);column-gap:8px;row-gap:6px;align-items:center;padding:10px 0}
 .stop + .stop{border-top:1px solid var(--line)}
-.stop .sk{margin-top:10px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;border:2px solid var(--muted);color:var(--muted);background:var(--surface);position:relative;z-index:1}
+.stop .sk{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;border:2px solid var(--muted);color:var(--muted);background:var(--surface);position:relative;z-index:1}
 .stop.to .sk{border-color:var(--accent);background:var(--accent);color:#1A1200}
-.stop.from::after{content:'';position:absolute;left:11px;top:44px;bottom:-14px;border-left:2px dashed var(--line-2)}
-.stop .tm{height:44px;width:100%;min-width:0;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface-2);padding:0 6px;font-size:18px;font-weight:800;text-align:center}
+.stop.from::after{content:'';position:absolute;left:11px;top:44px;bottom:-22px;border-left:2px dashed var(--line-2)}
+.stop .tm{grid-column:2;height:44px;width:6.2em;min-width:0;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface-2);padding:0 6px;font-size:18px;font-weight:800;text-align:center}
 .stop .tm::-webkit-calendar-picker-indicator{display:none}
 .stop .tm:focus{outline:none;border-color:var(--accent)}
 .trip.warn .tm{border-color:var(--danger);color:var(--danger)}
-.stop .loc-body{min-width:0}
+.stop .loc-body{grid-column:2 / -1;min-width:0}
 .stop .loc-body input{width:100%;height:44px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface-2);padding:0 10px;font-size:16px}
 .stop .loc-body input:focus{outline:none;border-color:var(--accent)}
-.gps-btn{height:44px;width:44px;border-radius:var(--r-sm);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--accent)}
+.gps-btn{grid-column:3;justify-self:end;height:40px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:var(--text)}
+.gps-btn svg{color:var(--accent)}
 .gps-btn:active{background:var(--surface-3)}
-.stop .sug{grid-column:2 / -1}
-.stop .loc-gps{margin-top:3px}
+.stop .sug{grid-column:2 / -1;margin-top:0}
+.stop .loc-gps{margin-top:4px;white-space:normal;overflow-wrap:anywhere;line-height:1.4}   /* 住所は省略せず全部見せる */
 .loc-gps{font-size:12px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .loc-gps.manual{color:var(--accent)}
 .sug button.pl{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;max-width:82%;min-height:52px;padding:4px 12px;border-color:var(--accent);text-align:left}
@@ -976,15 +977,15 @@ svg{display:block}
           <div class="stop from">
             <span class="sk">乗</span>
             <input class="tm num" type="time" id="eStart" aria-label="乗車時刻">
+            <button class="gps-btn" data-regps="from" aria-label="乗車地を現在地にする"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>現在地</button>
             <div class="loc-body"><input id="eFromAddr" data-addr="from" placeholder="乗車地・施設名" autocomplete="off" enterkeyhint="next"><div class="loc-gps num" id="eFromGps"></div></div>
-            <button class="gps-btn" data-regps="from" aria-label="乗車地を現在地にする"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
             <div class="sug" id="eFromSug"></div>
           </div>
           <div class="stop to">
             <span class="sk">降</span>
             <input class="tm num" type="time" id="eEnd" aria-label="降車時刻">
+            <button class="gps-btn" data-regps="to" aria-label="降車地を現在地にする"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>現在地</button>
             <div class="loc-body"><input id="eToAddr" data-addr="to" placeholder="降車地・施設名" autocomplete="off" enterkeyhint="done"><div class="loc-gps num" id="eToGps"></div></div>
-            <button class="gps-btn" data-regps="to" aria-label="降車地を現在地にする"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
             <div class="sug" id="eToSug"></div>
           </div>
         </div>
@@ -2768,7 +2769,7 @@ function openEntry(rideId, shiftId) {
   $('#eStart').value = E.start ? toHM(E.start) : '';
   $('#eEnd').value = toHM(E.ts);
   E.pick = {};
-  for (const w of ['from', 'to']) { E.dirty[w] = false; addrInput(w).value = E[w].place ? E[w].place.name : E[w].addr || ''; $(sugId(w)).innerHTML = ''; }
+  for (const w of ['from', 'to']) { E.dirty[w] = false; addrInput(w).value = E[w].place ? E[w].place.name : shortAddr(E[w].addr) || ''; $(sugId(w)).innerHTML = ''; }
   renderEntry(); renderEntryLoc();
   $('#toast').classList.remove('show');   // 直前のステータスの「取り消し」は入力中に出さない
   openSheet($('#entry'));
@@ -2926,7 +2927,7 @@ function renderEntryLoc() {
   for (const w of ['from', 'to']) {
     const o = E[w], inp = addrInput(w), gps = $(w === 'from' ? '#eFromGps' : '#eToGps');
     // 手入力していなければ自動取得した住所を反映
-    if (!E.dirty[w]) inp.value = o.place ? o.place.name : o.addr || '';
+    if (!E.dirty[w]) inp.value = o.place ? o.place.name : shortAddr(o.addr) || '';   // 表示は都道府県を省いて短く（保存は元の住所のまま）
     gps.textContent = locLine(o, w);
     gps.classList.toggle('manual', !!(E.dirty[w] || o.manual));
     gps.classList.toggle('place', !!(E.dirty[w] ? E.pick[w] : o.place));
@@ -2949,7 +2950,7 @@ function commitAddr(w) {
   }
   delete o.place;
   if (!v) { delete o.addr; delete o.manual; return; }
-  if (!o.manual && v === o.addr) return;
+  if (!o.manual && (v === o.addr || v === shortAddr(o.addr))) return;   // GPSの住所のまま
   o.addr = withPref(v);
   o.manual = true;
   delete o.lat; delete o.lng; delete o.acc;   // 手入力の住所にはGPSの位置を残さない
