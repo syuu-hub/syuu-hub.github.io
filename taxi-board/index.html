@@ -505,6 +505,7 @@ svg{display:block}
 .text-in:focus{outline:none;border-color:var(--accent)}
 
 /* 場所 */
+.e-times.warn input{border-color:var(--danger)}
 .e-times{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end}
 .e-times label{display:block;min-width:0}
 .e-times .k{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px}
@@ -960,6 +961,14 @@ svg{display:block}
           </div>
         </div>
         <div class="group">
+          <div class="glabel"><span>乗車・降車時刻</span><span class="num" id="eDur"></span></div>
+          <div class="e-times">
+            <label><span class="k">乗車</span><input class="text-in num" type="time" id="eStart"></label>
+            <span class="arrow">→</span>
+            <label><span class="k">降車</span><input class="text-in num" type="time" id="eEnd"></label>
+          </div>
+        </div>
+        <div class="group">
           <div class="glabel"><span>乗車地・降車地</span><span>GPSで自動入力</span></div>
           <div class="loc">
             <span class="loc-k">乗車</span>
@@ -971,35 +980,17 @@ svg{display:block}
             <div class="loc-body"><input id="eToAddr" data-addr="to" placeholder="住所・施設名（例：神戸市中央区三宮町）" autocomplete="off" enterkeyhint="done"><div class="sug" id="eToSug"></div><div class="loc-gps num" id="eToGps"></div></div>
             <button class="btn sm ghost" data-regps="to">現在地</button>
           </div>
-        <div class="fold" id="fDisc">
-          <button class="fold-h" aria-expanded="false" aria-controls="fDiscB"><span class="t">割引・高速代</span><span class="s num" id="fDiscSum">なし</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-          <div class="fold-b" id="fDiscB" hidden>
-          <div class="group">
-            <div class="glabel"><span>割引</span><span>メーター総額から差し引き</span></div>
-            <div class="disc">
-              <button class="opt" id="eDiscLong" aria-pressed="false">遠距離割<small id="eDiscLongSub">9,000円超の1割</small></button>
-              <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub">運賃の1割</small></button>
-            </div>
-          </div>
-          <div class="group">
-            <div class="glabel"><span>高速代</span><span>営業収入に含めない</span></div>
-            <button class="opt no-pick" id="eToll" aria-pressed="false">高速代<small id="eTollSub">金額を入力</small></button>
-          </div>
-          </div>
         </div>
-        <div class="fold" id="fTrip">
-          <button class="fold-h" aria-expanded="false" aria-controls="fTripB"><span class="t">乗車・降車時刻</span><span class="s num" id="fTripSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-          <div class="fold-b" id="fTripB" hidden>
         <div class="group">
-          <div class="glabel"><span>乗車・降車時刻</span><span class="num" id="eDur"></span></div>
-          <div class="e-times">
-            <label><span class="k">乗車</span><input class="text-in num" type="time" id="eStart"></label>
-            <span class="arrow">→</span>
-            <label><span class="k">降車</span><input class="text-in num" type="time" id="eEnd"></label>
+          <div class="glabel"><span>割引</span><span>メーター総額から差し引き</span></div>
+          <div class="disc">
+            <button class="opt" id="eDiscLong" aria-pressed="false">遠距離割<small id="eDiscLongSub">9,000円超の1割</small></button>
+            <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub">運賃の1割</small></button>
           </div>
         </div>
-        </div>
-          </div>
+        <div class="group">
+          <div class="glabel"><span>高速代</span><span>営業収入に含めない</span></div>
+          <button class="opt no-pick" id="eToll" aria-pressed="false">高速代<small id="eTollSub">金額を入力</small></button>
         </div>
       </section>
     </div>
@@ -2735,7 +2726,6 @@ function openEntry(rideId, shiftId) {
     });
   }
   $('#entryTitle').textContent = r ? '乗車記録の修正' : past ? `乗車の追加（${ymd(past.start).slice(5)}）` : '乗車記録';
-  if (past) setFold('fTrip', true);   // 時刻を入れてもらう
   $('#eDelete').hidden = !r && !E.pend;
   $('#eDelete').textContent = E.pend ? '記録しない' : '削除';
   $('#eStart').value = E.start ? toHM(E.start) : '';
@@ -2799,8 +2789,6 @@ function renderEntry() {
        E.toll && bi(`＋高速代 <b>${yen(E.toll)}</b>（売上外）`)].filter(Boolean).join('');
   $('#eDiscLong').setAttribute('aria-pressed', !!E.long);
   $('#eDiscLongSub').textContent = !E.long ? '9,000円超の1割' : bd.meter + bd.long + bd.handi > LONG_FROM ? '−' + yen(bd.long) : '対象外（9,000円以下）';
-  const dsum = [bd.long + bd.handi ? '割引−' + yen(bd.long + bd.handi) : E.long ? '遠距離割 対象外' : '', E.toll && '高速代' + yen(E.toll)].filter(Boolean);
-  setFoldSum('fDisc', dsum.length ? dsum.join(' ・ ') : 'なし', dsum.length ? 'on' : '');
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
   $('#eTollSub').textContent = E.toll ? yen(E.toll) + '（タップで変更・0で解除）' : '金額を入力';
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
@@ -2880,6 +2868,7 @@ function setFoldSum(id, text, cls = '') {
 }
 function setFold(id, open) {
   const f = $('#' + id);
+  if (!f) return;
   f.querySelector('.fold-h').setAttribute('aria-expanded', open);
   f.querySelector('.fold-b').hidden = !open;
 }
@@ -2893,7 +2882,7 @@ function renderTripSum() {
   if (!E) return;
   const { start, end } = entryTimes();
   const bad = start != null && start > end;
-  setFoldSum('fTrip', `${start ? hhmm(start) + ' → ' : ''}${hhmm(end)}`, bad ? 'warn' : '');
+  $('#entry .e-times').classList.toggle('warn', bad);   // 乗車が降車より後
 }
 function renderEntryLoc() {
   for (const w of ['from', 'to']) {
