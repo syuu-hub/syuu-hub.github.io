@@ -587,9 +587,6 @@ svg{display:block}
 .cal-sum > div{background:var(--surface-2);border-radius:var(--r-md);padding:var(--tile-pad);min-width:0}
 .cal-sum .k{font-size:12px;color:var(--muted)}
 .cal-sum .v{font-size:clamp(16px,4.6vw,24px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-period{grid-column:1 / -1;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:0 4px;font-size:12px;color:var(--muted);white-space:nowrap}
-.cal-period span{overflow:hidden;text-overflow:ellipsis;min-width:0}
-.cal-period b{font-size:15px;color:var(--text);font-weight:800}
 .cal-sum .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .cal-dow{font-size:12px;font-weight:700;color:var(--muted);text-align:center;padding:2px 0 4px}
@@ -603,6 +600,7 @@ svg{display:block}
 .cal-cell .s{font-size:clamp(11px,3vw,16px);font-weight:800;white-space:nowrap}
 .cal-cell .m{font-size:clamp(9px,2.5vw,12px);color:var(--muted);white-space:nowrap;line-height:1.25}
 .cal-cell[aria-pressed="true"]{border:2px solid var(--accent);padding:3px 4px}
+.cal-cell.out{opacity:.5}
 .cal-cell.empty{background:transparent;border-color:transparent}
 .cal-cell.hol{background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 6px,var(--surface-2) 6px,var(--surface-2) 12px)}
 .cal-cell .hol-tag{font-size:10px;font-weight:700;color:var(--faint)}
@@ -2014,12 +2012,12 @@ const periodName = ({ y, m }) => `${y}年${m + 1}月${S.settings.closingDay ? '�
 const compactYen = n => n >= 10000 ? (n / 10000).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, '') + '万' : yen(n);
 const hours = ms => (Math.max(0, ms) / 3600000).toFixed(1) + 'h';   // 労働時間は「10.5h」の形（分は小数で）
 
-// 暦月（1日〜末日、出庫日で数える）の日ごとの集計
+// 締め期間の日ごとの集計
 function monthData(y, m) {
   const days = {};
   for (const sh of S.shifts) {
-    const d0 = new Date(sh.start);
-    if (d0.getFullYear() !== y || d0.getMonth() !== m) continue;
+    const p = periodOf(sh.start);
+    if (p.y !== y || p.m !== m) continue;
     const st = shiftStats(sh);
     const k = dayKey(new Date(sh.start));
     const o = days[k] || (days[k] = { sales: 0, count: 0, ms: 0, wait: 0, shifts: [] });
@@ -2044,12 +2042,15 @@ function planDays(y, m) {
   }
   return out;
 }
+// 暦月（1日〜末日）の労働時間。出庫日の月で数える
+const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.start); return d.getFullYear() === y && d.getMonth() === m; })
+  .reduce((a, sh) => a + shiftStats(sh).elapsed, 0);
 const planMs = () => (S.settings.dayHours || 0) * 3600000;
 // 労働時間のカード：実績＋予定（残りの出勤予定日×1日の予定時間）＝見込みを上限と比べる
 // 労働時間＝出庫〜入庫（待機・休憩を含む）
 function capHtml(y, m, used, pdays) {
   const cap = capMs(), days = pdays.length, plan = days * planMs(), est = used + plan;
-  const lbl = '労働時間';
+  const lbl = S.settings.closingDay ? `${m + 1}月の労働時間` : '労働時間';   // 締め期間と暦月がずれる時は月を明示
   const H = v => (Math.max(0, v) / 3600000).toFixed(1);
   if (!cap) return `<div class="cal-cap num"><div class="top"><span>${lbl}</span><span class="v">${hours(used)}${plan ? `<small>＋予定 ${hours(plan)}</small>` : ''}</span></div></div>`;
   const left = cap - est, r = used / cap, rp = Math.min(1, est / cap);
@@ -2070,34 +2071,43 @@ function renderCal() {
   const days = monthData(y, m);
   const list = Object.values(days);
   const tot = list.reduce((a, o) => ({ sales: a.sales + o.sales, count: a.count + o.count, ms: a.ms + o.ms, wait: a.wait + o.wait }), { sales: 0, count: 0, ms: 0, wait: 0 });
-  const from = new Date(y, m, 1), to = new Date(y, m + 1, 0);
+  const [from, to] = periodRange(y, m);
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
-  $('#calTitle').textContent = `${y}年${m + 1}月`;
-  // 締め日がある時だけ、締め期間の売上を別に添える（労働時間・カレンダーは暦月）
-  const c = S.settings.closingDay;
-  const [pf, pt] = periodRange(y, m);
-  const psales = c ? S.shifts.filter(sh => { const p = periodOf(sh.start); return p.y === y && p.m === m; }).reduce((a, sh) => a + shiftStats(sh).sales, 0) : 0;
+  $('#calTitle').innerHTML = `${periodName(CAL)}<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">${md(from)}〜${md(to)}</small>`;
   $('#calSum').innerHTML = `
     <div><div class="k">売上</div><div class="v num">${tot.sales >= 100000 ? compactYen(tot.sales) : yen(tot.sales)}</div></div>
     <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
-    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>
-    ${c ? `<div class="cal-period num"><span>${c}日締め ${md(pf)}〜${md(pt)} の売上</span><b>${yen(psales)}</b></div>` : ''}`;
-  // 労働時間は暦月で管理
-  const pdays = planDays(y, m);
-  $('#calCap').innerHTML = capHtml(y, m, tot.ms, pdays);
+    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
+  // 労働時間はカレンダーに連動して暦月（1日〜末日）で計算：今日を含む期間なら今月、それ以外は期間の月。
+  // その月のうち締め期間の外にある日も薄く並べ、労働時間に入る日がすべて見えるようにする
+  const now = new Date(), cur = now >= from && now < +to + 86400000;
+  const hy = cur ? now.getFullYear() : y, hm = cur ? now.getMonth() : m;
+  const pdays = planDays(hy, hm);
+  $('#calCap').innerHTML = capHtml(hy, hm, monthWorkMs(hy, hm), pdays);
+  const mFrom = new Date(hy, hm, 1), mTo = new Date(hy, hm + 1, 0);
+  const first = mFrom < from ? mFrom : from, last = mTo > to ? mTo : to;
+  const other = {};   // 期間外の日：その日の記録
+  for (const sh of S.shifts) {
+    const d0 = new Date(sh.start); d0.setHours(0, 0, 0, 0);
+    if (d0 >= from && d0 <= to || d0 < first || d0 > last) continue;
+    const st = shiftStats(sh), k = dayKey(d0);
+    const o = other[k] || (other[k] = { sales: 0, count: 0, ms: 0 });
+    o.sales += st.sales; o.count += st.count; o.ms += st.elapsed;
+  }
 
   const max = Math.max(0, ...list.map(o => o.sales));
   const today = dayKey(new Date());
   const plan = new Set(planMs() ? pdays : []);
   let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
-  html += '<div class="cal-cell empty"></div>'.repeat(from.getDay());
-  for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-    const k = dayKey(d), o = days[k];
+  html += '<div class="cal-cell empty"></div>'.repeat(first.getDay());
+  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
+    const out = d < from || d > to, k = dayKey(d), o = out ? other[k] : days[k];
     const h = o && max ? (0.12 + 0.43 * o.sales / max).toFixed(2) : 0;   // 売上が多いほど濃く
-    const label = d.getDate();
+    // 期間が月をまたぐ時は、各月の初日（と期間の初日）に月を付ける
+    const label = d.getDate() === 1 || +d === +first ? md(d) : d.getDate();
     const hol = isHoliday(d);
     const pl = !o && plan.has(k);
-    html += `<button class="cal-cell ${k === today ? 'today' : ''} ${hol ? 'hol' : ''} ${pl ? 'plan' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}" style="--h:${h}">
+    html += `<button class="cal-cell ${k === today ? 'today' : ''} ${hol ? 'hol' : ''} ${pl ? 'plan' : ''} ${out ? 'out' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}" style="--h:${h}">
       <span class="d num">${label}${hol && !o ? ' <span class="hol-tag">休</span>' : ''}</span>
       ${o ? `<span class="s num">${o.sales >= 10000 ? compactYen(o.sales) : o.sales.toLocaleString()}</span><span class="m num">${o.count}回</span><span class="m num">${hours(o.ms)}</span>` : pl ? `<span class="p num">予定</span><span class="p num">${S.settings.dayHours}h</span>` : ''}
     </button>`;
@@ -2108,8 +2118,7 @@ function renderCal() {
 }
 
 function openCal(t = Date.now()) {
-  const d = new Date(t);
-  Object.assign(CAL, { y: d.getFullYear(), m: d.getMonth(), sel: dayKey(d) });
+  Object.assign(CAL, { ...periodOf(t), sel: dayKey(new Date(t)) });
   renderCal();
   $('#calSheet .cal-body').scrollTop = 0;
   openSheet($('#calSheet'));
