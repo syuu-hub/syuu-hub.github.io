@@ -1335,16 +1335,15 @@ function getPos(maxAge = 20000) {
 
 /* ============================================================
    住所変換（国土地理院 逆ジオコーダー：通信できる時だけ）
-   緯度経度 → 「兵庫県神戸市中央区」（市区町村まで）。結果は端末内にキャッシュし、
+   緯度経度 → 「東京都新宿区西新宿一丁目」。結果は端末内にキャッシュし、
    圏外で記録した分は通信が戻ってから順に埋める。
    ============================================================ */
 const GSI_REVERSE = 'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress';
 const GSI_MUNI = 'https://maps.gsi.go.jp/js/muni.js';
-const ADDR_KEY = 'taxiboard.addr.v2';   // v2：市区町村まで
+const ADDR_KEY = 'taxiboard.addr.v1';
 const ADDR_MAX = 4000;
 let addrCache = {};
 try { addrCache = JSON.parse(localStorage.getItem(ADDR_KEY)) || {}; } catch (e) {}
-try { localStorage.removeItem('taxiboard.addr.v1'); } catch (e) {}   // 町名まで入った旧キャッシュ
 const addrKey = p => p.lat.toFixed(4) + ',' + p.lng.toFixed(4);   // 約10m単位で共有
 const shortAddr = a => (a || '').replace(/^(東京都|北海道|京都府|大阪府|.{2,3}県)/, '');
 function saveAddrCache() {
@@ -1392,7 +1391,7 @@ async function reverseGeocode(p) {
     if (r) {
       const muni = await loadMuni();
       if (!muni) return fail();
-      addr = muniName(muni, r.muniCd);   // GPSの住所は市区町村（〇〇区）までにとどめる（町名・丁目は誤差で外れやすい）
+      addr = muniName(muni, r.muniCd) + (r.lv01Nm && r.lv01Nm !== '－' ? r.lv01Nm : '');
     }
     addrCache[k] = addr;
     saveAddrCache();
