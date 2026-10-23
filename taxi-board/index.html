@@ -562,12 +562,28 @@ svg{display:block}
 /* 日報（入庫後の振り返り） */
 .rp-inner{max-width:720px}
 .rp-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
-.rp-total{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
-.rp-total .meta{flex:1 1 100%;font-size:13px;color:var(--muted);white-space:nowrap;padding-bottom:8px;margin-bottom:2px;border-bottom:1px solid var(--line)}
-.rp-total .k{font-size:13px;color:var(--muted)}
-.rp-total .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
-.rp-total .side{margin-left:auto;text-align:right;font-size:14px;color:var(--muted);line-height:1.6;white-space:nowrap}
-.rp-total .side b{color:var(--text);font-size:17px}
+.rp-head{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
+.rp-times{display:flex;align-items:baseline;gap:10px;font-size:22px;font-weight:800;white-space:nowrap;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.rp-times small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:2px}
+.rp-times i{font-style:normal;color:var(--faint);font-size:16px;font-weight:400}
+.rp-sum{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-top:10px}
+.rp-sum .k{font-size:13px;color:var(--muted)}
+.rp-sum .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1;color:var(--accent)}
+.rp-sum .c{font-size:14px;color:var(--muted);white-space:nowrap}
+.rp-sum .c b{font-size:20px;color:var(--text);margin-right:2px}
+.rp-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
+.rr{display:grid;grid-template-columns:minmax(0,1fr) 3em 6.6em;align-items:center;column-gap:8px;padding:12px 0}   /* 件数・金額の列を全行でそろえる */
+.rr + .rr{border-top:1px solid var(--line)}
+.rr .l{font-size:15px;font-weight:600;min-width:0;line-height:1.35;overflow-wrap:anywhere}   /* 名前・注記は省略せず折り返す */
+.rr .l small{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.rr .n,.rr b{white-space:nowrap}
+.rr .n{text-align:right;font-size:16px;font-weight:700}
+.rr .n i{font-style:normal;font-size:12px;color:var(--muted);margin-left:1px}
+.rr b{text-align:right;font-size:19px;font-weight:800}
+.rr.disc b{color:var(--accent)}
+.rr.sum{border-top:2px solid var(--line-2)}
+.rr.sum .l{font-weight:800}
+.rr.zero .l{color:var(--faint)}
 .rp-sec{margin-bottom:18px}
 .rp-sec h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin:0 0 4px;display:flex;justify-content:space-between;gap:12px;white-space:nowrap}
 .rp-sec h3 > *:last-child:not(:first-child){font-weight:500;letter-spacing:0;color:var(--faint)}
@@ -1946,29 +1962,35 @@ function openReport(id) {
   if (!sh) return;
   const st = shiftStats(sh), rides = st.rides;
   const pays = reportPays(rides, true).filter(p => p.n);
-  const row = (label, n, amt, cls = '', note = '') => `<tr class="${cls}"><td>${esc(label)}${note ? `<small class="rp-note">${esc(note)}</small>` : ''}</td><td class="n">${n != null ? n + '件' : ''}</td><td class="a">${yen(amt)}</td></tr>`;
+  // 1行：項目（下に注記）・件数・金額。紙の日報へ書き写しやすいよう件数と金額の列をそろえる
+  const row = (label, n, amt, cls = '', note = '') => `<div class="rr ${cls}"><span class="l">${esc(label)}${note ? `<small>${esc(note)}</small>` : ''}</span><span class="n">${n != null ? n + '<i>件</i>' : ''}</span><b>${yen(amt)}</b></div>`;
   const cnt = f => rides.filter(f).length;
   const extras = [
     st.toll && row('高速代', st.tollN, st.toll, '', '営業収入に含まない'),
-    st.fare.long && row('遠距離割', cnt(r => r.fare.long), st.fare.long, '', '営業収入から差引済'),
-    st.fare.handi && row('障害者割', cnt(r => r.fare.handi), st.fare.handi, '', '営業収入から差引済'),
+    st.fare.long && row('遠距離割', cnt(r => r.fare.long), st.fare.long, 'disc', '営業収入から差引済'),
+    st.fare.handi && row('障害者割', cnt(r => r.fare.handi), st.fare.handi, 'disc', '営業収入から差引済'),
   ].filter(Boolean);
   $('#rpDate').textContent = ymd(sh.start);
+  const pn = pays.reduce((a, p) => a + p.n, 0), pa = pays.reduce((a, p) => a + p.amt, 0);
   $('#rpBody').innerHTML = `
-    <div class="rp-total">
-      <div class="meta num">出庫 ${hhmm(sh.start)} → ${sh.end ? '入庫 ' + hhmm(sh.end) : '営業中'}</div>
-      <div><div class="k">合計金額（営業収入）</div><div class="v num">${yen(st.sales)}</div></div>
-      <div class="side num"><b>${st.count}</b>件</div>
+    <div class="rp-head">
+      <div class="rp-times num"><span><small>出庫</small>${hhmm(sh.start)}</span><i>→</i><span><small>入庫</small>${sh.end ? hhmm(sh.end) : '営業中'}</span></div>
+      <div class="rp-sum">
+        <div><div class="k">合計金額（営業収入）</div><div class="v num">${yen(st.sales)}</div></div>
+        <div class="c num"><b>${st.count}</b>件</div>
+      </div>
     </div>
     <section class="rp-sec">
       <h3><span>支払い種別</span><span>件数・金額</span></h3>
-      <table class="rp-tbl num">
-        ${pays.map(p => row(p.label, p.n, p.amt, '', p.toll ? `うち高速代 ${yen(p.toll)}` : '')).join('') || '<tr class="zero"><td>乗車記録なし</td><td class="n"></td><td class="a"></td></tr>'}
-      </table>
+      <div class="rp-card num">
+        ${pays.map(p => { const tk = p.k.startsWith('ticket:') ? p.k.slice(7) : '';   // チケットは種類を注記に
+          return row(tk ? 'チケット' : p.label, p.n, p.amt, '', [tk, p.toll && `うち高速代 ${yen(p.toll)}`].filter(Boolean).join(' ・ ')); }).join('') || '<div class="rr zero"><span class="l">乗車記録なし</span></div>'}
+        ${st.toll && pays.length ? row('計', pn, pa, 'sum', '高速代込み') : ''}
+      </div>
     </section>
     ${extras.length ? `<section class="rp-sec">
       <h3><span>高速代・割引</span><span>件数・金額</span></h3>
-      <table class="rp-tbl num">${extras.join('')}</table>
+      <div class="rp-card num">${extras.join('')}</div>
     </section>` : ''}`;
   $('#reportSheet .rp-body').scrollTop = 0;
   openSheet($('#reportSheet'));
