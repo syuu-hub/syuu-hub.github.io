@@ -447,9 +447,16 @@ svg{display:block}
 .close-btn{height:48px;padding:0 14px 0 8px;border-radius:var(--r-sm);display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-weight:600}
 
 .entry-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);gap:var(--gap);overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+/* 縦向き：時間・場所 → 金額 → 種別・決済など の順（横向きは左に金額、右に残りをまとめてスクロール） */
+.e-side{display:contents}
+.e-when{order:1}
+.e-amount{order:2}
+.e-meta{order:3}
 @media (orientation:landscape) and (min-width:700px){
   .entry-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:calc(var(--gap)*2);overflow:hidden}
-  .e-meta{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+  .e-side{display:block;order:0;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+  .e-amount{order:0}
+  .e-meta{margin-top:18px}
   .e-amount{min-height:0;display:flex;flex-direction:column}
   .e-amount .keypad{flex:1;grid-auto-rows:1fr}
 }
@@ -956,20 +963,8 @@ svg{display:block}
         <div class="keypad" id="eKeys"></div>
       </section>
 
-      <section class="e-meta">
-        <div class="group">
-          <div class="glabel">乗車種別</div>
-          <div class="opts kind" id="eKind"></div>
-          <button class="opt no-pick" id="eNoPick" aria-pressed="false" hidden>迎車なし<small>メーターの迎車を押し忘れた時</small></button>
-        </div>
-        <div class="group">
-          <div class="glabel">決済方法</div>
-          <div class="opts pay" id="ePay"></div>
-          <div class="tickets" id="eTicketWrap" hidden>
-            <div class="glabel" style="margin-top:10px"><span>チケットの種類</span><span>設定で追加・編集</span></div>
-            <div class="opts tk" id="eTicket"></div>
-          </div>
-        </div>
+      <div class="e-side">
+      <section class="e-when">
         <div class="group">
           <div class="glabel"><span>乗車・降車時刻</span><span class="num" id="eDur"></span></div>
           <div class="e-times">
@@ -991,6 +986,22 @@ svg{display:block}
             <button class="btn sm ghost" data-regps="to">現在地</button>
           </div>
         </div>
+      </section>
+
+      <section class="e-meta">
+        <div class="group">
+          <div class="glabel">乗車種別</div>
+          <div class="opts kind" id="eKind"></div>
+          <button class="opt no-pick" id="eNoPick" aria-pressed="false" hidden>迎車なし<small>メーターの迎車を押し忘れた時</small></button>
+        </div>
+        <div class="group">
+          <div class="glabel">決済方法</div>
+          <div class="opts pay" id="ePay"></div>
+          <div class="tickets" id="eTicketWrap" hidden>
+            <div class="glabel" style="margin-top:10px"><span>チケットの種類</span><span>設定で追加・編集</span></div>
+            <div class="opts tk" id="eTicket"></div>
+          </div>
+        </div>
         <div class="group">
           <div class="glabel"><span>割引</span><span>メーター総額から差し引き</span></div>
           <div class="disc">
@@ -1003,6 +1014,7 @@ svg{display:block}
           <button class="opt no-pick" id="eToll" aria-pressed="false">高速代<small id="eTollSub">金額を入力</small></button>
         </div>
       </section>
+      </div>
     </div>
 
     <footer class="e-foot">
