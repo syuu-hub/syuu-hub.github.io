@@ -458,7 +458,9 @@ svg{display:block}
   .e-amount{order:0}
   .e-meta{margin-top:18px}
   .e-amount{min-height:0;display:flex;flex-direction:column}
-  .e-amount .keypad{flex:1;grid-auto-rows:1fr}
+  .e-amount .keypad{flex:1;min-height:0;grid-auto-rows:1fr;gap:6px}
+  .e-amount .disc{flex:none;margin-top:6px}
+  .e-amount .disc .opt{min-height:0;height:44px;padding:0 8px;flex-direction:row;gap:6px}
 }
 
 /* 金額表示 */
@@ -505,6 +507,7 @@ svg{display:block}
 .opts.tk .opt{min-height:52px;font-size:14px;padding:4px 8px}
 .opt small{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .disc{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.e-amount .disc{margin-top:8px}
 .disc .opt small{font-variant-numeric:tabular-nums}
 .breakdown .disc-amt{color:var(--accent)}
 .breakdown.warn,#eDur.warn{color:var(--danger)}
@@ -708,6 +711,12 @@ svg{display:block}
   .breakdown{padding-bottom:4px}
   .total .v{font-size:34px}
   .e-amount .keypad{grid-auto-rows:1fr;gap:6px}
+  /* 低い横画面：割引ボタンは金額の行の左に置き、テンキーの高さを確保 */
+  .e-amount{position:relative}
+  .e-amount .total .lbl{visibility:hidden}
+  .e-amount .disc{position:absolute;top:0;left:0;width:calc(100% - 11.5em);margin:0;gap:6px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .e-amount .disc .opt{height:40px;font-size:14px;padding:0 6px;min-width:0}
+  .e-amount .disc .opt small{display:none}   /* 割引額は金額の下の内訳に出る */
   .key{font-size:24px}
   .np-inner .keypad{grid-auto-rows:44px}
 }
@@ -968,6 +977,11 @@ svg{display:block}
         </div>
         <div class="breakdown num" id="eBreak"></div>
         <div class="keypad" id="eKeys"></div>
+        <!-- 割引はメーター総額から差し引くので金額の入力と一緒に -->
+        <div class="disc" aria-label="割引">
+          <button class="opt" id="eDiscLong" aria-pressed="false">遠距離割<small id="eDiscLongSub">9,000円超の1割</small></button>
+          <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub">運賃の1割</small></button>
+        </div>
       </section>
 
       <div class="e-side">
@@ -1003,13 +1017,6 @@ svg{display:block}
           <div class="tickets" id="eTicketWrap" hidden>
             <div class="glabel" style="margin-top:10px"><span>チケットの種類</span><span>設定で追加・編集</span></div>
             <div class="opts tk" id="eTicket"></div>
-          </div>
-        </div>
-        <div class="group">
-          <div class="glabel"><span>割引</span><span>メーター総額から差し引き</span></div>
-          <div class="disc">
-            <button class="opt" id="eDiscLong" aria-pressed="false">遠距離割<small id="eDiscLongSub">9,000円超の1割</small></button>
-            <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub">運賃の1割</small></button>
           </div>
         </div>
         <div class="group">
