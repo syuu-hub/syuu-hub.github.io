@@ -1305,9 +1305,8 @@ const curShift = () => S.shifts.find(s => !s.end) || null;
    GPS（Geolocation API）
    ============================================================ */
 // 位置はトリガー式：出庫・入庫・ステータス変更・乗車記録・「現在地」ボタン・
-// 需要画面を開いた時だけ取得する（常時の追跡はしない）
+// 需要画面を開いた時だけ取得する（常時の追跡はしない。測位後90秒だけGPSを温めておく）
 const geo = { pos: null, err: null, busy: false };
-const toPos = p => ({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy), t: Date.now() });
 const GPS_FRESH = 10 * 60000;   // この時間以内の取得なら「取得済み」表示
 
 function startGeo() {
@@ -1315,21 +1314,84 @@ function startGeo() {
   renderGps();
 }
 
-// 直近の位置が maxAge 以内ならそれを、古ければ取り直す（失敗時は手元の最新値）
+// 直近の位置が maxAge 以内ならそれを、古ければ測り直す（失敗時は手元の最新値）
 // ステータス変更・乗車記録は 5秒、画面表示用は 60秒まで使い回す
 // 同時に来た要求（例：ステータス記録と乗車地の取得）は1回の測位を共有する
+//
+// 誤差を減らす工夫：
+//  1. 1回の測位で決めず、高精度モードで数秒間連続測位して複数の値を集める（キャッシュ値は使わない）
+//  2. 端末がためていた古い値・精度の悪すぎる値を捨てる
+//  3. 誤差円が重なる値が最も多く集まる点を基準に、そこから離れすぎた値（ビル反射などの外れ値）を除外
+//  4. 残りを精度の逆二乗（＝誤差の分散の逆数）で重み付けして平均（最良線形不偏推定）
+//     ただし走行中（速度あり）は平均すると位置がずれるので、押した瞬間に最も近い良い値を使う
+//  5. 十分な精度（±10m以内が2回）がそろったら早めに終える
+//  6. 測位後もしばらくGPSを温めておき、次の測位（ステータス変更→乗車記録など）を速く正確にする
 let geoPending = null;
+const GEO = { window: 6000, target: 10, maxAcc: 200, warm: 90000 };
+const geoBuf = [];   // 温めている間の測位値 {lat,lng,acc,spd,t}
+let geoWatch = null, geoWarmTimer = null;
+// 複数の測位値を1点にまとめる
+function fusePos(samples, t0 = Date.now()) {
+  samples = samples.map(x => ({ ...x, acc: Math.max(1, x.acc || 0) }));   // 精度0（未報告）は1mとして扱う
+  let xs = samples.filter(x => x.acc <= GEO.maxAcc);
+  if (!xs.length) xs = samples;
+  if (!xs.length) return null;
+  // 外れ値の除去（合意による選択）：誤差円が重なる＝互いに説明できる値が最も多く集まる値を基準にし、
+  // 基準と食い違う値を捨てる。精度の良い値ほど票を重くする
+  const ok = (a, b) => haversine(a, b) <= 2 * Math.hypot(a.acc, b.acc);
+  const vote = x => xs.reduce((s, y) => s + (ok(x, y) ? 1 / y.acc : 0), 0);
+  const anchor = xs.reduce((a, x) => { const v = vote(x); return v > a.v || (v === a.v && x.acc < a.x.acc) ? { x, v } : a; }, { x: xs[0], v: -1 }).x;
+  xs = xs.filter(x => ok(x, anchor));
+  const best = xs.reduce((a, x) => x.acc < a.acc ? x : a);
+  const last = xs.reduce((a, x) => x.t > a.t ? x : a);
+  if ((last.spd || 0) > 2.5) {   // 走行中：ボタンを押した時刻に最も近い、精度の良い値
+    const good = xs.filter(x => x.acc <= best.acc * 1.5);
+    const p = good.reduce((a, x) => Math.abs(x.t - t0) < Math.abs(a.t - t0) ? x : a);
+    return { lat: +p.lat.toFixed(6), lng: +p.lng.toFixed(6), acc: Math.round(p.acc), t: Date.now(), n: 1 };
+  }
+  let sw = 0, la = 0, ln = 0;
+  for (const x of xs) { const w = 1 / (x.acc * x.acc); sw += w; la += x.lat * w; ln += x.lng * w; }
+  // 連続した測位は誤差が独立ではないので、精度は最良値の半分までしか良くならないものとする
+  const acc = Math.max(1 / Math.sqrt(sw), best.acc / 2, 1);
+  return { lat: +(la / sw).toFixed(6), lng: +(ln / sw).toFixed(6), acc: Math.round(acc), t: Date.now(), n: xs.length };
+}
+function startWatch() {
+  if (geoWatch != null) return;
+  geoWatch = navigator.geolocation.watchPosition(p => {
+    const c = p.coords;
+    geoBuf.push({ lat: c.latitude, lng: c.longitude, acc: c.accuracy, spd: c.speed, t: p.timestamp || Date.now() });
+    while (geoBuf.length > 30) geoBuf.shift();
+    geo.err = null;
+  }, e => { geo.err = e.code || 'error'; }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+function stopWatchLater() {
+  clearTimeout(geoWarmTimer);
+  geoWarmTimer = setTimeout(() => { if (geoWatch != null) navigator.geolocation.clearWatch(geoWatch); geoWatch = null; geoBuf.length = 0; }, GEO.warm);
+}
 function getPos(maxAge = 20000) {
   if (geo.pos && Date.now() - geo.pos.t < maxAge) return Promise.resolve(geo.pos);
   if (!('geolocation' in navigator)) return Promise.resolve(geo.pos);
   if (geoPending) return geoPending;
   geo.busy = true; renderGps();
+  const t0 = Date.now();
+  startWatch(); clearTimeout(geoWarmTimer);
   return geoPending = new Promise(resolve => {
-    const done = () => { geo.busy = false; geoPending = null; renderGps(); resolve(geo.pos); };
-    navigator.geolocation.getCurrentPosition(
-      p => { geo.pos = toPos(p); geo.err = null; done(); },
-      e => { geo.err = e.code || 'error'; done(); },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: maxAge });
+    // 温めている間の値も、直近3秒以内なら使う（古い位置は混ぜない）
+    const fresh = () => geoBuf.filter(x => x.t >= t0 - 3000);
+    let iv = null, to = null;
+    const done = () => {
+      clearInterval(iv); clearTimeout(to);
+      const f = fusePos(fresh(), t0);
+      if (f) { geo.pos = f; geo.err = null; }
+      geo.busy = false; geoPending = null; renderGps(); stopWatchLater();
+      resolve(geo.pos);
+    };
+    iv = setInterval(() => {
+      const xs = fresh();
+      if (xs.filter(x => x.acc <= GEO.target).length >= 2 || (geo.err === 1 && !xs.length)) done();
+    }, 250);
+    // 時間切れ：値が1つでもあれば打ち切り、無ければ最大10秒まで待つ
+    to = setTimeout(function wait() { if (fresh().length || Date.now() - t0 >= 10000) done(); else to = setTimeout(wait, 500); }, GEO.window);
   });
 }
 
