@@ -236,6 +236,11 @@ svg{display:block}
 .btn.ghost{background:transparent}
 .btn.sm{min-height:48px;font-size:14px;padding:0 14px;border-radius:var(--r-sm)}
 .btn:disabled{opacity:.4}
+.act-btn #recordLbl{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.act-btn #recordLbl small{font-size:.62em;font-weight:700;opacity:.8}
+.act-btn.pending{animation:pend 1.6s ease-in-out infinite}
+@keyframes pend{50%{box-shadow:0 0 0 6px rgba(255,176,32,.28)}}
+@media (prefers-reduced-motion:reduce){.act-btn.pending{animation:none;box-shadow:0 0 0 4px rgba(255,176,32,.35)}}
 .act-btn{height:100%;min-height:64px;font-size:clamp(16px,min(2.8vh,4.8vw),24px);white-space:nowrap;padding:0 10px}
 
 .pane-sec + .pane-sec,.pin-legend + .pane-sec,.dem-sel + .pane-sec{margin-top:28px}
@@ -650,8 +655,8 @@ svg{display:block}
 
 /* トースト */
 .toast{
-  position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));z-index:40;
-  transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));z-index:40;
+  transform:translate(-50%,-20px);opacity:0;pointer-events:none;
   min-height:56px;width:max-content;max-width:min(92vw,560px);
   display:flex;align-items:center;gap:16px;padding:8px 8px 8px 20px;
   background:var(--text);color:var(--bg);border-radius:var(--r-md);
@@ -765,7 +770,7 @@ svg{display:block}
   <section class="actions">
     <button class="btn primary act-btn" id="recordBtn">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      乗車を記録
+      <span id="recordLbl">乗車を記録</span>
     </button>
   </section>
   </div>
@@ -1701,7 +1706,7 @@ function fixPauseForRide(r) {
 function setStatus(st) {
   const sh = curShift();
   if (!sh) return;
-  const prev = sh.status;
+  const prev = sh.status, prevSince = sh.statusSince, prevTrip = sh.trip;
   if (prev === st) {
     if (!PAUSE.includes(st)) return;
     st = 'vacant';
@@ -1714,18 +1719,35 @@ function setStatus(st) {
     sh.trip = trip;
     getPos(5000).then(p => { if (p) { trip.from = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); queueAddr(); } });
   }
+  // 実車終了：乗車を「未記録の乗車」に積む（降車時刻・降車地はこの瞬間で確定。入力を閉じても消えない）
+  if (prev === 'occupied' && sh.trip) {
+    const trip = sh.trip;
+    trip.end = ev.ts; trip.to = null;
+    sh.pending = [...(sh.pending || []), trip];
+    sh.trip = null;
+    getPos(5000).then(p => { if (p) { trip.to = { lat: p.lat, lng: p.lng, acc: p.acc }; save(); queueAddr(); } });
+  }
   save();
   haptic(18);
   renderAll();
   // 実車終了＝そのまま営業記録の入力へ
-  if (prev === 'occupied') openEntry();
+  if (prev === 'occupied') { openEntry(); return; }
+  // 押し間違い対策：数秒間は取り消せる
+  toast(`${STATUS[st].label}にしました`, '取り消し', () => {
+    if (curShift() !== sh || sh.status !== st || S.events.at(-1) !== ev) return toast('取り消せませんでした');
+    S.events = S.events.filter(e => e !== ev);
+    sh.status = prev; sh.statusSince = prevSince; sh.trip = prevTrip;
+    save(); haptic(); renderAll();
+    toast(`${STATUS[prev].label}に戻しました`);
+  });
 }
 
 function endShift() {
   const sh = curShift();
   if (!sh) return;
   const st = shiftStats(sh);
-  if (!confirm(`入庫（営業終了）しますか？\n\n売上 ${yen(st.sales)} / ${st.count}回`)) return;
+  const pn = (sh.pending || []).length;
+  if (!confirm(`入庫（営業終了）しますか？\n\n売上 ${yen(st.sales)} / ${st.count}回` + (pn ? `\n\n※未記録の乗車が${pn}件あります（入庫後も履歴の「＋乗車」で追加できます）` : ''))) return;
   logEvent(sh, 'off', sh.status);
   sh.end = Date.now();
   sh.status = 'off';
@@ -1964,6 +1986,10 @@ function renderHud() {
 
 function renderStatus() {
   const sh = curShift();
+  const pend = sh && sh.pending && sh.pending.length ? sh.pending.at(-1) : null;
+  const rb = $('#recordBtn');
+  rb.classList.toggle('pending', !!pend);
+  $('#recordLbl').innerHTML = pend ? `未記録の乗車を記録<small class="num">${hhmm(pend.start)} → ${hhmm(pend.end)}${sh.pending.length > 1 ? ` ほか${sh.pending.length - 1}件` : ''}</small>` : '乗車を記録';
   $$('.st-btn').forEach(b => {
     const on = !!sh && sh.status === b.dataset.st;
     b.setAttribute('aria-pressed', on);
@@ -2686,24 +2712,27 @@ function openEntry(rideId, shiftId) {
       from: { ...(r.from || {}) }, to: { ...(r.to || {}) }, dirty: {},
     };
   } else {
-    const trip = sh && sh.trip;
+    // 未記録の乗車（実車終了済み）があれば最新のものを、無ければ実車中の乗車を使う
+    const pend = sh && sh.pending && sh.pending.length ? sh.pending.at(-1) : null;
+    const trip = pend || (sh && sh.trip);
     E = {
-      editId: null, shiftId: past ? past.id : null, start: trip ? trip.start : null, ts: past ? past.end || Date.now() : Date.now(),
+      editId: null, shiftId: past ? past.id : null, pend, start: trip ? trip.start : null, ts: past ? past.end || Date.now() : pend ? pend.end : Date.now(),
       amount: '', app: null, noPickup: false,
       pay: 'cash', kind: trip && trip.prev === 'wait' ? 'stand' : 'street',   // 待機からの乗車は「乗り場」
-      from: trip && trip.from ? { ...trip.from } : {}, to: {}, dirty: {},
+      from: trip && trip.from ? { ...trip.from } : {}, to: pend && pend.to ? { ...pend.to } : {}, dirty: {},
     };
-    // 乗車地が無ければ現在地で補完、降車地は常に現在地（入力忘れの追加では現在地は使わない）
-    if (!past) getPos(5000).then(p => {
+    // 乗車地が無ければ現在地で補完。降車地は降車した時点の位置（後から開いた時は現在地を使わない）
+    if (!past && !(pend && pend.to)) getPos(5000).then(p => {
       if (!E || E.editId || !p) return;
       if (E.from.lat == null) setLL(E.from, p);
-      setLL(E.to, p);
+      if (!pend || Date.now() - pend.end < 60000) setLL(E.to, p);
       renderEntryLoc();
     });
   }
   $('#entryTitle').textContent = r ? '乗車記録の修正' : past ? `乗車の追加（${ymd(past.start).slice(5)}）` : '乗車記録';
   if (past) setFold('fTrip', true);   // 時刻を入れてもらう
-  $('#eDelete').hidden = !r;
+  $('#eDelete').hidden = !r && !E.pend;
+  $('#eDelete').textContent = E.pend ? '記録しない' : '削除';
   $('#eStart').value = E.start ? toHM(E.start) : '';
   $('#eEnd').value = toHM(E.ts);
   E.pick = {};
@@ -2936,11 +2965,13 @@ function saveEntry() {
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
     const ride = { id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) };
     S.rides.push(ride);
-    sh.trip = null;
+    if (E.pend) sh.pending = (sh.pending || []).filter(t => t !== E.pend && t.start !== E.pend.start);
+    else sh.trip = null;
     // 待機・休憩のまま記録 → 乗車時刻で待機・休憩を終わらせる（解除忘れ対策）
     const fixed = fixPauseForRide(ride);
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
-    if (sh.status === 'occupied' || PAUSE.includes(sh.status)) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
+    // （未記録の乗車を後から記録した時は、今のステータスはそのまま）
+    if (!E.pend && (sh.status === 'occupied' || PAUSE.includes(sh.status))) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
     toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録しました` + (fixed ? `・待機・休憩は${hhmm(fixed)}まで` : ''));
   }
   save(); haptic(25); queueAddr();
@@ -2950,6 +2981,13 @@ function saveEntry() {
 }
 
 function deleteEntry() {
+  if (E && E.pend) {   // 未記録の乗車を記録せずに捨てる
+    if (!confirm('この乗車は記録しませんか？')) return;
+    const sh = curShift();
+    if (sh) sh.pending = (sh.pending || []).filter(t => t.start !== E.pend.start);
+    save(); E = null; closeSheet($('#entry')); renderAll();
+    return toast('記録しませんでした');
+  }
   if (!E || !E.editId) return;
   if (!confirm('この乗車記録を削除しますか？')) return;
   S.rides = S.rides.filter(r => r.id !== E.editId);
