@@ -512,6 +512,7 @@ svg{display:block}
 .e-amount .disc{margin-top:8px}
 .disc .opt small{font-variant-numeric:tabular-nums}
 .breakdown .disc-amt{color:var(--accent)}
+.breakdown b.pay{color:var(--accent);font-size:1.1em}
 .breakdown.warn,#eDur.warn{color:var(--danger)}
 .text-in{width:100%;height:56px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface);padding:0 14px;font-size:18px}
 .text-in:focus{outline:none;border-color:var(--accent)}
@@ -2847,18 +2848,21 @@ function renderEntry() {
   const total = entryTotal();
   $('#eFare').innerHTML = yenHtml(total);
   const bd = entryBreakdown();
-  const parts = [bd.pickup && '迎車 ' + yen(bd.pickup), bd.appFee && '手数料 ' + yen(bd.appFee)].filter(Boolean);
+  const parts = [bd.pickup && '迎車料金 +' + yen(bd.pickup), bd.appFee && 'アプリ手数料 +' + yen(bd.appFee)].filter(Boolean);
   const discs = [bd.long && '遠距離割 −' + yen(bd.long), bd.handi && '障害者割 −' + yen(bd.handi)].filter(Boolean);
   const brk = $('#eBreak');
   const short = total > 0 && bd.meter + bd.long + bd.handi < 0;
   brk.classList.toggle('warn', short);
   const bi = (t, cls = '') => `<span class="bi ${cls}">${t}</span>`;   // 項目の途中では折り返さない
-  brk.innerHTML = short ? bi(`総額が ${parts.join('＋')} より少ない`)
-    : !parts.length && !discs.length && !E.toll ? bi('迎車料金・手数料込みの総額を入力')
-    : [...parts.map(t => bi(t)), ...discs.map(t => bi(t, 'disc-amt')),
-       (parts.length || discs.length) && bi(`運賃 <b>${yen(Math.max(0, bd.meter))}</b>`),
-       discs.length && bd.total !== bd.meter && bi(`お支払い <b>${yen(bd.total)}</b>`),   // 運賃と同じ額なら重複させない
-       E.toll && bi(`＋高速代 <b>${yen(E.toll)}</b>（売上外）`)].filter(Boolean).join('');
+  // 乗車詳細と同じ名前：メーター金額 → 迎車・手数料・割引 →（高速代があれば割引適用後合計・高速代）→ お支払い金額
+  const adj = parts.length || discs.length;
+  brk.innerHTML = short ? bi(`総額が ${[bd.pickup && '迎車料金', bd.appFee && 'アプリ手数料'].filter(Boolean).join('・')} より少ない`)
+    : !adj && !E.toll ? bi('迎車料金・手数料込みの総額を入力')
+    : [bi(`メーター金額 <b>${yen(Math.max(0, bd.gross - bd.pickup - bd.appFee))}</b>`),
+       ...parts.map(t => bi(t)), ...discs.map(t => bi(t, 'disc-amt')),
+       adj && E.toll && bi(`割引適用後合計 <b>${yen(bd.total)}</b>`),
+       E.toll && bi(`高速代 +${yen(E.toll)}（売上外）`),
+       bi(`お支払い金額 <b class="pay">${yen(bd.total + (E.toll || 0))}</b>`)].filter(Boolean).join('');
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
   $('#eTollSub').textContent = E.toll ? yen(E.toll) : '売上外';
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
