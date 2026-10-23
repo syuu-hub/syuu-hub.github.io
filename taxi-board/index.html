@@ -2734,7 +2734,7 @@ function openSheet(el) {
 }
 function closeSheet(el) {
   el.classList.remove('open');
-  setTimeout(() => { el.hidden = true; }, 200);
+  setTimeout(() => { if (!el.classList.contains('open')) el.hidden = true; }, 200);   // 閉じる途中で開き直した時は隠さない
 }
 
 // shiftId を渡すと、その営業（入庫後の営業も可）に乗車を追加する
@@ -2747,7 +2747,8 @@ function openEntry(rideId, shiftId) {
     E = {
       editId: r.id, start: r.start, ts: r.ts,
       amount: r.total ? String(r.total + (r.fare.long || 0) + (r.fare.handi || 0)) : '', app: r.app || null, noPickup: !!r.noPickup,
-      long: !!r.fare.long, handi: !!r.fare.handi,
+      // 遠距離割：適用済み、または9,000円以下で対象外だった記録は自動のまま（金額を上げたら自動で効く）
+      long: !!r.fare.long || r.fare.meter + (r.fare.handi || 0) <= LONG_FROM, handi: !!r.fare.handi,
       pay: r.pay, kind: r.kind || 'street', ticket: r.ticket || null, toll: r.toll || 0,
       from: { ...(r.from || {}) }, to: { ...(r.to || {}) }, dirty: {},
     };
@@ -2757,7 +2758,7 @@ function openEntry(rideId, shiftId) {
     const trip = pend || (sh && sh.trip);
     E = {
       editId: null, shiftId: past ? past.id : null, pend, start: trip ? trip.start : null, ts: past ? past.end || Date.now() : pend ? pend.end : Date.now(),
-      amount: '', app: null, noPickup: false,
+      amount: '', app: null, noPickup: false, long: true,   // 遠距離割は自動適用（9,000円を超えた時だけ効く。ボタンで外せる）
       pay: 'cash', kind: trip && trip.prev === 'wait' ? 'stand' : 'street',   // 待機からの乗車は「乗り場」
       from: trip && trip.from ? { ...trip.from } : {}, to: pend && pend.to ? { ...pend.to } : {}, dirty: {},
     };
@@ -2832,8 +2833,8 @@ function renderEntry() {
        (parts.length || discs.length) && bi(`運賃 <b>${yen(Math.max(0, bd.meter))}</b>`),
        discs.length && bi(`お支払い <b>${yen(bd.total)}</b>`),
        E.toll && bi(`＋高速代 <b>${yen(E.toll)}</b>（売上外）`)].filter(Boolean).join('');
-  $('#eDiscLong').setAttribute('aria-pressed', !!E.long);
-  $('#eDiscLongSub').textContent = !E.long ? '9,000円超の1割' : bd.meter + bd.long + bd.handi > LONG_FROM ? '−' + yen(bd.long) : '対象外（9,000円以下）';
+  $('#eDiscLong').setAttribute('aria-pressed', !!bd.long);   // 実際に割り引いている時だけ点灯
+  $('#eDiscLongSub').textContent = !E.long ? 'オフ' : bd.long ? '自動 −' + yen(bd.long) : '9,000円超で自動';
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
   $('#eTollSub').textContent = E.toll ? yen(E.toll) : '売上外';
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
