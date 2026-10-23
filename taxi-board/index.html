@@ -506,7 +506,7 @@ svg{display:block}
 .opts.tk{grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}
 .opts.tk .opt{min-height:52px;font-size:14px;padding:4px 8px}
 .opt small{max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.disc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.disc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .disc .opt{min-width:0}
 .disc .opt small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .e-amount .disc{margin-top:8px}
@@ -716,8 +716,8 @@ svg{display:block}
   /* 低い横画面：割引ボタンは金額の行の左に置き、テンキーの高さを確保 */
   .e-amount{position:relative}
   .e-amount .total .lbl{visibility:hidden}
-  .e-amount .disc{position:absolute;top:0;left:0;width:calc(100% - 11.5em);margin:0;gap:6px;grid-template-columns:repeat(3,minmax(0,1fr))}
-  .e-amount .disc .opt{height:40px;font-size:12px;padding:0 4px;min-width:0}
+  .e-amount .disc{position:absolute;top:0;left:0;width:calc(100% - 11.5em);margin:0;gap:6px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .e-amount .disc .opt{height:40px;font-size:13px;padding:0 4px;min-width:0}
   .e-amount .disc .opt small{display:none}   /* 割引額は金額の下の内訳に出る */
   .key{font-size:24px}
   .np-inner .keypad{grid-auto-rows:44px}
@@ -981,7 +981,6 @@ svg{display:block}
         <div class="keypad" id="eKeys"></div>
         <!-- 割引・高速代は金額に関わるので金額の入力と一緒に -->
         <div class="disc" aria-label="割引・高速代">
-          <button class="opt" id="eDiscLong" aria-pressed="false">遠距離割<small id="eDiscLongSub">9,000円超の1割</small></button>
           <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub">運賃の1割</small></button>
           <button class="opt" id="eToll" aria-pressed="false">高速代<small id="eTollSub">売上外</small></button>
         </div>
@@ -2747,8 +2746,7 @@ function openEntry(rideId, shiftId) {
     E = {
       editId: r.id, start: r.start, ts: r.ts,
       amount: r.total ? String(r.total + (r.fare.long || 0) + (r.fare.handi || 0)) : '', app: r.app || null, noPickup: !!r.noPickup,
-      // 遠距離割：適用済み、または9,000円以下で対象外だった記録は自動のまま（金額を上げたら自動で効く）
-      long: !!r.fare.long || r.fare.meter + (r.fare.handi || 0) <= LONG_FROM, handi: !!r.fare.handi,
+      handi: !!r.fare.handi,
       pay: r.pay, kind: r.kind || 'street', ticket: r.ticket || null, toll: r.toll || 0,
       from: { ...(r.from || {}) }, to: { ...(r.to || {}) }, dirty: {},
     };
@@ -2758,7 +2756,7 @@ function openEntry(rideId, shiftId) {
     const trip = pend || (sh && sh.trip);
     E = {
       editId: null, shiftId: past ? past.id : null, pend, start: trip ? trip.start : null, ts: past ? past.end || Date.now() : pend ? pend.end : Date.now(),
-      amount: '', app: null, noPickup: false, long: true,   // 遠距離割は自動適用（9,000円を超えた時だけ効く。ボタンで外せる）
+      amount: '', app: null, noPickup: false,
       pay: 'cash', kind: trip && trip.prev === 'wait' ? 'stand' : 'street',   // 待機からの乗車は「乗り場」
       from: trip && trip.from ? { ...trip.from } : {}, to: pend && pend.to ? { ...pend.to } : {}, dirty: {},
     };
@@ -2798,7 +2796,7 @@ function entryBreakdown() {
   const pickup = cfg && !E.noPickup ? S.settings.pickupFee : 0;
   const appFee = cfg ? appFeeFor(cfg, E.pay) : 0;
   const fare = gross - pickup - appFee;
-  const long = E.long ? longDisc(fare) : 0;
+  const long = longDisc(fare);   // 遠距離割は常に自動適用（9,000円を超えた時だけ効く）
   const handi = E.handi ? handiDisc(fare - long) : 0;
   // total：受け取る金額（割引後）、meter：割引後の運賃
   return { gross, pickup, appFee, long, handi, total: gross - long - handi, meter: fare - long - handi };
@@ -2833,8 +2831,6 @@ function renderEntry() {
        (parts.length || discs.length) && bi(`運賃 <b>${yen(Math.max(0, bd.meter))}</b>`),
        discs.length && bi(`お支払い <b>${yen(bd.total)}</b>`),
        E.toll && bi(`＋高速代 <b>${yen(E.toll)}</b>（売上外）`)].filter(Boolean).join('');
-  $('#eDiscLong').setAttribute('aria-pressed', !!bd.long);   // 実際に割り引いている時だけ点灯
-  $('#eDiscLongSub').textContent = !E.long ? 'オフ' : bd.long ? '自動 −' + yen(bd.long) : '9,000円超で自動';
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
   $('#eTollSub').textContent = E.toll ? yen(E.toll) : '売上外';
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
@@ -3542,7 +3538,6 @@ $('#ePay').addEventListener('click', e => {
   renderEntry();
 });
 $('#eNoPick').addEventListener('click', () => { haptic(); E.noPickup = !E.noPickup; renderEntry(); });
-$('#eDiscLong').addEventListener('click', () => { haptic(); E.long = !E.long; renderEntry(); });
 $('#eToll').addEventListener('click', () => { haptic(); openNumpad('高速代', E.toll || 0, v => { if (E) { E.toll = v; renderEntry(); } }); });
 $('#eDiscHandi').addEventListener('click', () => { haptic(); E.handi = !E.handi; renderEntry(); });
 $('#eKind').addEventListener('click', e => { const b = e.target.closest('[data-kind],[data-app]'); if (b) { haptic(); selectKind(b.dataset.kind, b.dataset.app); renderEntry(); } });
