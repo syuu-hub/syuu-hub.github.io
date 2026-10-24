@@ -7,11 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>タクシーボード</title>
+<title>タクシーアナライザー</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="タクシーボード">
+<meta name="apple-mobile-web-app-title" content="タクシーアナライザー">
 <style>
 /* ============================================================
    Design tokens
@@ -3428,7 +3428,7 @@ function exportLog(onlyShiftId) {
   }
   if (!rows.length) { toast('出力するデータがありません'); return; }
   rows.sort((a, b) => a[0] - b[0]);
-  download(`taxiboard-log-${onlyShiftId ? 'shift-' : ''}${fileDate()}.csv`, toCsv([head, ...rows.map(r => r[1])]));
+  download(`taxi-analyzer-log-${onlyShiftId ? 'shift-' : ''}${fileDate()}.csv`, toCsv([head, ...rows.map(r => r[1])]));
 }
 
 function exportSummary() {
@@ -3448,7 +3448,7 @@ function exportSummary() {
       st.occRate != null ? (st.occRate * 100).toFixed(1) : '',
       s.goal, s.goal ? (st.sales / s.goal * 100).toFixed(1) : ''];
   });
-  download(`taxiboard-summary-${fileDate()}.csv`, toCsv([head, ...rows]));
+  download(`taxi-analyzer-summary-${fileDate()}.csv`, toCsv([head, ...rows]));
 }
 
 /* ============================================================
@@ -3456,7 +3456,7 @@ function exportSummary() {
    ============================================================ */
 function backup() {
   save();
-  download(`taxiboard-backup-${fileDate()}.json`, JSON.stringify(S), 'application/json');
+  download(`taxi-analyzer-backup-${fileDate()}.json`, JSON.stringify(S), 'application/json');
 }
 function restore(file) {
   const rd = new FileReader();
