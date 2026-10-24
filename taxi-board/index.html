@@ -934,6 +934,10 @@ svg{display:block}
           <button class="btn sm num" id="monthGoalBtn">未設定</button>
         </div>
           <div class="setting">
+          <div><div class="k">高額乗車の基準</div><div class="d">分析で使う・0で自動</div></div>
+          <button class="btn sm num" id="hiFareBtn">自動</button>
+        </div>
+          <div class="setting">
           <div><div class="k">締め日</div><div class="d" id="closingDesc"></div></div>
           <button class="btn sm num" id="closingBtn">末日</button>
         </div>
@@ -1371,7 +1375,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -2615,8 +2619,9 @@ function renderAnalysis() {
   const step = v => v <= q[0] ? 0 : v <= q[1] ? 1 : v <= q[2] ? 2 : 3;
   const bestCell = cells.filter(c => c.du >= 120).sort((a, b) => b.rate - a.rate)[0];   // 2時間以上営業したコマで最も稼げる所
   // 場所・種類
-  // 高額乗車：その期間の上位2割に入る金額（1,000円単位・3,000円以上）を境目にする
-  const hiFrom = Math.max(3000, Math.ceil(quant(A.rides.map(r => r.total), .8) / 1000) * 1000);
+  // 高額乗車：設定の金額以上。未設定（0）ならその期間の上位2割に入る金額（1,000円単位・3,000円以上）
+  const hiAuto = !S.settings.hiFare;
+  const hiFrom = S.settings.hiFare || Math.max(3000, Math.ceil(quant(A.rides.map(r => r.total), .8) / 1000) * 1000);
   const hiRides = A.rides.filter(r => r.total >= hiFrom);
   const allPl = demandPlaces(A.rides, hiFrom).filter(c => c.n >= 2);
   const hiPlaces = allPl.filter(c => c.name && c.hi >= 2).sort((a, b) => b.hi - a.hi || b.hi / b.n - a.hi / a.n).slice(0, 5);
@@ -2689,7 +2694,7 @@ function renderAnalysis() {
       ${unknownN ? `<div class="ana-note">ほかに住所が分からない乗車 ${unknownN}回</div>` : ''}
     </div>
     <div class="ana-card">
-      <h3><span>高額乗車が出やすい場所</span><small>${yen(hiFrom)}以上</small></h3>
+      <h3><span>高額乗車が出やすい場所</span><small>${hiFrom >= 100000 ? compactYen(hiFrom) : yen(hiFrom)}以上${hiAuto ? '・自動' : ''}</small></h3>
       ${hiRides.length ? `<div class="hi-sum num">高額 <b>${hiRides.length}回</b>（${Math.round(hiRides.length / A.rides.length * 100)}%）${hiPeak >= 0 ? `・<b>${hiPeak}時台</b>に多い` : ''}</div>` : ''}
       ${hiPlaces.length ? `<ol class="plist">${hiPlaces.map((c, i) => { const pk = c.hiHours.indexOf(Math.max(...c.hiHours));
         return `<li><span class="n num">${i + 1}</span><span style="min-width:0"><div class="nm">${esc(pname(c))}</div><div class="sb num">高額 ${c.hi}/${c.n}回・${pk}時台</div></span><span class="a num hi-rate">${Math.round(c.hi / c.n * 100)}<small>%</small></span></li>`; }).join('')}</ol>
@@ -2729,6 +2734,7 @@ function renderData() {
   $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
   $('#goalSetBtn').textContent = yen(S.settings.goal);
   $('#monthGoalBtn').textContent = S.settings.monthGoal ? yen(S.settings.monthGoal) : '未設定';
+  $('#hiFareBtn').textContent = S.settings.hiFare ? yen(S.settings.hiFare) + '以上' : '自動';
   $('#closingBtn').textContent = closingLabel();
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
   $('#dayHoursBtn').textContent = S.settings.dayHours ? S.settings.dayHours + '時間' : '未設定';
@@ -3555,6 +3561,10 @@ $('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#goalBtn').addEventListener('click', editGoal);
 $('#goalSetBtn').addEventListener('click', editGoal);
+$('#hiFareBtn').addEventListener('click', () => openNumpad('高額乗車の基準', S.settings.hiFare, v => {
+  S.settings.hiFare = v;
+  save(); renderAll(); renderData();
+}, { label: 'この金額以上・0で自動（上位2割）', digits: 6 }));
 $('#monthGoalBtn').addEventListener('click', () => openNumpad('月の目標金額', S.settings.monthGoal, v => {
   S.settings.monthGoal = v;
   save(); renderAll();
