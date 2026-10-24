@@ -2694,7 +2694,7 @@ function renderAnalysis() {
       ${unknownN ? `<div class="ana-note">ほかに住所が分からない乗車 ${unknownN}回</div>` : ''}
     </div>
     <div class="ana-card">
-      <h3><span>高額乗車が出やすい場所</span><small>${yen(hiFrom)}以上${hiAuto ? '（自動）' : ''}</small></h3>
+      <h3><span>高額乗車が出やすい場所</span><small>${hiFrom >= 100000 ? compactYen(hiFrom) : yen(hiFrom)}以上${hiAuto ? '・自動' : ''}</small></h3>
       ${hiRides.length ? `<div class="hi-sum num">高額 <b>${hiRides.length}回</b>（${Math.round(hiRides.length / A.rides.length * 100)}%）${hiPeak >= 0 ? `・<b>${hiPeak}時台</b>に多い` : ''}</div>` : ''}
       ${hiPlaces.length ? `<ol class="plist">${hiPlaces.map((c, i) => { const pk = c.hiHours.indexOf(Math.max(...c.hiHours));
         return `<li><span class="n num">${i + 1}</span><span style="min-width:0"><div class="nm">${esc(pname(c))}</div><div class="sb num">高額 ${c.hi}/${c.n}回・${pk}時台</div></span><span class="a num hi-rate">${Math.round(c.hi / c.n * 100)}<small>%</small></span></li>`; }).join('')}</ol>
