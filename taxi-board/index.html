@@ -650,6 +650,10 @@ svg{display:block}
 .rp-sum .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1;color:var(--accent)}
 .rp-sum .c{font-size:14px;color:var(--muted);white-space:nowrap}
 .rp-sum .c b{font-size:20px;color:var(--text);margin-right:2px}
+.rp-good{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.rp-good .g{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--surface-3);color:var(--muted)}
+.rp-good .g b{color:var(--text)}
+.rp-good .g.ok{background:rgba(61,214,140,.16);color:var(--ok)}
 .rp-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
 .rr{display:grid;grid-template-columns:minmax(0,1fr) 3em 6.6em;align-items:center;column-gap:8px;padding:12px 0}   /* 件数・金額の列を全行でそろえる */
 .rr + .rr{border-top:1px solid var(--line)}
@@ -2076,6 +2080,13 @@ function openReport(id) {
   ].filter(Boolean);
   $('#rpDate').textContent = ymd(sh.start);
   const pn = pays.reduce((a, p) => a + p.n, 0), pa = pays.reduce((a, p) => a + p.amt, 0);
+  // 1日の締めくくりは良かった点から（ピーク・エンドの法則：終わりの印象が1日の評価を左右する）
+  const goal = sh.goal || S.settings.goal, best = rides.slice().sort((a, b) => b.total - a.total)[0];
+  const good = [
+    goal > 0 && st.sales >= goal && `<span class="g ok">目標達成 ＋${yen(st.sales - goal)}</span>`,
+    goal > 0 && st.sales < goal && `<span class="g">目標の${Math.floor(st.sales / goal * 100)}%</span>`,
+    best && rides.length >= 2 && `<span class="g">いちばん高い乗車 <b class="num">${yen(best.total)}</b>${placeText(best.from) !== '—' ? '・' + esc(placeText(best.from)) : ''}</span>`,
+  ].filter(Boolean);
   $('#rpBody').innerHTML = `
     <div class="rp-head">
       <div class="rp-times num"><span><small>出庫</small>${hhmm(sh.start)}</span><i>→</i><span><small>入庫</small>${sh.end ? hhmm(sh.end) : '営業中'}</span></div>
@@ -2083,6 +2094,7 @@ function openReport(id) {
         <div><div class="k">合計金額（営業収入）</div><div class="v num">${yen(st.sales)}</div></div>
         <div class="c num"><b>${st.count}</b>件</div>
       </div>
+      ${good.length ? `<div class="rp-good">${good.join('')}</div>` : ''}
     </div>
     <section class="rp-sec">
       <h3><span>支払い種別</span><span>件数・金額</span></h3>
@@ -2151,7 +2163,10 @@ function renderHud() {
   $('#bar').style.width = clamp(ratio * 100, 0, 100) + '%';
   $('#barWrap').setAttribute('aria-valuenow', Math.round(clamp(ratio * 100, 0, 100)));
   $('#hud').classList.toggle('done', goal > 0 && sales >= goal);
-  $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `目標達成 ＋${yen(sales - goal)}` : `目標まで あと ${yen(goal - sales)}`;
+  // 残りの金額を「あと約何回」にも言い換える（平均単価は今日3回以上あれば今日、無ければ直近30回）
+  const recent = S.rides.slice(-30), avgFare = sh && shiftStats(sh).count >= 3 ? sales / shiftStats(sh).count : recent.length ? recent.reduce((a, r) => a + r.total, 0) / recent.length : 0;
+  const times = avgFare > 0 && goal > sales ? Math.ceil((goal - sales) / avgFare) : 0;
+  $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `目標達成 ＋${yen(sales - goal)}` : `目標まで あと ${yen(goal - sales)}${times ? `（約${times}回）` : ''}`;
 
   $('#stCount').innerHTML = (st ? st.count : 0) + '<small>回</small>';
   const fit = n => n >= 100000 ? compactYen(n) : yen(n);   // 狭い欄に収める
@@ -3267,7 +3282,11 @@ function saveEntry() {
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     // （未記録の乗車を後から記録した時は、今のステータスはそのまま）
     if (!E.pend && (sh.status === 'occupied' || PAUSE.includes(sh.status))) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録しました` + (fixed ? `・${PL()}は${hhmm(fixed)}まで` : ''));
+    // 目標に近づいた実感を返す（目標勾配効果）。達成した瞬間ははっきり知らせる
+    const goal = sh.goal || S.settings.goal, after = shiftStats(sh).sales, before = after - total;
+    const gl = goal > 0 ? (before < goal && after >= goal ? '・目標達成！' : after < goal ? `・目標まであと${yen(goal - after)}` : '') : '';
+    if (gl === '・目標達成！') haptic([30, 60, 30, 60, 60]);
+    toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録` + gl + (fixed ? `・${PL()}は${hhmm(fixed)}まで` : ''));
   }
   save(); haptic(25); queueAddr();
   E = null;
@@ -3276,20 +3295,19 @@ function saveEntry() {
 }
 
 function deleteEntry() {
-  if (E && E.pend) {   // 未記録の乗車を記録せずに捨てる
-    if (!confirm('この乗車は記録しませんか？')) return;
-    const sh = curShift();
-    if (sh) sh.pending = (sh.pending || []).filter(t => t.start !== E.pend.start);
+  if (E && E.pend) {   // 未記録の乗車を記録せずに捨てる（すぐなら元に戻せる）
+    const sh = curShift(), trip = E.pend;
+    if (sh) sh.pending = (sh.pending || []).filter(t => t.start !== trip.start);
     save(); E = null; closeSheet($('#entry')); renderAll();
-    return toast('記録しませんでした');
+    return toast('記録しませんでした', '元に戻す', () => { if (sh) { sh.pending = [...(sh.pending || []), trip].sort((a, b) => a.start - b.start); save(); renderAll(); } });
   }
   if (!E || !E.editId) return;
-  if (!confirm('この乗車記録を削除しますか？')) return;
-  S.rides = S.rides.filter(r => r.id !== E.editId);
+  const i = S.rides.findIndex(r => r.id === E.editId), removed = S.rides[i];
+  S.rides.splice(i, 1);
   save(); E = null;
   closeSheet($('#entry'));
   renderAll();
-  toast('削除しました');
+  toast(`${yen(removed.total)} の乗車を削除しました`, '元に戻す', () => { S.rides.splice(i, 0, removed); save(); renderAll(); toast('元に戻しました'); });
 }
 
 /* ============================================================
@@ -3883,7 +3901,15 @@ function renderSug(w) {
 }
 $('#eSave').addEventListener('click', saveEntry);
 $('#eDelete').addEventListener('click', deleteEntry);
-$('#entry [data-close]').addEventListener('click', () => { E = null; closeSheet($('#entry')); });
+$('#entry [data-close]').addEventListener('click', () => {
+  const draft = E && !E.editId && (E.amount || E.dirty.from || E.dirty.to) ? { E, start: $('#eStart').value, end: $('#eEnd').value, from: addrInput('from').value, to: addrInput('to').value } : null;
+  E = null; closeSheet($('#entry'));
+  if (draft) toast('入力中の乗車を閉じました', '戻す', () => {
+    E = draft.E; $('#eStart').value = draft.start; $('#eEnd').value = draft.end;
+    addrInput('from').value = draft.from; addrInput('to').value = draft.to;
+    renderEntry(); renderEntryLoc(); openSheet($('#entry'));
+  });
+});
 // シートの見出しを下にスワイプして閉じる（片手操作で左上の「閉じる」まで指を伸ばさなくてよい）
 $$('.sheet').forEach(sh => {
   const head = sh.querySelector('.sheet-head'), inner = sh.querySelector('.sheet-inner'), close = sh.querySelector('[data-close]');
