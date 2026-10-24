@@ -93,11 +93,18 @@ svg{display:block}
   height:100%;
   display:grid;
   grid-template-columns:minmax(0,1fr);
-  grid-template-rows:auto minmax(80px,200px) minmax(72px,170px);
+  /* ボタンは押しやすい高さで止め、余った高さは売上の表示（HUD）に回す */
+  grid-template-rows:auto clamp(72px,13.5vh,118px) clamp(60px,10vh,88px);
   grid-template-areas:"hud" "status" "actions";
   gap:var(--gap);
 }
-.cockpit .hud{display:flex;flex-direction:column;justify-content:center}
+.cockpit .hud{display:flex;flex-direction:column;justify-content:center;min-height:0}
+/* 余白があれば：上に出庫・GPS、下に指標、真ん中に売上（大きく） */
+.cockpit .hud-meta{margin-bottom:auto}
+@media (max-width:359px){ .hud-meta{gap:8px} .gps{font-size:0;gap:0} .end-btn{padding:0 12px} }   /* 狭い画面：GPSは点だけ */
+.cockpit .stats{margin-top:auto}
+.cockpit .hud-main{margin-top:clamp(8px,2vh,24px)}
+.cockpit .sales{font-size:clamp(38px,min(9.5vh,17vw),104px)}
 @media (orientation:landscape) and (min-width:700px){
   .cockpit{
     grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
@@ -204,6 +211,7 @@ svg{display:block}
 .st-btn:active{transform:scale(.97)}
 .st-btn .l{font-size:clamp(20px,min(3.6vh,6.2vw),34px);font-weight:800;letter-spacing:.06em;color:var(--c)}
 .st-btn .t{font-size:13px;font-weight:600;color:var(--muted);min-height:1.2em;white-space:pre-line;text-align:center;line-height:1.3}
+.st-btn .t:empty{display:none}   /* 経過時間が無いボタンは名前を中央に */
 .st-btn[data-st="vacant"]{--c:var(--st-vacant)}
 .st-btn[data-st="occupied"]{--c:var(--st-occupied)}
 .st-btn[data-st="wait"]{--c:var(--st-wait)}
