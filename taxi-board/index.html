@@ -417,6 +417,10 @@ svg{display:block}
 .legend i{display:inline-block;width:12px;height:4px;border-radius:2px;margin-right:5px;vertical-align:2px}
 .trend rect.tb[aria-pressed="true"]{fill:var(--text)}
 .plist{list-style:none}
+.hi-sum{font-size:13px;color:var(--muted);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hi-sum b{color:var(--text)}
+.plist .a.hi-rate{color:var(--accent);font-size:20px}
+.plist .a.hi-rate small{font-size:12px;margin-left:1px}
 .plist li{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .plist li:last-child{border-bottom:0}
 .plist .n{font-size:13px;font-weight:800;color:var(--muted);text-align:center}
@@ -2508,7 +2512,7 @@ const ridePos = f => f.place && f.place.lat != null ? f.place
   : f.lat != null ? f : null;
 // 同じ場所としてまとめる鍵：施設名、または手入力した住所（GPSの位置がずれていても1本のピンに）
 const placeKey = f => f.place ? 'p:' + normName(f.place.name) : f.manual && f.addr ? 'a:' + normName(f.addr) : null;
-function demandPlaces(src = S.rides) {
+function demandPlaces(src = S.rides, hiFrom = Infinity) {   // hiFrom：この金額以上を「高額乗車」として数える
   const list = [], byKey = new Map();
   const rides = src.filter(r => r.from && ridePos(r.from))
     .sort((a, b) => !!placeKey(b.from) - !!placeKey(a.from) || (a.start || a.ts) - (b.start || b.ts));   // 施設・手入力を先にまとめる
@@ -2520,13 +2524,14 @@ function demandPlaces(src = S.rides) {
       for (const p of list) { const d = haversine(pinCenter(p), pos); if (d <= best) { best = d; c = p; } }
     }
     if (!c) {
-      list.push(c = { key: r.id, n: 0, lat: 0, lng: 0, flat: 0, flng: 0, fn: 0, sales: 0, hours: new Array(24).fill(0), dows: new Array(7).fill(0), names: {}, exact: !!(f.place) });
+      list.push(c = { key: r.id, n: 0, hi: 0, hiHours: new Array(24).fill(0), lat: 0, lng: 0, flat: 0, flng: 0, fn: 0, sales: 0, hours: new Array(24).fill(0), dows: new Array(7).fill(0), names: {}, exact: !!(f.place) });
       if (k) byKey.set(k, c);
     }
     c.n++; c.lat += pos.lat; c.lng += pos.lng; c.sales += r.total;
     const fp = f.place && (f.place.lat != null ? f.place : knownPos(f.place.name));
     if (fp) { c.flat += fp.lat; c.flng += fp.lng; c.fn++; }
     const d = new Date(t); c.hours[d.getHours()]++; c.dows[d.getDay()]++;
+    if (r.total >= hiFrom) { c.hi++; c.hiHours[d.getHours()]++; }
     const nm = (f.place && f.place.name) || shortAddr(f.addr);
     if (nm) c.names[nm] = (c.names[nm] || 0) + 1;
   }
@@ -2610,7 +2615,13 @@ function renderAnalysis() {
   const step = v => v <= q[0] ? 0 : v <= q[1] ? 1 : v <= q[2] ? 2 : 3;
   const bestCell = cells.filter(c => c.du >= 120).sort((a, b) => b.rate - a.rate)[0];   // 2時間以上営業したコマで最も稼げる所
   // 場所・種類
-  const allPl = demandPlaces(A.rides).filter(c => c.n >= 2);
+  // 高額乗車：その期間の上位2割に入る金額（1,000円単位・3,000円以上）を境目にする
+  const hiFrom = Math.max(3000, Math.ceil(quant(A.rides.map(r => r.total), .8) / 1000) * 1000);
+  const hiRides = A.rides.filter(r => r.total >= hiFrom);
+  const allPl = demandPlaces(A.rides, hiFrom).filter(c => c.n >= 2);
+  const hiPlaces = allPl.filter(c => c.name && c.hi >= 2).sort((a, b) => b.hi - a.hi || b.hi / b.n - a.hi / a.n).slice(0, 5);
+  const hiH = new Array(24).fill(0); for (const r of hiRides) hiH[new Date(r.start || r.ts).getHours()]++;
+  const hiPeak = hiRides.length ? hiH.indexOf(Math.max(...hiH)) : -1;
   const places = allPl.filter(c => c.name).slice(0, 5), unknownN = allPl.filter(c => !c.name).reduce((a, c) => a + c.n, 0);   // 住所不明の地点は並べず件数だけ
   const kinds = new Map();
   for (const r of A.rides) { const l = kindLabel(r.kind, r.app), x = kinds.get(l) || { n: 0, s: 0 }; x.n++; x.s += r.total; kinds.set(l, x); }
@@ -2676,6 +2687,14 @@ function renderAnalysis() {
         return `<li><span class="n num">${i + 1}</span><span style="min-width:0"><div class="nm">${esc(pname(c))}</div><div class="sb num">${c.n}回・${peak}時台に多い</div></span><span class="a num">${yen(Math.round(c.sales / c.n))}</span></li>`; }).join('')}</ol>`
         : '<div class="ana-empty">2回以上乗せた場所を表示します</div>'}
       ${unknownN ? `<div class="ana-note">ほかに住所が分からない乗車 ${unknownN}回</div>` : ''}
+    </div>
+    <div class="ana-card">
+      <h3><span>高額乗車が出やすい場所</span><small>${yen(hiFrom)}以上</small></h3>
+      ${hiRides.length ? `<div class="hi-sum num">高額 <b>${hiRides.length}回</b>（${Math.round(hiRides.length / A.rides.length * 100)}%）${hiPeak >= 0 ? `・<b>${hiPeak}時台</b>に多い` : ''}</div>` : ''}
+      ${hiPlaces.length ? `<ol class="plist">${hiPlaces.map((c, i) => { const pk = c.hiHours.indexOf(Math.max(...c.hiHours));
+        return `<li><span class="n num">${i + 1}</span><span style="min-width:0"><div class="nm">${esc(pname(c))}</div><div class="sb num">高額 ${c.hi}/${c.n}回・${pk}時台</div></span><span class="a num hi-rate">${Math.round(c.hi / c.n * 100)}<small>%</small></span></li>`; }).join('')}</ol>
+        <div class="ana-note">％：その場所の乗車のうち高額の割合</div>`
+        : '<div class="ana-empty">高額乗車が2回以上ある場所を表示します</div>'}
     </div>
     <div class="ana-card">
       <h3><span>乗車の種類</span><small>売上の割合</small></h3>
