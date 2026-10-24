@@ -211,12 +211,17 @@ svg{display:block}
 .st-btn:active{transform:scale(.97)}
 .st-btn .l{font-size:clamp(20px,min(3.6vh,6.2vw),34px);font-weight:800;letter-spacing:.06em;color:var(--c)}
 .st-btn .t{font-size:13px;font-weight:600;color:var(--muted);min-height:1.2em;white-space:pre-line;text-align:center;line-height:1.3}
-.st-btn .t:empty{display:none}   /* 経過時間が無いボタンは名前を中央に */
+/* 名前は常に上下左右の中央。経過時間は名前の下に重ねて置き、名前の位置を動かさない */
+.st-btn{position:relative}
+.st-btn .t{position:absolute;left:4px;right:4px;bottom:clamp(6px,1.4vh,12px)}
+.st-btn .t:empty{display:none}
+@media (max-height:640px){ .st-btn .t{bottom:3px;font-size:11px;line-height:1.2} }   /* 低いボタンでも名前と重ならない */
 .st-btn[data-st="vacant"]{--c:var(--st-vacant)}
 .st-btn[data-st="occupied"]{--c:var(--st-occupied)}
 .st-btn[data-st="wait"]{--c:var(--st-wait)}
 /* 縦画面は「待機」「休憩」を2行に、横画面（全幅ボタン）は1行に */
-.st-btn[data-st="wait"] .l .w{display:block;line-height:1.15}
+.st-btn[data-st="wait"] .l .w{display:block;line-height:1.05}
+.st-btn[data-st="wait"] .l:has(.sep){font-size:clamp(18px,min(3.2vh,5.6vw),30px)}   /* 2行の時は少し小さく、経過時間と重ねない */
 .st-btn[data-st="wait"] .l .sep{display:none}
 .st-btn[aria-pressed="true"]{background:var(--c);border-color:var(--c)}
 .st-btn[aria-pressed="true"] .l,.st-btn[aria-pressed="true"] .t{color:#0A0C0F}
@@ -2096,7 +2101,7 @@ function renderStatus() {
     const on = !!sh && sh.status === b.dataset.st;
     b.setAttribute('aria-pressed', on);
     const el = durShort(Date.now() - sh.statusSince);
-    b.querySelector('.t').textContent = on ? (PAUSE.includes(b.dataset.st) ? el + '\n解除' : el) : '';
+    b.querySelector('.t').textContent = on ? (PAUSE.includes(b.dataset.st) ? el + '・解除' : el) : '';
   });
 }
 
