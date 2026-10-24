@@ -1,7 +1,7 @@
-// タクシーボード Service Worker
+// タクシーアナライザー Service Worker
 // 画面（HTML）はネット優先：つながる時は常に最新を取得してキャッシュを更新、圏外ではキャッシュで起動
 // アイコン等の静的ファイルはキャッシュ優先。外部サイト（住所検索・地図）は扱わない
-const CACHE = 'taxiboard-v1';
+const CACHE = 'taxiboard-v2';   // アプリ名の変更で更新
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
