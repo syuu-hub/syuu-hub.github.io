@@ -2802,6 +2802,9 @@ function renderAll() {
 
 function setView(v) {
   if (!$(`.view[data-view="${v}"]`)) v = 'home';
+  // ホーム以外のタブにいる間は履歴を1つ持ち、戻るでホームへ
+  if (v !== 'home' && !NAV.tab) { NAV.tab = true; navPush(); }
+  else if (v === 'home' && NAV.tab) { NAV.tab = false; if (!NAV.popping) navBack(); }
   S.settings.tab = v; saveSoon();
   $$('.tab-btn').forEach(b => b.setAttribute('aria-current', b.dataset.go === v ? 'page' : 'false'));
   $$('.view').forEach(p => p.hidden = p.dataset.view !== v);
@@ -2841,11 +2844,38 @@ function applyKey(str, k, digits = MAX_DIGITS) {
    ============================================================ */
 let E = null;   // 入力中の記録
 
+/* ============================================================
+   戻る操作（Androidの戻るボタン・ジェスチャー、ブラウザの戻る）
+   シートを開く／ホーム以外のタブへ移るたびに履歴を1つ積み、戻るで
+   いちばん上のシートを閉じる → それも無ければホームへ戻る
+   ============================================================ */
+const NAV = { stack: [], pending: 0, queue: [], popping: false, tab: false };
+function navPush() {
+  if (NAV.pending) { NAV.queue.push(1); return; }   // 戻る処理中は、それが終わってから積む
+  history.pushState({ tb: 1 }, '');
+}
+function navBack() { NAV.pending++; history.back(); }
+window.addEventListener('popstate', () => {
+  if (NAV.pending) {   // 画面のボタンで閉じた分の履歴を消しただけ
+    if (--NAV.pending === 0) NAV.queue.splice(0).forEach(() => history.pushState({ tb: 1 }, ''));
+    return;
+  }
+  NAV.popping = true;
+  try {
+    const top = NAV.stack.at(-1);
+    if (top) (top.querySelector('[data-close]') || { click: () => closeSheet(top) }).click();
+    else if (NAV.tab) setView('home');
+  } finally { NAV.popping = false; }
+});
+
 function openSheet(el) {
   el.hidden = false;
   requestAnimationFrame(() => el.classList.add('open'));
+  if (!NAV.stack.includes(el)) { NAV.stack.push(el); navPush(); }
 }
 function closeSheet(el) {
+  const i = NAV.stack.indexOf(el);
+  if (i >= 0) { NAV.stack.splice(i, 1); if (!NAV.popping) navBack(); }
   el.classList.remove('open');
   setTimeout(() => { if (!el.classList.contains('open')) el.hidden = true; }, 200);   // 閉じる途中で開き直した時は隠さない
 }
