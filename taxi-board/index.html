@@ -861,12 +861,12 @@ svg{display:block}
           <div class="log-acts">
             <button class="btn sm wide" id="logReport">日報</button>
             <button class="btn sm" id="logAddRide">＋ 乗車</button>
-            <button class="btn sm" id="logAddPause">＋ 待機・休憩</button>
+            <button class="btn sm" id="logAddPause">＋ <span class="pl-name">待機・休憩</span></button>
           </div>
         </div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>この日の記録</h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false">待機・休憩も表示</button></div></div>
+        <div class="sec-h"><h3>この日の記録</h3><div class="seg" style="margin:0"><button id="pauseFilter" aria-pressed="false"><span class="pl-name">待機・休憩</span>も表示</button></div></div>
         <ul class="list" id="rideList"></ul>
       </div>
     </div></section>
@@ -969,6 +969,10 @@ svg{display:block}
           <div class="setting">
           <div><div class="k">画面を常時点灯</div><div class="d">営業中はスリープしない</div></div>
           <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
+        </div>
+          <div class="setting hol-setting">
+          <div><div class="k">待機・休憩の表記</div><div class="d">ボタン・履歴などの名前</div></div>
+          <div class="seg hol" id="pauseLabelSeg"><button data-pl="both">待機・休憩</button><button data-pl="wait">待機</button><button data-pl="rest">休憩</button></div>
         </div>
           <div class="setting">
           <div><div class="k">GPSを住所に変換</div><div class="d">通信時のみ・国土地理院</div></div>
@@ -1085,7 +1089,7 @@ svg{display:block}
       <button class="close-btn" data-close>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
       </button>
-      <h2 id="psTitle">待機・休憩の修正</h2>
+      <h2 id="psTitle"><span class="pl-name">待機・休憩</span>の修正</h2>
     </header>
     <div class="fields">
       <label class="group" style="margin:0"><div class="glabel">開始</div><input class="text-in num" type="time" id="psStart"></label>
@@ -1258,10 +1262,13 @@ svg{display:block}
 /* ============================================================
    定数
    ============================================================ */
+// 待機・休憩の表記（設定で選べる）
+const PNAMES = { both: '待機・休憩', wait: '待機', rest: '休憩' };
+const PL = () => PNAMES[S && S.settings && S.settings.pauseLabel] || PNAMES.both;
 const STATUS = {
   vacant:   { label: '空車' },
   occupied: { label: '実車' },
-  wait:     { label: '待機・休憩' },
+  wait:     { get label() { return PL(); } },   // 表記は設定で「待機・休憩／待機／休憩」
   off:      { label: '入庫' },
 };
 // 決済方法の初期値（設定で追加・編集できる。cash と app は集計・配車アプリで使うので削除不可）
@@ -1345,7 +1352,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hoursCap: 288, dayHours: 0, stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90' },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -2316,7 +2323,7 @@ function openPauseAdd(shiftId) {
   const endT = Math.min(sh.end || Date.now(), Date.now());
   const base = Math.max(sh.start, endT - 30 * 60000);
   PS.id = null; PS.add = { sh, base };
-  $('#psTitle').textContent = '待機・休憩の追加';
+  $('#psTitle').textContent = `${PL()}の追加`;
   $('#psDelete').hidden = true;
   $('#psStart').value = toHM(base);
   $('#psEnd').hidden = false; $('#psOngoing').hidden = true;
@@ -2334,20 +2341,20 @@ function addPause() {
   if (evs.some(e => e.ts > start && e.ts < end && e.status !== 'off')) return toast('その時間に他のステータスの記録があります');
   const before = evs.filter(e => e.ts <= start).at(-1);
   const st0 = before ? before.status : 'vacant';
-  if (st0 === 'occupied' || PAUSE.includes(st0)) return toast(st0 === 'occupied' ? '実車中の時間です' : 'すでに待機・休憩の時間です');
+  if (st0 === 'occupied' || PAUSE.includes(st0)) return toast(st0 === 'occupied' ? '実車中の時間です' : `すでに${PL()}の時間です`);
   const add = (ts, status, prev) => { const ev = { id: uid(), shiftId: sh.id, ts, status, prev }; S.events.push(ev); return ev; };
   add(start, 'wait', st0);
   const at = evs.find(e => e.ts >= end && e.ts - end < 60000);   // 同じ「分」の記録（入庫など）にそろえる
   if (at) at.prev = 'wait';                       // 入庫などちょうど終了時刻の記録はそのまま
   else add(end, st0, 'wait');                     // 終了後は元のステータスに戻す
   save(); haptic(25); closeSheet($('#pauseSheet')); renderAll();
-  toast(`待機・休憩 ${toHM(start)}〜${toHM(end)} を追加`);
+  toast(`${PL()} ${toHM(start)}〜${toHM(end)} を追加`);
 }
 function openPause(id) {
   const c = pauseCtx(id);
   if (!c) return;
   PS.id = id; PS.add = null;
-  $('#psTitle').textContent = '待機・休憩の修正';
+  $('#psTitle').textContent = `${PL()}の修正`;
   $('#psDelete').hidden = false;
   $('#psStart').value = toHM(c.e.ts);
   $('#psEnd').hidden = !c.next;
@@ -2368,11 +2375,11 @@ function savePause() {
     if (c.next.status === 'off') c.sh.end = end;   // 入庫で終わった待機・休憩
   } else c.sh.statusSince = start;
   save(); haptic(25); closeSheet($('#pauseSheet')); renderAll();
-  toast('待機・休憩を修正しました');
+  toast(`${PL()}を修正しました`);
 }
 function deletePause() {
   const c = pauseCtx(PS.id);
-  if (!c || !confirm('この待機・休憩を削除しますか？\n（その時間は直前のステータスとして扱います）')) return;
+  if (!c || !confirm(`この${PL()}を削除しますか？\n（その時間は直前のステータスとして扱います）`)) return;
   const drop = new Set([c.e]);
   if (!c.prev) {
     c.e.status = 'vacant';   // 出庫直後の待機・休憩 → 空車として残す
@@ -2387,7 +2394,7 @@ function deletePause() {
   }
   S.events = S.events.filter(x => !drop.has(x));
   save(); haptic(25); closeSheet($('#pauseSheet')); renderAll();
-  toast('待機・休憩を削除しました');
+  toast(`${PL()}を削除しました`);
 }
 
 // 履歴で表示する営業日（シフト）。未選択なら営業中のシフト、なければ直近のシフト
@@ -2431,14 +2438,14 @@ function renderLog() {
   // 乗車と待機・休憩を新しい順に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
   const showPause = !!S.settings.histPause;
   const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => b.t - a.t);
-  if (!items.length) { list.innerHTML = '<li class="empty">まだ乗車記録はありません。<br>待機・休憩は「待機・休憩を表示」で確認できます。</li>'; return; }
+  if (!items.length) { list.innerHTML = `<li class="empty">まだ乗車記録はありません。<br>${PL()}は「${PL()}も表示」で確認できます。</li>`; return; }
   // 1件＝1カード。情報の順位：①時刻と金額 ②乗車地→降車地 ③決済・種別
   const top = (t1, t2, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span><span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
   const route = (a, b) => `<div class="rc-route"><div class="rc-pl from">${esc(a)}</div><div class="rc-pl to">${esc(b)}</div></div>`;
   list.innerHTML = items.map(({ r, p }) => p ? `
     <li><button class="rcard pause" data-pause="${p.ev.id}">
       ${top(hhmm(p.start), p.end ? hhmm(p.end) : '継続中', dur(p.ms), 'dur')}
-      <div class="rc-meta"><span class="tag pause">待機・休憩</span></div>
+      <div class="rc-meta"><span class="tag pause">${PL()}</span></div>
     </button></li>` : `
     <li><button class="rcard" data-ride="${r.id}">
       ${top(r.start ? hhmm(r.start) : '--:--', hhmm(r.ts), yen(r.total))}
@@ -3062,7 +3069,7 @@ function saveEntry() {
     if (ticket) r.ticket = ticket; else delete r.ticket;
     if (E.toll) r.toll = E.toll; else delete r.toll;
     const fixed = fixPauseForRide(r);
-    toast(fixed ? `修正しました（待機・休憩を${hhmm(fixed)}で終了）` : '修正しました');
+    toast(fixed ? `修正しました（${PL()}を${hhmm(fixed)}で終了）` : '修正しました');
   } else if (E.shiftId) {
     // 入力忘れの追加：その営業の時間内であること
     const sh = S.shifts.find(x => x.id === E.shiftId), endT = sh.end || Date.now();
@@ -3070,7 +3077,7 @@ function saveEntry() {
     const ride = { id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) };
     S.rides.push(ride);
     const fixed = fixPauseForRide(ride);
-    toast(`${yen(total)} を${ymd(sh.start).slice(5)}の営業に追加しました` + (fixed ? `・待機・休憩は${hhmm(fixed)}まで` : ''));
+    toast(`${yen(total)} を${ymd(sh.start).slice(5)}の営業に追加しました` + (fixed ? `・${PL()}は${hhmm(fixed)}まで` : ''));
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
@@ -3083,7 +3090,7 @@ function saveEntry() {
     // 実車・待機・休憩のまま手動記録した場合は空車へ戻す（入力画面は再度開かない）
     // （未記録の乗車を後から記録した時は、今のステータスはそのまま）
     if (!E.pend && (sh.status === 'occupied' || PAUSE.includes(sh.status))) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録しました` + (fixed ? `・待機・休憩は${hhmm(fixed)}まで` : ''));
+    toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録しました` + (fixed ? `・${PL()}は${hhmm(fixed)}まで` : ''));
   }
   save(); haptic(25); queueAddr();
   E = null;
@@ -3322,7 +3329,7 @@ function importLogCsv(text) {
   if (ci('日時') < 0 || ci('種別') < 0) { toast('営業ログのCSVではありません'); return; }
   const get = (r, name) => { const i = ci(name); return i < 0 ? '' : (r[i] || '').trim(); };
   const num = (r, name) => { const v = get(r, name); return v === '' ? null : +v; };
-  const statusKey = label => Object.keys(STATUS).find(k => STATUS[k].label === label) || null;
+  const statusKey = label => Object.values(PNAMES).includes(label) ? 'wait' : Object.keys(STATUS).find(k => STATUS[k].label === label) || null;
   const placeOf = v => { const m = /^(.*)（([^（）]+)）$/.exec(v); return v ? (m ? { name: m[1], kind: m[2] } : { name: v, kind: '施設' }) : null; };
   const loc = (r, pre, extra = {}) => {
     const o = { ...extra }, pl = placeOf(get(r, pre + '施設')), addr = get(r, pre + '住所'), src = get(r, pre + '住所の入力');
@@ -3439,6 +3446,10 @@ document.addEventListener('visibilitychange', applyWakeLock);
 
 function applySettings() {
   document.documentElement.classList.toggle('dim', !!S.settings.dim);
+  // 待機・休憩の表記
+  $$('.pl-name').forEach(e => { e.textContent = PL(); });
+  $('.st-btn[data-st="wait"] .l').innerHTML = S.settings.pauseLabel === 'wait' || S.settings.pauseLabel === 'rest' ? `<span class="w">${PL()}</span>` : '<span class="w">待機</span><span class="sep">・</span><span class="w">休憩</span>';
+  $$('#pauseLabelSeg [data-pl]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pl === (S.settings.pauseLabel || 'both')));
   $('#dimBtn').setAttribute('aria-pressed', !!S.settings.dim);
   applyWakeLock();
 }
@@ -3479,6 +3490,10 @@ $('#dayHoursBtn').addEventListener('click', () => openNumpad('1日の予定労�
   S.settings.dayHours = Math.min(v, 24);
   save(); renderData();
 }, { unit: '時間', label: '0で予定なし', digits: 2 }));
+$('#pauseLabelSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-pl]'); if (!b) return;
+  haptic(); S.settings.pauseLabel = b.dataset.pl; save(); applySettings(); renderAll(); renderData();
+});
 $('#holidaySeg').addEventListener('click', e => {
   const b = e.target.closest('[data-hol]'); if (!b) return;
   haptic();
