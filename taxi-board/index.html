@@ -211,11 +211,9 @@ svg{display:block}
 .st-btn:active{transform:scale(.97)}
 .st-btn .l{font-size:clamp(20px,min(3.6vh,6.2vw),34px);font-weight:800;letter-spacing:.06em;color:var(--c)}
 .st-btn .t{font-size:13px;font-weight:600;color:var(--muted);min-height:1.2em;white-space:pre-line;text-align:center;line-height:1.3}
-/* 名前は常に上下左右の中央。経過時間は名前の下に重ねて置き、名前の位置を動かさない */
-.st-btn{position:relative}
-.st-btn .t{position:absolute;left:4px;right:4px;bottom:clamp(6px,1.4vh,12px)}
+/* 名前と経過時間（・解除）をひとまとまりにして上下左右の中央に。経過時間が無い時は名前だけを中央に */
 .st-btn .t:empty{display:none}
-@media (max-height:640px){ .st-btn .t{bottom:3px;font-size:11px;line-height:1.2} }   /* 低いボタンでも名前と重ならない */
+@media (max-height:640px){ .st-btn .t{font-size:11px;line-height:1.2} }
 .st-btn[data-st="vacant"]{--c:var(--st-vacant)}
 .st-btn[data-st="occupied"]{--c:var(--st-occupied)}
 .st-btn[data-st="wait"]{--c:var(--st-wait)}
