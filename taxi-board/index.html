@@ -1576,6 +1576,8 @@ const EXTRA_PLACES = [
     alias: ['Kobe Marriott Hotel', 'マリオット', 'ホテルクラウンパレス神戸', 'クラウンパレス神戸', 'クラウンパレス'] },
   { name: '神戸国際展示場', kind: '展示場', info: '神戸市中央区港島中町', note: 'ポートライナー市民広場駅すぐ', addr: '兵庫県神戸市中央区港島中町6丁目11-1',
     alias: ['国際展示場', '神戸国際展示場1号館', '神戸国際展示場2号館', 'こくさいてんじじょう', 'Kobe International Exhibition Hall'] },
+  { name: 'umie', kind: '商業施設', info: '神戸市中央区東川崎町', note: '神戸ハーバーランド', addr: '兵庫県神戸市中央区東川崎町1丁目7-2',
+    alias: ['ウミエ', 'うみえ', 'UMIE', '神戸ハーバーランドumie', 'umie ノースモール', 'umie サウスモール'] },
   { name: '三宮オーパ', kind: '商業施設', info: '神戸市中央区三宮町', addr: '兵庫県神戸市中央区三宮町1丁目5-26',
     alias: ['三宮OPA', 'Sannomiya OPA', 'オーパ', 'OPA', '三ノ宮オーパ', 'さんのみやオーパ'] },
   { name: '三宮オーパ2', kind: '商業施設', info: '神戸市中央区雲井通', addr: '兵庫県神戸市中央区雲井通6丁目1-15',
@@ -1691,7 +1693,8 @@ function placeSuggest(raw, w) {
   if (online) for (const pl of online) {
     if (list.length >= 10) break;
     // 同じ施設、または内蔵の施設名を含むだけの長い名前（例：「神戸国際展示場低侵襲…」）は出さない
-    if (EXTRA_PLACES.some(x => pl.name !== x.name && pl.name.includes(x.name))) continue;
+    // 内蔵施設の名前を含むだけの別名（例：「umie ノースモール」「神戸国際展示場低侵襲…」）は内蔵の1件にまとめる
+    if (EXTRA_PLACES.some(x => normName(pl.name) !== normName(x.name) && normName(pl.name).includes(normName(x.name)))) continue;
     if (!list.some(x => x.place.name === pl.name && haversine(x.place, pl) < 800)) list.push(placeOpt(pl));
   } else placeSearch(sq, () => { if (E && addrInput(w).value.trim().replace(/\s+/g, ' ') === sq) renderSug(w); });
   return { list, loading: online === null || (online === undefined && q.length >= 2 && navigator.onLine !== false && Date.now() >= placeRetryAt) };
