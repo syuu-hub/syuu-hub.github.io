@@ -326,7 +326,7 @@ svg{display:block}
 .rc-kind{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .rc-flag{flex:none;font-size:11px;font-weight:700;line-height:18px;padding:0 6px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
 .rc-kind+.rc-flag{margin-left:auto}
-.text-in[type="time"]{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;padding:0 10px}
+.text-in[data-time]{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;padding:0 10px}
 .ps-dur{text-align:center;color:var(--muted);font-size:14px;margin-top:14px}
 .ps-dur b{color:var(--st-wait);font-size:22px;margin-left:6px}
 .row .amt.dur{font-size:17px;color:var(--st-wait)}
@@ -636,6 +636,10 @@ svg{display:block}
 .np-inner{max-width:480px;margin:auto;height:auto;max-height:100%;overflow-y:auto;border-radius:var(--r-lg);border:1px solid var(--line);padding:var(--pad)}
 .sheet.center{align-items:center}
 .np-inner .total{padding:8px 4px 16px}
+.np-time{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.np-time[hidden]{display:none}
+#npVal .tmv{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+input[data-time]{cursor:pointer;caret-color:transparent}
 .np-inner .keypad{grid-auto-rows:64px}
 
 /* 日報（入庫後の振り返り） */
@@ -1116,14 +1120,14 @@ svg{display:block}
         <div class="trip">
           <div class="stop from">
             <span class="sk">乗</span>
-            <input class="tm num" type="time" id="eStart" aria-label="乗車時刻">
+            <input class="tm num" type="text" id="eStart" aria-label="乗車時刻" data-time data-clear="1" readonly inputmode="none" placeholder="--:--" autocomplete="off">
             <button class="gps-btn" data-regps="from" aria-label="乗車地を現在地にする"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>現在地</button>
             <div class="loc-body"><input id="eFromAddr" data-addr="from" placeholder="乗車地・施設名" autocomplete="off" enterkeyhint="next"><div class="loc-gps num" id="eFromGps"></div></div>
             <div class="sug" id="eFromSug"></div>
           </div>
           <div class="stop to">
             <span class="sk">降</span>
-            <input class="tm num" type="time" id="eEnd" aria-label="降車時刻">
+            <input class="tm num" type="text" id="eEnd" aria-label="降車時刻" data-time readonly inputmode="none" placeholder="--:--" autocomplete="off">
             <button class="gps-btn" data-regps="to" aria-label="降車地を現在地にする"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>現在地</button>
             <div class="loc-body"><input id="eToAddr" data-addr="to" placeholder="降車地・施設名" autocomplete="off" enterkeyhint="done"><div class="loc-gps num" id="eToGps"></div></div>
             <div class="sug" id="eToSug"></div>
@@ -1166,8 +1170,8 @@ svg{display:block}
       <h2 id="psTitle"><span class="pl-name">待機・休憩</span>の修正</h2>
     </header>
     <div class="fields">
-      <label class="group" style="margin:0"><div class="glabel">開始</div><input class="text-in num" type="time" id="psStart"></label>
-      <label class="group" style="margin:0"><div class="glabel">終了</div><input class="text-in num" type="time" id="psEnd"><div class="text-in num" id="psOngoing" style="display:flex;align-items:center;color:var(--muted)" hidden>継続中</div></label>
+      <label class="group" style="margin:0"><div class="glabel">開始</div><input class="text-in num" type="text" id="psStart" data-time readonly inputmode="none" placeholder="--:--" autocomplete="off"></label>
+      <label class="group" style="margin:0"><div class="glabel">終了</div><input class="text-in num" type="text" id="psEnd" data-time readonly inputmode="none" placeholder="--:--" autocomplete="off"><div class="text-in num" id="psOngoing" style="display:flex;align-items:center;color:var(--muted)" hidden>継続中</div></label>
     </div>
     <div class="ps-dur num" id="psDur"></div>
     <div class="glabel" style="margin-top:6px;justify-content:center" id="psRange"></div>
@@ -1188,8 +1192,8 @@ svg{display:block}
       <h2 id="ssTitle">出庫・入庫の修正</h2>
     </header>
     <div class="fields">
-      <label class="group" style="margin:0"><div class="glabel">出庫</div><input class="text-in num" type="time" id="ssStart"></label>
-      <label class="group" style="margin:0"><div class="glabel">入庫</div><input class="text-in num" type="time" id="ssEnd"><div class="text-in num" id="ssOngoing" style="display:flex;align-items:center;color:var(--muted)" hidden>営業中</div></label>
+      <label class="group" style="margin:0"><div class="glabel">出庫</div><input class="text-in num" type="text" id="ssStart" data-time readonly inputmode="none" placeholder="--:--" autocomplete="off"></label>
+      <label class="group" style="margin:0"><div class="glabel">入庫</div><input class="text-in num" type="text" id="ssEnd" data-time readonly inputmode="none" placeholder="--:--" autocomplete="off"><div class="text-in num" id="ssOngoing" style="display:flex;align-items:center;color:var(--muted)" hidden>営業中</div></label>
     </div>
     <div class="ps-dur num" id="ssDur"></div>
     <div class="glabel" style="margin-top:6px;justify-content:center;text-align:center" id="ssRange"></div>
@@ -1323,6 +1327,7 @@ svg{display:block}
       <h2 id="npTitle">目標金額</h2>
     </header>
     <div class="total"><span class="lbl" id="npLbl">金額</span><span class="v num" id="npVal"><span class="cur">¥</span>0</span></div>
+    <div class="np-time" id="npTime" hidden><button class="btn sm" id="npNow">今の時刻</button><button class="btn sm" id="npClear">記録しない</button></div>
     <div class="keypad" id="npKeys"></div>
     <footer class="e-foot"><button class="btn primary" id="npOk">決定</button></footer>
   </div>
@@ -3302,15 +3307,22 @@ function deleteEntry() {
    数値入力ダイアログ
    ============================================================ */
 // unit を渡すと金額ではなく「n人」のような数量入力になる
-const NP = { val: '', onOk: null, unit: null, digits: MAX_DIGITS };
+const NP = { val: '', onOk: null, unit: null, digits: MAX_DIGITS, time: false, clear: false };
 function renderNumpad() {
+  $('#npTime').hidden = !NP.time;
+  if (NP.time) {   // 時刻は4桁（例：0930 → 09:30）
+    const d = (NP.val + '----').slice(0, 4);
+    $('#npVal').innerHTML = `<span class="tmv">${d.slice(0, 2)}:${d.slice(2)}</span>`;
+    $('#npClear').hidden = !NP.clear;
+    return;
+  }
   const n = +NP.val || 0;
   $('#npVal').innerHTML = NP.unit ? `${n}<span class="cur" style="vertical-align:0;margin-left:.1em">${NP.unit}</span>` : yenHtml(n);
 }
-function openNumpad(title, value, onOk, { unit = null, label = '金額', digits = MAX_DIGITS } = {}) {
+function openNumpad(title, value, onOk, { unit = null, label = '金額', digits = MAX_DIGITS, time = false, clear = false } = {}) {
   $('#npTitle').textContent = title;
   $('#npLbl').textContent = label;
-  NP.val = value ? String(value) : ''; NP.onOk = onOk; NP.unit = unit; NP.digits = digits;
+  NP.val = time ? String(value || '').replace(/\D/g, '').slice(0, 4) : value ? String(value) : ''; NP.onOk = onOk; NP.unit = unit; NP.digits = digits; NP.time = time; NP.clear = clear; NP.fresh = time;   // 時刻は最初の数字で入れ直し（今の値は表示だけ）
   renderNumpad();
   openSheet($('#numpad'));
 }
@@ -3909,8 +3921,25 @@ $$('.sheet').forEach(sh => {
 });
 
 // 数値ダイアログ
-mountKeypad($('#npKeys'), k => { NP.val = applyKey(NP.val, k, NP.digits); renderNumpad(); });
-$('#npOk').addEventListener('click', () => { const fn = NP.onOk; closeSheet($('#numpad')); fn && fn(+NP.val || 0); });
+mountKeypad($('#npKeys'), k => { if (NP.time && NP.fresh && k !== 'del') NP.val = ''; NP.fresh = false; NP.val = NP.time ? (k === 'clr' ? '' : k === 'del' ? NP.val.slice(0, -1) : (NP.val + k).slice(0, 4)) : applyKey(NP.val, k, NP.digits); renderNumpad(); });
+$('#npOk').addEventListener('click', () => {
+  if (NP.time) {
+    const v = NP.val;
+    if (v.length !== 4 || +v.slice(0, 2) > 23 || +v.slice(2) > 59) return toast('時刻は4桁で入力してください（例：0930）');
+    const fn = NP.onOk; closeSheet($('#numpad')); fn && fn(v.slice(0, 2) + ':' + v.slice(2)); return;
+  }
+  const fn = NP.onOk; closeSheet($('#numpad')); fn && fn(+NP.val || 0);
+});
+$('#npNow').addEventListener('click', () => { haptic(); NP.val = toHM(Date.now()).replace(':', ''); NP.fresh = true; renderNumpad(); });
+$('#npClear').addEventListener('click', () => { haptic(); const fn = NP.onOk; closeSheet($('#numpad')); fn && fn(''); });
+// 時刻の欄：押すとアプリのテンキーで入力（端末の時計ダイアログは機種や文字サイズでボタンが見切れるため使わない）
+document.addEventListener('click', e => {
+  const el = e.target.closest('input[data-time]'); if (!el) return;
+  e.preventDefault(); haptic();
+  const label = (el.getAttribute('aria-label') || el.closest('label')?.querySelector('.glabel')?.textContent || '時刻').trim();
+  openNumpad(label, el.value, v => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); },
+    { time: true, clear: el.hasAttribute('data-clear'), label: '4桁で入力（例：0930）' });
+});
 $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad')));
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
