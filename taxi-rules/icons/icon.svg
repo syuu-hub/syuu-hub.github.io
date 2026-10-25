@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0A0C0F"/>
+  <!-- 乗り場の標識 -->
+  <rect x="244" y="250" width="24" height="170" rx="8" fill="#343C48"/>
+  <rect x="136" y="92" width="240" height="176" rx="32" fill="#FFB020"/>
+  <text x="256" y="166" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="54" fill="#0A0C0F" letter-spacing="3">TAXI</text>
+  <!-- 奇数・偶数の切り替え -->
+  <rect x="168" y="190" width="80" height="52" rx="12" fill="#0A0C0F"/>
+  <rect x="264" y="190" width="80" height="52" rx="12" fill="#0A0C0F" opacity=".35"/>
+  <circle cx="208" cy="216" r="13" fill="#3DD68C"/>
+  <circle cx="304" cy="216" r="13" fill="#FF5D5D"/>
+</svg>
