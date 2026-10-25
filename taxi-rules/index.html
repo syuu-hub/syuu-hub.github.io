@@ -225,7 +225,9 @@ textarea.inp{min-height:84px;resize:vertical}
 input[type=date].inp,input[type=time].inp{-webkit-appearance:none;appearance:none}
 .inline{display:flex;gap:8px;align-items:center}
 .inline .inp{flex:1}
-.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.days{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
+.days-quick{display:flex;gap:6px;margin-top:6px}
+.days-quick button{height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;font-weight:700;color:var(--muted)}
 .days button{height:40px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface-2);font-weight:700;color:var(--muted)}
 .days button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .rule-ed{padding:14px;margin-bottom:12px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line)}
@@ -248,6 +250,31 @@ input[type=date].inp,input[type=time].inp{-webkit-appearance:none;appearance:non
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);z-index:100;max-width:calc(100% - 32px);
   padding:12px 18px;border-radius:999px;background:var(--surface-3);border:1px solid var(--line-2);font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s}
 .toast.show{opacity:1;transform:translateX(-50%)}
+.seg{display:grid;grid-auto-columns:minmax(0,1fr);grid-auto-flow:column;gap:8px}
+.seg button{min-height:48px;padding:6px 8px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-2);font-size:15px;font-weight:700;color:var(--muted);line-height:1.3}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.seg.col{grid-auto-flow:row}
+.chips.wrap{flex-wrap:wrap;overflow:visible}
+.checks{display:grid;gap:8px}
+.check{display:flex;gap:12px;align-items:center;width:100%;min-height:48px;padding:8px 12px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-2);text-align:left;font-size:15px}
+.check .bx{flex:none;width:22px;height:22px;border-radius:6px;border:2px solid var(--line-2);display:grid;place-items:center;font-size:14px;font-weight:900;color:transparent}
+.check[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.check[aria-pressed="true"] .bx{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.check small{display:block;font-size:12px;color:var(--muted)}
+.presets{display:grid;gap:10px}
+.preset{display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;align-items:start;width:100%;text-align:left;padding:14px 16px}
+.preset .ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface-3);font-size:16px;font-weight:900;color:var(--accent)}
+.preset .ttl{font-size:16px;font-weight:800}
+.preset .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.dup{padding:12px 14px;border-radius:12px;background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.4);font-size:14px;margin:-6px 0 14px}
+.dup button{color:var(--accent);font-weight:700;text-decoration:underline;padding:4px 0}
+.mlist{display:grid;gap:8px;list-style:none}
+.mlist li{display:flex;gap:10px;font-size:15px}
+.mlist li::before{content:"✓";flex:none;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:900}
+.step{display:flex;align-items:center;gap:10px;margin:22px 0 10px}
+.step b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-size:13px;font-weight:900;flex:none}
+.step span{font-size:16px;font-weight:800}
+.step small{font-size:12px;color:var(--muted);font-weight:500}
 </style>
 </head>
 <body>
@@ -289,7 +316,7 @@ input[type=date].inp,input[type=time].inp{-webkit-appearance:none;appearance:non
       <div class="card box">
         <h4>ルールを投稿するには</h4>
         <ol class="howto">
-          <li><span>「＋ 乗り場を登録」で乗り場とルールを入力して保存します（この端末に保存されます）。</span></li>
+          <li><span>「＋ 乗り場を登録」で施設の種類と名前を選び、「よくあるルール」から当てはまるものを選んで保存します（この端末に保存されます）。同じ乗り場がすでにあれば、新しく作らずにそちらを編集してください。</span></li>
           <li><span>乗り場の詳細で「みんなに投稿」を押すと、GitHub の投稿画面が開きます（内容は入力済み）。GitHub アカウントでそのまま送信してください。</span></li>
           <li><span>投稿は数分以内にこの画面に表示され、全員の「乗り場」一覧に反映されます。内容が正しければ投稿ページで 👍 を、違っていればコメントで指摘してください。</span></li>
         </ol>
@@ -308,11 +335,22 @@ input[type=date].inp,input[type=time].inp{-webkit-appearance:none;appearance:non
           <div class="digits" id="digits"></div>
           <small id="digit-note">奇数偶数制の判定に使います。「12-34」なら 4 です。</small>
         </div>
+        <div class="field">
+          <span>区分</span>
+          <div class="seg" id="cls"></div>
+          <small>法人と個人でルールが違う乗り場（例：法人は48時間・個人は24時間で交代）の判定に使います。</small>
+        </div>
         <div class="field" style="margin-bottom:0">
           <span>所属会社・無線グループ</span>
           <input class="inp" id="company" placeholder="例：〇〇交通" autocomplete="off">
           <small>「この会社のみ入構可」などのルールの判定に使います。</small>
         </div>
+      </div>
+
+      <div class="section-title">持っている資格・装備</div>
+      <div class="card box" style="margin-top:0">
+        <div class="checks" id="quals"></div>
+        <p class="small faint" style="margin-top:10px" id="quals-note"></p>
       </div>
 
       <div class="section-title">データ</div>
@@ -365,6 +403,15 @@ input[type=date].inp,input[type=time].inp{-webkit-appearance:none;appearance:non
   </div>
 </dialog>
 
+<!-- ルールを選ぶ -->
+<dialog class="sheet" id="dlg-preset">
+  <div class="sheet-head">
+    <button class="icon-btn" data-close aria-label="戻る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h3>ルールを選ぶ</h3>
+  </div>
+  <div class="sheet-body"><div><p class="small muted" style="margin-bottom:12px">掲示や案内に近いものを選んでください。時間・曜日などは次の画面で直せます。</p><div class="presets" id="presets"></div></div></div>
+</dialog>
+
 <!-- 日時を変えて確認 -->
 <dialog class="small" id="dlg-ref">
   <h3>いつの状況を見ますか</h3>
@@ -396,21 +443,71 @@ const KEY = 'taxi-rules-v1';
 const COMMUNITY_TTL = 10 * 60e3;   // 自動更新の間隔（GitHub の未認証APIは1時間60回まで）
 const STALE_DAYS = 90;             // これより古い確認日は注意表示
 
-const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+/* ============================================================
+   選択肢（入力のばらつきを防ぐため、自由入力ではなくここから選ぶ）
+   各地の乗り場規制（奇数偶数制・交代制・構内許可・優良乗り場・事前登録・
+   規制時間・待機場方式など）を元にした分類
+   ============================================================ */
+const DOW = ['日', '月', '火', '水', '木', '金', '土', '祝'];   // 7 = 祝日
+const HOLIDAY = 7;
 const LV = {
   ok:   { rank: 0, label: '入れる' },
   warn: { rank: 1, label: '注意' },
   unk:  { rank: 2, label: '要設定' },
   ng:   { rank: 3, label: '入れない' },
 };
+const KINDS = { station: '駅', airport: '空港', hotel: 'ホテル', mall: '商業施設', downtown: '繁華街', hospital: '病院', other: 'その他' };
+const CLASSES = { corp: '法人', indiv: '個人' };
+const TARGETS = { all: '全車', corp: '法人のみ', indiv: '個人のみ' };
+const QUALS = {
+  kounai:   { label: '駅構内営業の許可', sub: '構内権・入構許可ステッカー' },
+  yuryo:    { label: '優良乗り場の入構資格', sub: '優良事業者・優良ステッカー等' },
+  toroku:   { label: '乗り場への事前登録', sub: 'ICタグ・車両番号の登録' },
+  teigaku:  { label: '定額運賃の届出', sub: '空港定額などの登録事業者' },
+  etc:      { label: 'ETC 車載器', sub: '' },
+  gaikoku:  { label: '外国語接遇の研修修了', sub: '修了証の携帯' },
+  ud:       { label: 'UDタクシー', sub: 'ユニバーサルデザイン車両' },
+  cashless: { label: 'キャッシュレス決済', sub: 'クレジット・電子マネー等' },
+};
+const METHODS = {
+  pool:     '離れた待機場（プール）から順番に呼ばれる',
+  route:    '入る方向（入路）が決まっている',
+  sign:     '満空表示が「満」なら入らずに移動',
+  nostreet: '場外・路上での待機は禁止',
+  order:    '到着順に並ぶ（割り込み禁止）',
+  nodrop:   '降り場では客を乗せない',
+  staff:    '係員・誘導員の指示に従う',
+  overflow: '空車が足りない時は一般車も特例で入構可',
+  app:      '予約・アプリ配車の迎車は別の場所',
+};
+const SOURCES = { sign: '現地の掲示', staff: '係員・誘導員に確認', official: '公式資料（協会・センター等）', driver: '他の乗務員から', self: '自分の経験' };
 const TYPES = {
   parity:  { label: '奇数偶数制',         ico: '奇' },
-  open:    { label: '入構できる時間帯',   ico: '時' },
-  closed:  { label: '入構禁止の時間帯',   ico: '禁' },
+  qual:    { label: '資格・登録車のみ',   ico: '資' },
+  open:    { label: '入構できる時間',     ico: '時' },
+  closed:  { label: '入構禁止の時間',     ico: '禁' },
+  class:   { label: '法人のみ／個人のみ', ico: '区' },
   company: { label: '会社・グループ限定', ico: '社' },
   limit:   { label: '待機台数の上限',     ico: '台' },
-  custom:  { label: '独自ルール',         ico: '独' },
+  custom:  { label: 'その他（自由記述）', ico: '他' },
 };
+// よくあるルール（選ぶだけで入力が済むひな形）
+const PRESETS = [
+  { key: 'p-same',   ico: '奇', title: '奇数偶数制（奇数日は末尾奇数の車）',   sub: '日付とナンバー末尾の奇偶が同じ車が入れる', rule: { type: 'parity', mode: 'date', match: 'same' } },
+  { key: 'p-opp',    ico: '逆', title: '奇数偶数制（奇数日は末尾偶数の車）',   sub: '日付と逆の奇偶の車が入れる', rule: { type: 'parity', mode: 'date', match: 'opposite' } },
+  { key: 'p-48',     ico: '48', title: '2日ごとに交代（48時間交代）',         sub: '奇数車・偶数車が48時間ずつ交代', rule: { type: 'parity', mode: 'cycle', cycle: 48 } },
+  { key: 'p-24',     ico: '24', title: '毎日交代（24時間交代・月末も交互）',   sub: '31日→1日でも必ず入れ替わる', rule: { type: 'parity', mode: 'cycle', cycle: 24 } },
+  { key: 'q-kounai', ico: '構', title: '駅構内の許可車のみ',                   sub: '構内営業の許可（ステッカー）がある車だけ', rule: { type: 'qual', quals: ['kounai'] } },
+  { key: 'q-yuryo',  ico: '優', title: '優良乗り場（資格車のみ）',             sub: '優良事業者・優良ステッカーの車だけ', rule: { type: 'qual', quals: ['yuryo'] } },
+  { key: 'q-night',  ico: '夜', title: '平日夜だけ資格車のみ',                 sub: '例：土日祝を除く22時〜翌1時は優良車のみ', rule: { type: 'qual', quals: ['yuryo'], days: [1, 2, 3, 4, 5], from: '22:00', to: '01:00' } },
+  { key: 'q-toroku', ico: '登', title: '事前登録した車のみ',                   sub: '待機場のICタグ・車両登録など', rule: { type: 'qual', quals: ['toroku'] } },
+  { key: 'closed',   ico: '禁', title: '入構禁止の時間がある',                 sub: '例：深夜1時〜5時は閉鎖', rule: { type: 'closed', from: '01:00', to: '05:00' } },
+  { key: 'open',     ico: '時', title: '開いている時間が決まっている',         sub: '例：21時開場〜翌1時', rule: { type: 'open', from: '21:00', to: '01:00' } },
+  { key: 'class',    ico: '区', title: '法人のみ／個人のみ',                   sub: '一方の区分の車だけ入れる', rule: { type: 'class', only: 'corp' } },
+  { key: 'company',  ico: '社', title: '特定の会社・無線グループ専用',         sub: '専用のりば・提携会社のみ', rule: { type: 'company', mode: 'only' } },
+  { key: 'limit',    ico: '台', title: '待機できる台数が決まっている',         sub: '上限を超えたら入らない', rule: { type: 'limit', count: 10 } },
+  { key: 'custom',   ico: '他', title: '上のどれにも当てはまらない',           sub: '自由記述（できるだけ上から選んでください）', rule: { type: 'custom', effect: 'info' } },
+];
 
 /* ============================================================
    状態
@@ -421,11 +518,15 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const pad2 = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const hm = d => `${d.getHours()}:${pad2(d.getMinutes())}`;
-const md = d => `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`;
+const md = d => `${d.getMonth() + 1}/${d.getDate()}(${isHoliday(d) ? '祝' : DOW[d.getDay()]})`;
 
 function load() {
-  const def = { me: { plate: null, company: '' }, stands: [], favs: [], community: { at: 0, items: [] }, seen: 0 };
-  try { return Object.assign(def, JSON.parse(localStorage.getItem(KEY)) || {}); } catch { return def; }
+  const def = { me: { plate: null, cls: null, company: '', quals: [], qualsSet: false }, stands: [], favs: [], community: { at: 0, items: [] }, seen: 0 };
+  try {
+    const o = Object.assign(def, JSON.parse(localStorage.getItem(KEY)) || {});
+    o.me = Object.assign({ plate: null, cls: null, company: '', quals: [], qualsSet: false }, o.me);
+    return o;
+  } catch { return def; }
 }
 let S = load();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} }
@@ -437,24 +538,67 @@ let nearSort = false, myPos = null;
 const now = () => refTime ? new Date(refTime) : new Date();
 
 /* ============================================================
+   祝日（内閣府の規定どおりに計算：固定日・ハッピーマンデー・春分/秋分・振替休日・国民の休日）
+   ============================================================ */
+const holidayCache = new Map();
+function holidaysOf(y) {
+  if (holidayCache.has(y)) return holidayCache.get(y);
+  const set = new Set();
+  const add = (m, d) => set.add(`${m}-${d}`);
+  const nthMon = (m, n) => { const w = new Date(y, m - 1, 1).getDay(); return 1 + ((8 - w) % 7) + (n - 1) * 7; };
+  add(1, 1); add(1, nthMon(1, 2)); add(2, 11); if (y >= 2020) add(2, 23); add(4, 29); add(5, 3); add(5, 4); add(5, 5);
+  add(7, nthMon(7, 3)); add(8, 11); add(9, nthMon(9, 3)); add(10, nthMon(10, 2)); add(11, 3); add(11, 23);
+  add(3, Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4)));
+  add(9, Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4)));
+  const has = dt => dt.getFullYear() === y && set.has(`${dt.getMonth() + 1}-${dt.getDate()}`);
+  // 国民の休日（祝日に挟まれた平日）
+  for (let t = new Date(y, 0, 2); t.getFullYear() === y; t.setDate(t.getDate() + 1)) {
+    const p = new Date(t); p.setDate(p.getDate() - 1); const n = new Date(t); n.setDate(n.getDate() + 1);
+    if (!has(t) && t.getDay() !== 0 && has(p) && has(n)) add(t.getMonth() + 1, t.getDate());
+  }
+  // 振替休日（日曜の祝日の後の最初の平日）
+  for (const k of [...set]) {
+    const [m, d] = k.split('-').map(Number), t = new Date(y, m - 1, d);
+    if (t.getDay() !== 0) continue;
+    const s = new Date(t); do s.setDate(s.getDate() + 1); while (has(s));
+    if (s.getFullYear() === y) add(s.getMonth() + 1, s.getDate());
+  }
+  holidayCache.set(y, set);
+  return set;
+}
+const isHoliday = d => holidaysOf(d.getFullYear()).has(`${d.getMonth() + 1}-${d.getDate()}`);
+// その日の「曜日の種類」：祝日は曜日より優先して「祝」として扱う
+const dayKey = d => isHoliday(d) ? HOLIDAY : d.getDay();
+
+/* ============================================================
    データの検証（投稿・共有リンク・ファイルは信用しない）
    ============================================================ */
 const str = (v, n) => typeof v === 'string' ? v.trim().slice(0, n) : '';
 const numIn = (v, lo, hi) => (typeof v === 'number' && isFinite(v) && v >= lo && v <= hi) ? v : null;
 const time = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : '';
+const date = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+const pick = (v, obj, def) => Object.prototype.hasOwnProperty.call(obj, v) ? v : def;
+const keys = (v, obj) => [...new Set((Array.isArray(v) ? v : []).filter(k => typeof k === 'string' && Object.prototype.hasOwnProperty.call(obj, k)))];
 function cleanRule(r) {
   if (!r || typeof r !== 'object' || !TYPES[r.type]) return null;
   const o = {
     id: str(r.id, 20) || uid(), type: r.type,
-    days: Array.isArray(r.days) ? [...new Set(r.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort() : [],
+    days: Array.isArray(r.days) ? [...new Set(r.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 7))].sort() : [],
     from: time(r.from), to: time(r.to), text: str(r.text, 200),
+    target: pick(r.target, TARGETS, 'all'),
   };
-  if (o.days.length === 7) o.days = [];
+  if (o.days.length === 8) o.days = [];
   if (o.type === 'parity') {
+    o.mode = r.mode === 'cycle' ? 'cycle' : 'date';
     o.match = r.match === 'opposite' ? 'opposite' : 'same';
     o.day31 = r.day31 === 'normal' ? 'normal' : 'all';
     o.switchHour = numIn(r.switchHour, 0, 23) ?? 0;
+    o.cycle = r.cycle === 24 ? 24 : 48;
+    o.anchor = date(r.anchor) || ymd(new Date());
+    o.anchorParity = r.anchorParity === 0 ? 0 : 1;
   }
+  if (o.type === 'qual') { o.quals = keys(r.quals, QUALS); if (!o.quals.length) o.quals = ['yuryo']; }
+  if (o.type === 'class') { o.only = pick(r.only, CLASSES, 'corp'); o.target = 'all'; }
   if (o.type === 'company') {
     o.mode = r.mode === 'except' ? 'except' : 'only';
     o.companies = (Array.isArray(r.companies) ? r.companies : []).map(c => str(c, 40)).filter(Boolean).slice(0, 20);
@@ -467,75 +611,100 @@ function cleanStand(s) {
   if (!s || typeof s !== 'object') return null;
   const o = {
     id: str(s.id, 40).replace(/[^\w-]/g, '') || uid(),
-    name: str(s.name, 60), area: str(s.area, 30), address: str(s.address, 120), note: str(s.note, 600),
-    checked: /^\d{4}-\d{2}-\d{2}$/.test(s.checked) ? s.checked : '',
+    kind: pick(s.kind, KINDS, 'other'),
+    name: str(s.name, 60), spot: str(s.spot, 30), area: str(s.area, 30), address: str(s.address, 120), note: str(s.note, 600),
+    checked: date(s.checked), source: pick(s.source, SOURCES, ''),
     lat: numIn(s.lat, -90, 90), lng: numIn(s.lng, -180, 180),
+    methods: keys(s.methods, METHODS),
     rules: (Array.isArray(s.rules) ? s.rules : []).slice(0, 20).map(cleanRule).filter(Boolean),
   };
   if (s.sample === true) o.sample = true;
   return o.name ? o : null;
 }
+const standTitle = s => s.spot ? `${s.name} ${s.spot}` : s.name;
 
 /* ============================================================
    判定エンジン
    ============================================================ */
 const toMin = s => s ? +s.slice(0, 2) * 60 + +s.slice(3) : null;
 const plateParity = () => S.me.plate == null ? null : S.me.plate % 2;
-const norm = s => String(s || '').normalize('NFKC').replace(/[\s・]/g, '').toLowerCase();
+const norm = s => String(s || '').normalize('NFKC').replace(/[\s・()（）]/g, '').toLowerCase();
 
 // 曜日・時間帯の条件に当てはまるか（日をまたぐ時間帯は前日の曜日で判定）
 function inWindow(r, d) {
-  const dayOk = w => !r.days.length || r.days.includes(w);
-  const f = toMin(r.from), t = toMin(r.to), m = d.getHours() * 60 + d.getMinutes(), w = d.getDay();
-  if (f == null || t == null || f === t) return dayOk(w);
-  if (f < t) return dayOk(w) && m >= f && m < t;
-  if (m >= f) return dayOk(w);
-  if (m < t) return dayOk((w + 6) % 7);
+  const dayOk = t => !r.days.length || r.days.includes(dayKey(t));
+  const f = toMin(r.from), t = toMin(r.to), m = d.getHours() * 60 + d.getMinutes();
+  if (f == null || t == null || f === t) return dayOk(d);
+  if (f < t) return dayOk(d) && m >= f && m < t;
+  if (m >= f) return dayOk(d);
+  if (m < t) { const p = new Date(d); p.setDate(p.getDate() - 1); return dayOk(p); }
   return false;
 }
-// 奇数偶数制の「日付」（切替時刻が4時なら 0〜4時は前日扱い）
-function parityDate(r, d) { return new Date(d.getTime() - (r.switchHour || 0) * 3600e3); }
-function dayParity(r, d) {
-  const e = parityDate(r, d).getDate();
-  if (e === 31 && r.day31 === 'all') return 'all';
-  return e % 2;   // 1=奇数日 0=偶数日
+// 奇数偶数制で「入れる車」の奇偶（1=奇数車 0=偶数車 'all'=全車）
+function allowedParity(r, d) {
+  const e = new Date(d.getTime() - (r.switchHour || 0) * 3600e3);   // 切替時刻が4時なら0〜4時は前日扱い
+  if (r.mode === 'cycle') {
+    const [y, m, dd] = r.anchor.split('-').map(Number);
+    const days = Math.round((Date.UTC(e.getFullYear(), e.getMonth(), e.getDate()) - Date.UTC(y, m - 1, dd)) / 864e5);
+    const period = Math.floor(days / (r.cycle / 24));
+    return (period % 2 + 2) % 2 ? 1 - r.anchorParity : r.anchorParity;
+  }
+  const p = e.getDate() % 2;
+  if (e.getDate() === 31 && r.day31 === 'all') return 'all';
+  return r.match === 'same' ? p : 1 - p;
 }
 const oddEven = p => p ? '奇数' : '偶数';
 
-function evalRule(r, d) {
-  // 戻り値：null（関係なし）または { lv, text }
+function coreRule(r, d) {
   switch (r.type) {
     case 'parity': {
       if (!inWindow(r, d)) return null;
-      const p = dayParity(r, d);
-      if (p === 'all') return { lv: 'ok', text: '31日は全車入構可' };
-      const want = r.match === 'same' ? p : 1 - p;
-      const head = `${oddEven(p)}日は末尾${oddEven(want)}の車両`;
+      const want = allowedParity(r, d);
+      if (want === 'all') return { lv: 'ok', text: '31日は全車入構可' };
+      const head = `いまは末尾${oddEven(want)}の車`;
       const mine = plateParity();
-      if (mine == null) return { lv: 'unk', text: `${head}のみ（ナンバー未設定）` };
+      if (mine == null) return { lv: 'unk', text: `${head}（ナンバー未設定）` };
       return mine === want ? { lv: 'ok', text: `${head}：あなたは対象` } : { lv: 'ng', text: `${head}のみ：あなたは対象外` };
     }
+    case 'qual': {
+      if (!inWindow(r, d)) return null;
+      const need = r.quals.map(q => QUALS[q].label).join('・');
+      if (!S.me.qualsSet) return { lv: 'unk', text: `${need}が必要（資格を未設定）` };
+      const miss = r.quals.filter(q => !S.me.quals.includes(q));
+      return miss.length ? { lv: 'ng', text: `${miss.map(q => QUALS[q].label).join('・')}が必要` } : { lv: 'ok', text: `${need}：あり` };
+    }
     case 'open': {
-      const applies = !r.days.length || r.days.includes(d.getDay()) || inWindow(r, d);
+      const applies = !r.days.length || r.days.includes(dayKey(d)) || inWindow(r, d);
       if (!applies || inWindow(r, d)) return null;
       return { lv: 'ng', text: `入構できる時間（${windowText(r, true)}）の外` };
     }
     case 'closed':
       return inWindow(r, d) ? { lv: 'ng', text: `入構禁止の時間（${windowText(r, true)}）` } : null;
+    case 'class':
+      if (!inWindow(r, d)) return null;
+      if (!S.me.cls) return { lv: 'unk', text: `${CLASSES[r.only]}のみ入構可（区分を未設定）` };
+      return { lv: S.me.cls === r.only ? 'ok' : 'ng', text: `${CLASSES[r.only]}のみ入構可` };
     case 'company': {
       if (!inWindow(r, d) || !r.companies.length) return null;
       const list = r.companies.join('・');
-      if (!norm(S.me.company)) return { lv: 'unk', text: `${list}${r.mode === 'only' ? 'のみ' : 'は不可'}（会社未設定）` };
+      if (!norm(S.me.company)) return { lv: 'unk', text: `${list}${r.mode === 'only' ? 'のみ' : 'は不可'}（会社を未設定）` };
       const hit = r.companies.some(c => norm(S.me.company).includes(norm(c)) || norm(c).includes(norm(S.me.company)));
       const ok = r.mode === 'only' ? hit : !hit;
       return { lv: ok ? 'ok' : 'ng', text: r.mode === 'only' ? `${list}のみ入構可` : `${list}は入構不可` };
     }
     case 'custom':
       if (!inWindow(r, d) || r.effect === 'info') return null;
-      return { lv: r.effect, text: r.text || '独自ルール' };
+      return { lv: r.effect, text: r.text || 'その他のルール' };
     default:
       return null;
   }
+}
+// 「法人のみ」「個人のみ」が対象のルールは、自分の区分に合う時だけ使う
+function evalRule(r, d) {
+  const e = coreRule(r, d);
+  if (!e || r.target === 'all') return e;
+  if (!S.me.cls) return e.lv === 'ok' ? e : { lv: 'unk', text: `${TARGETS[r.target]}のルール：${e.text}（区分を未設定）` };
+  return S.me.cls === r.target ? { lv: e.lv, text: `${CLASSES[r.target]}：${e.text}` } : null;
 }
 function evaluate(stand, d) {
   let lv = 'ok';
@@ -579,12 +748,13 @@ function timeline(stand, day, big) {
 }
 
 /* ============================================================
-   ルールを文章にする
+   ルールを文章にする（入力内容から自動で作るので、書き方がそろう）
    ============================================================ */
 function daysText(days) {
   if (!days.length) return '毎日';
   const k = days.join('');
-  if (k === '12345') return '平日';
+  if (k === '12345') return '平日（祝日除く）';
+  if (k === '067') return '土日祝';
   if (k === '06') return '土日';
   return days.map(d => DOW[d]).join('・');
 }
@@ -594,24 +764,32 @@ function windowText(r, short) {
     : '終日';
   return short && !r.days.length ? t : `${daysText(r.days)} ${t}`;
 }
+const hasWindow = r => !!(r.days.length || (r.from && r.to && r.from !== r.to));
 function ruleTitle(r) {
+  const tgt = r.target !== 'all' ? `【${TARGETS[r.target]}】` : '';
   switch (r.type) {
-    case 'parity': return `日付と${r.match === 'same' ? '同じ' : '逆の'}奇偶のナンバー末尾のみ入構可`;
-    case 'open': return `${windowText(r)} のみ入構可`;
-    case 'closed': return `${windowText(r)} は入構禁止`;
-    case 'company': return r.companies.length ? `${r.companies.join('・')}${r.mode === 'only' ? 'のみ入構可' : 'は入構不可'}` : '（会社名が未入力）';
-    case 'limit': return r.count ? `待機は${r.count}台まで` : '待機台数に上限あり';
-    case 'custom': return r.text || '（内容が未入力）';
+    case 'parity':
+      if (r.mode === 'cycle') return `${tgt}${r.cycle}時間ごとに奇数車・偶数車が交代`;
+      return `${tgt}奇数偶数制：奇数日は末尾${r.match === 'same' ? '奇数' : '偶数'}・偶数日は末尾${r.match === 'same' ? '偶数' : '奇数'}の車`;
+    case 'qual': return `${tgt}${r.quals.map(q => QUALS[q].label).join('・')}がある車のみ${hasWindow(r) ? `（${windowText(r)}）` : ''}`;
+    case 'open': return `${tgt}${windowText(r)} のみ入構可`;
+    case 'closed': return `${tgt}${windowText(r)} は入構禁止`;
+    case 'class': return `${CLASSES[r.only]}タクシーのみ入構可`;
+    case 'company': return r.companies.length ? `${tgt}${r.companies.join('・')}${r.mode === 'only' ? 'のみ入構可' : 'は入構不可'}` : '（会社名が未入力）';
+    case 'limit': return `${tgt}${r.count ? `待機は${r.count}台まで` : '待機台数に上限あり'}`;
+    case 'custom': return `${tgt}${r.text || '（内容が未入力）'}`;
   }
 }
 function ruleSub(r) {
   const a = [];
   if (r.type === 'parity') {
-    a.push(r.match === 'same' ? '例：奇数日は末尾が奇数の車' : '例：奇数日は末尾が偶数の車');
-    a.push(r.day31 === 'all' ? '31日は全車可' : '31日も奇数日扱い');
-    if (r.switchHour) a.push(`${r.switchHour}時に日付切替`);
+    if (r.mode === 'cycle') {
+      const [y, m, d] = r.anchor.split('-').map(Number);
+      a.push(`${m}/${d}から${r.cycle / 24}日間は末尾${oddEven(r.anchorParity)}の車`);
+    } else a.push(r.day31 === 'all' ? '31日は全車可' : '31日も奇数日扱い');
+    if (r.switchHour) a.push(`${r.switchHour}時に切替`);
   }
-  if (['parity', 'company', 'limit', 'custom'].includes(r.type) && (r.days.length || r.from)) a.push(windowText(r));
+  if (['parity', 'class', 'company', 'limit', 'custom'].includes(r.type) && hasWindow(r)) a.push(windowText(r));
   if (r.type === 'custom') a.push({ ng: '入構不可として判定', warn: '注意として判定', info: '参考情報' }[r.effect]);
   if (r.type !== 'custom' && r.text) a.push(r.text);
   return a.join(' / ');
@@ -639,17 +817,29 @@ function distance(s) {
 }
 const kmText = k => k == null ? '' : k < 1 ? `${Math.round(k * 1000)}m` : `${k.toFixed(1)}km`;
 function daysAgo(s) { return s ? Math.floor((Date.now() - new Date(s + 'T00:00:00')) / 864e5) : null; }
+// 同じ乗り場の二重登録を防ぐ：名前（施設名＋乗り場名）が近いもの
+function similar(s) {
+  const a = norm(s.name);
+  if (a.length < 2) return [];
+  return entries().filter(e => e.stand.id !== s.id).filter(e => {
+    const b = norm(e.stand.name);
+    const sameName = b.includes(a) || a.includes(b);
+    const spotA = norm(s.spot), spotB = norm(e.stand.spot);
+    return sameName && (!spotA || !spotB || spotA === spotB || spotA.includes(spotB) || spotB.includes(spotA));
+  }).slice(0, 3);
+}
 
 function renderToday() {
   const d = now();
   const p = d.getDate() === 31 ? null : d.getDate() % 2;
   const tm = new Date(d.getTime() + 864e5);
   const mine = plateParity();
+  const me = [mine == null ? null : `末尾 <b>${S.me.plate}</b>（${oddEven(mine)}）`, S.me.cls ? CLASSES[S.me.cls] : null, S.me.company ? esc(S.me.company) : null].filter(Boolean).join('・');
   $('#today').innerHTML = `
     <div class="big ${p == null ? '' : p ? 'odd' : 'even'}">${p == null ? '31' : p ? '奇' : '偶'}</div>
-    <div class="t1">${d.getMonth() + 1}月${d.getDate()}日（${DOW[d.getDay()]}）は${p == null ? '31日' : oddEven(p) + '日'}</div>
-    <div class="t2">${mine == null ? 'ナンバー末尾を設定すると、入れるかを判定します ›'
-      : `あなたの車：末尾 <b>${S.me.plate}</b>（${oddEven(mine)}）${S.me.company ? '・' + esc(S.me.company) : ''}　明日は${tm.getDate() === 31 ? '31日' : oddEven(tm.getDate() % 2) + '日'}`}</div>`;
+    <div class="t1">${d.getMonth() + 1}月${d.getDate()}日（${DOW[d.getDay()]}${isHoliday(d) ? '・祝' : ''}）は${p == null ? '31日' : oddEven(p) + '日'}</div>
+    <div class="t2">${mine == null ? 'ナンバー末尾などを設定すると、入れるかを判定します ›'
+      : `あなたの車：${me}　明日は${tm.getDate() === 31 ? '31日' : oddEven(tm.getDate() % 2) + '日'}`}</div>`;
   const b = $('#btn-ref');
   b.classList.toggle('on', !!refTime);
   b.innerHTML = refTime ? `${md(d)} ${hm(d)} で表示中 ✕` : `いま ${hm(d)} ▾`;
@@ -664,12 +854,12 @@ function renderList() {
   $('#areas').innerHTML = areas.length > 1 ? ['', ...areas].map(a => `<button class="chip" data-area="${esc(a)}" aria-pressed="${a === area}">${a ? esc(a) : 'すべて'}</button>`).join('') : '';
   $('#areas').hidden = areas.length <= 1;
 
-  let list = all.filter(e => (!area || e.stand.area === area) && (!q || norm(e.stand.name + e.stand.area + e.stand.address).includes(q)));
+  let list = all.filter(e => (!area || e.stand.area === area) && (!q || norm(e.stand.name + e.stand.spot + e.stand.area + e.stand.address).includes(q)));
   const d = now();
   list.forEach(e => { e.ev = evaluate(e.stand, d); e.km = distance(e.stand); });
   list.sort((a, b) => (nearSort && a.km != null && b.km != null) ? a.km - b.km
     : (nearSort && (a.km != null) !== (b.km != null)) ? (a.km == null) - (b.km == null)
-    : a.stand.name.localeCompare(b.stand.name, 'ja'));
+    : standTitle(a.stand).localeCompare(standTitle(b.stand), 'ja'));
   const favs = list.filter(e => S.favs.includes(e.stand.id));
   const rest = list.filter(e => !S.favs.includes(e.stand.id));
 
@@ -685,10 +875,10 @@ function renderList() {
     const s = e.stand, ev = e.ev, nx = nextChange(s, d), top = ev.reasons[0];
     return `<button class="card stand" data-open="${esc(s.id)}">
       <div class="row1">
-        <div class="name">${S.favs.includes(s.id) ? '<span class="fav">★</span>' : ''}${esc(s.name)}</div>
+        <div class="name">${S.favs.includes(s.id) ? '<span class="fav">★</span>' : ''}${esc(standTitle(s))}</div>
         <span class="pill lv-${ev.lv}"><i></i>${LV[ev.lv].label}</span>
       </div>
-      <div class="meta">${s.area ? `<span>${esc(s.area)}</span>` : ''}${e.km != null ? `<span>${kmText(e.km)}</span>` : ''}
+      <div class="meta"><span>${KINDS[s.kind]}</span>${s.area ? `<span>${esc(s.area)}</span>` : ''}${e.km != null ? `<span>${kmText(e.km)}</span>` : ''}
         ${s.sample ? '<span class="tag sample">サンプル</span>' : !e.mine ? '<span class="tag community">みんなの投稿</span>' : e.issue ? '<span class="tag">投稿を編集中</span>' : ''}
         ${e.issue && e.issue.likes ? `<span>👍 ${e.issue.likes}</span>` : ''}</div>
       <div class="why">${top ? esc(top.text) : s.rules.length ? '制限なし' : 'ルール未登録'}${nx ? ` <span class="next">· ${nx.at.getDate() !== d.getDate() ? '翌' : ''}${hm(nx.at)}から${LV[nx.lv].label}</span>` : ''}</div>
@@ -709,10 +899,10 @@ function renderDetail() {
   const e = findEntry(detailId);
   if (!e) { closeSheet($('#dlg-detail')); return; }
   const s = e.stand, d = now(), ev = evaluate(s, d), nx = nextChange(s, d);
-  $('#d-title').textContent = s.name;
+  $('#d-title').textContent = standTitle(s);
   $('#d-fav').setAttribute('aria-pressed', S.favs.includes(s.id));
   const today = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const parity = s.rules.find(r => r.type === 'parity');
+  const parity = s.rules.find(r => r.type === 'parity' && (r.target === 'all' || r.target === S.me.cls)) || s.rules.find(r => r.type === 'parity');
   const week = Array.from({ length: 7 }, (_, i) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + i));
   const age = daysAgo(s.checked);
   const info = s.rules.filter(r => r.type === 'limit' || (r.type === 'custom' && r.effect === 'info'));
@@ -736,11 +926,12 @@ function renderDetail() {
     <div class="card box">
       <h4>これから1週間</h4>
       <div class="week">${week.map((w, i) => {
-        const p = parity ? dayParity(parity, new Date(w.getTime() + 12 * 3600e3)) : null;
-        return `<div class="wd${i ? '' : ' cur'}"><span class="d ${w.getDay() ? w.getDay() === 6 ? 'sat' : '' : 'sun'}">${md(w)}</span>
+        const p = parity ? allowedParity(parity, new Date(w.getTime() + 12 * 3600e3)) : null;
+        const k = dayKey(w);
+        return `<div class="wd${i ? '' : ' cur'}"><span class="d ${k === 0 || k === HOLIDAY ? 'sun' : k === 6 ? 'sat' : ''}">${md(w)}</span>
           <span class="p ${p === 1 ? 'odd' : p === 0 ? 'even' : ''}">${p == null ? '' : p === 'all' ? '全' : p ? '奇' : '偶'}</span>${timeline(s, w)}</div>`;
       }).join('')}</div>
-      ${parity ? '<p class="small faint" style="margin-top:8px">奇＝奇数日 / 偶＝偶数日 / 全＝全車可の日</p>' : ''}
+      ${parity ? '<p class="small faint" style="margin-top:8px">奇＝末尾奇数の車が入れる日 / 偶＝末尾偶数の車 / 全＝全車可（昼12時時点）</p>' : ''}
     </div>
 
     <div class="card box">
@@ -748,11 +939,14 @@ function renderDetail() {
       ${s.rules.length ? `<ul class="rules">${s.rules.map(r => `<li><span class="ico">${TYPES[r.type].ico}</span><div><div class="ttl">${esc(ruleTitle(r))}</div>${ruleSub(r) ? `<div class="sub">${esc(ruleSub(r))}</div>` : ''}</div></li>`).join('')}</ul>` : '<p class="muted small">「編集」からルールを追加してください。</p>'}
     </div>
 
+    ${s.methods.length ? `<div class="card box"><h4>入り方・マナー</h4><ul class="mlist">${s.methods.map(m => `<li>${esc(METHODS[m])}</li>`).join('')}</ul></div>` : ''}
+
     <div class="card box">
       <dl class="kv">
+        <dt>種類</dt><dd>${KINDS[s.kind]}</dd>
         ${s.area ? `<dt>エリア</dt><dd>${esc(s.area)}</dd>` : ''}
         ${s.address ? `<dt>場所</dt><dd>${esc(s.address)}</dd>` : ''}
-        <dt>最終確認</dt><dd class="${age != null && age > STALE_DAYS ? 'stale' : ''}">${s.checked ? `${esc(s.checked)}（${age <= 0 ? '今日' : age + '日前'}）${age > STALE_DAYS ? ' 情報が古い可能性' : ''}` : '不明'}</dd>
+        <dt>最終確認</dt><dd class="${age != null && age > STALE_DAYS ? 'stale' : ''}">${s.checked ? `${esc(s.checked)}（${age <= 0 ? '今日' : age + '日前'}）${age > STALE_DAYS ? ' 情報が古い可能性' : ''}` : '不明'}${s.source ? `・${SOURCES[s.source]}` : ''}</dd>
         <dt>情報元</dt><dd>${s.sample ? 'サンプル' : e.issue ? `みんなの投稿 #${e.issue.n}（${esc(e.issue.user)}）${e.versions > 1 ? ` ・${e.versions}回更新` : ''}${e.mine ? ' ／ この端末で編集あり' : ''}` : 'この端末で登録'}</dd>
         ${e.issue ? `<dt>反応</dt><dd>👍 ${e.issue.likes} ・コメント ${e.issue.comments}</dd>` : ''}
       </dl>
@@ -772,102 +966,197 @@ function renderDetail() {
 
 /* ============================================================
    登録・編集
+   ステップ：① どこの乗り場か → ② よくあるルールから選ぶ → ③ 入り方・マナー → ④ 確認日と情報源
    ============================================================ */
 let E = null;    // 編集中のコピー
-function newRule(type) {
-  const r = { id: uid(), type, days: [], from: '', to: '', text: '' };
-  if (type === 'parity') Object.assign(r, { match: 'same', day31: 'all', switchHour: 0 });
-  if (type === 'open') Object.assign(r, { from: '07:00', to: '22:00' });
-  if (type === 'closed') Object.assign(r, { from: '22:00', to: '05:00' });
-  if (type === 'company') Object.assign(r, { mode: 'only', companies: [] });
-  if (type === 'limit') r.count = 10;
-  if (type === 'custom') r.effect = 'info';
-  return r;
-}
 function openEditor(id) {
   const e = id && findEntry(id);
-  E = e ? JSON.parse(JSON.stringify(e.stand)) : { id: uid(), name: '', area: '', address: '', note: '', checked: ymd(new Date()), lat: null, lng: null, rules: [] };
+  E = e ? JSON.parse(JSON.stringify(e.stand))
+    : { id: uid(), kind: 'station', name: '', spot: '', area: '', address: '', note: '', checked: ymd(new Date()), source: '', lat: null, lng: null, methods: [], rules: [] };
   delete E.sample;
   $('#e-title').textContent = e ? '乗り場を編集' : '乗り場を登録';
   renderEditor();
   openSheet($('#dlg-edit'));
 }
-function opt(v, cur, label) { return `<option value="${v}"${String(v) === String(cur) ? ' selected' : ''}>${label}</option>`; }
+const opt = (v, cur, label) => `<option value="${v}"${String(v) === String(cur) ? ' selected' : ''}>${label}</option>`;
+const seg = (i, k, cur, items) => `<div class="seg">${(Array.isArray(items) ? items : Object.entries(items)).map(([v, l]) => `<button type="button" data-i="${i}" data-seg="${k}" data-v="${v}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</div>`;
+const check = (attrs, on, label, sub) => `<button type="button" class="check" ${attrs} aria-pressed="${on}"><span class="bx">✓</span><span>${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ''}</span></button>`;
+
+function windowFields(r, i, required) {
+  return `
+    <div class="field"><span>曜日${required ? '' : '（選ばなければ毎日）'}</span>
+      <div class="days">${DOW.map((n, d) => `<button type="button" data-i="${i}" data-day="${d}" aria-pressed="${r.days.includes(d)}">${n}</button>`).join('')}</div>
+      <div class="days-quick"><button type="button" data-i="${i}" data-days="">毎日</button><button type="button" data-i="${i}" data-days="1,2,3,4,5">平日</button><button type="button" data-i="${i}" data-days="0,6,7">土日祝</button></div>
+      <small>祝日は曜日にかかわらず「祝」で判定します（例：平日のみ＝祝日は対象外）。</small></div>
+    <div class="field"><span>時間帯${required ? '' : '（空欄なら終日）'}</span>
+      <div class="row2"><input class="inp" type="time" step="900" data-i="${i}" data-k="from" value="${r.from}"><input class="inp" type="time" step="900" data-i="${i}" data-k="to" value="${r.to}"></div>
+      <small>終わりが始まりより前なら翌日まで（例 22:00〜1:00）</small></div>`;
+}
 function ruleEditor(r, i) {
-  const tw = `
-    <div class="field"><span>曜日（選ばなければ毎日）</span>
-      <div class="days">${DOW.map((n, d) => `<button type="button" data-i="${i}" data-day="${d}" aria-pressed="${r.days.includes(d)}">${n}</button>`).join('')}</div></div>
-    <div class="field"><span>時間帯${r.type === 'open' || r.type === 'closed' ? '' : '（空欄なら終日）'}</span>
-      <div class="row2"><input class="inp" type="time" data-i="${i}" data-k="from" value="${r.from}"><input class="inp" type="time" data-i="${i}" data-k="to" value="${r.to}"></div>
-      <small>終わりが始まりより前なら翌日までの意味です（例 22:00〜5:00）</small></div>`;
   let body = '';
-  if (r.type === 'parity') body = `
-    <div class="field"><span>入れる車</span><select class="inp" data-i="${i}" data-k="match">
-      ${opt('same', r.match, '日付と同じ（奇数日→末尾が奇数の車）')}${opt('opposite', r.match, '日付と逆（奇数日→末尾が偶数の車）')}</select></div>
-    <div class="row2">
-      <div class="field"><span>31日の扱い</span><select class="inp" data-i="${i}" data-k="day31">${opt('all', r.day31, '全車入構可')}${opt('normal', r.day31, '奇数日として扱う')}</select></div>
-      <div class="field"><span>日付の切替時刻</span><select class="inp" data-i="${i}" data-k="switchHour">${Array.from({ length: 24 }, (_, h) => opt(h, r.switchHour, h ? `${h}:00` : '0:00（通常）')).join('')}</select></div>
-    </div>
-    <details class="small muted" style="margin-bottom:12px"${r.days.length || r.from ? ' open' : ''}><summary>時間帯・曜日を限定する</summary><div style="margin-top:10px">${tw}</div></details>`;
-  else if (r.type === 'company') body = `
-    <div class="field"><span>条件</span><select class="inp" data-i="${i}" data-k="mode">${opt('only', r.mode, '次の会社・グループのみ入構可')}${opt('except', r.mode, '次の会社・グループは入構不可')}</select></div>
-    <div class="field"><span>会社・グループ名（、区切り）</span><input class="inp" data-i="${i}" data-k="companies" value="${esc(r.companies.join('、'))}" placeholder="例：〇〇交通、△△無線"></div>${tw}`;
-  else if (r.type === 'limit') body = `
-    <div class="field"><span>待機できる台数</span><input class="inp num" type="number" inputmode="numeric" min="1" max="999" data-i="${i}" data-k="count" value="${r.count ?? ''}"></div>${tw}`;
-  else if (r.type === 'custom') body = `
-    <div class="field"><span>ルールの内容</span><textarea class="inp" data-i="${i}" data-k="text" placeholder="例：先頭車両は窓を開けて待機 / 雨の日は2列目から付け待ち">${esc(r.text)}</textarea></div>
-    <div class="field"><span>判定への影響</span><select class="inp" data-i="${i}" data-k="effect">${opt('info', r.effect, '参考情報（判定は変えない）')}${opt('warn', r.effect, '当てはまる時間は「注意」')}${opt('ng', r.effect, '当てはまる時間は「入れない」')}</select></div>${tw}`;
-  else body = tw;
-  const extra = r.type === 'custom' ? '' : `<div class="field"><span>補足（任意）</span><input class="inp" data-i="${i}" data-k="text" value="${esc(r.text)}" placeholder="例：係員の指示が優先"></div>`;
+  const target = `<div class="field"><span>対象の車</span>${seg(i, 'target', r.target, TARGETS)}</div>`;
+  const limited = inner => `<details class="small muted" style="margin-bottom:12px"${hasWindow(r) ? ' open' : ''}><summary>曜日・時間帯を限定する</summary><div style="margin-top:10px">${inner}</div></details>`;
+  if (r.type === 'parity') {
+    body = `<div class="field"><span>方式</span>${seg(i, 'mode', r.mode, { date: '日付の奇偶で決まる', cycle: '一定時間ごとに交代' })}</div>`;
+    if (r.mode === 'date') body += `
+      <div class="field"><span>奇数日に入れる車</span>${seg(i, 'match', r.match, { same: '末尾が奇数', opposite: '末尾が偶数' })}</div>
+      <div class="field"><span>31日</span>${seg(i, 'day31', r.day31, { all: '全車入構可', normal: '奇数日として扱う' })}</div>`;
+    else body += `
+      <div class="field"><span>交代の間隔</span>${seg(i, 'cycle', r.cycle, { 24: '24時間（毎日）', 48: '48時間（2日ごと）' })}</div>
+      <div class="row2">
+        <div class="field"><span>基準日</span><input class="inp" type="date" data-i="${i}" data-k="anchor" value="${r.anchor}"></div>
+        <div class="field"><span>基準日に入れる車</span>${seg(i, 'anchorParity', r.anchorParity, [[1, '奇数'], [0, '偶数']])}</div>
+      </div>
+      <small class="faint" style="display:block;margin:-6px 0 12px">掲示のカレンダーで「この日から2日間は奇数車」となっている日を基準日にしてください。</small>`;
+    body += `<div class="field"><span>切り替わる時刻</span><select class="inp" data-i="${i}" data-k="switchHour">${Array.from({ length: 24 }, (_, h) => opt(h, r.switchHour, h ? `${h}:00` : '0:00（日付が変わる時）')).join('')}</select></div>`
+      + target + limited(windowFields(r, i));
+  } else if (r.type === 'qual') {
+    body = `<div class="field"><span>必要なもの（すべて必要なら複数選択）</span><div class="checks">${Object.entries(QUALS).map(([k, q]) => check(`data-i="${i}" data-qual="${k}"`, r.quals.includes(k), q.label, q.sub)).join('')}</div></div>`
+      + target + limited(windowFields(r, i));
+  } else if (r.type === 'open' || r.type === 'closed') {
+    body = windowFields(r, i, true) + target;
+  } else if (r.type === 'class') {
+    body = `<div class="field"><span>入れる車</span>${seg(i, 'only', r.only, { corp: '法人タクシーのみ', indiv: '個人タクシーのみ' })}</div>` + limited(windowFields(r, i));
+  } else if (r.type === 'company') {
+    body = `<div class="field"><span>条件</span>${seg(i, 'mode', r.mode, { only: 'この会社のみ可', except: 'この会社は不可' })}</div>
+      <div class="field"><span>会社・グループ名（、区切り）</span><input class="inp" data-i="${i}" data-k="companies" value="${esc(r.companies.join('、'))}" placeholder="例：〇〇交通、△△無線"></div>` + limited(windowFields(r, i));
+  } else if (r.type === 'limit') {
+    body = `<div class="field"><span>待機できる台数</span><input class="inp num" type="number" inputmode="numeric" min="1" max="999" data-i="${i}" data-k="count" value="${r.count ?? ''}"></div>` + target + limited(windowFields(r, i));
+  } else if (r.type === 'custom') {
+    body = `<div class="field"><span>ルールの内容</span><textarea class="inp" data-i="${i}" data-k="text" maxlength="200" placeholder="例：先頭車両はエンジンを切って待機">${esc(r.text)}</textarea></div>
+      <div class="field"><span>判定への影響</span>${seg(i, 'effect', r.effect, { info: '参考情報', warn: '注意', ng: '入れない' })}</div>` + target + windowFields(r, i);
+  }
+  const extra = r.type === 'custom' ? '' : `<div class="field"><span>補足（任意）</span><input class="inp" data-i="${i}" data-k="text" maxlength="200" value="${esc(r.text)}" placeholder="例：第5乗り場は除く"></div>`;
   return `<div class="rule-ed">
-    <div class="top"><span class="n">${i + 1}</span><select class="inp" data-i="${i}" data-k="type">${Object.entries(TYPES).map(([k, t]) => opt(k, r.type, t.label)).join('')}</select>
+    <div class="top"><span class="n">${i + 1}</span><b style="flex:1">${TYPES[r.type].label}</b>
       <button type="button" class="icon-btn" data-del="${i}" aria-label="このルールを削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg></button></div>
     ${body}${extra}
-    <div class="preview" data-preview="${i}">${esc(ruleTitle(r))}</div>
+    <div class="preview" data-preview="${i}">${esc(ruleTitle(r))}${ruleSub(r) ? `<br><small>${esc(ruleSub(r))}</small>` : ''}</div>
   </div>`;
 }
+function dupHtml() {
+  const d = similar(E);
+  return d.length ? `<div class="dup">似た乗り場がすでにあります。同じ乗り場なら、新しく作らずにそちらを編集してください：<br>${d.map(e => `<button type="button" data-dup="${esc(e.stand.id)}">${esc(standTitle(e.stand))}${e.stand.area ? `（${esc(e.stand.area)}）` : ''}</button>`).join('<br>')}</div>` : '';
+}
 function renderEditor() {
+  const areas = [...new Set(entries().map(e => e.stand.area).filter(Boolean))];
   $('#e-body').innerHTML = `<div>
-    <div class="field"><span>乗り場の名前 *</span><input class="inp" data-s="name" value="${esc(E.name)}" placeholder="例：〇〇駅 東口タクシー乗り場" maxlength="60"></div>
+    <div class="step" style="margin-top:0"><b>1</b><span>どこの乗り場？</span></div>
+    <div class="field"><span>施設の種類</span><div class="chips wrap">${Object.entries(KINDS).map(([k, l]) => `<button type="button" class="chip" data-kind="${k}" aria-pressed="${E.kind === k}">${l}</button>`).join('')}</div></div>
     <div class="row2">
-      <div class="field"><span>エリア</span><input class="inp" data-s="area" value="${esc(E.area)}" placeholder="例：三宮" maxlength="30" list="area-list"></div>
-      <div class="field"><span>最終確認日</span><input class="inp" type="date" data-s="checked" value="${esc(E.checked)}"></div>
+      <div class="field"><span>施設名 *</span><input class="inp" data-s="name" value="${esc(E.name)}" placeholder="例：JR三ノ宮駅" maxlength="60" autocomplete="off"></div>
+      <div class="field"><span>乗り場名</span><input class="inp" data-s="spot" value="${esc(E.spot)}" placeholder="例：中央口北側" maxlength="30" autocomplete="off"></div>
     </div>
-    <datalist id="area-list">${[...new Set(entries().map(e => e.stand.area).filter(Boolean))].map(a => `<option value="${esc(a)}">`).join('')}</datalist>
+    <div id="e-dup">${dupHtml()}</div>
+    <div class="field"><span>エリア</span>
+      ${areas.length ? `<div class="chips wrap" style="margin-bottom:6px">${areas.map(a => `<button type="button" class="chip" data-area-pick="${esc(a)}" aria-pressed="${E.area === a}">${esc(a)}</button>`).join('')}</div>` : ''}
+      <input class="inp" data-s="area" value="${esc(E.area)}" placeholder="例：三宮（駅名・地区名で）" maxlength="30"></div>
     <div class="field"><span>場所</span>
       <input class="inp" data-s="address" value="${esc(E.address)}" placeholder="例：〇〇ビル前 ロータリー北側" maxlength="120">
       <div class="inline"><button type="button" class="btn" id="e-gps" style="flex:1">${E.lat != null ? `位置を登録済み（${E.lat.toFixed(4)}, ${E.lng.toFixed(4)}）・取り直す` : '現在地を乗り場の位置にする'}</button>
       ${E.lat != null ? '<button type="button" class="btn" id="e-gps-clear">消す</button>' : ''}</div></div>
 
-    <div class="section-title" style="margin-top:22px">ルール</div>
+    <div class="step"><b>2</b><span>入構のルール <small>当てはまるものをすべて</small></span></div>
     ${E.rules.map(ruleEditor).join('')}
-    <div class="addrule">${Object.entries(TYPES).map(([k, t]) => `<button type="button" class="btn" data-add="${k}">＋ ${t.label}</button>`).join('')}</div>
+    <button type="button" class="btn block primary" id="e-addrule">＋ よくあるルールから追加</button>
 
-    <div class="field" style="margin-top:20px"><span>メモ（入り方・注意点など）</span><textarea class="inp" data-s="note" maxlength="600" placeholder="例：一般車レーンと間違えやすい。入口は西側のみ。">${esc(E.note)}</textarea></div>
+    <div class="step"><b>3</b><span>入り方・マナー <small>当てはまるものを選択</small></span></div>
+    <div class="checks">${Object.entries(METHODS).map(([k, l]) => check(`data-method="${k}"`, E.methods.includes(k), l)).join('')}</div>
+
+    <div class="step"><b>4</b><span>いつ・どうやって確認した？</span></div>
+    <div class="field"><span>最終確認日</span><input class="inp" type="date" data-s="checked" value="${esc(E.checked)}"></div>
+    <div class="field"><span>情報源</span><div class="chips wrap">${Object.entries(SOURCES).map(([k, l]) => `<button type="button" class="chip" data-source="${k}" aria-pressed="${E.source === k}">${l}</button>`).join('')}</div></div>
+    <div class="field" style="margin-top:6px"><span>メモ（上で選べない注意点のみ）</span><textarea class="inp" data-s="note" maxlength="600" placeholder="例：入口は西側のみ。一般車レーンと間違えやすい。">${esc(E.note)}</textarea></div>
   </div>`;
 }
+function refreshPreview(i) {
+  const r = E.rules[i], p = document.querySelector(`[data-preview="${i}"]`);
+  if (p) p.innerHTML = `${esc(ruleTitle(r))}${ruleSub(r) ? `<br><small>${esc(ruleSub(r))}</small>` : ''}`;
+}
 function onEditorInput(t) {
-  if (t.dataset.s) { E[t.dataset.s] = t.value; return; }
+  if (t.dataset.s) { E[t.dataset.s] = t.value; if (t.dataset.s === 'name' || t.dataset.s === 'spot') $('#e-dup').innerHTML = dupHtml(); return; }
   const i = t.dataset.i, k = t.dataset.k;
   if (i == null || !k) return;
   const r = E.rules[i];
-  if (k === 'type') { E.rules[i] = Object.assign(newRule(t.value), { id: r.id, days: r.days, text: r.text }); renderEditor(); return; }
   if (k === 'companies') r.companies = t.value.split(/[、,，\n]/).map(x => x.trim()).filter(Boolean);
   else if (k === 'count') r.count = t.value === '' ? null : Math.max(1, Math.min(999, +t.value));
   else if (k === 'switchHour') r.switchHour = +t.value;
+  else if (k === 'anchor') r.anchor = t.value || ymd(new Date());
   else r[k] = t.value;
-  const p = document.querySelector(`[data-preview="${i}"]`);
-  if (p) p.textContent = ruleTitle(r);
+  refreshPreview(i);
+}
+function onEditorClick(t) {
+  const i = t.dataset.i, r = i != null ? E.rules[i] : null;
+  if (t.dataset.seg) {
+    const k = t.dataset.seg, v = t.dataset.v;
+    r[k] = ['cycle', 'anchorParity'].includes(k) ? +v : v;
+    if (k === 'mode') { renderEditorKeepScroll(); return; }
+    t.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === t));
+    refreshPreview(i);
+  } else if (t.dataset.day != null) {
+    const d = +t.dataset.day;
+    r.days = r.days.includes(d) ? r.days.filter(x => x !== d) : [...r.days, d].sort();
+    t.setAttribute('aria-pressed', r.days.includes(d));
+    refreshPreview(i);
+  } else if (t.dataset.days != null) {
+    r.days = t.dataset.days ? t.dataset.days.split(',').map(Number) : [];
+    t.closest('.field').querySelectorAll('[data-day]').forEach(b => b.setAttribute('aria-pressed', r.days.includes(+b.dataset.day)));
+    refreshPreview(i);
+  } else if (t.dataset.qual) {
+    const q = t.dataset.qual;
+    r.quals = r.quals.includes(q) ? (r.quals.length > 1 ? r.quals.filter(x => x !== q) : r.quals) : [...r.quals, q];
+    t.closest('.checks').querySelectorAll('[data-qual]').forEach(b => b.setAttribute('aria-pressed', r.quals.includes(b.dataset.qual)));
+    refreshPreview(i);
+  } else if (t.dataset.method) {
+    const m = t.dataset.method;
+    E.methods = E.methods.includes(m) ? E.methods.filter(x => x !== m) : [...E.methods, m];
+    t.setAttribute('aria-pressed', E.methods.includes(m));
+  } else if (t.dataset.kind) {
+    E.kind = t.dataset.kind;
+    t.parentElement.querySelectorAll('[data-kind]').forEach(b => b.setAttribute('aria-pressed', b === t));
+  } else if (t.dataset.source) {
+    E.source = E.source === t.dataset.source ? '' : t.dataset.source;
+    t.parentElement.querySelectorAll('[data-source]').forEach(b => b.setAttribute('aria-pressed', b.dataset.source === E.source));
+  } else if (t.dataset.areaPick != null) {
+    E.area = t.dataset.areaPick; document.querySelector('[data-s="area"]').value = E.area;
+    t.parentElement.querySelectorAll('[data-area-pick]').forEach(b => b.setAttribute('aria-pressed', b === t));
+  } else if (t.dataset.dup) {
+    const id = t.dataset.dup;
+    closeSheet($('#dlg-edit')).then(() => { if (findEntry(id)) openEditor(id); });
+  } else if (t.dataset.del != null) {
+    E.rules.splice(+t.dataset.del, 1); renderEditorKeepScroll();
+  } else if (t.id === 'e-addrule') {
+    openSheet($('#dlg-preset'));
+  } else if (t.id === 'e-gps') {
+    if (!navigator.geolocation) { toast('位置情報が使えません'); return; }
+    toast('現在地を取得しています…');
+    navigator.geolocation.getCurrentPosition(p => {
+      E.lat = +p.coords.latitude.toFixed(6); E.lng = +p.coords.longitude.toFixed(6); renderEditorKeepScroll(); toast('位置を登録しました');
+    }, () => toast('現在地を取得できませんでした'), { enableHighAccuracy: true, timeout: 10000 });
+  } else if (t.id === 'e-gps-clear') { E.lat = E.lng = null; renderEditorKeepScroll(); }
+}
+function renderEditorKeepScroll() { const b = $('#e-body'), y = b.scrollTop; renderEditor(); b.scrollTop = y; }
+function addPreset(key) {
+  const p = PRESETS.find(x => x.key === key);
+  const r = cleanRule(Object.assign({ id: uid(), days: [], from: '', to: '' }, JSON.parse(JSON.stringify(p.rule))));
+  E.rules.push(r);
+  closeSheet($('#dlg-preset')).then(() => {
+    renderEditor();
+    const eds = $('#e-body').querySelectorAll('.rule-ed'); eds[eds.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 function saveEditor() {
   const s = cleanStand(E);
-  if (!s) { toast('乗り場の名前を入れてください'); document.querySelector('[data-s="name"]').focus(); return; }
+  if (!s) { toast('施設名を入れてください'); document.querySelector('[data-s="name"]').focus(); return; }
+  const bad = s.rules.find(r => (r.type === 'company' && !r.companies.length) || (r.type === 'custom' && !r.text) || ((r.type === 'open' || r.type === 'closed') && !hasWindow(r)));
+  if (bad) { toast(`ルール${s.rules.indexOf(bad) + 1}（${TYPES[bad.type].label}）の内容を入れてください`); return; }
   const i = S.stands.findIndex(x => x.id === s.id);
   if (i >= 0) S.stands[i] = s; else S.stands.push(s);
   save();
-  closeSheet($('#dlg-edit'));
-  renderAll();
-  if ($('#dlg-detail').open) renderDetail(); else openDetail(s.id);
+  closeSheet($('#dlg-edit')).then(() => {
+    renderAll();
+    if ($('#dlg-detail').open) { detailId = s.id; renderDetail(); } else openDetail(s.id);
+  });
   toast('保存しました');
 }
 
@@ -876,11 +1165,11 @@ function saveEditor() {
    ============================================================ */
 function toB64(s) { const b = new TextEncoder().encode(s); let x = ''; for (const c of b) x += String.fromCharCode(c); return btoa(x).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function fromB64(s) { const x = atob(s.replace(/-/g, '+').replace(/_/g, '/')); return new TextDecoder().decode(Uint8Array.from(x, c => c.charCodeAt(0))); }
-const payload = s => { const o = JSON.parse(JSON.stringify(s)); delete o.sample; return o; };
+const payload = s => { const o = JSON.parse(JSON.stringify(s)); delete o.sample; o.v = 2; return o; };
 
 async function shareLink(s) {
   const url = `${location.origin}${location.pathname}#s=${toB64(JSON.stringify(payload(s)))}`;
-  const text = `タクシー乗り場ルール：${s.name}`;
+  const text = `タクシー乗り場ルール：${standTitle(s)}`;
   if (navigator.share) { try { await navigator.share({ title: text, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(url); toast('共有リンクをコピーしました'); }
   catch { prompt('このリンクを送ってください', url); }
@@ -891,11 +1180,13 @@ function postToGitHub(e) {
   const body = [
     `乗り場ルールアプリからの${e.issue ? `更新（元の投稿 #${e.issue.n}）` : '投稿'}です。`,
     '',
-    `**${s.name}**${s.area ? `（${s.area}）` : ''}`,
+    `**${standTitle(s)}**（${KINDS[s.kind]}${s.area ? `・${s.area}` : ''}）`,
     s.address ? `場所：${s.address}` : '',
-    s.checked ? `最終確認：${s.checked}` : '',
+    s.checked ? `最終確認：${s.checked}${s.source ? `（${SOURCES[s.source]}）` : ''}` : '',
     '',
-    ...(lines.length ? lines : ['- ルールなし']),
+    '**入構ルール**',
+    ...(lines.length ? lines : ['- なし']),
+    s.methods.length ? '\n**入り方・マナー**\n' + s.methods.map(m => `- ${METHODS[m]}`).join('\n') : '',
     s.note ? `\nメモ：${s.note}` : '',
     '',
     '内容が正しければ 👍、違っていればコメントで教えてください。',
@@ -905,7 +1196,7 @@ function postToGitHub(e) {
     JSON.stringify(s),
     '```',
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
-  const title = `${PREFIX} ${s.name}${s.area ? `（${s.area}）` : ''}`;
+  const title = `${PREFIX} ${standTitle(s)}${s.area ? `（${s.area}）` : ''}`;
   window.open(`https://github.com/${REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`, '_blank', 'noopener');
   toast('GitHub の画面で「Create」を押すと投稿されます');
 }
@@ -920,8 +1211,8 @@ function checkHash() {
   if (!s) { toast('共有リンクを読み取れませんでした'); return; }
   pendingImport = s;
   const exists = S.stands.some(x => x.id === s.id);
-  $('#imp-body').innerHTML = `<p style="font-size:17px;font-weight:800">${esc(s.name)}</p>
-    <p class="small muted">${esc([s.area, s.address].filter(Boolean).join(' · '))}${s.checked ? ` · 確認 ${esc(s.checked)}` : ''}</p>
+  $('#imp-body').innerHTML = `<p style="font-size:17px;font-weight:800">${esc(standTitle(s))}</p>
+    <p class="small muted">${esc([KINDS[s.kind], s.area, s.address].filter(Boolean).join(' · '))}${s.checked ? ` · 確認 ${esc(s.checked)}` : ''}</p>
     <ul class="rules" style="margin-top:12px">${s.rules.map(r => `<li><span class="ico">${TYPES[r.type].ico}</span><div class="ttl" style="font-size:14px">${esc(ruleTitle(r))}</div></li>`).join('') || '<li class="muted small">ルールなし</li>'}</ul>
     ${exists ? '<p class="small stale" style="margin-top:12px">同じ乗り場が登録済みです。取り込むと上書きします。</p>' : ''}`;
   $('#dlg-import').showModal();
@@ -979,8 +1270,8 @@ function renderCommunity() {
   $('#c-list').innerHTML = items.length ? items.map(it => {
     const s = it.stand, ev = evaluate(s, now());
     return `<button class="card post" data-open="${esc(s.id)}">
-      <div class="row1" style="display:flex;gap:10px;align-items:flex-start"><div class="t" style="flex:1">${esc(s.name)}</div><span class="pill lv-${ev.lv}"><i></i>${LV[ev.lv].label}</span></div>
-      <div class="m"><span>${esc(s.area || 'エリア未設定')}</span><span>ルール${s.rules.length}件</span><span>👍 ${it.issue.likes}</span><span>💬 ${it.issue.comments}</span><span>${esc(it.issue.user)}・${md(new Date(it.issue.at))}</span></div>
+      <div class="row1" style="display:flex;gap:10px;align-items:flex-start"><div class="t" style="flex:1">${esc(standTitle(s))}</div><span class="pill lv-${ev.lv}"><i></i>${LV[ev.lv].label}</span></div>
+      <div class="m"><span>${KINDS[s.kind]}${s.area ? '・' + esc(s.area) : ''}</span><span>ルール${s.rules.length}件</span><span>👍 ${it.issue.likes}</span><span>💬 ${it.issue.comments}</span><span>${esc(it.issue.user)}・${md(new Date(it.issue.at))}</span></div>
     </button>`;
   }).join('') : (loading ? '' : '<div class="empty"><p>まだ投稿がありません。最初の投稿をお願いします。</p></div>');
   const unseen = c.items.filter(i => Date.parse(i.issue.at) > (S.seen || 0)).length;
@@ -995,6 +1286,10 @@ function renderSettings() {
   $('#digits').innerHTML = Array.from({ length: 10 }, (_, n) => (n + 1) % 10)
     .map(n => `<button type="button" data-digit="${n}" aria-pressed="${S.me.plate === n}">${n}</button>`).join('');
   $('#digit-note').textContent = S.me.plate == null ? '奇数偶数制の判定に使います。「12-34」なら 4 です。' : `末尾 ${S.me.plate}：${oddEven(S.me.plate % 2)}ナンバーとして判定します。もう一度押すと解除。`;
+  $('#cls').innerHTML = Object.entries(CLASSES).map(([k, l]) => `<button type="button" data-cls="${k}" aria-pressed="${S.me.cls === k}">${l}タクシー</button>`).join('');
+  $('#quals').innerHTML = Object.entries(QUALS).map(([k, q]) => check(`data-myqual="${k}"`, S.me.quals.includes(k), q.label, q.sub)).join('')
+    + check('data-myqual=""', S.me.qualsSet && !S.me.quals.length, 'どれも持っていない');
+  $('#quals-note').textContent = S.me.qualsSet ? '「許可車のみ」「優良車のみ」などの判定に使います。' : 'まだ設定されていません（資格が必要な乗り場は「要設定」と表示されます）。';
   if (document.activeElement !== $('#company')) $('#company').value = S.me.company || '';
 }
 
@@ -1019,24 +1314,34 @@ function setTab(t) {
 // シートは履歴に積んで、スマホの「戻る」で閉じられるようにする
 const stack = [];
 function openSheet(dlg) { if (dlg.open) return; dlg.showModal(); stack.push(dlg); history.pushState({ sheet: stack.length }, ''); }
-function closeSheet(dlg) { if (dlg.open && stack[stack.length - 1] === dlg) history.back(); else if (dlg.open) { dlg.close(); stack.splice(stack.indexOf(dlg), 1); } }
-window.addEventListener('popstate', () => { const d = stack.pop(); if (d && d.open) d.close(); });
+// 閉じ終わった（履歴が戻った）後に次のシートを開けるよう Promise を返す
+const popWaiters = [];
+function closeSheet(dlg) {
+  return new Promise(res => {
+    if (dlg.open && stack[stack.length - 1] === dlg) { popWaiters.push(res); history.back(); return; }
+    if (dlg.open) { dlg.close(); stack.splice(stack.indexOf(dlg), 1); }
+    res();
+  });
+}
+window.addEventListener('popstate', () => { const d = stack.pop(); if (d && d.open) d.close(); const w = popWaiters.shift(); if (w) w(); });
 document.querySelectorAll('dialog.sheet').forEach(d => d.addEventListener('cancel', ev => { ev.preventDefault(); closeSheet(d); }));
 
 let toastTimer;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600); }
 
 function sample() {
-  return {
-    id: 'sample-ekimae', sample: true, name: 'サンプル駅 東口乗り場', area: '', address: '架空の乗り場です（使い方の例）', checked: ymd(new Date()),
-    lat: null, lng: null, note: 'これは架空の例です。実際の乗り場に合わせて「編集」で書き換えるか、削除してください。',
+  return cleanStand({
+    id: 'sample-ekimae', sample: true, kind: 'station', name: 'サンプル駅', spot: '東口', area: '', address: '架空の乗り場です（使い方の例）', checked: ymd(new Date()), source: 'sign',
+    note: 'これは架空の例です。実際の乗り場に合わせて「編集」で書き換えるか、削除してください。',
+    methods: ['order', 'sign', 'nostreet', 'staff'],
     rules: [
-      { id: 'r1', type: 'parity', days: [], from: '07:00', to: '22:00', text: '', match: 'same', day31: 'all', switchHour: 0 },
-      { id: 'r2', type: 'closed', days: [], from: '01:00', to: '05:00', text: '', },
-      { id: 'r3', type: 'custom', days: [5, 6], from: '22:00', to: '01:00', text: '金・土の夜は2列目から付け待ち', effect: 'warn' },
-      { id: 'r4', type: 'limit', days: [], from: '', to: '', text: '', count: 12 },
-    ].map(cleanRule),
-  };
+      { type: 'parity', mode: 'date', match: 'same', day31: 'all', target: 'corp' },
+      { type: 'parity', mode: 'cycle', cycle: 24, anchor: ymd(new Date()), anchorParity: 1, target: 'indiv' },
+      { type: 'qual', quals: ['kounai'] },
+      { type: 'closed', from: '01:00', to: '05:00' },
+      { type: 'limit', count: 12 },
+    ],
+  });
 }
 
 /* ============================================================
@@ -1070,7 +1375,7 @@ document.addEventListener('click', ev => {
     case 'post': postToGitHub(e); break;
     case 'checked': e.stand.checked = ymd(new Date()); save(); renderAll(); toast('確認日を今日にしました'); break;
     case 'delete':
-      if (!confirm(e.issue ? 'この端末での編集を取り消して、投稿された内容に戻しますか？' : `「${e.stand.name}」を削除しますか？`)) return;
+      if (!confirm(e.issue ? 'この端末での編集を取り消して、投稿された内容に戻しますか？' : `「${standTitle(e.stand)}」を削除しますか？`)) return;
       S.stands = S.stands.filter(x => x.id !== detailId);
       if (!e.issue) { S.favs = S.favs.filter(x => x !== detailId); closeSheet($('#dlg-detail')); }
       save(); renderAll(); break;
@@ -1086,28 +1391,10 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 const eb = $('#e-body');
 eb.addEventListener('input', ev => onEditorInput(ev.target));
 eb.addEventListener('change', ev => onEditorInput(ev.target));
-eb.addEventListener('click', ev => {
-  const t = ev.target.closest('button');
-  if (!t) return;
-  if (t.dataset.day != null) {
-    const r = E.rules[t.dataset.i], d = +t.dataset.day;
-    r.days = r.days.includes(d) ? r.days.filter(x => x !== d) : [...r.days, d].sort();
-    t.setAttribute('aria-pressed', r.days.includes(d));
-    document.querySelector(`[data-preview="${t.dataset.i}"]`).textContent = ruleTitle(r);
-  } else if (t.dataset.add) {
-    E.rules.push(newRule(t.dataset.add)); renderEditor();
-    const eds = eb.querySelectorAll('.rule-ed'); eds[eds.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
-  } else if (t.dataset.del != null) {
-    E.rules.splice(+t.dataset.del, 1); renderEditor();
-  } else if (t.id === 'e-gps') {
-    if (!navigator.geolocation) { toast('位置情報が使えません'); return; }
-    toast('現在地を取得しています…');
-    navigator.geolocation.getCurrentPosition(p => {
-      E.lat = +p.coords.latitude.toFixed(6); E.lng = +p.coords.longitude.toFixed(6); renderEditor(); toast('位置を登録しました');
-    }, () => toast('現在地を取得できませんでした'), { enableHighAccuracy: true, timeout: 10000 });
-  } else if (t.id === 'e-gps-clear') { E.lat = E.lng = null; renderEditor(); }
-});
+eb.addEventListener('click', ev => { const t = ev.target.closest('button'); if (t) onEditorClick(t); });
 $('#e-save').addEventListener('click', saveEditor);
+$('#presets').innerHTML = PRESETS.map(p => `<button type="button" class="card preset" data-preset="${p.key}"><span class="ico">${p.ico}</span><span><div class="ttl">${p.title}</div><div class="sub">${p.sub}</div></span></button>`).join('');
+$('#presets').addEventListener('click', ev => { const b = ev.target.closest('[data-preset]'); if (b) addPreset(b.dataset.preset); });
 
 // 日時を変えて確認
 $('#btn-ref').addEventListener('click', () => {
@@ -1141,10 +1428,20 @@ $('#digits').addEventListener('click', ev => {
   const b = ev.target.closest('[data-digit]'); if (!b) return;
   const n = +b.dataset.digit; S.me.plate = S.me.plate === n ? null : n; save(); renderAll();
 });
+$('#cls').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-cls]'); if (!b) return;
+  S.me.cls = S.me.cls === b.dataset.cls ? null : b.dataset.cls; save(); renderAll();
+});
+$('#quals').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-myqual]'); if (!b) return;
+  const q = b.dataset.myqual;
+  S.me.quals = !q ? [] : S.me.quals.includes(q) ? S.me.quals.filter(x => x !== q) : [...S.me.quals, q];
+  S.me.qualsSet = true; save(); renderAll();
+});
 $('#company').addEventListener('input', ev => { S.me.company = ev.target.value.trim().slice(0, 40); save(); renderList(); });
 $('#btn-refresh').addEventListener('click', () => fetchCommunity(true));
 $('#btn-export').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify({ app: 'taxi-rules', v: 1, stands: S.stands }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'taxi-rules', v: 2, stands: S.stands }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `taxi-rules-${ymd(new Date())}.json`; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
@@ -1168,6 +1465,8 @@ $('#btn-reset').addEventListener('click', () => {
    起動
    ============================================================ */
 S.stands = S.stands.map(cleanStand).filter(Boolean);
+S.me.quals = keys(S.me.quals, QUALS);
+if (!CLASSES[S.me.cls]) S.me.cls = null;
 S.community.items = (S.community.items || []).filter(i => i && i.issue).map(i => Object.assign(i, { stand: cleanStand(i.stand) })).filter(i => i.stand);
 renderAll();
 setTab('list');
