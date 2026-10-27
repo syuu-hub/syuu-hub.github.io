@@ -1765,6 +1765,8 @@ const EXTRA_PLACES = [
     alias: ['マリンエア', 'UKB', 'Kobe Airport', 'こうべくうこう'] },
   { name: '阪神甲子園球場', kind: 'スタジアム', info: '西宮市甲子園町', note: '甲子園駅', addr: '兵庫県西宮市甲子園町1-82',
     alias: ['甲子園', '甲子園球場', 'こうしえん'] },
+  { name: '東横INN神戸湊川公園', kind: 'ホテル', info: '神戸市兵庫区福原町', note: '湊川公園駅から徒歩約3分', addr: '兵庫県神戸市兵庫区福原町32-13',
+    alias: ['東横イン神戸湊川公園', '東横INN湊川公園', '東横イン湊川公園', '東横 湊川公園', '湊川公園 東横', '東横INN', '東横イン', '東横', 'とうよこいん', 'Toyoko Inn Kobe Minatogawa Koen'] },
   { name: 'umie', kind: '商業施設', info: '神戸市中央区東川崎町', note: '神戸ハーバーランド', addr: '兵庫県神戸市中央区東川崎町1丁目7-2',
     alias: ['ウミエ', 'うみえ', 'UMIE', '神戸ハーバーランドumie', 'umie ノースモール', 'umie サウスモール'] },
   { name: '三宮オーパ', kind: '商業施設', info: '神戸市中央区三宮町', addr: '兵庫県神戸市中央区三宮町1丁目5-26',
@@ -1777,10 +1779,13 @@ function stationSuggest(q) {
   if (!k) return [];
   // 完全一致 → 名前の前方一致 → 別名の前方一致 → 部分一致 の順に並べる
   const hit = [];
+  // 「東横INNの湊川公園」のように言葉を区切って入れても、それぞれを含む施設を出す
+  const words = q.split(/[\s\u3000の]+/).map(normName).filter(w => w.length >= 2);
   for (const pl of EXTRA_PLACES) {
     const n = normName(pl.name), al = pl.alias.map(normName);
     const r = n === kq || al.includes(kq) ? 0 : n.startsWith(kq) ? 1 : al.some(x => x.startsWith(kq)) ? 2
-      : kq.length >= 2 && [n, ...al].some(x => x.includes(kq)) ? 3 : -1;
+      : kq.length >= 2 && [n, ...al].some(x => x.includes(kq)) ? 3
+      : words.length >= 2 && words.every(w => [n, ...al].some(x => x.includes(w))) ? 4 : -1;
     if (r >= 0) hit.push([r, pl]);
   }
   for (const st of stations()) {
