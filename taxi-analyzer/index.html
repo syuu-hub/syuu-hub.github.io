@@ -1056,6 +1056,10 @@ svg{display:block}
           <div><div class="k">待機・休憩の表記</div><div class="d">ボタン・履歴などの名前</div></div>
           <div class="seg hol" id="pauseLabelSeg"><button data-pl="both">待機・休憩</button><button data-pl="wait">待機</button><button data-pl="rest">休憩</button></div>
         </div>
+          <div class="setting hol-setting">
+          <div><div class="k">履歴の並び順</div><div class="d">乗車・待機・休憩の順番</div></div>
+          <div class="seg hol" id="histOrderSeg"><button data-ho="asc">古い順</button><button data-ho="desc">新しい順</button></div>
+        </div>
           <div class="setting">
           <div><div class="k">GPSを住所に変換</div><div class="d">通信時のみ・国土地理院</div></div>
           <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="GPSを住所に変換"></button>
@@ -1493,7 +1497,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -2673,9 +2677,9 @@ function renderLog() {
     list.innerHTML = `<li class="empty">${!sh ? '出庫前です。ホームの「出庫」から営業を開始します。' : sh === curShift() ? 'まだ乗車記録はありません。<br>「実車」→「空車」で記録できます' : 'この日の乗車記録はありません。'}</li>`;
     return;
   }
-  // 乗車と待機・休憩を古い順に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
-  const showPause = !!S.settings.histPause;
-  const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => a.t - b.t);
+  // 乗車と待機・休憩を設定の順（既定は古い順）に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
+  const showPause = !!S.settings.histPause, dir = S.settings.histOrder === 'desc' ? -1 : 1;
+  const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => (a.t - b.t) * dir);
   if (!items.length) { list.innerHTML = `<li class="empty">まだ乗車記録はありません。<br>${PL()}は「${PL()}も表示」で確認できます。</li>`; return; }
   // 1件＝1カード。情報の順位：①時刻と金額 ②乗車地→降車地 ③決済・種別
   const top = (t1, t2, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span><span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
@@ -3020,7 +3024,7 @@ function renderData() {
   setFoldSum('gWork', [yen(S.settings.goal), S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', S.settings.dayHours ? '1日' + S.settings.dayHours + 'h' : '',
     S.settings.holidays.length ? S.settings.holidays.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
   setFoldSum('gPay', `決済${PAYS().length}・チケット${TICKETS().length}・アプリ${S.settings.apps.length}`);
-  setFoldSum('gInput', [S.settings.dim ? '減光' : '', S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : '', S.settings.stationStand ? '駅→乗り場' : ''].filter(Boolean).join(' ・ '));
+  setFoldSum('gInput', [S.settings.dim ? '減光' : '', S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : '', S.settings.stationStand ? '駅→乗り場' : '', S.settings.histOrder === 'desc' ? '履歴は新しい順' : '履歴は古い順'].filter(Boolean).join(' ・ '));
   setFoldSum('gData', (bytes / 1024).toFixed(0) + ' KB');
 }
 
@@ -3780,6 +3784,7 @@ function applySettings() {
   $$('.pl-name').forEach(e => { e.textContent = PL(); });
   $('.st-btn[data-st="wait"] .l').innerHTML = S.settings.pauseLabel === 'wait' || S.settings.pauseLabel === 'rest' ? `<span class="w">${PL()}</span>` : '<span class="w">待機</span><span class="sep">・</span><span class="w">休憩</span>';
   $$('#pauseLabelSeg [data-pl]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pl === (S.settings.pauseLabel || 'both')));
+  $$('#histOrderSeg [data-ho]').forEach(b => b.setAttribute('aria-pressed', b.dataset.ho === (S.settings.histOrder || 'asc')));
   $('#dimBtn').setAttribute('aria-pressed', !!S.settings.dim);
   applyWakeLock();
 }
@@ -3827,6 +3832,10 @@ $('#dayHoursBtn').addEventListener('click', () => openNumpad('1日の予定労�
 $('#pauseLabelSeg').addEventListener('click', e => {
   const b = e.target.closest('[data-pl]'); if (!b) return;
   haptic(); S.settings.pauseLabel = b.dataset.pl; save(); applySettings(); renderAll(); renderData();
+});
+$('#histOrderSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-ho]'); if (!b) return;
+  haptic(); S.settings.histOrder = b.dataset.ho; save(); applySettings(); renderAll(); renderData();
 });
 $('#holidaySeg').addEventListener('click', e => {
   const b = e.target.closest('[data-hol]'); if (!b) return;
