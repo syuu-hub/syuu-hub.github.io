@@ -629,6 +629,8 @@ svg{display:block}
 .sug button small{font-size:11px;color:var(--muted);margin-left:4px;font-weight:600}
 .sug button.add-pl{border-style:dashed;border-color:var(--accent);color:var(--accent);background:var(--surface)}
 .pd-list{margin-top:8px}
+.pd-st{display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:12px;color:var(--muted);margin:0 2px 8px}
+.pd-st.err{color:var(--danger,#e5484d)}
 .pd-list .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:6px;margin-left:6px;vertical-align:2px;background:var(--surface-2);color:var(--muted)}
 .pd-list .tag.ed{color:var(--accent)}
 .pd-list .empty{padding:14px 4px;color:var(--muted);font-size:14px}
@@ -1068,7 +1070,7 @@ svg{display:block}
           <button class="fold-h" aria-expanded="false" aria-controls="gPlacesB"><span class="t">場所データ</span><span class="s num" id="gPlacesSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gPlacesB" hidden>
           <div class="setting">
-          <div><div class="k">施設・場所を検索して編集</div><div class="d">名前・住所の変更、削除、新しい登録</div></div>
+          <div><div class="k">施設・場所を検索して編集</div><div class="d">GitHubに保存・端末には残さない</div></div>
           <button class="btn sm" id="placeDbBtn">開く</button>
         </div>
           </div>
@@ -1339,6 +1341,7 @@ svg{display:block}
       <span class="spacer"></span>
       <span class="sub num" id="pdCount"></span>
     </header>
+    <div class="pd-st" id="pdSt"></div>
     <input class="text-in" id="pdQ" type="search" placeholder="施設名・別名・住所で検索" autocomplete="off" enterkeyhint="search">
     <ul class="list pd-list" id="pdList"></ul>
     <button class="btn sm" style="width:100%;margin-top:12px" id="pdAdd">＋ 新しい場所を登録</button>
@@ -1370,7 +1373,6 @@ svg{display:block}
       <div class="glabel"><span>メモ</span><span>任意・候補に表示</span></div>
       <input class="text-in" id="mpNote" placeholder="例：北側の入口" maxlength="40" autocomplete="off" enterkeyhint="done">
     </div>
-    <button class="link-btn" id="mpReset" type="button" hidden>内蔵の内容に戻す</button>
     <footer class="e-foot">
       <button class="btn danger" id="mpDelete">削除</button>
       <button class="btn primary" id="mpOk">保存</button>
@@ -1696,151 +1698,6 @@ function stations() {
 }
 // 名前を比べやすくする（全角半角・大小文字・カタカナ／ひらがな・空白や記号の違いを無視）
 const normName = s => toHira(s).toLowerCase().replace(/[\s・･\-ー‐_.,、。'’"()（）|｜]/g, '');
-// 地図データに無い・名前が変わった施設。alias は旧名や別表記。addr が無ければその時のGPSの住所を使う
-const EXTRA_PLACES = [
-  { name: 'ジ オリエント 神戸', kind: 'ホテル', info: '神戸市中央区京町', note: 'THE ORIENT KOBE・旧オリエンタルホテル', addr: '兵庫県神戸市中央区京町25',
-    alias: ['THE ORIENT KOBE', 'ザ オリエント 神戸', 'オリエンタルホテル', 'ORIENTAL HOTEL'] },
-  { name: '神戸マリオットホテル', kind: 'ホテル', info: '神戸市中央区東川崎町', note: '旧ホテルクラウンパレス神戸', addr: '兵庫県神戸市中央区東川崎町1丁目3-5',
-    alias: ['Kobe Marriott Hotel', 'マリオット', 'ホテルクラウンパレス神戸', 'クラウンパレス神戸', 'クラウンパレス'] },
-  { name: '神戸国際展示場', kind: '展示場', info: '神戸市中央区港島中町', note: 'ポートライナー市民広場駅すぐ', addr: '兵庫県神戸市中央区港島中町6丁目11-1',
-    alias: ['国際展示場', '神戸国際展示場1号館', '神戸国際展示場2号館', 'こくさいてんじじょう', 'Kobe International Exhibition Hall'] },
-  { name: 'ダイワロイネットホテル神戸三宮PREMIER', kind: 'ホテル', info: '神戸市中央区三宮町', addr: '兵庫県神戸市中央区三宮町1丁目2-2',
-    alias: ['ダイワロイネットプレミア', 'ロイネットプレミア', 'ダイワロイネット プレミア', 'ダイワロイネットホテル神戸三宮プレミア', 'Daiwa Roynet Hotel Kobe-Sannomiya PREMIER', 'ダイワロイネット', 'ロイネット'] },
-  { name: 'ダイワロイネットホテル神戸三宮', kind: 'ホテル', info: '神戸市中央区御幸通', note: '御幸通・PREMIERとは別', addr: '兵庫県神戸市中央区御幸通5丁目1-6',
-    alias: ['ダイワロイネット', 'ロイネット', 'Daiwa Roynet Hotel Kobe-Sannomiya'] },
-  { name: '神戸ルミナスホテル三宮', kind: 'ホテル', info: '神戸市中央区江戸町', addr: '兵庫県神戸市中央区江戸町92',
-    alias: ['ルミナス神戸三宮', 'ルミナスホテル', 'ルミナス三宮', 'ルミナス', 'るみなす', 'Kobe Luminous Hotel Sannomiya'] },
-  { name: '神戸製鋼所 神戸本社', kind: 'オフィス', info: '神戸市中央区脇浜海岸通', note: 'HAT神戸', addr: '兵庫県神戸市中央区脇浜海岸通2丁目2-4',
-    alias: ['神戸製鋼本社', '神戸製鋼所本社', '神戸製鋼', '神戸製鋼所', '神鋼', '神鋼本社', 'コベルコ', 'KOBELCO', 'こうべせいこう'] },
-  { name: '三菱重工業 神戸造船所', kind: '工場', info: '神戸市兵庫区和田崎町', note: '和田岬駅から徒歩約5分', addr: '兵庫県神戸市兵庫区和田崎町1丁目1-1',
-    alias: ['三菱重工', '三菱重工業', '三菱重工 和田岬', '三菱和田岬', '神戸造船所', '三菱造船所', 'みつびしじゅうこう', 'MHI'] },
-  { name: 'トヨタレンタリース 三宮店', kind: 'レンタカー', info: '神戸市中央区八幡通', note: 'ジョーシン三宮1ばん館の東', addr: '兵庫県神戸市中央区八幡通3丁目2-23',
-    alias: ['トヨタレンタリース三宮', 'トヨタレンタカー三宮', 'トヨタレンタカー 三宮店', 'トヨタレンタリース', 'トヨタレンタカー', 'トヨレン', 'とよたれんたかー'] },
-  { name: 'ホテルオークラ神戸', kind: 'ホテル', info: '神戸市中央区波止場町', note: 'メリケンパーク内', addr: '兵庫県神戸市中央区波止場町2-1',
-    alias: ['オークラ神戸', 'ホテルオークラ', 'オークラ', 'Hotel Okura Kobe', 'おーくら'] },
-  { name: '神戸ポートピアホテル', kind: 'ホテル', info: '神戸市中央区港島中町', note: 'ポートライナー市民広場駅すぐ', addr: '兵庫県神戸市中央区港島中町6丁目10-1',
-    alias: ['ポートピアホテル', 'ポートピア', 'Kobe Portopia Hotel', 'ぽーとぴあ'] },
-  { name: 'ANAクラウンプラザホテル神戸', kind: 'ホテル', info: '神戸市中央区北野町', note: '新神戸駅直結', addr: '兵庫県神戸市中央区北野町1',
-    alias: ['クラウンプラザ神戸', 'クラウンプラザ', 'ANAクラウンプラザ', '旧新神戸オリエンタルホテル', '新神戸オリエンタルホテル'] },
-  { name: '神戸メリケンパークオリエンタルホテル', kind: 'ホテル', info: '神戸市中央区波止場町', note: 'メリケンパーク', addr: '兵庫県神戸市中央区波止場町5-6',
-    alias: ['メリケンパークオリエンタルホテル', 'メリケンオリエンタル', 'オリエンタルホテル メリケン', 'Kobe Meriken Park Oriental Hotel'] },
-  { name: '神戸ベイシェラトン ホテル&タワーズ', kind: 'ホテル', info: '神戸市東灘区向洋町中', note: '六甲アイランド', addr: '兵庫県神戸市東灘区向洋町中2丁目13',
-    alias: ['神戸ベイシェラトン', 'ベイシェラトン', 'シェラトン神戸', 'シェラトン', 'Sheraton Kobe'] },
-  { name: 'ホテルプラザ神戸', kind: 'ホテル', info: '神戸市東灘区向洋町中', note: '六甲アイランド', addr: '兵庫県神戸市東灘区向洋町中2丁目9-1',
-    alias: ['プラザ神戸', 'Hotel Plaza Kobe'] },
-  { name: '神戸大学医学部附属病院', kind: '病院', info: '神戸市中央区楠町', note: '神大病院', addr: '兵庫県神戸市中央区楠町7丁目5-2',
-    alias: ['神戸大学病院', '神大病院', '神戸大学附属病院', '神大附属病院', 'しんだいびょういん'] },
-  { name: '神戸市立医療センター中央市民病院', kind: '病院', info: '神戸市中央区港島南町', note: 'ポートアイランド', addr: '兵庫県神戸市中央区港島南町2丁目1-1',
-    alias: ['中央市民病院', '神戸中央市民病院', '市民病院', 'ちゅうおうしみん'] },
-  { name: '兵庫県立こども病院', kind: '病院', info: '神戸市中央区港島南町', note: 'ポートアイランド', addr: '兵庫県神戸市中央区港島南町1丁目6-7',
-    alias: ['こども病院', '県立こども病院', '子ども病院'] },
-  { name: '神戸赤十字病院', kind: '病院', info: '神戸市中央区脇浜海岸通', note: 'HAT神戸', addr: '兵庫県神戸市中央区脇浜海岸通1丁目3-1',
-    alias: ['赤十字病院', '日赤', '神戸日赤', '日赤病院'] },
-  { name: '神鋼記念病院', kind: '病院', info: '神戸市中央区脇浜町', addr: '兵庫県神戸市中央区脇浜町1丁目4-47',
-    alias: ['神鋼病院', 'しんこうきねん'] },
-  { name: '神戸労災病院', kind: '病院', info: '神戸市中央区籠池通', addr: '兵庫県神戸市中央区籠池通4丁目1-23',
-    alias: ['労災病院', 'ろうさいびょういん'] },
-  { name: '神戸市立西神戸医療センター', kind: '病院', info: '神戸市西区糀台', note: '西神中央', addr: '兵庫県神戸市西区糀台5丁目7-1',
-    alias: ['西神戸医療センター', '西神戸医療', 'にししんこう'] },
-  { name: '神戸市立医療センター西市民病院', kind: '病院', info: '神戸市長田区一番町', addr: '兵庫県神戸市長田区一番町2丁目4',
-    alias: ['西市民病院', 'にししみん'] },
-  { name: '神戸ポートタワー', kind: '観光', info: '神戸市中央区波止場町', note: 'メリケンパーク', addr: '兵庫県神戸市中央区波止場町5-5',
-    alias: ['ポートタワー', 'Kobe Port Tower', 'ぽーとたわー'] },
-  { name: 'メリケンパーク', kind: '観光', info: '神戸市中央区波止場町', note: 'BE KOBE・海洋博物館', addr: '兵庫県神戸市中央区波止場町2',
-    alias: ['Meriken Park', 'BE KOBE', '神戸海洋博物館', 'めりけん'] },
-  { name: '神戸ハーバーランド モザイク', kind: '商業施設', info: '神戸市中央区東川崎町', note: 'umieモザイク', addr: '兵庫県神戸市中央区東川崎町1丁目6-1',
-    alias: ['モザイク', 'umie モザイク', 'umieモザイク', 'MOSAIC', 'ハーバーランド'] },
-  { name: '神戸アンパンマンこどもミュージアム&モール', kind: '観光', info: '神戸市中央区東川崎町', note: 'ハーバーランド', addr: '兵庫県神戸市中央区東川崎町1丁目6-2',
-    alias: ['アンパンマンミュージアム', 'アンパンマン', 'あんぱんまん'] },
-  { name: '風見鶏の館', kind: '観光', info: '神戸市中央区北野町', note: '北野異人館', addr: '兵庫県神戸市中央区北野町3丁目13-3',
-    alias: ['北野異人館', '異人館', '北野', 'かざみどり', '風見鶏'] },
-  { name: '南京町', kind: '観光', info: '神戸市中央区栄町通', note: '中華街・南京町広場', addr: '兵庫県神戸市中央区栄町通1丁目3-18',
-    alias: ['神戸中華街', '中華街', '南京町広場', 'なんきんまち'] },
-  { name: '生田神社', kind: '寺社', info: '神戸市中央区下山手通', note: '三宮', addr: '兵庫県神戸市中央区下山手通1丁目2-1',
-    alias: ['いくたじんじゃ', '生田さん'] },
-  { name: '湊川神社', kind: '寺社', info: '神戸市中央区多聞通', note: '楠公さん・神戸駅北', addr: '兵庫県神戸市中央区多聞通3丁目1-1',
-    alias: ['楠公さん', 'なんこうさん', 'みなとがわじんじゃ'] },
-  { name: '神戸布引ハーブ園', kind: '観光', info: '神戸市中央区北野町', note: 'ロープウェイ山麓駅', addr: '兵庫県神戸市中央区北野町1丁目4-3',
-    alias: ['布引ハーブ園', 'ハーブ園', '神戸布引ロープウェイ', 'ハーブ園ロープウェイ'] },
-  { name: '神戸市立王子動物園', kind: '観光', info: '神戸市灘区王子町', addr: '兵庫県神戸市灘区王子町3丁目1',
-    alias: ['王子動物園', '王子公園', 'おうじどうぶつえん'] },
-  { name: '神戸どうぶつ王国', kind: '観光', info: '神戸市中央区港島南町', note: '計算科学センター駅すぐ', addr: '兵庫県神戸市中央区港島南町7丁目1-9',
-    alias: ['どうぶつ王国', '動物王国', 'Kobe Animal Kingdom'] },
-  { name: '神戸須磨シーワールド', kind: '観光', info: '神戸市須磨区若宮町', note: '旧須磨海浜水族園', addr: '兵庫県神戸市須磨区若宮町1丁目3-5',
-    alias: ['須磨シーワールド', 'シーワールド', '須磨海浜水族園', 'スマスイ', '須磨水族館'] },
-  { name: '兵庫県立美術館', kind: '観光', info: '神戸市中央区脇浜海岸通', note: 'HAT神戸', addr: '兵庫県神戸市中央区脇浜海岸通1丁目1-1',
-    alias: ['県立美術館', '県美', 'けんび'] },
-  { name: '人と防災未来センター', kind: '観光', info: '神戸市中央区脇浜海岸通', note: 'HAT神戸', addr: '兵庫県神戸市中央区脇浜海岸通1丁目5-2',
-    alias: ['防災未来センター', '人防'] },
-  { name: '神戸市立博物館', kind: '観光', info: '神戸市中央区京町', note: '旧居留地', addr: '兵庫県神戸市中央区京町24',
-    alias: ['市立博物館', '神戸博物館'] },
-  { name: '北野工房のまち', kind: '観光', info: '神戸市中央区中山手通', note: '旧北野小学校', addr: '兵庫県神戸市中央区中山手通3丁目17-1',
-    alias: ['北野工房', 'きたのこうぼう'] },
-  { name: '有馬温泉 金の湯', kind: '温泉', info: '神戸市北区有馬町', note: '有馬温泉', addr: '兵庫県神戸市北区有馬町833',
-    alias: ['金の湯', '有馬温泉', '有馬', 'きんのゆ'] },
-  { name: '有馬温泉 銀の湯', kind: '温泉', info: '神戸市北区有馬町', note: '有馬温泉', addr: '兵庫県神戸市北区有馬町1039-1',
-    alias: ['銀の湯', 'ぎんのゆ'] },
-  { name: '六甲ガーデンテラス', kind: '観光', info: '神戸市灘区六甲山町', note: '六甲山', addr: '兵庫県神戸市灘区六甲山町五介山1877-9',
-    alias: ['ガーデンテラス', '六甲山', '六甲山頂'] },
-  { name: '舞子公園', kind: '観光', info: '神戸市垂水区東舞子町', note: '明石海峡大橋・橋の科学館', addr: '兵庫県神戸市垂水区東舞子町2-51',
-    alias: ['明石海峡大橋', '舞子', '橋の科学館', '舞子海上プロムナード'] },
-  { name: 'ノエビアスタジアム神戸', kind: 'スタジアム', info: '神戸市兵庫区御崎町', note: '御崎公園駅', addr: '兵庫県神戸市兵庫区御崎町1丁目2-2',
-    alias: ['ノエスタ', 'ノエビア', '御崎公園', 'ウイングスタジアム', 'のえすた'] },
-  { name: 'ほっともっとフィールド神戸', kind: 'スタジアム', info: '神戸市須磨区緑台', note: '神戸総合運動公園', addr: '兵庫県神戸市須磨区緑台',
-    alias: ['ほっともっとフィールド', 'ほもフィ', '神戸総合運動公園', '総合運動公園', 'グリーンスタジアム神戸'] },
-  { name: 'GLION ARENA KOBE', kind: 'アリーナ', info: '神戸市中央区新港町', note: 'ジーライオンアリーナ神戸', addr: '兵庫県神戸市中央区新港町130-2',
-    alias: ['ジーライオンアリーナ', 'ジーライオン', 'グライオンアリーナ', '神戸アリーナ', 'TOTTEI'] },
-  { name: '神戸ワールド記念ホール', kind: 'アリーナ', info: '神戸市中央区港島中町', note: 'ポートライナー市民広場駅', addr: '兵庫県神戸市中央区港島中町6丁目12-2',
-    alias: ['ワールド記念ホール', 'ワールドホール', 'World Memorial Hall'] },
-  { name: '神戸国際会館', kind: 'ホール', info: '神戸市中央区御幸通', note: 'こくさいホール', addr: '兵庫県神戸市中央区御幸通8丁目1-6',
-    alias: ['国際会館', 'こくさいホール', '国際会館こくさいホール', 'SOL'] },
-  { name: '神戸文化ホール', kind: 'ホール', info: '神戸市中央区楠町', note: '大倉山', addr: '兵庫県神戸市中央区楠町4丁目2-2',
-    alias: ['文化ホール', 'ぶんかほーる'] },
-  { name: '神戸阪急', kind: '百貨店', info: '神戸市中央区小野柄通', note: '三宮', addr: '兵庫県神戸市中央区小野柄通8丁目1-8',
-    alias: ['阪急百貨店', '神戸阪急百貨店', '旧そごう神戸店', 'そごう神戸', 'そごう'] },
-  { name: '大丸神戸店', kind: '百貨店', info: '神戸市中央区明石町', note: '旧居留地・元町', addr: '兵庫県神戸市中央区明石町40',
-    alias: ['大丸', '大丸神戸', 'だいまる'] },
-  { name: 'ミント神戸', kind: '商業施設', info: '神戸市中央区雲井通', note: '三ノ宮駅東口', addr: '兵庫県神戸市中央区雲井通7丁目1-1',
-    alias: ['ミント', 'mint神戸', 'みんと'] },
-  { name: 'さんちか', kind: '商業施設', info: '神戸市中央区三宮町', note: '三宮地下街', addr: '兵庫県神戸市中央区三宮町1丁目10-1',
-    alias: ['三宮地下街', 'サンチカ'] },
-  { name: '三井アウトレットパーク マリンピア神戸', kind: '商業施設', info: '神戸市垂水区海岸通', note: '垂水', addr: '兵庫県神戸市垂水区海岸通12-2',
-    alias: ['マリンピア神戸', 'マリンピア', '垂水アウトレット', 'アウトレット垂水'] },
-  { name: '神戸三田プレミアム・アウトレット', kind: '商業施設', info: '神戸市北区上津台', note: 'イオンモール神戸北の隣', addr: '兵庫県神戸市北区上津台7丁目3',
-    alias: ['三田アウトレット', 'プレミアムアウトレット', '神戸三田アウトレット', 'さんだアウトレット'] },
-  { name: 'イオンモール神戸北', kind: '商業施設', info: '神戸市北区上津台', addr: '兵庫県神戸市北区上津台8丁目1-1',
-    alias: ['イオン神戸北', 'イオンモール神戸北店'] },
-  { name: 'イオンモール神戸南', kind: '商業施設', info: '神戸市兵庫区中之島', note: '中央市場前駅', addr: '兵庫県神戸市兵庫区中之島2丁目1-1',
-    alias: ['イオン神戸南', 'イオンモール神戸南店'] },
-  { name: '神戸市役所', kind: '官公庁', info: '神戸市中央区加納町', note: '東遊園地の北', addr: '兵庫県神戸市中央区加納町6丁目5-1',
-    alias: ['市役所', '神戸市庁舎', 'しやくしょ'] },
-  { name: '兵庫県庁', kind: '官公庁', info: '神戸市中央区下山手通', note: '県庁前駅', addr: '兵庫県神戸市中央区下山手通5丁目10-1',
-    alias: ['県庁', 'けんちょう'] },
-  { name: '兵庫県警察本部', kind: '官公庁', info: '神戸市中央区下山手通', note: '県庁前駅', addr: '兵庫県神戸市中央区下山手通5丁目4-1',
-    alias: ['県警本部', '兵庫県警', 'けんけい'] },
-  { name: '神戸地方裁判所', kind: '官公庁', info: '神戸市中央区橘通', note: '神戸駅北', addr: '兵庫県神戸市中央区橘通2丁目2-1',
-    alias: ['神戸地裁', '地裁', '裁判所', '神戸家庭裁判所'] },
-  { name: '神戸大学 六甲台キャンパス', kind: '大学', info: '神戸市灘区六甲台町', addr: '兵庫県神戸市灘区六甲台町1-1',
-    alias: ['神戸大学', '神大', 'しんだい', '六甲台'] },
-  { name: '甲南大学 岡本キャンパス', kind: '大学', info: '神戸市東灘区岡本', addr: '兵庫県神戸市東灘区岡本8丁目9-1',
-    alias: ['甲南大学', '甲南大', 'こうなん'] },
-  { name: '神戸学院大学 ポートアイランドキャンパス', kind: '大学', info: '神戸市中央区港島', note: 'ポートアイランド', addr: '兵庫県神戸市中央区港島1丁目1-3',
-    alias: ['神戸学院大学', '神戸学院', '学院大'] },
-  { name: '神戸空港', kind: '空港', info: '神戸市中央区神戸空港', note: 'マリンエア', addr: '兵庫県神戸市中央区神戸空港1',
-    alias: ['マリンエア', 'UKB', 'Kobe Airport', 'こうべくうこう'] },
-  { name: '阪神甲子園球場', kind: 'スタジアム', info: '西宮市甲子園町', note: '甲子園駅', addr: '兵庫県西宮市甲子園町1-82',
-    alias: ['甲子園', '甲子園球場', 'こうしえん'] },
-  { name: '東横INN神戸湊川公園', kind: 'ホテル', info: '神戸市兵庫区福原町', note: '湊川公園駅から徒歩約3分', addr: '兵庫県神戸市兵庫区福原町32-13',
-    alias: ['東横イン神戸湊川公園', '東横INN湊川公園', '東横イン湊川公園', '東横 湊川公園', '湊川公園 東横', '東横INN', '東横イン', '東横', 'とうよこいん', 'Toyoko Inn Kobe Minatogawa Koen'] },
-  { name: 'カンデオホテルズ神戸トアロード', kind: 'ホテル', info: '神戸市中央区三宮町', note: 'トアロード沿い・元町駅から徒歩約3分', addr: '兵庫県神戸市中央区三宮町3丁目8-8',
-    alias: ['CANDEO HOTELS 神戸トアロード', 'カンデオホテル神戸トアロード', 'カンデオホテルズ神戸', 'カンデオホテル神戸', 'カンデオ トアロード', 'カンデオホテルズ', 'カンデオホテル', 'カンデオ', 'かんでお', 'Candeo Hotels Kobe Tor Road'] },
-  { name: 'umie', kind: '商業施設', info: '神戸市中央区東川崎町', note: '神戸ハーバーランド', addr: '兵庫県神戸市中央区東川崎町1丁目7-2',
-    alias: ['ウミエ', 'うみえ', 'UMIE', '神戸ハーバーランドumie', 'umie ノースモール', 'umie サウスモール'] },
-  { name: '三宮オーパ', kind: '商業施設', info: '神戸市中央区三宮町', addr: '兵庫県神戸市中央区三宮町1丁目5-26',
-    alias: ['三宮OPA', 'Sannomiya OPA', 'オーパ', 'OPA', '三ノ宮オーパ', 'さんのみやオーパ'] },
-  { name: '三宮オーパ2', kind: '商業施設', info: '神戸市中央区雲井通', addr: '兵庫県神戸市中央区雲井通6丁目1-15',
-    alias: ['三宮OPA2', 'Sannomiya OPA2', 'オーパ2', 'OPA2', '三ノ宮オーパ2', 'さんのみやオーパ2'] },
-];
 function stationSuggest(q) {
   const k = normName(q.replace(/駅$/, '')), kq = normName(q);
   if (!k) return [];
@@ -1866,19 +1723,93 @@ function placeRank(pl, kq, words) {
     : kq.length >= 2 && [n, ...al].some(x => x.includes(kq)) ? 3
     : words.length >= 2 && words.every(w => [n, ...al].some(x => x.includes(w))) ? 4 : -1;
 }
-// 場所データ：自分で登録した場所＋内蔵の施設（設定の places に保存。全データ削除でも消えない）
-//   自分で登録 {id,name,addr,alias,note}
-//   内蔵の書き換え {id,base:内蔵の名前,name,addr,alias,note} ／ 内蔵を候補に出さない {id,base,hidden:true}
-// all=true なら候補に出さない内蔵の施設も含める（場所データの画面用）
-function placeDb(all) {
-  const ov = new Map(S.settings.places.filter(p => p.base).map(p => [p.base, p]));
-  const out = S.settings.places.filter(p => !p.base).map(p => ({ ...p, kind: '登録', info: shortAddr(p.addr), alias: p.alias || [], key: p.id }));
-  for (const b of EXTRA_PLACES) {
-    const o = ov.get(b.name), key = 'b:' + b.name;
-    if (!o) out.push({ ...b, key, builtin: b });
-    else if (o.hidden) { if (all) out.push({ ...b, key, builtin: b, hidden: true }); }
-    else out.push({ kind: b.kind, info: o.addr === b.addr ? b.info : shortAddr(o.addr),
-      name: o.name, addr: o.addr, alias: o.alias || [], ...(o.note ? { note: o.note } : {}), key, builtin: b, edited: true });
+// 場所データ：施設名・住所の一覧。端末には保存せず、GitHubのリポジトリ（taxi-analyzer/places.json）に置く
+//   {id,name,kind,info,note?,addr,alias:[]}。読むのは誰でも可、登録・編集はGitHubのトークンで直接ファイルを更新する
+const PLACE_REPO = 'syuu-hub/syuu-hub.github.io', PLACE_PATH = 'taxi-analyzer/places.json', PLACE_BRANCH = 'main';
+const PLACE_API = `https://api.github.com/repos/${PLACE_REPO}/contents/${PLACE_PATH}`;
+const GH_KEY = 'taxiboard.ghToken';   // 書き込み用のトークン（バックアップには含めない）
+const PDB = { list: [], sha: null, state: 'loading', at: 0, err: '' };
+const ghToken = () => { try { return localStorage.getItem(GH_KEY) || ''; } catch (e) { return ''; } };
+const ghHeaders = () => ({ Accept: 'application/vnd.github+json', ...(ghToken() ? { Authorization: 'Bearer ' + ghToken() } : {}) });
+const b64enc = s => { const u = new TextEncoder().encode(s); let b = ''; for (let i = 0; i < u.length; i += 0x8000) b += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(b); };
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, '')), c => c.charCodeAt(0)));
+const placesText = list => '[\n' + list.map(p => JSON.stringify(p)).join(',\n') + '\n]\n';   // 1件1行（GitHubで差分が読みやすい）
+// 住所から候補の補足に出す「市区町村＋町名」（番地は省く）
+const placeInfo = a => shortAddr(a).replace(/[0-9０-９].*$/, '').replace(/[一二三四五六七八九十]+丁目$/, '');
+async function ghGet() {
+  const res = await fetch(`${PLACE_API}?ref=${PLACE_BRANCH}`, { headers: ghHeaders(), cache: 'no-store' });
+  if (!res.ok) throw new Error(res.status === 401 ? 'GitHubのトークンが無効です' : '場所データを読み込めませんでした（' + res.status + '）');
+  const j = await res.json();
+  return { list: JSON.parse(b64dec(j.content)), sha: j.sha };
+}
+// 最新のファイルを読み、fn で書き換えて保存する（他の端末と同時に更新した時は読み直してやり直す）
+async function remoteUpdate(fn, message) {
+  for (let i = 0; i < 3; i++) {
+    const cur = await ghGet();
+    const ret = fn(cur.list);
+    const res = await fetch(PLACE_API, { method: 'PUT', headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, content: b64enc(placesText(cur.list)), sha: cur.sha, branch: PLACE_BRANCH }) });
+    if (res.ok) {
+      const j = await res.json();
+      Object.assign(PDB, { list: cur.list, sha: j.content.sha, state: 'ok', at: Date.now(), err: '' });
+      return ret;
+    }
+    if (res.status === 409) continue;
+    throw new Error(res.status === 401 ? 'GitHubのトークンが無効です' : res.status === 403 || res.status === 404 ? 'トークンに書き込みの権限がありません' : '保存できませんでした（' + res.status + '）');
+  }
+  throw new Error('他の端末の更新と重なりました。もう一度保存してください');
+}
+async function loadPlaces() {
+  PDB.state = PDB.list.length ? PDB.state : 'loading';
+  let list = null, sha = null, err = '';
+  if (ghToken()) try { ({ list, sha } = await ghGet()); } catch (e) { err = e.message; }
+  if (!list) try {
+    // 公開ファイル（圏外ではアプリが覚えている最後の内容）
+    const res = await fetch('places.json', { cache: 'no-cache' });
+    if (res.ok) list = await res.json();
+  } catch (e) {}
+  if (list) Object.assign(PDB, { list: list.map(p => ({ ...p, alias: p.alias || [] })), sha, state: 'ok', at: Date.now(), err });
+  else Object.assign(PDB, { state: PDB.list.length ? 'ok' : 'error', err: err || '場所データを読み込めませんでした（通信を確認）' });
+  migrateLocalPlaces();
+  renderPlaceViews();
+}
+// 以前の版で端末内に保存した場所（登録・内蔵の書き換え・削除）を、連携したらGitHubへ移して端末から消す
+let migrating = false;
+async function migrateLocalPlaces() {
+  const L = S.settings.places;
+  if (!L.length || !ghToken() || PDB.state !== 'ok' || migrating) return;
+  migrating = true;
+  try {
+    await remoteUpdate(list => {
+      for (const o of L) {
+        if (o.base) {
+          const i = list.findIndex(x => x.name === o.base);
+          if (i < 0) continue;
+          if (o.hidden) list.splice(i, 1);
+          else { const p = list[i]; delete p.note; Object.assign(p, { name: o.name, addr: o.addr, alias: o.alias || [], ...(o.note ? { note: o.note } : {}) }); if (p.addr) p.info = placeInfo(p.addr); }
+        } else if (!list.some(x => normName(x.name) === normName(o.name)))
+          list.push({ id: uid(), name: o.name, kind: '登録', info: placeInfo(o.addr), ...(o.note ? { note: o.note } : {}), addr: o.addr || '', alias: o.alias || [] });
+      }
+    }, `場所データ: 端末内の${L.length}件を移行`);
+    S.settings.places = []; save();
+    toast(`端末内の場所${L.length}件をGitHubへ移しました`);
+    renderPlaceViews();
+  } catch (e) { toast(e.message); }
+  finally { migrating = false; }
+}
+function renderPlaceViews() {
+  renderData();
+  if (!$('#placeDbSheet').hidden) renderPlaceDb();
+}
+// 候補・検索に使う場所の一覧。連携前に端末内に残っている以前の登録も重ねて使う
+function placeDb() {
+  const L = S.settings.places;
+  const ov = new Map(L.filter(p => p.base).map(p => [p.base, p]));
+  const out = L.filter(p => !p.base).map(p => ({ ...p, kind: '登録', info: placeInfo(p.addr), alias: p.alias || [], key: 'l:' + p.id, local: true }));
+  for (const b of PDB.list) {
+    const o = ov.get(b.name);
+    if (!o) out.push({ ...b, key: b.id });
+    else if (!o.hidden) out.push({ ...b, name: o.name, addr: o.addr, alias: o.alias || [], note: o.note, key: b.id, local: true });
   }
   return out;
 }
@@ -2776,7 +2707,7 @@ let KNOWN_POS = null;
 function knownPos(name) {
   if (!KNOWN_POS) {
     KNOWN_POS = new Map();
-    for (const pl of [...stations(), ...EXTRA_PLACES]) if (pl.lat != null) KNOWN_POS.set(normName(pl.name), { lat: pl.lat, lng: pl.lng });
+    for (const pl of [...stations(), ...PDB.list]) if (pl.lat != null) KNOWN_POS.set(normName(pl.name), { lat: pl.lat, lng: pl.lng });
   }
   return KNOWN_POS.get(normName(name)) || null;
 }
@@ -3069,8 +3000,7 @@ function renderData() {
       <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 ${yen(a.fee)}／他 ${yen(a.feeOther)}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') : '<li class="empty">配車アプリが登録されていません。</li>';
-  const myN = S.settings.places.filter(p => !p.base).length, edN = S.settings.places.length - myN;
-  setFoldSum('gPlaces', `内蔵${EXTRA_PLACES.length}件・登録${myN}件` + (edN ? `・変更${edN}件` : ''));
+  setFoldSum('gPlaces', (PDB.state === 'ok' ? PDB.list.length + '件' : PDB.state === 'loading' ? '読み込み中' : '読み込めません') + ' ・ ' + (ghToken() ? 'GitHub連携' : '閲覧のみ'));
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
 
   const past = S.shifts.filter(s => s.end).sort((a, b) => b.start - a.start).slice(0, 30);
@@ -3922,111 +3852,138 @@ $('#appPay').addEventListener('click', e => { const b = e.target.closest('[data-
 $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
 // 場所データ：検索して編集・削除、見つからなければ登録
-const MP = { key: null, w: null };
+const MP = { key: null, w: null };   // 編集中の場所（key）と、乗車記録のどちらの欄から開いたか（w）
 // 2文字以上で、場所データの名前や別名と同じでなければ登録できる
 const canRegister = v => {
   const k = normName(v);
   return k.length >= 2 && !placeDb().some(p => [p.name, ...p.alias].some(x => normName(x) === k));
 };
-// 全件は出さず、検索した時だけ一致するものを出す（何も入れていない時は自分で登録・変更した場所だけ）
+// 全件は出さず、検索した時だけ一致するものを出す（何も入れていない時は自分で登録した場所の新しい順）
 function renderPlaceDb() {
   const q = $('#pdQ').value.trim(), kq = normName(q);
   const words = q.split(/[\s　の]+/).map(normName).filter(w => w.length >= 2);
-  const db = placeDb(true);
+  const db = placeDb();
+  const tok = !!ghToken(), t = PDB.at ? new Date(PDB.at) : null;
+  $('#pdSt').className = 'pd-st' + (PDB.state === 'error' || PDB.err ? ' err' : '');
+  $('#pdSt').innerHTML = `<span>${PDB.state === 'loading' ? '読み込み中…' : PDB.state === 'error' || PDB.err ? esc(PDB.err)
+    : (tok ? 'GitHubに保存' : '閲覧のみ（登録・編集はGitHub連携が必要）') + (t ? ` ・ ${pad2(t.getHours())}:${pad2(t.getMinutes())} 読込` : '')}</span>` +
+    `<button class="link-btn" type="button" data-gh>${tok ? '連携設定' : 'GitHub連携'}</button>`;
   let rows;
-  if (!kq) rows = db.filter(p => !p.builtin || p.edited || p.hidden);
+  if (!kq) rows = db.filter(p => p.kind === '登録').reverse().slice(0, 30);
   else rows = db.map(p => {
     let r = placeRank(p, kq, words);
     if (r < 0 && kq.length >= 2 && normName(p.addr || '').includes(kq)) r = 5;   // 住所でも探せる
     return [r, p];
   }).filter(h => h[0] >= 0).sort((a, b) => a[0] - b[0]).slice(0, 30).map(h => h[1]);
-  const tag = p => p.hidden ? '<span class="tag">削除済み</span>' : p.edited ? '<span class="tag ed">変更済み</span>' : !p.builtin ? '<span class="tag ed">登録</span>' : '';
+  const tag = p => p.local ? '<span class="tag">端末内</span>' : p.kind === '登録' ? '<span class="tag ed">登録</span>' : '';
   $('#pdList').innerHTML = rows.map(p => `<li><button class="row" data-pd="${esc(p.key)}">
       <span class="body"><div class="main">${esc(p.name)}${tag(p)}</div><div class="sub">${esc(p.kind)} ・ ${esc(shortAddr(p.addr) || '住所なし')}${p.note ? ' ・ ' + esc(p.note) : ''}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') + (rows.length ? '' : kq
       ? `<li class="empty">「${esc(q)}」は見つかりませんでした。<button class="btn sm primary" style="width:100%;margin-top:10px" data-pd-new>＋「${esc(q)}」を登録</button></li>`
-      : '<li class="empty">施設名・別名・住所で検索すると、内蔵の施設も含めて編集できます。自分で登録・変更した場所はここに並びます。</li>');
-  $('#pdCount').textContent = db.length + '件';
+      : '<li class="empty">施設名・別名・住所で検索すると、一致した場所だけを表示します。自分で登録した場所はここに新しい順で並びます。</li>');
+  $('#pdCount').textContent = PDB.state === 'ok' ? PDB.list.length + '件' : '';
 }
 function openPlaceDb() {
   $('#pdQ').value = '';
   renderPlaceDb();
   $('#placeDbSheet .sheet-inner').scrollTop = 0;
   openSheet($('#placeDbSheet'));
+  if (Date.now() - PDB.at > 60000) loadPlaces();   // 他の端末で登録した分を取り込む
+}
+// GitHub連携：リポジトリの Contents に書き込めるトークンを登録（空欄で解除）
+async function setupToken() {
+  const v = prompt('GitHubの個人アクセストークンを入力してください。\n（Fine-grained token・リポジトリ ' + PLACE_REPO + ' の Contents: Read and write）\n空欄で連携を解除します。', '');
+  if (v == null) return false;
+  const tok = v.trim();
+  if (!tok) { try { localStorage.removeItem(GH_KEY); } catch (e) {} toast('GitHub連携を解除しました'); renderPlaceViews(); return false; }
+  try {
+    const res = await fetch(`https://api.github.com/repos/${PLACE_REPO}`, { headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + tok } });
+    if (!res.ok) throw new Error(res.status === 401 ? 'トークンが無効です' : '確認できませんでした（' + res.status + '）');
+    const j = await res.json();
+    if (!j.permissions || !j.permissions.push) throw new Error('このトークンには書き込みの権限がありません');
+  } catch (e) { toast(e.message.startsWith('Failed') ? '通信できませんでした' : e.message); return false; }
+  try { localStorage.setItem(GH_KEY, tok); } catch (e) { toast('トークンを保存できませんでした'); return false; }
+  toast('GitHubと連携しました');
+  await loadPlaces();
+  return true;
+}
+async function needToken() {
+  if (ghToken()) return true;
+  if (!confirm('場所の登録・編集はGitHubのリポジトリに保存します。\nGitHub連携を設定しますか？')) return false;
+  return setupToken();
 }
 function openPlaceEditor(key, w, name) {
-  const p = key ? placeDb(true).find(x => x.key === key) : null;
+  const p = key ? placeDb().find(x => x.key === key) : null;
   Object.assign(MP, { key: p ? p.key : null, w: w || null });
   const o = w && E ? E[w] : null;
-  $('#mpTitle').textContent = !p ? '場所を登録' : p.builtin ? '施設の編集' : '場所の編集';
+  $('#mpTitle').textContent = p ? '場所の編集' : '場所を登録';
   // 乗車記録の手入力から登録する時は、入れた文字（ふつうは住所）を住所欄に入れ、名称を入力してもらう
   const typed = w ? addrInput(w).value.trim() : '';
   $('#mpName').value = p ? p.name : w ? '' : name || '';
   $('#mpAddr').value = p ? p.addr || '' : typed ? withPref(typed.replace(/\s+/g, '')) : o && !o.manual && o.addr ? o.addr : '';
   $('#mpAlias').value = p ? p.alias.join('、') : '';
   $('#mpNote').value = p ? p.note || '' : '';
-  $('#mpDelete').hidden = !p || !!p.hidden;
-  $('#mpReset').hidden = !p || !(p.edited || p.hidden);
-  $('#mpReset').textContent = p && p.hidden ? '削除を取り消して内蔵の内容に戻す' : '内蔵の内容に戻す';
+  $('#mpDelete').hidden = !p;
   $('#placeSheet .sheet-inner').scrollTop = 0;
   openSheet($('#placeSheet'));
   if (!p && !$('#mpName').value) setTimeout(() => $('#mpName').focus(), 250);
 }
 function afterPlaceChange() {
-  save(); closeSheet($('#placeSheet')); renderData();
-  if (!$('#placeDbSheet').hidden) renderPlaceDb();
+  closeSheet($('#placeSheet'));
+  renderPlaceViews();
 }
-function savePlace() {
+let placeBusy = false;
+async function savePlace() {
+  if (placeBusy) return;
   const name = $('#mpName').value.trim().replace(/\s+/g, ' ');
   if (!name) { toast('名称を入力してください'); $('#mpName').focus(); return; }
   if (placeDb().some(x => x.key !== MP.key && normName(x.name) === normName(name))) { toast('同じ名称の場所が登録済みです'); return; }
+  if (!await needToken()) return;
   const addr = withPref($('#mpAddr').value.trim().replace(/\s+/g, ''));
   const alias = [...new Set($('#mpAlias').value.split(/[、,，\/／\n]+/).map(s => s.trim()).filter(s => s && s !== name))];
   const note = $('#mpNote').value.trim();
-  const cfg = { name, addr, alias, ...(note ? { note } : {}) };
-  const L = S.settings.places;
-  let key = MP.key;
-  if (key && key.startsWith('b:')) {
-    // 内蔵の施設：書き換えを保存（内蔵と同じ内容なら書き換えを消す）
-    const base = key.slice(2), b = EXTRA_PLACES.find(x => x.name === base);
-    S.settings.places = L.filter(x => x.base !== base);
-    const same = b && name === b.name && addr === b.addr && note === (b.note || '') && alias.join('\n') === b.alias.join('\n');
-    if (!same) S.settings.places.push({ id: uid(), base, ...cfg });
-  } else if (key) {
-    const p = L.find(x => x.id === key);
-    delete p.note; Object.assign(p, cfg);
-  } else { const id = uid(); L.push({ id, ...cfg }); key = id; }
-  const isNew = !MP.key, w = MP.w;
-  afterPlaceChange();
-  // 乗車記録から登録した時は、その欄に登録した場所を入れる
-  if (w && E) {
-    const pl = placeDb().find(x => x.key === key);
-    addrInput(w).value = pl.name; E.dirty[w] = true; E.pick[w] = pl;
-    $(sugId(w)).innerHTML = ''; renderEntryLoc();
-  }
-  toast(`${name} を${isNew ? '登録' : '保存'}しました`);
+  const key = MP.key && !MP.key.startsWith('l:') ? MP.key : null, isNew = !key, w = MP.w;
+  placeBusy = true; $('#mpOk').textContent = '保存中…';
+  try {
+    const id = await remoteUpdate(list => {
+      if (key) {
+        const p = list.find(x => x.id === key);
+        if (!p) throw new Error('この場所は他の端末で削除されています');
+        if (p.addr !== addr || p.kind === '登録') p.info = placeInfo(addr);
+        p.name = name; p.addr = addr; p.alias = alias;
+        if (note) p.note = note; else delete p.note;
+        return p.id;
+      }
+      if (list.some(x => normName(x.name) === normName(name))) throw new Error('同じ名称の場所が登録済みです');
+      const id = uid();
+      list.push({ id, name, kind: '登録', info: placeInfo(addr), ...(note ? { note } : {}), addr, alias });
+      return id;
+    }, `場所データ: ${isNew ? '登録' : '変更'} ${name}`);
+    afterPlaceChange();
+    // 乗車記録から登録した時は、その欄に登録した場所を入れる
+    if (w && E) {
+      const pl = placeDb().find(x => x.key === id);
+      if (pl) { addrInput(w).value = pl.name; E.dirty[w] = true; E.pick[w] = pl; $(sugId(w)).innerHTML = ''; renderEntryLoc(); }
+    }
+    toast(`${name} を${isNew ? '登録' : '保存'}しました`);
+  } catch (e) { toast(e.message.startsWith('Failed') ? '通信できませんでした。電波の良い所で保存してください' : e.message); }
+  finally { placeBusy = false; $('#mpOk').textContent = '保存'; }
 }
-function deletePlace() {
-  const p = placeDb(true).find(x => x.key === MP.key);
-  if (!p) return;
-  if (p.builtin) {
-    if (!confirm(`${p.name} を候補に出さないようにしますか？\n（場所データで検索すれば元に戻せます。記録済みの乗車はそのまま残ります）`)) return;
-    S.settings.places = S.settings.places.filter(x => x.base !== p.builtin.name);
-    S.settings.places.push({ id: uid(), base: p.builtin.name, hidden: true });
-  } else {
-    if (!confirm(`${p.name} を削除しますか？\n（記録済みの乗車の場所はそのまま残ります）`)) return;
-    S.settings.places = S.settings.places.filter(x => x.id !== p.key);
-  }
-  afterPlaceChange();
+async function deletePlace() {
+  const p = placeDb().find(x => x.key === MP.key);
+  if (!p || placeBusy) return;
+  if (!confirm(`${p.name} を場所データから削除しますか？\n（記録済みの乗車の場所はそのまま残ります）`)) return;
+  if (!await needToken()) return;
+  placeBusy = true;
+  try {
+    if (!p.local) await remoteUpdate(list => { const i = list.findIndex(x => x.id === p.key); if (i >= 0) list.splice(i, 1); }, `場所データ: 削除 ${p.name}`);
+    afterPlaceChange();
+    toast(`${p.name} を削除しました`);
+  } catch (e) { toast(e.message.startsWith('Failed') ? '通信できませんでした' : e.message); }
+  finally { placeBusy = false; }
 }
-function resetPlace() {
-  const p = placeDb(true).find(x => x.key === MP.key);
-  if (!p || !p.builtin) return;
-  S.settings.places = S.settings.places.filter(x => x.base !== p.builtin.name);
-  afterPlaceChange();
-  toast(`${p.builtin.name} を内蔵の内容に戻しました`);
-}
+$('#pdSt').addEventListener('click', e => { if (e.target.closest('[data-gh]')) { haptic(); setupToken(); } });
 $('#placeDbBtn').addEventListener('click', openPlaceDb);
 $('#pdQ').addEventListener('input', renderPlaceDb);
 $('#pdQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
@@ -4039,7 +3996,6 @@ $('#pdAdd').addEventListener('click', () => openPlaceEditor(null, null, $('#pdQ'
 $('#placeDbSheet [data-close]').addEventListener('click', () => closeSheet($('#placeDbSheet')));
 $('#mpOk').addEventListener('click', savePlace);
 $('#mpDelete').addEventListener('click', deletePlace);
-$('#mpReset').addEventListener('click', resetPlace);
 $('#placeSheet [data-close]').addEventListener('click', () => closeSheet($('#placeSheet')));
 $('#mpHere').addEventListener('click', async () => {
   haptic();
@@ -4285,6 +4241,7 @@ window.addEventListener('resize', () => {
    ============================================================ */
 applySettings();
 setView(S.settings.tab);
+loadPlaces();
 startGeo();
 queueAddr();
 setInterval(queueAddr, 60000);
