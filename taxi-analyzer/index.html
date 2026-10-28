@@ -3960,9 +3960,10 @@ function openPlaceEditor(key, w, name) {
   Object.assign(MP, { key: p ? p.key : null, w: w || null });
   const o = w && E ? E[w] : null;
   $('#mpTitle').textContent = !p ? '場所を登録' : p.builtin ? '施設の編集' : '場所の編集';
-  $('#mpName').value = p ? p.name : w ? addrInput(w).value.trim() : name || '';
-  // 乗車記録から登録する時は、その時のGPSの住所を下書きに入れる
-  $('#mpAddr').value = p ? p.addr || '' : o && !o.manual && o.addr ? o.addr : '';
+  // 乗車記録の手入力から登録する時は、入れた文字（ふつうは住所）を住所欄に入れ、名称を入力してもらう
+  const typed = w ? addrInput(w).value.trim() : '';
+  $('#mpName').value = p ? p.name : w ? '' : name || '';
+  $('#mpAddr').value = p ? p.addr || '' : typed ? withPref(typed.replace(/\s+/g, '')) : o && !o.manual && o.addr ? o.addr : '';
   $('#mpAlias').value = p ? p.alias.join('、') : '';
   $('#mpNote').value = p ? p.note || '' : '';
   $('#mpDelete').hidden = !p || !!p.hidden;
