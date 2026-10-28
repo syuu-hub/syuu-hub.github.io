@@ -390,7 +390,6 @@ svg{display:block}
 .pl-sort{margin:0 0 6px}
 .pl-sort button{flex:1}
 .prank{list-style:none}
-.dscale{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin:-4px 0 2px calc(2.4em + 10px);padding-right:calc(5.4em + 10px)}
 .prank li{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;column-gap:10px;align-items:center;padding:10px 0}
 .prank li + li{border-top:1px solid var(--line)}
 .prank .n{font-size:13px;font-weight:800;color:var(--muted);text-align:center}
@@ -416,21 +415,6 @@ svg{display:block}
 .kpi .v{font-size:clamp(16px,4.8vw,22px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .v small{font-size:.6em;color:var(--muted);font-weight:600;margin-left:1px}
 /* 横棒（曜日・種別）：ラベル｜棒｜値 */
-.hbars{display:grid;gap:4px}
-.hbar{display:grid;grid-template-columns:2.4em minmax(0,1fr) auto;align-items:center;gap:10px;min-height:36px;width:100%;text-align:left;border-radius:6px}
-.hbar.wide{grid-template-columns:5.4em minmax(0,1fr) auto}
-.hbar .l{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hbar .t{height:14px;border-radius:0 4px 4px 0;background:var(--surface-2);overflow:hidden}
-.hbar .t i{display:block;height:100%;border-radius:0 4px 4px 0;background:#6B7584}
-.hbar.hi .t i{background:var(--accent)}
-.hbar .v{font-size:14px;font-weight:700;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
-.hbar .v small{font-size:11px;color:var(--faint);font-weight:500;margin-left:4px}
-.hbar.low .l,.hbar.low .v{color:var(--faint)}
-.hbar[aria-pressed="true"]{background:var(--surface-2)}
-.hbar.dist .t{position:relative;border-radius:4px;overflow:visible}
-.hbar.dist .t b{position:absolute;top:0;bottom:0;border-radius:4px;background:#6B7584;opacity:.55}
-.hbar.dist.hi .t b{background:var(--accent)}
-.hbar.dist .t em{position:absolute;top:-3px;bottom:-3px;width:3px;margin-left:-1.5px;border-radius:2px;background:var(--text)}
 .kpi .s{font-size:10.5px;letter-spacing:-.02em;color:var(--faint);margin-top:2px;line-height:1.3}
 .plist .a small{font-size:11px;color:var(--muted);margin-left:1px;font-weight:600}
 .ana-note.wrap{white-space:normal;line-height:1.5}
@@ -457,12 +441,9 @@ svg{display:block}
 .heat-legend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .heat-legend i{display:inline-block;width:14px;height:10px;border-radius:2px}
 .heat-legend .scale{gap:2px}
-/* くわしく見る：閉じた時は見出しと要点の1行 */
+/* くわしく見る：見出しと要点の1行、その下にグラフ */
 .ana-fold{padding:0}
-.ana-fold summary{list-style:none;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 10px;padding:12px 16px;min-height:56px;cursor:pointer}
-.ana-fold summary::-webkit-details-marker{display:none}
-.ana-fold summary::after{content:'';grid-row:1 / 3;grid-column:2;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:0 4px 4px 0;transition:transform .15s}
-.ana-fold[open] summary::after{transform:rotate(-135deg);margin:4px 4px 0 0}
+.ana-fold .af-h{display:flex;flex-direction:column;gap:2px;padding:12px 16px 10px}
 .ana-fold .t{font-size:14px;font-weight:700}
 .ana-fold .tk{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-fold .tk .dl{margin-left:4px;font-weight:700}
@@ -484,8 +465,6 @@ svg{display:block}
 .pexp .r{font-size:12px;color:var(--muted)}
 .pgoal{font-size:13px;margin-top:6px}
 .plan .sub-h span{display:block;font-weight:500;color:var(--faint);font-size:11px;margin-top:2px}
-.pdows .hbar{min-height:30px}
-.pdows .hbar .t i.g{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--text);opacity:.6}
 .pgoal b{font-size:16px}
 .pstrip{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px}
 .pstrip .c{font-size:10px;color:var(--faint);text-align:center;font-weight:600}
@@ -1541,7 +1520,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', anaOpen: [], places: [] },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -2857,7 +2836,7 @@ const anaTip = (el, text) => { const card = el.closest('.ana-card'), box = el.cl
 //   ・乗り場の待ち：機会費用。乗り場の平均運賃 ÷ 1時間あたり ＝ 待ってもよい時間（乗車時間を除く）
 //   ・働く長さ：調子の良い日に早く上がっていないか（タクシー運転手の労働供給の研究：Camerer ほか 1997, Farber 2005/2015）
 function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
-  if (D.length < 3) return { html: '', dowsHtml: '', dowTake: '' };
+  if (D.length < 3) return '';
   const kv = n => n >= 100000 ? compactYen(n) : yen(n);
   const k1 = v => (v / 1000).toFixed(v >= 10000 ? 0 : 1);
   const r100 = v => kv(Math.round(v / 100) * 100);
@@ -2880,12 +2859,6 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   const goal = (cur && cur.goal) || S.settings.goal || 0;
   const share0 = allV.filter(v => v >= goal).length / allV.length;
   const pGoal = goal ? (sameV.filter(v => v >= goal).length + 3 * share0) / (sameV.length + 3) : null;
-  // 曜日ごとの1日の売上（中央値と真ん中の半分）。次の営業の曜日を強調し、目標の位置に点線
-  const dows = WEEKDAYS.split('').map((w, i) => { const v = D.filter(d => d.dow === i).map(d => d.sales);
-    return { i, w, n: v.length, m: mean(v), med: quant(v, .5), q1: quant(v, .25), q3: quant(v, .75) }; });
-  const dMin = Math.min(...allV, goal || Infinity), dMax = Math.max(...allV, goal, 1);
-  const dLo = Math.max(0, dMin - (dMax - dMin) * .08), dSpan = Math.max(1, dMax * 1.02 - dLo);
-  const dx = v => Math.min(100, Math.max(0, (v - dLo) / dSpan * 100)).toFixed(1);
   // 時間割（その曜日の3時間ごと）
   const sumH = (rows, hs) => hs.reduce((a, h) => a + rows.reduce((x, r) => x + r[h], 0), 0);
   const slots = HEAT_BLOCKS.map(b => {
@@ -2952,15 +2925,7 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
       <div class="ana-tip"></div>
       </div>
     </div>`;
-  // 曜日ごとの1日の売上（「くわしく見る」に出す）
-  const bestD = dows.filter(d => d.n).sort((a, b) => b.med - a.med)[0];
-  const dowsHtml = `<div class="af-note">線:中央値 帯:半分の日${goal ? ' 点線:目標' : ''}・<b>${wname}</b>を強調</div>
-      <div class="hbars pdows">${dows.map(d => `<button class="hbar dist ${d.i === dow ? 'hi' : ''} ${d.n ? '' : 'low'}" aria-pressed="false"
-        data-tip="${d.w}曜（${d.n}日）：中央値 ${yen(Math.round(d.med))}・平均 ${yen(Math.round(d.m))}・半分の日は ${yen(Math.round(d.q1))}〜${yen(Math.round(d.q3))}${goal && d.n ? `・目標を超えた日 ${D.filter(x => x.dow === d.i && x.sales >= goal).length}日` : ''}">
-        <span class="l">${d.w}</span><span class="t">${d.n ? `<b style="left:${dx(d.q1)}%;width:${Math.max(1, dx(d.q3) - dx(d.q1)).toFixed(1)}%"></b><em style="left:${dx(d.med)}%"></em>` : ''}${goal ? `<i class="g" style="left:${dx(goal)}%"></i>` : ''}</span>
-        <span class="v num">${d.n ? r100(d.med) : '—'}<small>${d.n}日</small></span></button>`).join('')}</div>
-      <div class="ana-tip"></div>`;
-  return { html, dowsHtml, dowTake: bestD ? `いちばん良い ${bestD.w}曜 ${r100(bestD.med)}` : '' };
+  return html;
 }
 
 function renderAnalysis() {
@@ -3040,16 +3005,15 @@ function renderAnalysis() {
   const md = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
   const plan = nextPlan(A, D, { perHour, hiFrom, effOf, shrink });
 
-  const AO = new Set(S.settings.anaOpen || []);
-  // 「くわしく見る」：最初は閉じて要点だけ。開いた状態は覚えておく
-  const fold = (id, title, take, inner, cls = '') => `<details class="ana-card ana-fold ${cls}" data-af="${id}"${AO.has(id) ? ' open' : ''}>
-      <summary><span class="t">${title}</span><span class="tk">${take}</span></summary><div class="af-b">${inner}</div></details>`;
+  // 「くわしく見る」：見出しの下に要点を1行、その下にグラフ（常に表示）
+  const fold = (id, title, take, inner, cls = '') => `<div class="ana-card ana-fold ${cls}" data-af="${id}">
+      <div class="af-h"><span class="t">${title}</span><span class="tk">${take}</span></div><div class="af-b">${inner}</div></div>`;
   const heatTake = bestBlock ? `最も稼げる ${WEEKDAYS[bestBlock.d]}曜 ${bestBlock.b.label}時` : '';
   const plTake = plRows.length ? `${ps.label}1位 ${esc(placeName(plRows[0]))}` : '';
   const kindTake = kindList.length ? `${esc(kindList[0].l)} ${Math.round(kindList[0].s / totSales * 100)}%` : '';
 
   body.innerHTML = `
-    ${plan.html}
+    ${plan}
     <div class="ana-sh">${range === 'all' ? '全期間' : '直近' + range + '日'}の成績</div>
     <div class="kpis k3">
       <div class="kpi main"><div class="k">1時間あたり</div><div class="v num">${kv(Math.round(K.perHour))}</div>${delta('perHour')}</div>
@@ -3077,7 +3041,6 @@ function renderAnalysis() {
         <span class="avg">全体の平均 ${kv(Math.round(perHour))}/時を基準（±10%は平均並み）</span><span><i class="na"></i>記録が少ない</span></div>
       <div class="ana-tip"></div>
 `)}
-    ${plan.dowsHtml ? fold('dow', '曜日ごとの1日の売上', plan.dowTake, plan.dowsHtml) : ''}
     ${fold('place', '乗車地ランキング', plTake, `<div class="af-note">${ps.note}</div>
       <div class="seg pl-sort" id="plSort">${Object.values(PS).map(x => `<button data-ps="${x.k}" aria-pressed="${x === ps}">${x.label}</button>`).join('')}</div>
       ${plRows.length ? `<ol class="prank">${plRows.map((c, i) => `<li>
@@ -3111,20 +3074,14 @@ function renderAnalysis() {
         <li><b>実車率</b>：お客さんを乗せていた時間（各乗車の乗車〜降車）÷ 待機・休憩を除いた営業時間</li>
         <li><b>推定</b>：記録が少ない時間帯・場所は全体の平均に寄せて計算（経験ベイズの縮小推定）。たまたま1回良かっただけの所が上位に出にくくなります</li>
         <li><b>時間効率</b>：その場所で乗せた売上 ÷（前の降車から乗車までの空車・待機時間 ＋ 乗車時間）。2時間を超える空きは休憩として2時間まで</li>
-        <li><b>次の営業プラン</b>：次に出る曜日の見込み売上（曜日ごとの中央値と真ん中の半分。次の曜日を強調）、目標に届く割合、3時間ごとの1時間あたり（その曜日 → 全曜日の同じ時間 → 全体の平均 の順に寄せた推定）、乗り場の待ち時間の上限（乗り場の平均運賃 ÷ 1時間あたり − 乗車時間＝待つことの機会費用）、調子と営業時間の関係（タクシー運転手の労働供給の研究：Camerer ほか 1997・Farber 2015）</li>
+        <li><b>次の営業プラン</b>：次に出る曜日の見込み売上（その曜日の中央値と真ん中の半分）、目標に届く割合、3時間ごとの1時間あたり（その曜日 → 全曜日の同じ時間 → 全体の平均 の順に寄せた推定）、乗り場の待ち時間の上限（乗り場の平均運賃 ÷ 1時間あたり − 乗車時間＝待つことの機会費用）、調子と営業時間の関係（タクシー運転手の労働供給の研究：Camerer ほか 1997・Farber 2015）</li>
         <li><b>曜日×時間帯</b>：3時間ずつの1時間あたり（推定）を全体の平均と比べ、緑は平均より稼げる・赤は稼げない時間。「全」は全曜日、白枠が最も良い時間。次の営業プランの時間割と同じ数字</li>
-        <li><b>曜日ごとの1日の売上</b>：平均は高い日に引っぱられるので中央値で比べ、帯で日によるばらつきを表示</li>
       </ul>
     </details>`;
 }
 $('#anaBody').addEventListener('click', e => { const b = e.target.closest('[data-ps]'); if (!b) return; haptic(); S.settings.anaPlace = b.dataset.ps; saveSoon(); renderAnalysis(); });
 $('#anaRange').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); S.settings.anaRange = b.dataset.v; saveSoon(); renderAnalysis(); });
 $('#anaBody').addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) { haptic(); anaTip(el, el.dataset.tip); } });
-$('#anaBody').addEventListener('toggle', e => {
-  const id = e.target.dataset && e.target.dataset.af; if (!id) return;
-  const o = new Set(S.settings.anaOpen || []); e.target.open ? o.add(id) : o.delete(id);
-  S.settings.anaOpen = [...o]; saveSoon();
-}, true);
 
 /* ============================================================
    描画：出力・設定
