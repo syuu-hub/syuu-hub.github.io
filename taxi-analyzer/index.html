@@ -372,7 +372,7 @@ svg{display:block}
 .ana-sh{font-size:15px;font-weight:800;margin:18px 2px 8px}
 .cols-wrap{position:relative;padding-top:18px}
 .cols-wrap .peak{position:absolute;top:0;transform:translateX(-50%);font-size:11px;font-weight:800;color:var(--accent);white-space:nowrap}
-.heat button.best{outline:2px solid var(--text);outline-offset:-1px}
+.heat button.best{box-shadow:inset 0 0 0 2px var(--text)}
 .taxis{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:4px}
 .hls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
 .hl{background:var(--accent-soft);border:1px solid rgba(255,176,32,.35);border-radius:var(--r-md);padding:12px 8px;min-width:0;text-align:center}
@@ -456,13 +456,24 @@ svg{display:block}
 .cols button[aria-pressed="true"] i{outline:2px solid var(--text);outline-offset:1px}
 .axis{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;font-size:10px;color:var(--faint);margin-top:4px;font-variant-numeric:tabular-nums}
 .axis span{text-align:left;white-space:nowrap}
-.heat{display:grid;grid-template-columns:1.6em repeat(24,minmax(0,1fr));gap:2px}
-.heat .r{font-size:11px;color:var(--muted);font-weight:700;display:flex;align-items:center}
-.heat button{aspect-ratio:1/1.3;border-radius:3px;background:var(--surface-2);padding:0}
+.heat{display:grid;grid-template-columns:1.5em repeat(8,minmax(0,1fr));gap:3px}
+.heat .r{font-size:12px;color:var(--muted);font-weight:700;display:flex;align-items:center;justify-content:center}
+.heat .c{font-size:10px;color:var(--faint);text-align:center;font-weight:600;letter-spacing:-.02em;white-space:nowrap;padding-bottom:2px}
+.heat button{height:34px;border-radius:6px;padding:0;font-size:13px;font-weight:700;color:var(--text);background:var(--surface-3)}
+.heat button.na{background:transparent;border:1px dashed var(--line-2);color:var(--faint);font-weight:400}
 .heat button[aria-pressed="true"]{outline:2px solid var(--text);outline-offset:1px}
-.heat-axis{margin-left:calc(1.6em + 2px)}
-.heat-legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--faint);margin-top:8px;white-space:nowrap}
-.heat-legend i{display:inline-block;width:16px;height:10px;border-radius:2px}
+.heat .up2,.heat-legend .up2{background:#2FBF71;color:#06210F}
+.heat .up1,.heat-legend .up1{background:rgba(61,214,140,.38)}
+.heat .mid,.heat-legend .mid{background:var(--surface-3)}
+.heat .dn1,.heat-legend .dn1{background:rgba(255,107,107,.32)}
+.heat .dn2,.heat-legend .dn2{background:rgba(255,107,107,.68);color:#2A0606}
+.heat-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:11px;color:var(--muted);margin-top:10px}
+.heat-legend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.heat-legend i{display:inline-block;width:14px;height:10px;border-radius:2px}
+.heat-legend .scale{gap:2px}
+.heat-legend .scale i{width:18px}
+.heat-legend .avg{flex-basis:100%;color:var(--faint)}
+.heat-legend i.na{border:1px dashed var(--line-2)}
 .trend svg{display:block;width:100%;height:140px;overflow:visible}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;white-space:nowrap}
 .legend i{display:inline-block;width:12px;height:4px;border-radius:2px;margin-right:5px;vertical-align:2px}
@@ -2758,7 +2769,17 @@ const placeName = c => c.name ? c.name + (c.exact ? '' : ' 付近') : c.lat.toFi
    ・時間単価＝その時間帯に乗せた売上 ÷ その時間帯に営業していた時間
    ============================================================ */
 const HOUR_ORDER = [...Array.from({ length: 19 }, (_, i) => i + 5), 0, 1, 2, 3, 4];   // 5時〜翌4時
-const ANA_RAMP = ['#6E5018', '#9A6C1A', '#CC8E1D', '#FFB020'];   // ヒートマップ：少→多（暗→明、単一色相）
+// 曜日×時間帯は3時間ずつにまとめる（1マスに数字が入る大きさにし、記録の少なさによるばらつきも抑える）
+const HEAT_BLOCKS = [5, 8, 11, 14, 17, 20, 23, 2].map(s => ({ s, hs: [s, (s + 1) % 24, (s + 2) % 24], label: `${s}-${(s + 3) % 24}`, head: s + '時' }));
+// 全体の平均（1時間あたり）と比べた段階：稼げる／平均並み／稼げない
+const HEAT_LV = [
+  { min: 1.3, cls: 'up2', label: '平均の1.3倍〜' },
+  { min: 1.1, cls: 'up1', label: '1.1〜1.3倍' },
+  { min: 0.9, cls: 'mid', label: '平均並み' },
+  { min: 0.7, cls: 'dn1', label: '0.7〜0.9倍' },
+  { min: 0, cls: 'dn2', label: '〜0.7倍' },
+];
+const heatLv = ratio => HEAT_LV.find(l => ratio >= l.min);
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const quant = (a, q) => { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y), i = (b.length - 1) * q, lo = Math.floor(i); return b[lo] + (b[Math.ceil(i)] - b[lo]) * (i - lo); };
 function analyze(range, back = 0) {   // back：何日前までの期間か（前の期間との比較用）
@@ -2831,8 +2852,13 @@ function renderAnalysis() {
   // 曜日×時間帯
   const cells = [];
   for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) { const du = A.duty[d][h]; if (du >= 30) cells.push({ d, h, du, rate: shrink(A.sales[d][h], du / 60, perHour, 2), raw: A.sales[d][h] / (du / 60), c: A.cnt[d][h] }); }
-  const rates = cells.map(c => c.rate), q = [quant(rates, .25), quant(rates, .5), quant(rates, .75)];
-  const step = v => v <= q[0] ? 0 : v <= q[1] ? 1 : v <= q[2] ? 2 : 3;
+  // 3時間ずつのマス：その3時間の売上 ÷ 営業時間。事前の重み2時間
+  const blocks = [];
+  for (let d = 0; d < 7; d++) for (const b of HEAT_BLOCKS) {
+    const du = b.hs.reduce((a, h) => a + A.duty[d][h], 0), sa = b.hs.reduce((a, h) => a + A.sales[d][h], 0), c = b.hs.reduce((a, h) => a + A.cnt[d][h], 0);
+    if (du >= 60) blocks.push({ d, b, du, c, raw: sa / (du / 60), rate: shrink(sa, du / 60, perHour, 2) });
+  }
+  const bestBlock = blocks.slice().sort((a, b) => b.rate - a.rate)[0];
   const aims = cells.filter(c => c.du >= 60).sort((a, b) => b.rate - a.rate).slice(0, 3);   // 狙い目の上位3コマ
   // 曜日：1日の売上の分布（中央値と真ん中の半分）
   const dows = WEEKDAYS.split('').map((w, i) => { const v = D.filter(d => d.dow === i).map(d => d.sales);
@@ -2907,14 +2933,19 @@ function renderAnalysis() {
       <div class="ana-tip"></div>
     </div>
     <div class="ana-card">
-      <h3><span>曜日×時間帯</span><small>明るいほど稼げる</small></h3>
-      <div class="heat">${WEEKDAYS.split('').map((w, d) => `<span class="r">${w}</span>` + HOUR_ORDER.map(h => {
-        const c = cells.find(x => x.d === d && x.h === h);
-        return c ? `<button class="${aims[0] && c === aims[0] ? 'best' : ''}" style="background:${ANA_RAMP[step(c.rate)]}" aria-pressed="false" aria-label="${w}曜${h}時台" data-tip="${w}曜 ${h}時台：推定 ${yen(Math.round(c.rate))}/時（実績 ${yen(Math.round(c.raw))}/時・${(c.du / 60).toFixed(1)}時間・${c.c}回）"></button>`
-          : `<button aria-pressed="false" data-tip="${w}曜 ${h}時台：記録なし"></button>`;
-      }).join('')).join('')}</div>
-      <div class="axis heat-axis">${HOUR_ORDER.map(h => `<span>${h % 6 === 0 ? h + '時' : ''}</span>`).join('')}</div>
-      <div class="heat-legend">少ない<i style="background:${ANA_RAMP[0]}"></i><i style="background:${ANA_RAMP[1]}"></i><i style="background:${ANA_RAMP[2]}"></i><i style="background:${ANA_RAMP[3]}"></i>多い　<i style="background:var(--surface-2)"></i>記録なし</div>
+      <h3><span>曜日×時間帯</span><small>千円/時・3時間ごと</small></h3>
+      <div class="heat">
+        <span></span>${HEAT_BLOCKS.map(b => `<span class="c num">${b.head}</span>`).join('')}
+        ${WEEKDAYS.split('').map((w, d) => `<span class="r">${w}</span>` + HEAT_BLOCKS.map(b => {
+          const c = blocks.find(x => x.d === d && x.b === b);
+          if (!c) return `<button class="na" aria-pressed="false" aria-label="${w}曜${b.label}時 記録なし" data-tip="${w}曜 ${b.label}時：記録が少ない時間です"></button>`;
+          const ratio = c.rate / Math.max(1, perHour), lv = heatLv(ratio);
+          return `<button class="${lv.cls} ${c === bestBlock ? 'best' : ''} num" aria-pressed="false" aria-label="${w}曜${b.label}時 ${yen(Math.round(c.rate))}/時"
+            data-tip="${w}曜 ${b.label}時：推定 ${yen(Math.round(c.rate))}/時（平均の${ratio.toFixed(1)}倍・実績 ${yen(Math.round(c.raw))}/時・${(c.du / 60).toFixed(1)}時間・${c.c}回）">${(c.rate / 1000).toFixed(c.rate >= 10000 ? 0 : 1)}</button>`;
+        }).join('')).join('')}
+      </div>
+      <div class="heat-legend"><span>稼げない</span><span class="scale">${HEAT_LV.slice().reverse().map(l => `<i class="${l.cls}" title="${l.label}"></i>`).join('')}</span><span>稼げる</span>
+        <span class="avg">全体の平均 ${kv(Math.round(perHour))}/時を基準（±10%は平均並み）</span><span><i class="na"></i>記録が少ない</span></div>
       <div class="ana-tip"></div>
     </div>
     <div class="ana-card">
@@ -2966,6 +2997,7 @@ function renderAnalysis() {
         <li><b>実車率</b>：お客さんを乗せていた時間（各乗車の乗車〜降車）÷ 待機・休憩を除いた営業時間</li>
         <li><b>推定</b>：記録が少ない時間帯・場所は全体の平均に寄せて計算（経験ベイズの縮小推定）。たまたま1回良かっただけの所が上位に出にくくなります</li>
         <li><b>時間効率</b>：その場所で乗せた売上 ÷（前の降車から乗車までの空車・待機時間 ＋ 乗車時間）。2時間を超える空きは休憩として2時間まで</li>
+        <li><b>曜日×時間帯</b>：3時間ずつの1時間あたり（推定）を全体の平均と比べ、緑は平均より稼げる・赤は稼げない時間。白枠が最も良い時間</li>
         <li><b>曜日</b>：平均は高い日に引っぱられるので中央値で比べ、帯で日によるばらつきを表示</li>
       </ul>
     </details>`;
