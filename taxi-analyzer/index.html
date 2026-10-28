@@ -995,11 +995,6 @@ svg{display:block}
             <button class="btn stack" data-export="summary">日報サマリー<span class="hint">シフト別の集計</span></button>
           </div>
         </div>
-        <div class="fold" id="gShifts">
-          <button class="fold-h" aria-expanded="false" aria-controls="gShiftsB"><span class="t">過去の日報</span><span class="s num" id="gShiftsSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-          <div class="fold-b" id="gShiftsB" hidden>
-          <ul class="list" id="shiftList"></ul>
-          </div>
         </div>
       </div>
       <div class="pane-sec">
@@ -3116,20 +3111,10 @@ function renderData() {
   setFoldSum('gPlaces', (PDB.state === 'ok' ? PDB.list.length + '件' : PDB.state === 'loading' ? '読み込み中' : '読み込めません') + ' ・ ' + (ghToken() ? 'GitHub連携' : '閲覧のみ'));
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
 
-  const past = S.shifts.filter(s => s.end).sort((a, b) => b.start - a.start).slice(0, 30);
-  $('#shiftList').innerHTML = past.length ? past.map(s => {
-    const st = shiftStats(s);
-    return `<li><button class="row" data-report="${s.id}">
-      <span class="body"><div class="main num">${ymd(s.start)}</div><div class="sub num">${hhmm(s.start)}–${hhmm(s.end)} ・ ${st.count}回</div></span>
-      <span class="amt num">${yen(st.sales)}</span>
-    </button></li>`;
-  }).join('') : '<li class="empty">入庫したシフトがここに並びます。</li>';
 
   let bytes = 0; try { bytes = (localStorage.getItem(STORE_KEY) || '').length * 2; } catch (e) {}
   $('#storageInfo').textContent = (bytes / 1024).toFixed(0) + ' KB';
   // 折りたたみの見出しに今の設定を1行で
-  const done = S.shifts.filter(x => x.end).length;
-  setFoldSum('gShifts', done ? `${done}件（新しい順に30件）` : 'まだありません');
   setFoldSum('gWork', [yen(S.settings.goal), S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', S.settings.dayHours ? '1日' + S.settings.dayHours + 'h' : '',
     S.settings.holidays.length ? S.settings.holidays.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
   setFoldSum('gPay', `決済${PAYS().length}・チケット${TICKETS().length}・アプリ${S.settings.apps.length}`);
@@ -4191,7 +4176,6 @@ $('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#re
 $('#rideSheet [data-close]').addEventListener('click', () => closeSheet($('#rideSheet')));
 $('#rdEdit').addEventListener('click', () => { haptic(); closeSheet($('#rideSheet')); if (RD) openEntry(RD); });
 
-$('#shiftList').addEventListener('click', e => { const b = e.target.closest('[data-report]'); if (b) { haptic(); openReport(b.dataset.report); } });
 $('#dimBtn').addEventListener('click', () => { S.settings.dim = !S.settings.dim; save(); applySettings(); renderAll(); });
 
 $('#rideList').addEventListener('click', e => {
