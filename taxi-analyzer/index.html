@@ -628,6 +628,10 @@ svg{display:block}
 .sug button{flex:none;min-height:44px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface-2);font-size:15px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sug button small{font-size:11px;color:var(--muted);margin-left:4px;font-weight:600}
 .sug button.add-pl{border-style:dashed;border-color:var(--accent);color:var(--accent);background:var(--surface)}
+.pd-list{margin-top:8px}
+.pd-list .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:6px;margin-left:6px;vertical-align:2px;background:var(--surface-2);color:var(--muted)}
+.pd-list .tag.ed{color:var(--accent)}
+.pd-list .empty{padding:14px 4px;color:var(--muted);font-size:14px}
 .link-btn{font-size:13px;font-weight:700;color:var(--accent);padding:6px 0;min-height:32px}
 .sug .hint{font-size:12px;color:var(--faint);padding:4px 2px}
 .e-foot{flex:none;display:flex;gap:10px;padding-top:12px}
@@ -1061,10 +1065,12 @@ svg{display:block}
           </div>
         </div>
         <div class="fold" id="gPlaces">
-          <button class="fold-h" aria-expanded="false" aria-controls="gPlacesB"><span class="t">登録した場所</span><span class="s num" id="gPlacesSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="fold-h" aria-expanded="false" aria-controls="gPlacesB"><span class="t">場所データ</span><span class="s num" id="gPlacesSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gPlacesB" hidden>
-          <ul class="list" id="myPlaceList"></ul>
-        <button class="btn sm" style="width:100%;margin-top:10px" id="myPlaceAddBtn">＋ 場所を登録</button>
+          <div class="setting">
+          <div><div class="k">施設・場所を検索して編集</div><div class="d">名前・住所の変更、削除、新しい登録</div></div>
+          <button class="btn sm" id="placeDbBtn">開く</button>
+        </div>
           </div>
         </div>
         <div class="fold" id="gData">
@@ -1322,6 +1328,23 @@ svg{display:block}
   </div>
 </div>
 
+<!-- ===== 場所データ（検索して編集・登録） ===== -->
+<div class="sheet" id="placeDbSheet" hidden role="dialog" aria-modal="true" aria-labelledby="pdTitle">
+  <div class="sheet-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="pdTitle">場所データ</h2>
+      <span class="spacer"></span>
+      <span class="sub num" id="pdCount"></span>
+    </header>
+    <input class="text-in" id="pdQ" type="search" placeholder="施設名・別名・住所で検索" autocomplete="off" enterkeyhint="search">
+    <ul class="list pd-list" id="pdList"></ul>
+    <button class="btn sm" style="width:100%;margin-top:12px" id="pdAdd">＋ 新しい場所を登録</button>
+  </div>
+</div>
+
 <!-- ===== 場所の登録・編集 ===== -->
 <div class="sheet center" id="placeSheet" hidden role="dialog" aria-modal="true" aria-labelledby="mpTitle">
   <div class="sheet-inner np-inner">
@@ -1347,6 +1370,7 @@ svg{display:block}
       <div class="glabel"><span>メモ</span><span>任意・候補に表示</span></div>
       <input class="text-in" id="mpNote" placeholder="例：北側の入口" maxlength="40" autocomplete="off" enterkeyhint="done">
     </div>
+    <button class="link-btn" id="mpReset" type="button" hidden>内蔵の内容に戻す</button>
     <footer class="e-foot">
       <button class="btn danger" id="mpDelete">削除</button>
       <button class="btn primary" id="mpOk">保存</button>
@@ -1824,11 +1848,8 @@ function stationSuggest(q) {
   const hit = [];
   // 「東横INNの湊川公園」のように言葉を区切って入れても、それぞれを含む施設を出す
   const words = q.split(/[\s\u3000の]+/).map(normName).filter(w => w.length >= 2);
-  for (const pl of [...myPlaces(), ...EXTRA_PLACES]) {   // 同じ順位なら自分で登録した場所を先に
-    const n = normName(pl.name), al = pl.alias.map(normName);
-    const r = n === kq || al.includes(kq) ? 0 : n.startsWith(kq) ? 1 : al.some(x => x.startsWith(kq)) ? 2
-      : kq.length >= 2 && [n, ...al].some(x => x.includes(kq)) ? 3
-      : words.length >= 2 && words.every(w => [n, ...al].some(x => x.includes(w))) ? 4 : -1;
+  for (const pl of placeDb()) {   // 同じ順位なら自分で登録した場所を先に
+    const r = placeRank(pl, kq, words);
     if (r >= 0) hit.push([r, pl]);
   }
   for (const st of stations()) {
@@ -1838,8 +1859,29 @@ function stationSuggest(q) {
   }
   return hit.sort((a, b) => a[0] - b[0]).slice(0, 6).map(h => placeOpt(h[1]));
 }
-// 自分で登録した場所 {id,name,addr,alias,note}（設定に保存。全データ削除でも消えない）
-const myPlaces = () => S.settings.places.map(p => ({ ...p, kind: '登録', info: shortAddr(p.addr), alias: p.alias || [] }));
+// 名前・別名との一致の度合い（0が最も近い・-1は一致なし）
+function placeRank(pl, kq, words) {
+  const n = normName(pl.name), al = pl.alias.map(normName);
+  return n === kq || al.includes(kq) ? 0 : n.startsWith(kq) ? 1 : al.some(x => x.startsWith(kq)) ? 2
+    : kq.length >= 2 && [n, ...al].some(x => x.includes(kq)) ? 3
+    : words.length >= 2 && words.every(w => [n, ...al].some(x => x.includes(w))) ? 4 : -1;
+}
+// 場所データ：自分で登録した場所＋内蔵の施設（設定の places に保存。全データ削除でも消えない）
+//   自分で登録 {id,name,addr,alias,note}
+//   内蔵の書き換え {id,base:内蔵の名前,name,addr,alias,note} ／ 内蔵を候補に出さない {id,base,hidden:true}
+// all=true なら候補に出さない内蔵の施設も含める（場所データの画面用）
+function placeDb(all) {
+  const ov = new Map(S.settings.places.filter(p => p.base).map(p => [p.base, p]));
+  const out = S.settings.places.filter(p => !p.base).map(p => ({ ...p, kind: '登録', info: shortAddr(p.addr), alias: p.alias || [], key: p.id }));
+  for (const b of EXTRA_PLACES) {
+    const o = ov.get(b.name), key = 'b:' + b.name;
+    if (!o) out.push({ ...b, key, builtin: b });
+    else if (o.hidden) { if (all) out.push({ ...b, key, builtin: b, hidden: true }); }
+    else out.push({ kind: b.kind, info: o.addr === b.addr ? b.info : shortAddr(o.addr),
+      name: o.name, addr: o.addr, alias: o.alias || [], ...(o.note ? { note: o.note } : {}), key, builtin: b, edited: true });
+  }
+  return out;
+}
 const placeOpt = pl => ({ v: pl.name, label: pl.name, sub: pl.kind + (pl.info ? ' ' + pl.info : ''), place: pl });
 
 // OpenStreetMapのタグ → 施設の種類
@@ -1930,12 +1972,12 @@ function placeSuggest(raw, w) {
   const q = sq.replace(/ /g, '');
   if (!q || hyogoCity(q.replace(/^兵庫県/, ''))) return { list: [], loading: false };
   const list = stationSuggest(q);
-  const online = placeCache.get(sq);
+  const online = placeCache.get(sq), db = online ? placeDb() : [];
   if (online) for (const pl of online) {
     if (list.length >= 10) break;
     // 同じ施設、または内蔵の施設名を含むだけの長い名前（例：「神戸国際展示場低侵襲…」）は出さない
     // 内蔵施設の名前を含むだけの別名（例：「umie ノースモール」「神戸国際展示場低侵襲…」）は内蔵の1件にまとめる
-    if (EXTRA_PLACES.some(x => normName(pl.name) !== normName(x.name) && normName(pl.name).includes(normName(x.name)))) continue;
+    if (db.some(x => normName(pl.name) !== normName(x.name) && normName(pl.name).includes(normName(x.name)))) continue;
     if (!list.some(x => x.place.name === pl.name && haversine(x.place, pl) < 800)) list.push(placeOpt(pl));
   } else placeSearch(sq, () => { if (E && addrInput(w).value.trim().replace(/\s+/g, ' ') === sq) renderSug(w); });
   return { list, loading: online === null || (online === undefined && q.length >= 2 && navigator.onLine !== false && Date.now() >= placeRetryAt) };
@@ -3027,11 +3069,8 @@ function renderData() {
       <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 ${yen(a.fee)}／他 ${yen(a.feeOther)}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') : '<li class="empty">配車アプリが登録されていません。</li>';
-  $('#myPlaceList').innerHTML = S.settings.places.length ? S.settings.places.map(p => `<li><button class="row" data-place-edit="${esc(p.id)}">
-      <span class="body"><div class="main">${esc(p.name)}</div><div class="sub">${esc(shortAddr(p.addr) || '住所なし')}${p.alias && p.alias.length ? ' ・ ' + esc(p.alias.join('、')) : ''}</div></span>
-      <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
-    </button></li>`).join('') : '<li class="empty">乗車記録の場所欄で「＋登録」を押すか、下のボタンから登録できます。</li>';
-  setFoldSum('gPlaces', S.settings.places.length + '件');
+  const myN = S.settings.places.filter(p => !p.base).length, edN = S.settings.places.length - myN;
+  setFoldSum('gPlaces', `内蔵${EXTRA_PLACES.length}件・登録${myN}件` + (edN ? `・変更${edN}件` : ''));
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
 
   const past = S.shifts.filter(s => s.end).sort((a, b) => b.start - a.start).slice(0, 30);
@@ -3882,59 +3921,124 @@ $('#appFeeOther').addEventListener('click', () => openNumpad('他の決済の手
 $('#appPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.defaultPay = b.dataset.pay; renderAppSheet(); } });
 $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
-// 場所の登録・編集・削除
-const MP = { id: null, w: null };
-// 2文字以上で、登録済み・内蔵の施設の名前や別名と同じでなければ登録できる
+// 場所データ：検索して編集・削除、見つからなければ登録
+const MP = { key: null, w: null };
+// 2文字以上で、場所データの名前や別名と同じでなければ登録できる
 const canRegister = v => {
   const k = normName(v);
-  return k.length >= 2 && ![...myPlaces(), ...EXTRA_PLACES].some(p => [p.name, ...p.alias].some(x => normName(x) === k));
+  return k.length >= 2 && !placeDb().some(p => [p.name, ...p.alias].some(x => normName(x) === k));
 };
-function openPlaceEditor(id, w) {
-  const p = id ? S.settings.places.find(x => x.id === id) : null;
-  Object.assign(MP, { id: p ? p.id : null, w: w || null });
+// 全件は出さず、検索した時だけ一致するものを出す（何も入れていない時は自分で登録・変更した場所だけ）
+function renderPlaceDb() {
+  const q = $('#pdQ').value.trim(), kq = normName(q);
+  const words = q.split(/[\s　の]+/).map(normName).filter(w => w.length >= 2);
+  const db = placeDb(true);
+  let rows;
+  if (!kq) rows = db.filter(p => !p.builtin || p.edited || p.hidden);
+  else rows = db.map(p => {
+    let r = placeRank(p, kq, words);
+    if (r < 0 && kq.length >= 2 && normName(p.addr || '').includes(kq)) r = 5;   // 住所でも探せる
+    return [r, p];
+  }).filter(h => h[0] >= 0).sort((a, b) => a[0] - b[0]).slice(0, 30).map(h => h[1]);
+  const tag = p => p.hidden ? '<span class="tag">削除済み</span>' : p.edited ? '<span class="tag ed">変更済み</span>' : !p.builtin ? '<span class="tag ed">登録</span>' : '';
+  $('#pdList').innerHTML = rows.map(p => `<li><button class="row" data-pd="${esc(p.key)}">
+      <span class="body"><div class="main">${esc(p.name)}${tag(p)}</div><div class="sub">${esc(p.kind)} ・ ${esc(shortAddr(p.addr) || '住所なし')}${p.note ? ' ・ ' + esc(p.note) : ''}</div></span>
+      <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
+    </button></li>`).join('') + (rows.length ? '' : kq
+      ? `<li class="empty">「${esc(q)}」は見つかりませんでした。<button class="btn sm primary" style="width:100%;margin-top:10px" data-pd-new>＋「${esc(q)}」を登録</button></li>`
+      : '<li class="empty">施設名・別名・住所で検索すると、内蔵の施設も含めて編集できます。自分で登録・変更した場所はここに並びます。</li>');
+  $('#pdCount').textContent = db.length + '件';
+}
+function openPlaceDb() {
+  $('#pdQ').value = '';
+  renderPlaceDb();
+  $('#placeDbSheet .sheet-inner').scrollTop = 0;
+  openSheet($('#placeDbSheet'));
+}
+function openPlaceEditor(key, w, name) {
+  const p = key ? placeDb(true).find(x => x.key === key) : null;
+  Object.assign(MP, { key: p ? p.key : null, w: w || null });
   const o = w && E ? E[w] : null;
-  $('#mpTitle').textContent = p ? '場所の編集' : '場所を登録';
-  $('#mpName').value = p ? p.name : w ? addrInput(w).value.trim() : '';
+  $('#mpTitle').textContent = !p ? '場所を登録' : p.builtin ? '施設の編集' : '場所の編集';
+  $('#mpName').value = p ? p.name : w ? addrInput(w).value.trim() : name || '';
   // 乗車記録から登録する時は、その時のGPSの住所を下書きに入れる
   $('#mpAddr').value = p ? p.addr || '' : o && !o.manual && o.addr ? o.addr : '';
-  $('#mpAlias').value = p && p.alias ? p.alias.join('、') : '';
+  $('#mpAlias').value = p ? p.alias.join('、') : '';
   $('#mpNote').value = p ? p.note || '' : '';
-  $('#mpDelete').hidden = !p;
+  $('#mpDelete').hidden = !p || !!p.hidden;
+  $('#mpReset').hidden = !p || !(p.edited || p.hidden);
+  $('#mpReset').textContent = p && p.hidden ? '削除を取り消して内蔵の内容に戻す' : '内蔵の内容に戻す';
   $('#placeSheet .sheet-inner').scrollTop = 0;
   openSheet($('#placeSheet'));
   if (!p && !$('#mpName').value) setTimeout(() => $('#mpName').focus(), 250);
 }
+function afterPlaceChange() {
+  save(); closeSheet($('#placeSheet')); renderData();
+  if (!$('#placeDbSheet').hidden) renderPlaceDb();
+}
 function savePlace() {
   const name = $('#mpName').value.trim().replace(/\s+/g, ' ');
   if (!name) { toast('名称を入力してください'); $('#mpName').focus(); return; }
-  if (S.settings.places.some(x => x.id !== MP.id && normName(x.name) === normName(name))) { toast('同じ名称の場所が登録済みです'); return; }
+  if (placeDb().some(x => x.key !== MP.key && normName(x.name) === normName(name))) { toast('同じ名称の場所が登録済みです'); return; }
   const addr = withPref($('#mpAddr').value.trim().replace(/\s+/g, ''));
   const alias = [...new Set($('#mpAlias').value.split(/[、,，\/／\n]+/).map(s => s.trim()).filter(s => s && s !== name))];
   const note = $('#mpNote').value.trim();
   const cfg = { name, addr, alias, ...(note ? { note } : {}) };
-  let p = MP.id && S.settings.places.find(x => x.id === MP.id);
-  if (p) { delete p.note; Object.assign(p, cfg); }
-  else S.settings.places.push(p = { id: uid(), ...cfg });
-  save(); closeSheet($('#placeSheet')); renderData();
+  const L = S.settings.places;
+  let key = MP.key;
+  if (key && key.startsWith('b:')) {
+    // 内蔵の施設：書き換えを保存（内蔵と同じ内容なら書き換えを消す）
+    const base = key.slice(2), b = EXTRA_PLACES.find(x => x.name === base);
+    S.settings.places = L.filter(x => x.base !== base);
+    const same = b && name === b.name && addr === b.addr && note === (b.note || '') && alias.join('\n') === b.alias.join('\n');
+    if (!same) S.settings.places.push({ id: uid(), base, ...cfg });
+  } else if (key) {
+    const p = L.find(x => x.id === key);
+    delete p.note; Object.assign(p, cfg);
+  } else { const id = uid(); L.push({ id, ...cfg }); key = id; }
+  const isNew = !MP.key, w = MP.w;
+  afterPlaceChange();
   // 乗車記録から登録した時は、その欄に登録した場所を入れる
-  const w = MP.w;
   if (w && E) {
-    const pl = myPlaces().find(x => x.id === p.id);
+    const pl = placeDb().find(x => x.key === key);
     addrInput(w).value = pl.name; E.dirty[w] = true; E.pick[w] = pl;
     $(sugId(w)).innerHTML = ''; renderEntryLoc();
   }
-  toast(`${name} を${MP.id ? '保存' : '登録'}しました`);
+  toast(`${name} を${isNew ? '登録' : '保存'}しました`);
 }
 function deletePlace() {
-  const p = S.settings.places.find(x => x.id === MP.id);
-  if (!p || !confirm(`${p.name} を削除しますか？\n（記録済みの乗車の場所はそのまま残ります）`)) return;
-  S.settings.places = S.settings.places.filter(x => x !== p);
-  save(); closeSheet($('#placeSheet')); renderData();
+  const p = placeDb(true).find(x => x.key === MP.key);
+  if (!p) return;
+  if (p.builtin) {
+    if (!confirm(`${p.name} を候補に出さないようにしますか？\n（場所データで検索すれば元に戻せます。記録済みの乗車はそのまま残ります）`)) return;
+    S.settings.places = S.settings.places.filter(x => x.base !== p.builtin.name);
+    S.settings.places.push({ id: uid(), base: p.builtin.name, hidden: true });
+  } else {
+    if (!confirm(`${p.name} を削除しますか？\n（記録済みの乗車の場所はそのまま残ります）`)) return;
+    S.settings.places = S.settings.places.filter(x => x.id !== p.key);
+  }
+  afterPlaceChange();
 }
-$('#myPlaceList').addEventListener('click', e => { const b = e.target.closest('[data-place-edit]'); if (b) openPlaceEditor(b.dataset.placeEdit); });
-$('#myPlaceAddBtn').addEventListener('click', () => openPlaceEditor(null));
+function resetPlace() {
+  const p = placeDb(true).find(x => x.key === MP.key);
+  if (!p || !p.builtin) return;
+  S.settings.places = S.settings.places.filter(x => x.base !== p.builtin.name);
+  afterPlaceChange();
+  toast(`${p.builtin.name} を内蔵の内容に戻しました`);
+}
+$('#placeDbBtn').addEventListener('click', openPlaceDb);
+$('#pdQ').addEventListener('input', renderPlaceDb);
+$('#pdQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+$('#pdList').addEventListener('click', e => {
+  const b = e.target.closest('[data-pd]');
+  if (b) { haptic(); openPlaceEditor(b.dataset.pd); return; }
+  if (e.target.closest('[data-pd-new]')) { haptic(); openPlaceEditor(null, null, $('#pdQ').value.trim()); }
+});
+$('#pdAdd').addEventListener('click', () => openPlaceEditor(null, null, $('#pdQ').value.trim()));
+$('#placeDbSheet [data-close]').addEventListener('click', () => closeSheet($('#placeDbSheet')));
 $('#mpOk').addEventListener('click', savePlace);
 $('#mpDelete').addEventListener('click', deletePlace);
+$('#mpReset').addEventListener('click', resetPlace);
 $('#placeSheet [data-close]').addEventListener('click', () => closeSheet($('#placeSheet')));
 $('#mpHere').addEventListener('click', async () => {
   haptic();
@@ -4159,10 +4263,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#placeSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
