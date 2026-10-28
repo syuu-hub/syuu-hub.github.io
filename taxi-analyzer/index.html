@@ -377,13 +377,19 @@ svg{display:block}
 .hl .k{font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hl .v{font-size:clamp(17px,5.6vw,26px);font-weight:800;color:var(--accent);margin:4px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hl .s{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpis.k4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tsum{display:flex;align-items:baseline;gap:8px;margin:-4px 0 8px}
+.tsum .v{font-size:22px;font-weight:800}
+.tsum .dl{font-size:12px;font-weight:700;color:var(--faint)}
+.tsum .dl.up{color:var(--ok)}
+.tsum .dl.down{color:var(--danger)}
+.kpis.k3{grid-template-columns:repeat(2,minmax(0,1fr))}
+.kpis.k3 .main{grid-column:1 / -1}
+.kpis.k3 .main .v{font-size:clamp(22px,7vw,28px)}
 .kpi .dl{font-size:11px;font-weight:700;margin-top:2px;color:var(--faint);white-space:nowrap}
 .kpi .dl.up{color:var(--ok)}
 .kpi .dl.down{color:var(--danger)}
 .kpi.main{background:var(--accent-soft);border:1px solid rgba(255,176,32,.35)}
 .kpi.main .v{color:var(--accent)}
-.k4 .kpi .v{font-size:clamp(20px,6vw,26px)}
 .pl-sort{margin:0 0 6px}
 .pl-sort button{flex:1}
 .prank{list-style:none}
@@ -489,7 +495,8 @@ svg{display:block}
 .heat-legend .avg{flex-basis:100%;color:var(--faint)}
 .heat-legend i.na{border:1px dashed var(--line-2)}
 .trend svg{display:block;width:100%;height:140px;overflow:visible}
-.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;white-space:nowrap}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:6px;white-space:nowrap}
+.legend i.dash{width:16px;height:2px;border-radius:0;background:repeating-linear-gradient(90deg,var(--text) 0 4px,transparent 4px 7px);opacity:.7}
 .legend i{display:inline-block;width:12px;height:4px;border-radius:2px;margin-right:5px;vertical-align:2px}
 .trend rect.tb[aria-pressed="true"]{fill:var(--text)}
 .plist{list-style:none}
@@ -3008,9 +3015,8 @@ function renderAnalysis() {
 
   body.innerHTML = `
     ${plan}
-    <div class="kpis k4">
+    <div class="kpis k3">
       <div class="kpi main"><div class="k">1時間あたり</div><div class="v num">${kv(Math.round(K.perHour))}</div>${delta('perHour')}</div>
-      <div class="kpi"><div class="k">1日あたり</div><div class="v num">${kv(Math.round(K.perDay))}</div>${delta('perDay')}</div>
       <div class="kpi"><div class="k">実車率</div><div class="v num">${Math.round(K.occ * 100)}<small>%</small></div>${delta('occ', true)}</div>
       <div class="kpi"><div class="k">1回あたり</div><div class="v num">${kv(Math.round(K.perRide))}</div>${delta('perRide')}</div>
     </div>
@@ -3066,7 +3072,8 @@ function renderAnalysis() {
 
     <div class="ana-sh">調子はどう？</div>
     <div class="ana-card trend">
-      <h3><span>営業日ごとの売上</span><small>点線は平均 ${kv(Math.round(avgDay))}</small></h3>
+      <h3><span>1日あたりの売上</span><small>営業日ごと</small></h3>
+      <div class="tsum"><span class="v num">${kv(Math.round(K.perDay))}</span>${delta('perDay')}</div>
       <svg viewBox="0 0 ${trendW} ${trendH}" preserveAspectRatio="none" role="img" aria-label="営業日ごとの売上">
         <line x1="0" y1="${trendH}" x2="${trendW}" y2="${trendH}" stroke="var(--line-2)" stroke-width="1"/>
         ${D.map((d, i) => `<rect class="tb" x="${(bx(i) - bw / 2).toFixed(1)}" y="${by(d.sales).toFixed(1)}" width="${bw.toFixed(1)}" height="${(trendH - by(d.sales)).toFixed(1)}" rx="2"
@@ -3075,7 +3082,7 @@ function renderAnalysis() {
         ${D.length >= 7 ? `<polyline fill="none" stroke="var(--text)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" points="${D.map((d, i) => `${bx(i).toFixed(1)},${by(mean(D.slice(Math.max(0, i - 6), i + 1).map(x => x.sales))).toFixed(1)}`).join(' ')}"/>` : ''}
       </svg>
       <div class="taxis num"><span>${md(D[0].t)}</span><span>${md(D[Math.floor((D.length - 1) / 2)].t)}</span><span>${md(D[D.length - 1].t)}</span></div>
-      <div class="legend"><span><i style="background:var(--accent)"></i>平均より多い日</span><span><i style="background:#6B7584"></i>少ない日</span>${D.length >= 7 ? '<span><i style="background:var(--text)"></i>直近7日の平均</span>' : ''}</div>
+      <div class="legend"><span><i class="dash"></i>1日あたり</span><span><i style="background:var(--accent)"></i>それより多い日</span><span><i style="background:#6B7584"></i>少ない日</span>${D.length >= 7 ? '<span><i style="background:var(--text)"></i>直近7日の平均</span>' : ''}</div>
       <div class="ana-tip"></div>
     </div>
     <details class="ana-card ana-method">
