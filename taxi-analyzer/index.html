@@ -627,6 +627,8 @@ svg{display:block}
 .sug:empty{display:none}
 .sug button{flex:none;min-height:44px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface-2);font-size:15px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sug button small{font-size:11px;color:var(--muted);margin-left:4px;font-weight:600}
+.sug button.add-pl{border-style:dashed;border-color:var(--accent);color:var(--accent);background:var(--surface)}
+.link-btn{font-size:13px;font-weight:700;color:var(--accent);padding:6px 0;min-height:32px}
 .sug .hint{font-size:12px;color:var(--faint);padding:4px 2px}
 .e-foot{flex:none;display:flex;gap:10px;padding-top:12px}
 .e-foot .primary{flex:1;height:60px;font-size:20px}
@@ -1058,6 +1060,13 @@ svg{display:block}
         </div>
           </div>
         </div>
+        <div class="fold" id="gPlaces">
+          <button class="fold-h" aria-expanded="false" aria-controls="gPlacesB"><span class="t">登録した場所</span><span class="s num" id="gPlacesSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="gPlacesB" hidden>
+          <ul class="list" id="myPlaceList"></ul>
+        <button class="btn sm" style="width:100%;margin-top:10px" id="myPlaceAddBtn">＋ 場所を登録</button>
+          </div>
+        </div>
         <div class="fold" id="gData">
           <button class="fold-h" aria-expanded="false" aria-controls="gDataB"><span class="t">バックアップ・データ</span><span class="s num" id="gDataSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gDataB" hidden>
@@ -1313,6 +1322,38 @@ svg{display:block}
   </div>
 </div>
 
+<!-- ===== 場所の登録・編集 ===== -->
+<div class="sheet center" id="placeSheet" hidden role="dialog" aria-modal="true" aria-labelledby="mpTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="mpTitle">場所を登録</h2>
+    </header>
+    <div class="group">
+      <div class="glabel">名称</div>
+      <input class="text-in" id="mpName" placeholder="例：〇〇ビル" maxlength="40" autocomplete="off" enterkeyhint="next">
+    </div>
+    <div class="group">
+      <div class="glabel"><span>住所</span><button class="link-btn" id="mpHere" type="button">現在地の住所を入れる</button></div>
+      <input class="text-in" id="mpAddr" placeholder="例：神戸市中央区三宮町1丁目1-1" maxlength="80" autocomplete="off" enterkeyhint="next">
+    </div>
+    <div class="group">
+      <div class="glabel"><span>別の呼び名</span><span>任意・「、」区切り</span></div>
+      <input class="text-in" id="mpAlias" placeholder="例：まるまるビル、〇〇" maxlength="120" autocomplete="off" enterkeyhint="next">
+    </div>
+    <div class="group">
+      <div class="glabel"><span>メモ</span><span>任意・候補に表示</span></div>
+      <input class="text-in" id="mpNote" placeholder="例：北側の入口" maxlength="40" autocomplete="off" enterkeyhint="done">
+    </div>
+    <footer class="e-foot">
+      <button class="btn danger" id="mpDelete">削除</button>
+      <button class="btn primary" id="mpOk">保存</button>
+    </footer>
+  </div>
+</div>
+
 <!-- ===== 数値入力ダイアログ（目標金額など） ===== -->
 <div class="sheet center" id="numpad" hidden role="dialog" aria-modal="true" aria-labelledby="npTitle">
   <div class="sheet-inner np-inner">
@@ -1426,7 +1467,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90', anaPlace: 'eff' },
+    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -1783,7 +1824,7 @@ function stationSuggest(q) {
   const hit = [];
   // 「東横INNの湊川公園」のように言葉を区切って入れても、それぞれを含む施設を出す
   const words = q.split(/[\s\u3000の]+/).map(normName).filter(w => w.length >= 2);
-  for (const pl of EXTRA_PLACES) {
+  for (const pl of [...myPlaces(), ...EXTRA_PLACES]) {   // 同じ順位なら自分で登録した場所を先に
     const n = normName(pl.name), al = pl.alias.map(normName);
     const r = n === kq || al.includes(kq) ? 0 : n.startsWith(kq) ? 1 : al.some(x => x.startsWith(kq)) ? 2
       : kq.length >= 2 && [n, ...al].some(x => x.includes(kq)) ? 3
@@ -1797,6 +1838,8 @@ function stationSuggest(q) {
   }
   return hit.sort((a, b) => a[0] - b[0]).slice(0, 6).map(h => placeOpt(h[1]));
 }
+// 自分で登録した場所 {id,name,addr,alias,note}（設定に保存。全データ削除でも消えない）
+const myPlaces = () => S.settings.places.map(p => ({ ...p, kind: '登録', info: shortAddr(p.addr), alias: p.alias || [] }));
 const placeOpt = pl => ({ v: pl.name, label: pl.name, sub: pl.kind + (pl.info ? ' ' + pl.info : ''), place: pl });
 
 // OpenStreetMapのタグ → 施設の種類
@@ -2984,6 +3027,11 @@ function renderData() {
       <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 ${yen(a.fee)}／他 ${yen(a.feeOther)}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') : '<li class="empty">配車アプリが登録されていません。</li>';
+  $('#myPlaceList').innerHTML = S.settings.places.length ? S.settings.places.map(p => `<li><button class="row" data-place-edit="${esc(p.id)}">
+      <span class="body"><div class="main">${esc(p.name)}</div><div class="sub">${esc(shortAddr(p.addr) || '住所なし')}${p.alias && p.alias.length ? ' ・ ' + esc(p.alias.join('、')) : ''}</div></span>
+      <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
+    </button></li>`).join('') : '<li class="empty">乗車記録の場所欄で「＋登録」を押すか、下のボタンから登録できます。</li>';
+  setFoldSum('gPlaces', S.settings.places.length + '件');
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
 
   const past = S.shifts.filter(s => s.end).sort((a, b) => b.start - a.start).slice(0, 30);
@@ -3834,6 +3882,70 @@ $('#appFeeOther').addEventListener('click', () => openNumpad('他の決済の手
 $('#appPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.defaultPay = b.dataset.pay; renderAppSheet(); } });
 $('#appName').addEventListener('input', renderAppSheet);
 $('#appDelete').addEventListener('click', deleteApp);
+// 場所の登録・編集・削除
+const MP = { id: null, w: null };
+// 2文字以上で、登録済み・内蔵の施設の名前や別名と同じでなければ登録できる
+const canRegister = v => {
+  const k = normName(v);
+  return k.length >= 2 && ![...myPlaces(), ...EXTRA_PLACES].some(p => [p.name, ...p.alias].some(x => normName(x) === k));
+};
+function openPlaceEditor(id, w) {
+  const p = id ? S.settings.places.find(x => x.id === id) : null;
+  Object.assign(MP, { id: p ? p.id : null, w: w || null });
+  const o = w && E ? E[w] : null;
+  $('#mpTitle').textContent = p ? '場所の編集' : '場所を登録';
+  $('#mpName').value = p ? p.name : w ? addrInput(w).value.trim() : '';
+  // 乗車記録から登録する時は、その時のGPSの住所を下書きに入れる
+  $('#mpAddr').value = p ? p.addr || '' : o && !o.manual && o.addr ? o.addr : '';
+  $('#mpAlias').value = p && p.alias ? p.alias.join('、') : '';
+  $('#mpNote').value = p ? p.note || '' : '';
+  $('#mpDelete').hidden = !p;
+  $('#placeSheet .sheet-inner').scrollTop = 0;
+  openSheet($('#placeSheet'));
+  if (!p && !$('#mpName').value) setTimeout(() => $('#mpName').focus(), 250);
+}
+function savePlace() {
+  const name = $('#mpName').value.trim().replace(/\s+/g, ' ');
+  if (!name) { toast('名称を入力してください'); $('#mpName').focus(); return; }
+  if (S.settings.places.some(x => x.id !== MP.id && normName(x.name) === normName(name))) { toast('同じ名称の場所が登録済みです'); return; }
+  const addr = withPref($('#mpAddr').value.trim().replace(/\s+/g, ''));
+  const alias = [...new Set($('#mpAlias').value.split(/[、,，\/／\n]+/).map(s => s.trim()).filter(s => s && s !== name))];
+  const note = $('#mpNote').value.trim();
+  const cfg = { name, addr, alias, ...(note ? { note } : {}) };
+  let p = MP.id && S.settings.places.find(x => x.id === MP.id);
+  if (p) { delete p.note; Object.assign(p, cfg); }
+  else S.settings.places.push(p = { id: uid(), ...cfg });
+  save(); closeSheet($('#placeSheet')); renderData();
+  // 乗車記録から登録した時は、その欄に登録した場所を入れる
+  const w = MP.w;
+  if (w && E) {
+    const pl = myPlaces().find(x => x.id === p.id);
+    addrInput(w).value = pl.name; E.dirty[w] = true; E.pick[w] = pl;
+    $(sugId(w)).innerHTML = ''; renderEntryLoc();
+  }
+  toast(`${name} を${MP.id ? '保存' : '登録'}しました`);
+}
+function deletePlace() {
+  const p = S.settings.places.find(x => x.id === MP.id);
+  if (!p || !confirm(`${p.name} を削除しますか？\n（記録済みの乗車の場所はそのまま残ります）`)) return;
+  S.settings.places = S.settings.places.filter(x => x !== p);
+  save(); closeSheet($('#placeSheet')); renderData();
+}
+$('#myPlaceList').addEventListener('click', e => { const b = e.target.closest('[data-place-edit]'); if (b) openPlaceEditor(b.dataset.placeEdit); });
+$('#myPlaceAddBtn').addEventListener('click', () => openPlaceEditor(null));
+$('#mpOk').addEventListener('click', savePlace);
+$('#mpDelete').addEventListener('click', deletePlace);
+$('#placeSheet [data-close]').addEventListener('click', () => closeSheet($('#placeSheet')));
+$('#mpHere').addEventListener('click', async () => {
+  haptic();
+  const b = $('#mpHere'); b.textContent = '取得中…';
+  const p = await getPos(3000);
+  const a = p ? await reverseGeocode(p) : undefined;
+  b.textContent = '現在地の住所を入れる';
+  if (a) $('#mpAddr').value = a; else toast(p ? '住所を取得できませんでした（通信を確認）' : '位置情報を取得できませんでした');
+});
+['#mpName', '#mpAddr', '#mpAlias'].forEach((s, i, a) => $(s).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $(i < a.length - 1 ? a[i + 1] : '#mpNote').focus(); } }));
+$('#mpNote').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
 $('#payList').addEventListener('click', e => { const b = e.target.closest('[data-pay-edit]'); if (b) openPayEditor(b.dataset.payEdit); });
 $('#payAddBtn').addEventListener('click', () => openPayEditor(null));
 // タクシーチケットの追加・名前変更・削除
@@ -3976,8 +4088,9 @@ $$('[data-addr]').forEach(inp => {
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $(sugId(w)).innerHTML = ''; w === 'from' ? addrInput('to').focus() : inp.blur(); } });
 });
 $$('.sug').forEach(box => {
-  box.addEventListener('pointerdown', e => { if (e.target.closest('[data-sug]')) e.preventDefault(); });   // キーボードを閉じない
+  box.addEventListener('pointerdown', e => { if (e.target.closest('[data-sug],[data-addpl]')) e.preventDefault(); });   // キーボードを閉じない
   box.addEventListener('click', e => {
+    if (e.target.closest('[data-addpl]')) { haptic(); const w = box.id === 'eFromSug' ? 'from' : 'to'; addrInput(w).blur(); openPlaceEditor(null, w); return; }
     const b = e.target.closest('[data-sug]');
     if (!b) return;
     haptic();
@@ -4014,7 +4127,9 @@ function renderSug(w) {
   box.innerHTML = list.map((s, i) => s.place
     ? `<button type="button" class="pl" data-sug="${i}"><b>${esc(s.label)}</b><small><em>${esc(s.place.kind)}</em> ${esc(s.place.note || s.place.info || '')}</small></button>`
     : `<button type="button" data-sug="${i}">${esc(s.label)}${s.sub ? `<small>${esc(s.sub)}</small>` : ''}</button>`).join('') +
-    (hint ? `<span class="hint">${esc(hint)}</span>` : '');
+    (hint ? `<span class="hint">${esc(hint)}</span>` : '') +
+    // 候補に無い名前は、その場で場所として登録できる
+    (canRegister(inp.value) ? `<button type="button" class="add-pl" data-addpl>＋「${esc(inp.value.trim())}」を登録</button>` : '');
 }
 $('#eSave').addEventListener('click', saveEntry);
 $('#eDelete').addEventListener('click', deleteEntry);
@@ -4044,10 +4159,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#placeSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
