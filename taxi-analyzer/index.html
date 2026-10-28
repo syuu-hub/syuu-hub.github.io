@@ -2673,9 +2673,9 @@ function renderLog() {
     list.innerHTML = `<li class="empty">${!sh ? '出庫前です。ホームの「出庫」から営業を開始します。' : sh === curShift() ? 'まだ乗車記録はありません。<br>「実車」→「空車」で記録できます' : 'この日の乗車記録はありません。'}</li>`;
     return;
   }
-  // 乗車と待機・休憩を新しい順に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
+  // 乗車と待機・休憩を古い順に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
   const showPause = !!S.settings.histPause;
-  const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => b.t - a.t);
+  const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => a.t - b.t);
   if (!items.length) { list.innerHTML = `<li class="empty">まだ乗車記録はありません。<br>${PL()}は「${PL()}も表示」で確認できます。</li>`; return; }
   // 1件＝1カード。情報の順位：①時刻と金額 ②乗車地→降車地 ③決済・種別
   const top = (t1, t2, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span><span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
