@@ -370,8 +370,6 @@ svg{display:block}
 .ana-aim .v{font-size:clamp(22px,6.6vw,30px);font-weight:800;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-aim .s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-sh{font-size:15px;font-weight:800;margin:18px 2px 8px}
-.cols-wrap{position:relative;padding-top:18px}
-.cols-wrap .peak{position:absolute;top:0;transform:translateX(-50%);font-size:11px;font-weight:800;color:var(--accent);white-space:nowrap}
 .heat button.best{box-shadow:inset 0 0 0 2px var(--text)}
 .taxis{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:4px}
 .hls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
@@ -386,17 +384,6 @@ svg{display:block}
 .kpi.main{background:var(--accent-soft);border:1px solid rgba(255,176,32,.35)}
 .kpi.main .v{color:var(--accent)}
 .k4 .kpi .v{font-size:clamp(20px,6vw,26px)}
-.cols{position:relative}
-.cols .avg-line{position:absolute;left:0;right:0;height:0;border-top:2px dashed var(--text);opacity:.55;pointer-events:none}
-.aim{background:linear-gradient(135deg,rgba(255,176,32,.16),rgba(255,176,32,.04));border-color:rgba(255,176,32,.4)}
-.aims{list-style:none;display:grid;gap:2px}
-.aims li{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;grid-template-areas:"n w a" "n x a";column-gap:10px;align-items:center;padding:8px 0}
-.aims li + li{border-top:1px solid var(--line)}
-.aims .n{grid-area:n;font-size:13px;font-weight:800;color:var(--accent);text-align:center}
-.aims .w{grid-area:w;font-size:18px;font-weight:800;white-space:nowrap}
-.aims .x{grid-area:x;font-size:12px;color:var(--muted)}
-.aims .a{grid-area:a;font-size:18px;font-weight:800;color:var(--accent);white-space:nowrap}
-.aims .a small,.prank .a small{font-size:11px;color:var(--muted);margin-left:1px;font-weight:600}
 .pl-sort{margin:0 0 6px}
 .pl-sort button{flex:1}
 .prank{list-style:none}
@@ -448,18 +435,14 @@ svg{display:block}
 .ana-method ul{margin:10px 0 0 1.1em;display:grid;gap:8px;font-size:13px;color:var(--muted);line-height:1.6}
 .ana-method b{color:var(--text)}
 /* 縦棒（時間帯）・推移 */
-.cols{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;align-items:end;height:120px}
-.cols button{height:100%;display:flex;align-items:flex-end;padding:0}
-.cols button i{display:block;width:100%;border-radius:4px 4px 0 0;background:#6B7584;min-height:2px}
-.cols button.hi i{background:var(--accent)}
-.cols button.na i{background:var(--surface-2)}
-.cols button[aria-pressed="true"] i{outline:2px solid var(--text);outline-offset:1px}
 .axis{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;font-size:10px;color:var(--faint);margin-top:4px;font-variant-numeric:tabular-nums}
 .axis span{text-align:left;white-space:nowrap}
+.prank .a small{font-size:11px;color:var(--muted);margin-left:1px;font-weight:600}
 .heat{display:grid;grid-template-columns:1.5em repeat(8,minmax(0,1fr));gap:3px}
 .heat .r{font-size:12px;color:var(--muted);font-weight:700;display:flex;align-items:center;justify-content:center}
 .heat .c{font-size:10px;color:var(--faint);text-align:center;font-weight:600;letter-spacing:-.02em;white-space:nowrap;padding-bottom:2px}
 .heat button{height:34px;border-radius:6px;padding:0;font-size:13px;font-weight:700;color:var(--text);background:var(--surface-3)}
+.heat .all{margin-bottom:6px}
 .heat button.na{background:transparent;border:1px dashed var(--line-2);color:var(--faint);font-weight:400}
 .heat button[aria-pressed="true"]{outline:2px solid var(--text);outline-offset:1px}
 .heat .up2,.heat-legend .up2,.pstrip .up2{background:#2FBF71;color:#06210F}
@@ -2965,24 +2948,17 @@ function renderAnalysis() {
   // ── 少ない記録で「たまたま良かった」所が上位にならないよう、全体の平均へ寄せて推定する（経験ベイズの縮小推定）
   //    推定値 ＝（実績の合計 ＋ 事前の重み × 全体の平均）÷（実績の量 ＋ 事前の重み）
   const shrink = (sum, w, prior, m) => (sum + m * prior) / (w + m);
-  // 時間帯（全曜日）：その時間に乗せた売上 ÷ その時間に営業していた時間。事前の重み2時間
-  const hours = Array.from({ length: 24 }, (_, h) => {
-    const du = A.duty.reduce((a, r) => a + r[h], 0), sa = A.sales.reduce((a, r) => a + r[h], 0), c = A.cnt.reduce((a, r) => a + r[h], 0);
-    return { h, du, sa, c, raw: du ? sa / (du / 60) : 0, rate: du >= 30 ? shrink(sa, du / 60, perHour, 2) : null };
-  });
-  const bestHour = hours.filter(x => x.rate != null).sort((a, b) => b.rate - a.rate)[0];
-  const maxRate = Math.max(...hours.map(x => x.rate || 0), 1);
-  // 曜日×時間帯
-  const cells = [];
-  for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) { const du = A.duty[d][h]; if (du >= 30) cells.push({ d, h, du, rate: shrink(A.sales[d][h], du / 60, perHour, 2), raw: A.sales[d][h] / (du / 60), c: A.cnt[d][h] }); }
-  // 3時間ずつのマス：その3時間の売上 ÷ 営業時間。事前の重み2時間
+  // 3時間ずつのマス：その3時間の売上 ÷ 営業時間。全曜日の同じ時間（全体の平均へ寄せる）→ 曜日ごと（全曜日の同じ時間へ寄せる）の順に推定
+  //   次の営業プランの時間割と同じ計算（同じ数字になる）
+  const sum3 = (rows, hs) => hs.reduce((a, h) => a + rows.reduce((x, r) => x + r[h], 0), 0);
+  const allBlocks = HEAT_BLOCKS.map(b => { const du = sum3(A.duty, b.hs), sa = sum3(A.sales, b.hs), c = sum3(A.cnt, b.hs);
+    return { b, du, c, raw: du ? sa / (du / 60) : 0, rate: du >= 60 ? shrink(sa, du / 60, perHour, 2) : null }; });
   const blocks = [];
-  for (let d = 0; d < 7; d++) for (const b of HEAT_BLOCKS) {
+  for (let d = 0; d < 7; d++) HEAT_BLOCKS.forEach((b, i) => {
     const du = b.hs.reduce((a, h) => a + A.duty[d][h], 0), sa = b.hs.reduce((a, h) => a + A.sales[d][h], 0), c = b.hs.reduce((a, h) => a + A.cnt[d][h], 0);
-    if (du >= 60) blocks.push({ d, b, du, c, raw: sa / (du / 60), rate: shrink(sa, du / 60, perHour, 2) });
-  }
+    if (du >= 60 && allBlocks[i].rate != null) blocks.push({ d, b, du, c, raw: sa / (du / 60), rate: shrink(sa, du / 60, allBlocks[i].rate, 3) });
+  });
   const bestBlock = blocks.slice().sort((a, b) => b.rate - a.rate)[0];
-  const aims = cells.filter(c => c.du >= 60).sort((a, b) => b.rate - a.rate).slice(0, 3);   // 狙い目の上位3コマ
   // 曜日：1日の売上の分布（中央値と真ん中の半分）
   const dows = WEEKDAYS.split('').map((w, i) => { const v = D.filter(d => d.dow === i).map(d => d.sales);
     return { i, w, n: v.length, m: mean(v), med: quant(v, .5), q1: quant(v, .25), q3: quant(v, .75), est: v.length ? shrink(sumOf(v, x => x), v.length, avgDay, 2) : 0 }; });
@@ -3028,7 +3004,6 @@ function renderAnalysis() {
   const bx = i => 6 + i * (trendW - 12) / Math.max(1, D.length - 1), by = v => trendH - v / maxY * (trendH - 6);
   const bw = Math.max(2, Math.min(10, (trendW - 12) / D.length - 2));
   const md = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
-  const peakX = HOUR_ORDER.indexOf(bestHour ? bestHour.h : -1);
   const plan = nextPlan(A, D, { perHour, hiFrom, effOf, shrink });
 
   body.innerHTML = `
@@ -3042,25 +3017,13 @@ function renderAnalysis() {
     <div class="ana-note" style="margin:-4px 2px 16px">${D.length}日・${A.rides.length}回${P ? '・矢印は前の' + range + '日との比較' : ''}</div>
 
     <div class="ana-sh">いつ走る？</div>
-    ${aims.length ? `<div class="ana-card aim">
-      <h3><span>狙い目の時間帯</span><small>推定・1時間あたり</small></h3>
-      <ol class="aims">${aims.map((c, i) => `<li><span class="n num">${i + 1}</span><span class="w">${WEEKDAYS[c.d]}曜 ${c.h}時台</span><span class="a num">${kv(Math.round(c.rate))}<small>/時</small></span><span class="x num">平均の${(c.rate / Math.max(1, perHour)).toFixed(1)}倍</span></li>`).join('')}</ol>
-    </div>` : ''}
-    <div class="ana-card">
-      <h3><span>時間帯ごとの1時間あたり</span><small>推定</small></h3>
-      <div class="cols-wrap">
-        ${bestHour ? `<span class="peak num" style="left:${((peakX + .5) / 24 * 100).toFixed(2)}%">${compactYen(Math.round(bestHour.rate))}</span>` : ''}
-        <div class="cols">${HOUR_ORDER.map(h => hours[h]).map(x => `<button class="${x.rate == null ? 'na' : bestHour && x.h === bestHour.h ? 'hi' : ''}" aria-pressed="false" aria-label="${x.h}時台"
-          data-tip="${x.h}時台：${x.rate == null ? '記録が少ない時間です' : `推定 ${yen(Math.round(x.rate))}/時（実績 ${yen(Math.round(x.raw))}/時・${(x.du / 60).toFixed(1)}時間・${x.c}回）`}"><i style="height:${x.rate == null ? 2 : Math.max(3, x.rate / maxRate * 100).toFixed(1)}%"></i></button>`).join('')}<div class="avg-line" style="bottom:${Math.min(100, perHour / maxRate * 100).toFixed(1)}%"></div></div>
-      </div>
-      <div class="axis">${HOUR_ORDER.map(h => `<span>${h % 3 === 0 ? h + '時' : ''}</span>`).join('')}</div>
-      <div class="legend"><span><i style="background:var(--text);height:2px"></i>全体の平均 ${kv(Math.round(perHour))}/時</span></div>
-      <div class="ana-tip"></div>
-    </div>
     <div class="ana-card">
       <h3><span>曜日×時間帯</span><small>千円/時・3時間ごと</small></h3>
       <div class="heat">
         <span></span>${HEAT_BLOCKS.map(b => `<span class="c num">${b.head}</span>`).join('')}
+        <span class="r all">全</span>${allBlocks.map(c => c.rate == null
+          ? `<button class="na" aria-pressed="false" data-tip="全曜日 ${c.b.label}時：記録が少ない時間です"></button>`
+          : `<button class="${heatLv(c.rate / Math.max(1, perHour)).cls} all num" aria-pressed="false" data-tip="全曜日 ${c.b.label}時：推定 ${yen(Math.round(c.rate))}/時（平均の${(c.rate / Math.max(1, perHour)).toFixed(1)}倍・実績 ${yen(Math.round(c.raw))}/時・${(c.du / 60).toFixed(1)}時間・${c.c}回）">${(c.rate / 1000).toFixed(c.rate >= 10000 ? 0 : 1)}</button>`).join('')}
         ${WEEKDAYS.split('').map((w, d) => `<span class="r">${w}</span>` + HEAT_BLOCKS.map(b => {
           const c = blocks.find(x => x.d === d && x.b === b);
           if (!c) return `<button class="na" aria-pressed="false" aria-label="${w}曜${b.label}時 記録なし" data-tip="${w}曜 ${b.label}時：記録が少ない時間です"></button>`;
@@ -3123,7 +3086,7 @@ function renderAnalysis() {
         <li><b>推定</b>：記録が少ない時間帯・場所は全体の平均に寄せて計算（経験ベイズの縮小推定）。たまたま1回良かっただけの所が上位に出にくくなります</li>
         <li><b>時間効率</b>：その場所で乗せた売上 ÷（前の降車から乗車までの空車・待機時間 ＋ 乗車時間）。2時間を超える空きは休憩として2時間まで</li>
         <li><b>次の営業プラン</b>：次に出る曜日の見込み売上（中央値と真ん中の半分）、目標に届く割合、3時間ごとの1時間あたり（その曜日 → 全曜日の同じ時間 → 全体の平均 の順に寄せた推定）、乗り場の待ち時間の上限（乗り場の平均運賃 ÷ 1時間あたり − 乗車時間＝待つことの機会費用）、調子と営業時間の関係（タクシー運転手の労働供給の研究：Camerer ほか 1997・Farber 2015）</li>
-        <li><b>曜日×時間帯</b>：3時間ずつの1時間あたり（推定）を全体の平均と比べ、緑は平均より稼げる・赤は稼げない時間。白枠が最も良い時間</li>
+        <li><b>曜日×時間帯</b>：3時間ずつの1時間あたり（推定）を全体の平均と比べ、緑は平均より稼げる・赤は稼げない時間。「全」は全曜日、白枠が最も良い時間。次の営業プランの時間割と同じ数字</li>
         <li><b>曜日</b>：平均は高い日に引っぱられるので中央値で比べ、帯で日によるばらつきを表示</li>
       </ul>
     </details>`;
