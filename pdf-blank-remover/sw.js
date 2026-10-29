@@ -1,7 +1,7 @@
 // 空白ページ削除 Service Worker
 // 画面（HTML）はネット優先：つながる時は常に最新を取得してキャッシュを更新、圏外ではキャッシュで起動
 // ライブラリ・アイコン等はキャッシュ優先。日本語フォント用の cmaps などは使ったときにキャッシュする
-const CACHE = 'pdf-blank-remover-v2';
+const CACHE = 'pdf-blank-remover-v3';
 const ASSETS = [
   './', './index.html', './analyzer.js', './manifest.webmanifest',
   './vendor/pdf-lib.min.js', './vendor/pdfjs/pdf.min.mjs', './vendor/pdfjs/pdf.worker.min.mjs',
