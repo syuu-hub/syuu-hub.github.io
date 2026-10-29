@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0C0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="PDFの白紙ページを画像解析とテキスト検出で見つけ、確認してから取り除いたPDFを端末に保存します。ファイルは端末の外に送られません。">
+<title>空白ページ削除</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="空白ページ削除">
+<style>
+:root{
+  --bg:#0A0C0F;
+  --surface:#12151A;
+  --surface-2:#191D24;
+  --surface-3:#212630;
+  --line:#242A33;
+  --line-2:#343C48;
+  --text:#ECEFF3;
+  --muted:#8C96A4;
+  --faint:#5A6472;
+
+  --accent:#FFB020;
+  --accent-ink:#1E1400;
+  --accent-soft:rgba(255,176,32,.14);
+
+  /* ページの判定色（デフラグ風）：内容あり=青 / 空白=白 / 要確認=黄 / 処理中=緑 / 削除=赤 */
+  --c-wait:#2A303A;
+  --c-content:#3A7BFF;
+  --c-blank:#E6EAF0;
+  --c-review:#FFB020;
+  --c-active:#3DD68C;
+  --c-del:#FF5D5D;
+  --c-err:#B0405A;
+
+  /* 解析マップのタイル色 */
+  --t-empty:#1A1F27;
+  --t-excl:#0F1216;
+  --t-noise:#4B5462;
+  --t-ink:#3A7BFF;
+  --t-text:#FFB020;
+  --t-dark:#B07CFF;
+  --t-embed:#3DD68C;
+  --t-ignored:#2C6E7A;
+
+  --r-lg:20px;
+  --r-md:14px;
+  --r-sm:10px;
+  --gap:12px;
+  --pad:16px;
+  --tap:52px;
+
+  --font: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text)}
+body{
+  font-family:var(--font);font-size:15px;line-height:1.5;min-height:100vh;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
+input{font:inherit;color:inherit}
+.hidden{display:none !important}
+
+header.top{
+  position:sticky;top:0;z-index:10;
+  display:flex;align-items:center;gap:10px;
+  padding:calc(env(safe-area-inset-top) + 10px) var(--pad) 10px;
+  background:rgba(10,12,15,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+header.top h1{font-size:17px;font-weight:800;flex:1;letter-spacing:.02em}
+header.top .file{font-size:12px;color:var(--muted);max-width:45%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+main{max-width:980px;margin:0 auto;padding:var(--pad);padding-bottom:calc(env(safe-area-inset-bottom) + 120px);display:flex;flex-direction:column;gap:var(--gap)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--pad)}
+.card h2{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h2 .sp{flex:1}
+
+/* ---------- ファイル選択 ---------- */
+.drop{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
+  min-height:220px;border:2px dashed var(--line-2);border-radius:var(--r-lg);padding:24px;
+  background:var(--surface);transition:border-color .15s,background .15s;cursor:pointer;
+}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop svg{width:56px;height:56px;color:var(--accent)}
+.drop b{font-size:17px}
+.drop small{color:var(--muted);font-size:12px}
+.privacy{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px;justify-content:center}
+.privacy i{width:8px;height:8px;border-radius:50%;background:var(--c-active);display:inline-block}
+
+.fileinfo{display:flex;gap:12px;align-items:center}
+.fileinfo canvas{width:64px;border-radius:6px;background:#fff;flex:none}
+.fileinfo .meta{flex:1;min-width:0}
+.fileinfo .name{font-weight:700;word-break:break-all}
+.fileinfo .sub{color:var(--muted);font-size:13px}
+
+/* ---------- 設定 ---------- */
+.set{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;align-items:center;gap:12px}
+.row .lbl{flex:1;min-width:0}
+.row .lbl b{display:block;font-size:15px}
+.row .lbl small{display:block;color:var(--muted);font-size:12px}
+.switch{position:relative;width:52px;height:30px;flex:none}
+.switch input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1}
+.switch span{position:absolute;inset:0;border-radius:99px;background:var(--surface-3);border:1px solid var(--line-2);transition:background .15s}
+.switch span::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+.switch input:checked + span{background:var(--accent)}
+.switch input:checked + span::after{transform:translateX(22px);background:var(--accent-ink)}
+.switch input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:3px;gap:3px}
+.seg button{flex:1;padding:9px 6px;border-radius:8px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface-3);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-2)}
+.range{display:flex;align-items:center;gap:10px}
+.range input{flex:1;accent-color:var(--accent)}
+.range output{font-family:var(--mono);font-size:13px;min-width:36px;text-align:right;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted)}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:var(--tap);padding:0 18px;border-radius:var(--r-md);font-weight:800;font-size:15px;
+  background:var(--surface-2);border:1px solid var(--line-2);
+}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.45;pointer-events:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.danger{color:var(--c-del)}
+.btn.block{width:100%}
+.btn svg{width:20px;height:20px}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btns .btn{flex:1 1 140px}
+
+/* ---------- 処理状況 ---------- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--surface-2);border-radius:var(--r-sm);padding:8px 10px;min-width:0}
+.stat small{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;font-weight:700;white-space:nowrap}
+.stat b{display:block;font-size:20px;font-family:var(--mono);font-weight:700;line-height:1.3}
+.stat i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.bar{height:8px;border-radius:99px;background:var(--surface-3);overflow:hidden;margin-bottom:6px}
+.bar > div{height:100%;width:0;background:var(--c-active);transition:width .2s}
+.barinfo{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-family:var(--mono);margin-bottom:12px;gap:8px;flex-wrap:wrap}
+
+.pipe{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
+.pipe span{
+  flex:1 0 auto;text-align:center;font-size:11px;font-weight:800;padding:6px 8px;border-radius:8px;
+  background:var(--surface-2);color:var(--faint);white-space:nowrap;transition:background .1s,color .1s;
+}
+.pipe span.on{background:var(--c-active);color:#04170D}
+.pipe span.off{text-decoration:line-through;opacity:.5}
+
+.live{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.live figure{background:var(--surface-2);border-radius:var(--r-md);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.live figcaption{font-size:11px;font-weight:800;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+.live .stage{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1.2;background:var(--t-excl);border-radius:8px;overflow:hidden}
+.live canvas{max-width:100%;max-height:100%;display:block}
+.verdict-pill{font-size:11px;font-weight:800;padding:1px 8px;border-radius:99px;background:var(--surface-3)}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:11px;color:var(--muted);margin-bottom:10px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+/* デフラグ風のページ一覧 */
+.disk{
+  --cell:22px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cell),1fr));gap:3px;
+  background:#06080A;border:1px solid var(--line);border-radius:var(--r-md);padding:6px;
+  max-height:52vh;overflow:auto;
+}
+.cell{
+  position:relative;aspect-ratio:1;border-radius:3px;background:var(--c-wait);
+  font-family:var(--mono);font-size:9px;line-height:1;color:rgba(0,0,0,.55);
+  display:flex;align-items:flex-end;justify-content:flex-end;padding:2px;overflow:hidden;
+  transition:background .15s;
+}
+.cell.content{background:var(--c-content);color:rgba(255,255,255,.7)}
+.cell.blank{background:var(--c-blank)}
+.cell.review{background:var(--c-review)}
+.cell.error{background:var(--c-err)}
+.cell.active{background:var(--c-active);animation:blink .5s steps(2) infinite}
+.cell.del::after{
+  content:"";position:absolute;inset:0;border-radius:3px;
+  background:repeating-linear-gradient(135deg,var(--c-del) 0 3px,transparent 3px 6px);opacity:.9;
+  box-shadow:inset 0 0 0 2px var(--c-del);
+}
+.cell.sel{outline:2px solid #fff;outline-offset:1px;z-index:1}
+.disk.small .cell{font-size:0}
+@keyframes blink{50%{background:#1E7A4F}}
+
+.log{
+  margin-top:12px;background:#06080A;border:1px solid var(--line);border-radius:var(--r-md);
+  font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px 10px;height:120px;overflow:auto;
+}
+.log div{white-space:nowrap}
+.log .b{color:var(--c-blank)}
+.log .r{color:var(--c-review)}
+.log .c{color:#86AEFF}
+.log .e{color:var(--c-del)}
+
+/* ---------- 確認 ---------- */
+.summary{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.summary b{font-size:28px;font-family:var(--mono)}
+.summary span{color:var(--muted)}
+.tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
+.tabs button{
+  padding:8px 12px;border-radius:99px;font-size:13px;font-weight:700;white-space:nowrap;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--muted);
+}
+.tabs button[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:transparent}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.thumb{
+  position:relative;display:flex;flex-direction:column;gap:6px;text-align:left;
+  background:var(--surface-2);border:2px solid transparent;border-radius:var(--r-md);padding:6px;
+}
+.thumb.del{border-color:var(--c-del)}
+.thumb .img{position:relative;background:#fff;border-radius:6px;overflow:hidden;aspect-ratio:1/1.3;display:flex;align-items:center;justify-content:center}
+.thumb img{width:100%;height:100%;object-fit:contain;display:block}
+.thumb.del .img::after{content:"";position:absolute;inset:0;background:rgba(255,93,93,.18)}
+.thumb .cap{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700}
+.thumb .cap .pn{flex:1}
+.badge{font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;white-space:nowrap}
+.badge.blank{background:var(--c-blank);color:#111}
+.badge.review{background:var(--c-review);color:#1E1400}
+.badge.content{background:var(--c-content);color:#fff}
+.badge.error{background:var(--c-err);color:#fff}
+.thumb .act{
+  font-size:12px;font-weight:800;padding:6px;border-radius:8px;text-align:center;
+  background:var(--surface-3);color:var(--muted);
+}
+.thumb.del .act{background:var(--c-del);color:#fff}
+.empty-note{color:var(--muted);font-size:13px;text-align:center;padding:24px 8px}
+
+.dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  padding:10px var(--pad) calc(env(safe-area-inset-bottom) + 10px);
+  background:rgba(10,12,15,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-top:1px solid var(--line);
+}
+.dock .in{max-width:980px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.dock .info{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.3}
+.dock .info b{display:block;color:var(--text);font-size:15px}
+.dock .btn{flex:none}
+
+/* ---------- プレビュー ---------- */
+.modal{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column}
+.modal header{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px}
+.modal header h3{font-size:16px;flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.iconbtn{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);flex:none}
+.iconbtn svg{width:22px;height:22px}
+.modal .view{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;position:relative}
+.modal .view canvas{max-width:100%;max-height:100%;background:#fff;border-radius:4px;box-shadow:0 0 0 1px var(--line-2)}
+.modal .view .busy{position:absolute;color:var(--muted);font-size:13px}
+.modal .tools{padding:8px 12px;display:flex;flex-direction:column;gap:8px;max-width:760px;width:100%;margin:0 auto}
+.feat{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);font-family:var(--mono)}
+.feat b{color:var(--text);font-weight:600}
+.reasons{font-size:13px}
+.modal footer{display:flex;gap:8px;padding:8px 12px calc(env(safe-area-inset-bottom) + 10px);max-width:760px;width:100%;margin:0 auto}
+.modal footer .btn{flex:1;padding:0 10px}
+.modal footer .iconbtn{width:var(--tap);height:var(--tap)}
+.toggle-del[aria-pressed="true"]{background:var(--c-del);color:#fff;border-color:transparent}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:60;
+  background:var(--surface-3);border:1px solid var(--line-2);border-radius:var(--r-md);padding:10px 16px;
+  font-size:14px;font-weight:700;max-width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.5);
+}
+
+@media (max-width:640px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .live{grid-template-columns:1fr 1fr}
+  .stat b{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  .cell.active{animation:none}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>空白ページ削除</h1>
+  <span class="file" id="hdrFile"></span>
+</header>
+
+<main>
+  <!-- ファイル選択 -->
+  <section id="secOpen">
+    <label class="drop" id="drop" tabindex="0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 17v-6"/><path d="m9 14 3-3 3 3"/></svg>
+      <b>PDFを選ぶ</b>
+      <small>タップして選択、またはここにドロップ</small>
+      <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+    </label>
+    <p class="privacy" style="margin-top:10px"><i></i>ファイルは端末の中だけで処理され、外部に送信されません</p>
+  </section>
+
+  <!-- ファイル情報と検出設定 -->
+  <section id="secSetup" class="hidden">
+    <div class="card" style="margin-bottom:var(--gap)">
+      <div class="fileinfo">
+        <canvas id="firstThumb" width="64" height="84"></canvas>
+        <div class="meta">
+          <div class="name" id="fName"></div>
+          <div class="sub" id="fSub"></div>
+        </div>
+        <button class="btn" id="btnChange" style="min-height:40px;font-size:13px">変更</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>検出の設定</h2>
+      <div class="set">
+        <div class="row">
+          <div class="lbl"><b>テキスト検出</b><small>埋め込み文字と、画像から文字の並びを探して判定に使います。オフにすると画素だけで速く判定します</small></div>
+          <label class="switch"><input type="checkbox" id="optText" checked><span></span></label>
+        </div>
+        <div>
+          <div class="row" style="margin-bottom:8px"><div class="lbl"><b>空白とみなす厳しさ</b><small id="levelHint"></small></div></div>
+          <div class="seg" id="optLevel" role="group" aria-label="空白とみなす厳しさ">
+            <button data-v="strict">厳しめ</button>
+            <button data-v="normal">標準</button>
+            <button data-v="loose">ゆるめ</button>
+          </div>
+        </div>
+        <div>
+          <div class="row" style="margin-bottom:6px"><div class="lbl"><b>外周の除外</b><small>スキャンの影や端の汚れを判定に入れない幅</small></div></div>
+          <div class="range"><input type="range" id="optMargin" min="0" max="12" step="1"><output id="optMarginOut"></output></div>
+        </div>
+        <div class="row">
+          <div class="lbl"><b>ヘッダー・フッターを無視</b><small>上下 8% にあるページ番号や柱だけのページも空白として扱います</small></div>
+          <label class="switch"><input type="checkbox" id="optHF"><span></span></label>
+        </div>
+        <div>
+          <div class="row" style="margin-bottom:8px"><div class="lbl"><b>解析の解像度</b><small>高いほど細かい文字まで拾えますが時間がかかります</small></div></div>
+          <div class="seg" id="optDpi" role="group" aria-label="解析の解像度">
+            <button data-v="100">100 dpi</button>
+            <button data-v="150">150 dpi</button>
+            <button data-v="200">200 dpi</button>
+          </div>
+        </div>
+        <button class="btn primary block" id="btnStart">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+          空白ページを検出
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 処理状況 -->
+  <section id="secRun" class="hidden">
+    <div class="card">
+      <h2><span id="runTitle">解析中</span><span class="sp"></span><button class="btn danger" id="btnCancel" style="min-height:34px;padding:0 12px;font-size:13px">中止</button></h2>
+      <div class="stats">
+        <div class="stat"><small>処理済み</small><b id="sDone">0</b></div>
+        <div class="stat"><small><i style="background:var(--c-blank)"></i>空白</small><b id="sBlank">0</b></div>
+        <div class="stat"><small><i style="background:var(--c-review)"></i>要確認</small><b id="sReview">0</b></div>
+        <div class="stat"><small><i style="background:var(--c-content)"></i>内容あり</small><b id="sContent">0</b></div>
+      </div>
+      <div class="bar"><div id="bar"></div></div>
+      <div class="barinfo"><span id="bPct">0%</span><span id="bSpeed"></span><span id="bEta"></span></div>
+
+      <div class="pipe" id="pipe">
+        <span data-s="render">読込</span>
+        <span data-s="pre">下処理</span>
+        <span data-s="bin">2値化</span>
+        <span data-s="cc">成分解析</span>
+        <span data-s="text">テキスト検出</span>
+        <span data-s="judge">判定</span>
+      </div>
+
+      <div class="live" id="live">
+        <figure>
+          <figcaption><span id="liveName">ページ</span><span class="verdict-pill" id="liveVerdict">—</span></figcaption>
+          <div class="stage"><canvas id="livePage"></canvas></div>
+        </figure>
+        <figure>
+          <figcaption><span>解析マップ</span><span id="liveScore" style="font-family:var(--mono)"></span></figcaption>
+          <div class="stage"><canvas id="liveMap"></canvas></div>
+        </figure>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--t-empty);box-shadow:inset 0 0 0 1px var(--line-2)"></i>空き</span>
+        <span><i style="background:var(--t-noise)"></i>ノイズ</span>
+        <span><i style="background:var(--t-ink)"></i>図形</span>
+        <span><i style="background:var(--t-text)"></i>文字行</span>
+        <span><i style="background:var(--t-embed)"></i>埋め込み文字</span>
+        <span><i style="background:var(--t-dark)"></i>写真・色</span>
+        <span><i style="background:var(--t-ignored)"></i>影・穴(除外)</span>
+        <span><i style="background:var(--t-excl);box-shadow:inset 0 0 0 1px var(--line-2)"></i>対象外</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 全ページ（デフラグ表示）-->
+  <section id="secDisk" class="hidden">
+    <div class="card">
+      <h2>全ページ<span class="sp"></span><span style="font-weight:600;letter-spacing:0" id="diskNote"></span></h2>
+      <div class="legend">
+        <span><i style="background:var(--c-wait)"></i>未処理</span>
+        <span><i style="background:var(--c-active)"></i>処理中</span>
+        <span><i style="background:var(--c-content)"></i>内容あり</span>
+        <span><i style="background:var(--c-review)"></i>要確認</span>
+        <span><i style="background:var(--c-blank)"></i>空白</span>
+        <span><i style="background:repeating-linear-gradient(135deg,var(--c-del) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--c-del)"></i>削除</span>
+      </div>
+      <div class="disk" id="disk" role="grid" aria-label="ページ一覧"></div>
+      <div class="log" id="log" aria-live="off"></div>
+    </div>
+  </section>
+
+  <!-- 確認 -->
+  <section id="secReview" class="hidden">
+    <div class="card">
+      <h2>削除するページの確認</h2>
+      <div class="summary"><b id="rDel">0</b><span>ページを削除 → </span><b id="rKeep">0</b><span>ページのPDFに</span></div>
+      <div class="tabs" id="rTabs">
+        <button data-f="cand" aria-pressed="true">候補 <span id="tCand">0</span></button>
+        <button data-f="del">削除 <span id="tDel">0</span></button>
+        <button data-f="review">要確認 <span id="tReview">0</span></button>
+        <button data-f="all">すべて</button>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+      <div class="btns" style="margin-top:14px">
+        <button class="btn" id="btnAllBlank">空白をすべて削除に</button>
+        <button class="btn" id="btnClear">選択を解除</button>
+        <button class="btn" id="btnRedo">設定を変えて再検出</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="dock hidden" id="dock">
+  <div class="in">
+    <div class="info"><b id="dkMain"></b><span id="dkSub"></span></div>
+    <button class="btn hidden" id="btnShare">共有</button>
+    <button class="btn primary" id="btnSave">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+      保存
+    </button>
+  </div>
+</div>
+
+<!-- プレビュー -->
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <header>
+    <h3 id="mTitle"></h3>
+    <button class="iconbtn" id="mClose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </header>
+  <div class="view" id="mView"><canvas id="mCanvas"></canvas><span class="busy hidden" id="mBusy">解析中…</span></div>
+  <div class="tools">
+    <div class="seg" id="mMode" role="group" aria-label="表示">
+      <button data-v="orig" aria-pressed="true">原本</button>
+      <button data-v="enh">強調</button>
+      <button data-v="bin">2値化</button>
+      <button data-v="det">検出結果</button>
+    </div>
+    <div class="reasons" id="mReasons"></div>
+    <div class="feat" id="mFeat"></div>
+  </div>
+  <footer>
+    <button class="iconbtn" id="mPrev" aria-label="前のページ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg></button>
+    <button class="btn toggle-del" id="mToggle" aria-pressed="false"></button>
+    <button class="iconbtn" id="mNext" aria-label="次のページ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>
+  </footer>
+</div>
+
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script src="vendor/pdf-lib.min.js" defer></script>
+<script type="module">
+import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
+
+const $ = id => document.getElementById(id);
+const STORE = 'pdf-blank-remover:settings';
+const LEVEL_HINT = {
+  strict: 'うっすらした跡や小さな印もあれば内容ありにします',
+  normal: '汚れや裏写りは無視し、文字・図があれば内容ありにします',
+  loose: 'スキャンの汚れが多い原稿向け。少しの跡は空白とみなします',
+};
+const VERDICT_LABEL = { content: '内容あり', blank: '空白', review: '要確認', error: 'エラー' };
+const TILE_COLORS = ['--t-empty', '--t-excl', '--t-noise', '--t-ink', '--t-text', '--t-dark', '--t-embed', '--t-ignored']
+  .map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+
+// ---------------- 設定 ----------------
+const settings = Object.assign({ textDetect: true, level: 'normal', margin: 3, ignoreHF: false, dpi: 150 }, loadSettings());
+function loadSettings() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
+function saveSettings() { try { localStorage.setItem(STORE, JSON.stringify(settings)); } catch {} }
+function bindSeg(el, key, conv = v => v) {
+  const sync = () => el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(conv(b.dataset.v) === settings[key])));
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    settings[key] = conv(b.dataset.v); sync(); saveSettings(); onSettings();
+  });
+  sync();
+}
+bindSeg($('optLevel'), 'level');
+bindSeg($('optDpi'), 'dpi', Number);
+$('optText').checked = settings.textDetect;
+$('optHF').checked = settings.ignoreHF;
+$('optMargin').value = settings.margin;
+$('optText').onchange = e => { settings.textDetect = e.target.checked; saveSettings(); onSettings(); };
+$('optHF').onchange = e => { settings.ignoreHF = e.target.checked; saveSettings(); };
+$('optMargin').oninput = e => { settings.margin = Number(e.target.value); saveSettings(); onSettings(); };
+function onSettings() {
+  $('levelHint').textContent = LEVEL_HINT[settings.level];
+  $('optMarginOut').textContent = settings.margin + '%';
+}
+onSettings();
+
+// ---------------- 状態 ----------------
+let file = null, bytes = null, pdf = null, pages = [], running = false, cancelFlag = false;
+let reviewFilter = 'cand';
+
+// ---------------- ファイル読み込み ----------------
+const drop = $('drop');
+$('fileInput').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) openFile(f); };
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('fileInput').click(); } });
+['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) drop.classList.remove('over'); });
+document.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); });
+document.addEventListener('drop', e => { const f = [...(e.dataTransfer?.files || [])].find(isPdf); if (f && !running) openFile(f); });
+$('btnChange').onclick = () => { if (!running) $('fileInput').click(); };
+if ('launchQueue' in window) {
+  window.launchQueue.setConsumer(async params => {
+    const h = params.files && params.files[0];
+    if (h) openFile(await h.getFile());
+  });
+}
+function isPdf(f) { return f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)); }
+
+async function openFile(f) {
+  if (!isPdf(f)) { toast('PDFファイルを選んでください'); return; }
+  try {
+    const buf = new Uint8Array(await f.arrayBuffer());
+    if (pdf) { pdf.destroy(); pdf = null; }
+    const task = pdfjsLib.getDocument({
+      data: buf.slice(),
+      cMapUrl: './vendor/pdfjs/cmaps/', cMapPacked: true,
+      standardFontDataUrl: './vendor/pdfjs/standard_fonts/',
+    });
+    task.onPassword = (cb, reason) => {
+      const pw = prompt(reason === 2 ? 'パスワードが違います。もう一度入力してください' : 'このPDFはパスワードで保護されています');
+      if (pw === null) task.destroy(); else cb(pw);
+    };
+    pdf = await task.promise;
+    file = f; bytes = buf; lastOut = null;
+    pages = Array.from({ length: pdf.numPages }, (_, i) => ({ n: i + 1, status: 'wait', verdict: null, del: false }));
+    $('fName').textContent = f.name;
+    $('fSub').textContent = `${pdf.numPages}ページ ・ ${fmtSize(f.size)}`;
+    $('hdrFile').textContent = f.name;
+    drawFirstThumb();
+    show('setup');
+  } catch (err) {
+    console.error(err);
+    toast(err && err.name === 'PasswordException' ? 'パスワードが必要です' : 'このPDFを開けませんでした');
+  }
+}
+async function drawFirstThumb() {
+  const page = await pdf.getPage(1);
+  const vp0 = page.getViewport({ scale: 1 });
+  const c = $('firstThumb'), s = 128 / vp0.width;
+  const vp = page.getViewport({ scale: s });
+  c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+  await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+}
+
+function show(stage) {
+  $('secOpen').classList.toggle('hidden', stage !== 'open');
+  $('secSetup').classList.toggle('hidden', stage !== 'setup');
+  $('secRun').classList.toggle('hidden', stage !== 'run');
+  $('secDisk').classList.toggle('hidden', stage === 'open' || stage === 'setup');
+  $('secReview').classList.toggle('hidden', stage !== 'review');
+  $('dock').classList.toggle('hidden', stage !== 'review');
+  window.scrollTo({ top: 0 });
+}
+
+// ---------------- 描画（解析用）----------------
+async function renderForAnalysis(n, dpi) {
+  const page = await pdf.getPage(n);
+  const vp1 = page.getViewport({ scale: 1 });
+  let scale = dpi / 72;
+  const MAX = 5e6;
+  if (vp1.width * vp1.height * scale * scale > MAX) scale = Math.sqrt(MAX / (vp1.width * vp1.height));
+  const vp = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(vp.width));
+  canvas.height = Math.max(1, Math.round(vp.height));
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport: vp, background: 'rgb(255,255,255)' }).promise;
+  let textItems = [];
+  if (settings.textDetect) {
+    const tc = await page.getTextContent();
+    for (const it of tc.items) {
+      const chars = (it.str || '').replace(/\s/g, '').length;
+      if (!chars) continue;
+      const t = pdfjsLib.Util.transform(vp.transform, it.transform);
+      const fh = Math.hypot(t[2], t[3]) || 1;
+      const wpx = Math.max(1, (it.width || 0) * scale);
+      textItems.push([t[4], t[5] - fh, wpx, fh, chars]);
+    }
+  }
+  page.cleanup();
+  return { canvas, ctx, dpi: scale * 72, textItems };
+}
+
+// ---------------- 解析ワーカー ----------------
+class Analyzer {
+  constructor() {
+    this.w = new Worker('analyzer.js');
+    this.jobs = new Map(); this.seq = 0;
+    this.w.onmessage = e => {
+      const m = e.data, job = this.jobs.get(m.id);
+      if (!job) return;
+      if (m.type === 'done') { this.jobs.delete(m.id); job.resolve(m.result); }
+      else if (m.type === 'error') { this.jobs.delete(m.id); job.reject(new Error(m.message)); }
+      else job.onProgress && job.onProgress(m);
+    };
+    this.w.onerror = e => { for (const j of this.jobs.values()) j.reject(new Error(e.message || 'worker')); this.jobs.clear(); };
+  }
+  run(r, { wantBinary = false, onProgress } = {}) {
+    const id = ++this.seq;
+    const img = r.ctx.getImageData(0, 0, r.canvas.width, r.canvas.height);
+    return new Promise((resolve, reject) => {
+      this.jobs.set(id, { resolve, reject, onProgress });
+      this.w.postMessage({
+        cmd: 'analyze', id, w: img.width, h: img.height, buf: img.data.buffer, dpi: r.dpi, wantBinary,
+        textItems: r.textItems,
+        opts: { textDetect: settings.textDetect, level: settings.level, margin: settings.margin, ignoreHF: settings.ignoreHF },
+      }, [img.data.buffer]);
+    });
+  }
+}
+const mainAnalyzer = new Analyzer();
+const previewAnalyzer = new Analyzer();
+
+// ---------------- ページ一覧（デフラグ表示）----------------
+const disk = $('disk');
+function buildDisk() {
+  const n = pages.length;
+  const cell = n <= 60 ? 30 : n <= 200 ? 22 : n <= 600 ? 15 : 11;
+  disk.style.setProperty('--cell', cell + 'px');
+  disk.classList.toggle('small', cell < 20);
+  disk.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const p of pages) {
+    const d = document.createElement('div');
+    d.className = 'cell';
+    d.dataset.i = p.n - 1;
+    d.textContent = p.n;
+    d.setAttribute('role', 'gridcell');
+    p.el = d;
+    paintCell(p);
+    frag.appendChild(d);
+  }
+  disk.appendChild(frag);
+}
+function paintCell(p) {
+  if (!p.el) return;
+  const s = p.status === 'active' ? 'active' : p.status === 'error' ? 'error' : p.verdict || '';
+  p.el.className = 'cell' + (s ? ' ' + s : '') + (p.del ? ' del' : '');
+  p.el.title = `p.${p.n}` + (p.verdict ? ` ・ ${VERDICT_LABEL[p.verdict]}` : '') + (p.del ? ' ・ 削除' : '');
+}
+disk.addEventListener('click', e => {
+  const c = e.target.closest('.cell'); if (!c) return;
+  const p = pages[+c.dataset.i];
+  if (!p.verdict) return;
+  openPreview(+c.dataset.i, pages.filter(q => q.verdict).map(q => q.n - 1));
+});
+
+// ---------------- ログ ----------------
+const logEl = $('log');
+function log(msg, cls = '') {
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  const t = new Date();
+  d.textContent = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}  ${msg}`;
+  logEl.prepend(d);
+  while (logEl.childElementCount > 300) logEl.lastChild.remove();
+}
+
+// ---------------- ライブ表示 ----------------
+const livePage = $('livePage'), liveMap = $('liveMap');
+let mapState = null;
+// 描画（読込）は次のページを先読みするので、解析の段階とは別に点灯させる
+function setStage(s) {
+  $('pipe').querySelectorAll('span').forEach(el => { if (el.dataset.s !== 'render') el.classList.toggle('on', el.dataset.s === s); });
+}
+function setRendering(on) { $('pipe').querySelector('[data-s="render"]').classList.toggle('on', on); }
+function drawLivePage(canvas) {
+  const box = livePage.parentElement.getBoundingClientRect();
+  const s = Math.min((box.width || 200) * 2 / canvas.width, (box.height || 240) * 2 / canvas.height, 1);
+  livePage.width = Math.max(1, Math.round(canvas.width * s));
+  livePage.height = Math.max(1, Math.round(canvas.height * s));
+  livePage.getContext('2d').drawImage(canvas, 0, 0, livePage.width, livePage.height);
+  livePage._scale = s;
+  livePage._src = canvas;
+}
+function drawLiveBoxes(res) {
+  if (!livePage._src) return;
+  const ctx = livePage.getContext('2d'), s = livePage._scale;
+  ctx.drawImage(livePage._src, 0, 0, livePage.width, livePage.height);
+  drawRegion(ctx, res.region, s, res.w, res.h);
+  strokeBoxes(ctx, res.boxes.dark, s, TILE_COLORS[5], 1);
+  strokeBoxes(ctx, res.boxes.comps, s, TILE_COLORS[3], 1);
+  strokeBoxes(ctx, res.boxes.lines, s, TILE_COLORS[4], 2);
+  strokeBoxes(ctx, res.boxes.embed, s, TILE_COLORS[6], 1.5);
+  strokeBoxes(ctx, res.boxes.ignored, s, TILE_COLORS[7], 1.5);
+}
+function initMap(cols, rows, tiles) {
+  mapState = { cols, rows, tiles: Uint8Array.from(tiles), scan: -1 };
+  const box = liveMap.parentElement.getBoundingClientRect();
+  const cs = Math.max(4, Math.floor(Math.min((box.width || 200) / cols, (box.height || 240) / rows) * 2));
+  liveMap.width = cols * cs; liveMap.height = rows * cs;
+  mapState.cs = cs;
+  renderMap();
+}
+function renderMap() {
+  if (!mapState) return;
+  const { cols, rows, tiles, cs, scan } = mapState;
+  const ctx = liveMap.getContext('2d');
+  ctx.fillStyle = '#06080A';
+  ctx.fillRect(0, 0, liveMap.width, liveMap.height);
+  const g = Math.max(1, Math.round(cs / 6));
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    ctx.fillStyle = TILE_COLORS[tiles[y * cols + x]];
+    ctx.fillRect(x * cs + g / 2, y * cs + g / 2, cs - g, cs - g);
+  }
+  if (scan >= 0 && scan < rows - 1) {
+    ctx.fillStyle = 'rgba(61,214,140,.9)';
+    ctx.fillRect(0, (scan + 1) * cs - 1, liveMap.width, Math.max(2, g));
+  }
+}
+let mapRaf = 0;
+function queueMap() { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; renderMap(); }); }
+function onProgress(m) {
+  if (m.type === 'stage') setStage(m.stage);
+  else if (m.type === 'grid') initMap(m.cols, m.rows, m.tiles);
+  else if (m.type === 'band' && mapState) {
+    mapState.tiles.set(m.data, m.row * mapState.cols);
+    mapState.scan = m.row;
+    queueMap();
+  }
+}
+
+// ---------------- 統計 ----------------
+let t0 = 0;
+function updateStats() {
+  const done = pages.filter(p => p.verdict).length, N = pages.length;
+  const c = { blank: 0, review: 0, content: 0 };
+  pages.forEach(p => { if (c[p.verdict] !== undefined) c[p.verdict]++; });
+  $('sDone').textContent = `${done}/${N}`;
+  $('sBlank').textContent = c.blank;
+  $('sReview').textContent = c.review;
+  $('sContent').textContent = c.content;
+  const pct = N ? done / N : 0;
+  $('bar').style.width = (pct * 100).toFixed(1) + '%';
+  $('bPct').textContent = Math.floor(pct * 100) + '%';
+  const el = (performance.now() - t0) / 1000;
+  if (done && running) {
+    const sp = done / el;
+    $('bSpeed').textContent = `${sp.toFixed(sp < 10 ? 1 : 0)} ページ/秒`;
+    $('bEta').textContent = `残り ${fmtTime((N - done) / sp)}`;
+  } else if (!running) {
+    $('bSpeed').textContent = '';
+    $('bEta').textContent = `所要 ${fmtTime(el)}`;
+  }
+  $('diskNote').textContent = `${N}ページ`;
+}
+
+// ---------------- 検出処理 ----------------
+$('btnStart').onclick = start;
+$('btnCancel').onclick = () => { cancelFlag = true; $('btnCancel').disabled = true; log('中止しています…', 'e'); };
+$('btnRedo').onclick = () => show('setup');
+
+async function start() {
+  if (!pdf || running) return;
+  running = true; cancelFlag = false; lastOut = null;
+  $('btnCancel').disabled = false;
+  pages.forEach(p => { p.status = 'wait'; p.verdict = null; p.del = false; p.result = null; p.thumb = null; });
+  $('pipe').querySelector('[data-s="text"]').classList.toggle('off', !settings.textDetect);
+  $('runTitle').textContent = '解析中';
+  logEl.innerHTML = '';
+  show('run');
+  buildDisk();
+  t0 = performance.now();
+  updateStats();
+  log(`開始：${pages.length}ページ ・ ${settings.dpi}dpi ・ ${({ strict: '厳しめ', normal: '標準', loose: 'ゆるめ' })[settings.level]} ・ テキスト検出${settings.textDetect ? 'あり' : 'なし'}`);
+  const wake = await requestWakeLock();
+
+  // 描画と解析を重ねて進める（次のページを描きながら今のページを解析）
+  let pending = null;
+  for (let i = 0; i < pages.length && !cancelFlag; i++) {
+    const p = pages[i];
+    p.status = 'active'; paintCell(p);
+    setRendering(true);
+    let r;
+    try {
+      r = await renderForAnalysis(p.n, settings.dpi);
+    } catch (err) {
+      setRendering(false);
+      if (pending) await pending;
+      fail(p, err); continue;
+    }
+    setRendering(false);
+    if (pending) await pending;
+    if (cancelFlag) break;
+    p.thumb = makeThumb(r.canvas);
+    $('liveName').textContent = `p.${p.n}`;
+    $('liveVerdict').textContent = '解析中';
+    $('liveVerdict').style.background = '';
+    $('liveVerdict').style.color = '';
+    $('liveScore').textContent = '';
+    drawLivePage(r.canvas);
+    pending = mainAnalyzer.run(r, { onProgress })
+      .then(res => finish(p, res))
+      .catch(err => fail(p, err));
+  }
+  if (pending) await pending;
+  if (wake) wake.release().catch(() => {});
+  running = false;
+  setStage(''); setRendering(false);
+  pages.forEach(p => { if (p.status === 'active') { p.status = 'wait'; paintCell(p); } });
+  updateStats();
+  const done = pages.filter(p => p.verdict).length;
+  if (cancelFlag) log(`中止しました（${done}ページまで判定済み）`, 'e');
+  else log(`完了：空白 ${pages.filter(p => p.verdict === 'blank').length} ・ 要確認 ${pages.filter(p => p.verdict === 'review').length}`);
+  $('runTitle').textContent = cancelFlag ? '中止' : '完了';
+  if (!done) { show('setup'); return; }
+  show('review');
+  renderReview();
+}
+
+function finish(p, res) {
+  p.status = 'done';
+  p.verdict = res.verdict;
+  p.del = res.verdict === 'blank';
+  p.result = { score: res.score, reasons: res.reasons, features: res.features };
+  paintCell(p);
+  setStage('judge');
+  if (mapState) { mapState.tiles = res.tiles; mapState.scan = -1; renderMap(); }
+  drawLiveBoxes(res);
+  const v = $('liveVerdict');
+  v.textContent = VERDICT_LABEL[res.verdict];
+  v.style.background = `var(--c-${res.verdict})`;
+  v.style.color = res.verdict === 'content' ? '#fff' : '#111';
+  $('liveScore').textContent = `内容度 ${Math.min(999, Math.round(res.score * 100))}%`;
+  const cls = { blank: 'b', review: 'r', content: 'c' }[res.verdict];
+  log(`p.${p.n}  ${VERDICT_LABEL[res.verdict]}  ${res.reasons.join(' / ')}`, cls);
+  updateStats();
+}
+function fail(p, err) {
+  console.error(err);
+  p.status = 'error'; p.verdict = 'error'; p.del = false;
+  p.result = { score: 0, reasons: ['解析できませんでした'], features: null };
+  paintCell(p);
+  log(`p.${p.n}  エラー：${err && err.message || err}`, 'e');
+  updateStats();
+}
+function makeThumb(canvas) {
+  const c = document.createElement('canvas');
+  const s = 200 / canvas.width;
+  c.width = 200; c.height = Math.max(1, Math.round(canvas.height * s));
+  const x = c.getContext('2d');
+  x.drawImage(canvas, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.72);
+}
+async function requestWakeLock() {
+  try { return await navigator.wakeLock?.request('screen'); } catch { return null; }
+}
+
+// ---------------- 確認画面 ----------------
+$('rTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  reviewFilter = b.dataset.f;
+  $('rTabs').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  renderReview();
+});
+function filtered() {
+  return pages.filter(p => {
+    if (!p.verdict) return false;
+    if (reviewFilter === 'cand') return p.verdict === 'blank' || p.verdict === 'review' || p.del;
+    if (reviewFilter === 'del') return p.del;
+    if (reviewFilter === 'review') return p.verdict === 'review';
+    return true;
+  });
+}
+function renderReview() {
+  const list = filtered();
+  const box = $('thumbs');
+  box.innerHTML = '';
+  if (!list.length) {
+    box.innerHTML = `<p class="empty-note" style="grid-column:1/-1">${reviewFilter === 'cand' ? '空白ページは見つかりませんでした' : '該当するページはありません'}</p>`;
+  }
+  const frag = document.createDocumentFragment();
+  for (const p of list) {
+    const b = document.createElement('div');
+    b.className = 'thumb' + (p.del ? ' del' : '');
+    b.dataset.i = p.n - 1;
+    b.innerHTML = `
+      <button class="img" data-a="open" aria-label="p.${p.n}をプレビュー">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ''}</button>
+      <div class="cap"><span class="pn">p.${p.n}</span><span class="badge ${p.verdict}">${VERDICT_LABEL[p.verdict]}</span></div>
+      <button class="act" data-a="toggle">${p.del ? '削除する' : '残す'}</button>`;
+    frag.appendChild(b);
+  }
+  box.appendChild(frag);
+  updateCounts();
+}
+$('thumbs').addEventListener('click', e => {
+  const a = e.target.closest('[data-a]'); if (!a) return;
+  const i = +a.closest('.thumb').dataset.i;
+  if (a.dataset.a === 'toggle') { setDel(pages[i], !pages[i].del); renderReview(); }
+  else openPreview(i, filtered().map(p => p.n - 1));
+});
+function setDel(p, v) {
+  if (p.verdict === 'error') return;
+  p.del = v; paintCell(p); updateCounts();
+}
+function updateCounts() {
+  const del = pages.filter(p => p.del).length;
+  const keep = pages.length - del;
+  $('rDel').textContent = del;
+  $('rKeep').textContent = keep;
+  $('tCand').textContent = pages.filter(p => p.verdict === 'blank' || p.verdict === 'review' || p.del).length;
+  $('tDel').textContent = del;
+  $('tReview').textContent = pages.filter(p => p.verdict === 'review').length;
+  $('dkMain').textContent = `${keep}ページで保存`;
+  $('dkSub').textContent = del ? `${del}ページを削除` : '削除するページがありません';
+  $('btnSave').disabled = !keep || !del;
+  $('btnShare').disabled = !keep || !del;
+}
+$('btnAllBlank').onclick = () => { pages.forEach(p => { if (p.verdict === 'blank') { p.del = true; paintCell(p); } }); renderReview(); };
+$('btnClear').onclick = () => { pages.forEach(p => { p.del = false; paintCell(p); }); renderReview(); };
+
+// ---------------- プレビュー ----------------
+const modal = $('modal'), mCanvas = $('mCanvas');
+let pv = null, pvMode = 'orig', pvToken = 0;
+function openPreview(i, list) {
+  pv = { list: list.length ? list : [i], pos: Math.max(0, list.indexOf(i)), data: null };
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  loadPreview();
+}
+function closePreview() {
+  modal.classList.add('hidden');
+  document.body.style.overflow = '';
+  pv = null;
+  if (!$('secReview').classList.contains('hidden')) renderReview();
+}
+$('mClose').onclick = closePreview;
+$('mPrev').onclick = () => movePreview(-1);
+$('mNext').onclick = () => movePreview(1);
+$('mToggle').onclick = () => { const p = pages[pv.list[pv.pos]]; setDel(p, !p.del); updatePreviewHeader(); };
+$('mMode').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  pvMode = b.dataset.v;
+  $('mMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  drawPreview();
+});
+document.addEventListener('keydown', e => {
+  if (!pv) return;
+  if (e.key === 'Escape') closePreview();
+  else if (e.key === 'ArrowLeft') movePreview(-1);
+  else if (e.key === 'ArrowRight') movePreview(1);
+  else if (e.key === 'd' || e.key === 'Delete') $('mToggle').click();
+});
+let touchX = null;
+$('mView').addEventListener('touchstart', e => { touchX = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+$('mView').addEventListener('touchend', e => {
+  if (touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 60) movePreview(dx < 0 ? 1 : -1);
+  touchX = null;
+});
+function movePreview(d) {
+  if (!pv) return;
+  const np = pv.pos + d;
+  if (np < 0 || np >= pv.list.length) return;
+  pv.pos = np; loadPreview();
+}
+function updatePreviewHeader() {
+  const p = pages[pv.list[pv.pos]];
+  $('mTitle').innerHTML = `p.${p.n} <span class="badge ${p.verdict}">${VERDICT_LABEL[p.verdict]}</span><span style="font-size:12px;color:var(--muted);font-weight:600">${pv.pos + 1} / ${pv.list.length}</span>`;
+  const t = $('mToggle');
+  t.setAttribute('aria-pressed', String(p.del));
+  t.textContent = p.del ? '削除する（タップで残す）' : '残す（タップで削除）';
+  t.disabled = p.verdict === 'error';
+  $('mPrev').disabled = pv.pos === 0;
+  $('mNext').disabled = pv.pos === pv.list.length - 1;
+  $('mPrev').style.opacity = pv.pos === 0 ? .35 : 1;
+  $('mNext').style.opacity = pv.pos === pv.list.length - 1 ? .35 : 1;
+  const r = p.result;
+  $('mReasons').textContent = r ? r.reasons.join(' / ') : '';
+  const f = r && r.features;
+  $('mFeat').innerHTML = f ? [
+    ['内容度', Math.min(999, Math.round(r.score * 100)) + '%'],
+    ['埋め込み文字', settings.textDetect ? f.embedChars : '—'],
+    ['画像中の文字', settings.textDetect ? `${f.glyphs}字/${f.lines}か所` : '—'],
+    ['図形', f.comps],
+    ['ノイズ', f.noise],
+    ['インク', (f.inkRatio * 100).toFixed(3) + '%'],
+    ['写真・色', (f.darkRatio * 100).toFixed(1) + '%'],
+    ['最大図形', f.bigMm.toFixed(1) + 'mm'],
+  ].map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join('') : '';
+}
+async function loadPreview() {
+  const i = pv.list[pv.pos], token = ++pvToken;
+  updatePreviewHeader();
+  $('mBusy').classList.remove('hidden');
+  pv.data = null;
+  // 一覧の小さい画像を先に出しておく
+  const p = pages[i];
+  if (p.thumb) {
+    const img = new Image();
+    img.onload = () => { if (token !== pvToken || pv.data) return; fitCanvas(img.width, img.height); mCanvas.getContext('2d').drawImage(img, 0, 0, mCanvas.width, mCanvas.height); };
+    img.src = p.thumb;
+  }
+  try {
+    const r = await renderForAnalysis(p.n, settings.dpi);
+    if (token !== pvToken) return;
+    const src = r.canvas;
+    const res = await previewAnalyzer.run(r, { wantBinary: true });
+    if (token !== pvToken) return;
+    pv.data = { src, res };
+    $('mBusy').classList.add('hidden');
+    drawPreview();
+  } catch (err) {
+    console.error(err);
+    if (token === pvToken) $('mBusy').textContent = '表示できませんでした';
+  }
+}
+function fitCanvas(w, h) {
+  const view = $('mView').getBoundingClientRect();
+  const s = Math.min((view.width - 24) / w, (view.height - 8) / h);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  mCanvas.style.width = Math.floor(w * s) + 'px';
+  mCanvas.style.height = Math.floor(h * s) + 'px';
+  mCanvas.width = Math.max(1, Math.round(w * s * dpr));
+  mCanvas.height = Math.max(1, Math.round(h * s * dpr));
+}
+function drawPreview() {
+  if (!pv || !pv.data) return;
+  const { src, res } = pv.data;
+  fitCanvas(src.width, src.height);
+  const ctx = mCanvas.getContext('2d');
+  const s = mCanvas.width / src.width;
+  ctx.imageSmoothingEnabled = true;
+  if (pvMode === 'orig' || pvMode === 'det') {
+    ctx.filter = 'none';
+    ctx.drawImage(src, 0, 0, mCanvas.width, mCanvas.height);
+  } else if (pvMode === 'enh') {
+    // うっすらした跡を見つけやすいよう、コントラストを強める
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+    ctx.filter = 'grayscale(1) contrast(6) brightness(1.02)';
+    ctx.drawImage(src, 0, 0, mCanvas.width, mCanvas.height);
+    ctx.filter = 'none';
+  } else if (pvMode === 'bin') {
+    if (!pv.data.binCanvas) {
+      const c = document.createElement('canvas');
+      c.width = res.w; c.height = res.h;
+      const x = c.getContext('2d');
+      const img = x.createImageData(res.w, res.h);
+      const pal = [[255, 255, 255], [255, 120, 120], [80, 190, 210], [0, 0, 0]];
+      const d = img.data, b = res.binary;
+      for (let k = 0, j = 0; k < b.length; k++, j += 4) {
+        const c3 = pal[b[k]];
+        d[j] = c3[0]; d[j + 1] = c3[1]; d[j + 2] = c3[2]; d[j + 3] = 255;
+      }
+      x.putImageData(img, 0, 0);
+      pv.data.binCanvas = c;
+    }
+    ctx.imageSmoothingEnabled = s < 1;
+    ctx.drawImage(pv.data.binCanvas, 0, 0, mCanvas.width, mCanvas.height);
+  }
+  if (pvMode === 'det' || pvMode === 'bin') {
+    drawRegion(ctx, res.region, s, res.w, res.h);
+  }
+  if (pvMode === 'det') {
+    const lw = Math.max(1.5, s * 2);
+    fillBoxes(ctx, res.boxes.dark, s, 'rgba(176,124,255,.25)');
+    strokeBoxes(ctx, res.boxes.comps, s, TILE_COLORS[3], lw * .7);
+    strokeBoxes(ctx, res.boxes.lines, s, TILE_COLORS[4], lw * 1.2);
+    strokeBoxes(ctx, res.boxes.embed, s, TILE_COLORS[6], lw);
+    strokeBoxes(ctx, res.boxes.ignored, s, TILE_COLORS[7], lw);
+  }
+}
+function drawRegion(ctx, rg, s, w, h) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(10,12,15,.35)';
+  ctx.beginPath();
+  ctx.rect(0, 0, w * s, h * s);
+  ctx.rect(rg[0] * s, rg[1] * s, rg[2] * s, rg[3] * s);
+  ctx.fill('evenodd');
+  ctx.restore();
+}
+function strokeBoxes(ctx, boxes, s, color, lw) {
+  if (!boxes || !boxes.length) return;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw;
+  for (const b of boxes) ctx.strokeRect(b[0] * s - 1, b[1] * s - 1, b[2] * s + 2, b[3] * s + 2);
+  ctx.restore();
+}
+function fillBoxes(ctx, boxes, s, color) {
+  if (!boxes || !boxes.length) return;
+  ctx.save(); ctx.fillStyle = color;
+  for (const b of boxes) ctx.fillRect(b[0] * s, b[1] * s, b[2] * s, b[3] * s);
+  ctx.restore();
+}
+window.addEventListener('resize', () => { if (pv && pv.data) drawPreview(); });
+
+// ---------------- 出力・保存 ----------------
+const canShareFiles = (() => {
+  try { return !!navigator.canShare && navigator.canShare({ files: [new File([new Uint8Array(1)], 't.pdf', { type: 'application/pdf' })] }); } catch { return false; }
+})();
+$('btnShare').classList.toggle('hidden', !canShareFiles);
+$('btnSave').onclick = () => exportPdf('save');
+$('btnShare').onclick = () => exportPdf('share');
+
+let lastOut = null;
+async function buildOutput() {
+  const keep = pages.filter(p => !p.del).map(p => p.n - 1);
+  const key = keep.join(',');
+  if (lastOut && lastOut.key === key) return lastOut;
+  const { PDFDocument } = window.PDFLib;
+  const srcDoc = await PDFDocument.load(bytes, { updateMetadata: false });
+  const out = await PDFDocument.create({ updateMetadata: false });
+  const copied = await out.copyPages(srcDoc, keep);
+  copied.forEach(pg => out.addPage(pg));
+  // 文書情報を引き継ぐ
+  try {
+    const t = srcDoc.getTitle(); if (t) out.setTitle(t);
+    const a = srcDoc.getAuthor(); if (a) out.setAuthor(a);
+    const s = srcDoc.getSubject(); if (s) out.setSubject(s);
+    const k = srcDoc.getKeywords(); if (k) out.setKeywords(k.split(/\s*[,;]\s*|\s+/).filter(Boolean));
+    const c = srcDoc.getCreator(); if (c) out.setCreator(c);
+    const cd = srcDoc.getCreationDate(); if (cd) out.setCreationDate(cd);
+  } catch {}
+  out.setProducer('空白ページ削除');
+  out.setModificationDate(new Date());
+  const data = await out.save({ useObjectStreams: true });
+  const name = file.name.replace(/\.pdf$/i, '') + '_空白削除.pdf';
+  lastOut = { key, data, name, count: keep.length };
+  return lastOut;
+}
+async function exportPdf(mode) {
+  if (!window.PDFLib) { toast('準備中です。少し待ってからもう一度お試しください'); return; }
+  const btn = mode === 'share' ? $('btnShare') : $('btnSave');
+  const label = btn.innerHTML;
+  btn.disabled = true; btn.textContent = '作成中…';
+  try {
+    const out = await buildOutput();
+    const blob = new Blob([out.data], { type: 'application/pdf' });
+    if (mode === 'share') {
+      await navigator.share({ files: [new File([blob], out.name, { type: 'application/pdf' })], title: out.name });
+    } else if (window.showSaveFilePicker && !isMobile()) {
+      const h = await window.showSaveFilePicker({ suggestedName: out.name, types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }] });
+      const wr = await h.createWritable();
+      await wr.write(blob); await wr.close();
+      toast(`保存しました（${out.count}ページ・${fmtSize(blob.size)}）`);
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = out.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      toast(`保存しました（${out.count}ページ・${fmtSize(blob.size)}）`);
+    }
+    log(`出力：${out.name}（${out.count}ページ・${fmtSize(blob.size)}）`);
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;
+    console.error(err);
+    const enc = err && /encrypt/i.test(String(err.message || err.name));
+    toast(enc ? '暗号化されたPDFは書き出せません' : '書き出しに失敗しました');
+  } finally {
+    btn.innerHTML = label; updateCounts();
+  }
+}
+function isMobile() { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent)); }
+
+// ---------------- 共通 ----------------
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 3200);
+}
+function fmtSize(b) { return b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; }
+function fmtTime(s) {
+  if (!isFinite(s)) return '—';
+  s = Math.max(0, Math.round(s));
+  return s < 60 ? `${s}秒` : `${Math.floor(s / 60)}分${String(s % 60).padStart(2, '0')}秒`;
+}
+window.addEventListener('beforeunload', e => { if (running) { e.preventDefault(); e.returnValue = ''; } });
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
