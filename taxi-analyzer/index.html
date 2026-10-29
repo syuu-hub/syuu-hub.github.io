@@ -1098,6 +1098,7 @@ svg{display:block}
           <button class="btn sm" id="restoreBtn">復元</button>
         </div>
         <input type="file" id="restoreFile" accept="application/json,.json,text/csv,.csv" hidden>
+        <button class="btn sm" style="width:100%;margin-top:10px" id="prevBtn" hidden>前の状態に戻す</button>
         <button class="btn sm danger" style="width:100%;margin-top:10px" id="wipeBtn">全データを削除</button>
           </div>
         </div>
@@ -1507,16 +1508,48 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
+    settings: { sv: SETTINGS_VER, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
   };
 }
-function loadState() {
+// 設定の引き継ぎ：機能の変更で設定の形が変わった時は、ここで古い値を新しい設定に移す（消さずに引き継ぐ）
+const SETTINGS_VER = 1;
+function migrateSettings(st) {
+  const v = st.sv || 0;
+  if (v < 1) {
+    // 1日の目標金額 → 月の目標金額（未設定の時だけ。今の締め期間の出勤日数 × 1日の目標）
+    if (!st.monthGoal && st.goal > 0) {
+      const c = st.closingDay || 0, d = new Date(), hol = st.holidays || [];
+      const y = d.getFullYear(), m = d.getMonth() + (c && d.getDate() > c ? 1 : 0);
+      const from = c ? new Date(y, m - 1, c + 1) : new Date(y, m, 1), to = c ? new Date(y, m, c) : new Date(y, m + 1, 0);
+      let n = 0;
+      for (const x = new Date(from); x <= to; x.setDate(x.getDate() + 1)) if (!hol.includes(x.getDay())) n++;
+      st.monthGoal = st.goal * n;
+    }
+    delete st.goal;
+  }
+  st.sv = SETTINGS_VER;
+  return st;
+}
+// 更新で何かあっても戻せるよう、1日1回、起動時の（正しく読めた）データの控えを残す。
+// 読み込めなかったデータは控えを上書きせず、別に残す
+const PREV_KEY = 'taxiboard.v2.prev', BROKEN_KEY = 'taxiboard.v2.broken';
+let LOAD_ERR = false;
+function keepPrev(raw) {
   try {
-    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    const p = JSON.parse(localStorage.getItem(PREV_KEY) || 'null');
+    if (!p || new Date(p.at).toDateString() !== new Date().toDateString()) localStorage.setItem(PREV_KEY, JSON.stringify({ at: Date.now(), data: raw }));
+  } catch (e) {}
+}
+function loadState() {
+  let raw = null;
+  try { raw = localStorage.getItem(STORE_KEY); } catch (e) {}
+  try {
+    const s = JSON.parse(raw);
     if (s && s.v === 2) {
+      keepPrev(raw);
       const base = freshState();
       // ステータス変更時の位置・GPSの精度は記録しない（以前のデータからも取り除く）
       for (const e of s.events || []) { delete e.lat; delete e.lng; delete e.acc; delete e.addr; }
@@ -1525,9 +1558,9 @@ function loadState() {
         if (o.manual) { delete o.lat; delete o.lng; if (o.place) { delete o.place.kind; delete o.place.info; } }   // 手入力・施設はカテゴリとGPSを持たない
       }
       for (const sh of s.shifts || []) for (const t of [sh.trip, ...(sh.pending || [])]) if (t) for (const o of [t.from, t.to]) if (o) delete o.acc;
-      return { ...base, ...s, settings: { ...base.settings, ...s.settings } };
+      return { ...base, ...s, settings: { ...base.settings, ...migrateSettings({ ...s.settings }) } };
     }
-  } catch (e) {}
+  } catch (e) { LOAD_ERR = true; try { localStorage.setItem(BROKEN_KEY, raw); } catch (e2) {} }
   return freshState();
 }
 let S = loadState();
@@ -3122,6 +3155,7 @@ function renderData() {
 
   let bytes = 0; try { bytes = (localStorage.getItem(STORE_KEY) || '').length * 2; } catch (e) {}
   $('#storageInfo').textContent = (bytes / 1024).toFixed(0) + ' KB';
+  renderPrevBtn();
   // 折りたたみの見出しに今の設定を1行で
   setFoldSum('gWork', [S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '目標なし', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', S.settings.dayHours ? '1日' + S.settings.dayHours + 'h' : '',
     S.settings.holidays.length ? S.settings.holidays.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
@@ -3737,7 +3771,7 @@ function restore(file) {
       if (!s || s.v !== 2 || !Array.isArray(s.rides)) throw new Error('format');
       if (!confirm(`バックアップを復元しますか？\n現在のデータは置き換えられます。\n（乗車記録 ${s.rides.length}件）`)) return;
       const base = freshState();
-      S = { ...base, ...s, settings: { ...base.settings, ...s.settings } };
+      S = { ...base, ...s, settings: { ...base.settings, ...migrateSettings({ ...s.settings }) } };
       save(); applySettings(); setView(S.settings.tab);
       toast('復元しました');
     } catch (e) { toast('バックアップファイルを読み込めませんでした'); }
@@ -4222,6 +4256,21 @@ $$('.switch[data-setting]').forEach(s => s.addEventListener('click', () => {
   if (k === 'addr') queueAddr();
 }));
 $('#backupBtn').addEventListener('click', backup);
+// 1日1回残している控え（起動した時点のデータ）に戻す
+const prevSnap = () => { try { return JSON.parse(localStorage.getItem(PREV_KEY) || 'null'); } catch (e) { return null; } };
+function renderPrevBtn() {
+  const p = prevSnap(), b = $('#prevBtn');
+  b.hidden = !p;
+  if (p) { const d = new Date(p.at); b.textContent = `前の状態に戻す（${d.getMonth() + 1}/${d.getDate()} ${hhmm(d)}）`; }
+}
+$('#prevBtn').addEventListener('click', () => {
+  const p = prevSnap(); if (!p) return;
+  const d = new Date(p.at);
+  if (!confirm(`${d.getMonth() + 1}/${d.getDate()} ${hhmm(d)} の状態に戻しますか？\nそれ以降の記録・設定の変更は消えます。`)) return;
+  clearTimeout(saveTimer); saveTimer = null;   // 閉じる時の保存で今の状態に上書きされないように
+  try { localStorage.setItem(STORE_KEY, p.data); } catch (e) { toast('戻せませんでした'); return; }
+  location.reload();
+});
 $('#restoreBtn').addEventListener('click', () => $('#restoreFile').click());
 $('#restoreFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) restore(f); e.target.value = ''; });
 $('#wipeBtn').addEventListener('click', () => {
@@ -4356,6 +4405,8 @@ window.addEventListener('resize', () => {
    ============================================================ */
 applySettings();
 setView(S.settings.tab);
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}   // 端末の空き容量が減っても消されにくくする
+if (LOAD_ERR) toast('データを読み込めませんでした。設定の「前の状態に戻す」で戻せます');
 loadPlaces();
 startGeo();
 queueAddr();
