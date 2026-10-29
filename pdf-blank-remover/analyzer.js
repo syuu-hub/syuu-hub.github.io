@@ -37,10 +37,9 @@ function analyze(m) {
   const src = new Uint8ClampedArray(m.buf);
   const N = w * h, pxmm = dpi / 25.4;
 
-  // ---- 判定対象の領域（外周の余白・ヘッダー/フッターを除く）----
+  // ---- 判定対象の領域（外周の余白を除く）----
   const mg = Math.round(Math.min(w, h) * (opts.margin || 0) / 100);
-  const hf = opts.ignoreHF ? Math.round(h * 0.08) : 0;
-  const R = { x0: mg, y0: Math.max(mg, hf), x1: w - mg, y1: h - Math.max(mg, hf) };
+  const R = { x0: mg, y0: mg, x1: w - mg, y1: h - mg };
   if (R.x1 <= R.x0 + 4 || R.y1 <= R.y0 + 4) { R.x0 = 0; R.y0 = 0; R.x1 = w; R.y1 = h; }
   const regionArea = (R.x1 - R.x0) * (R.y1 - R.y0);
 

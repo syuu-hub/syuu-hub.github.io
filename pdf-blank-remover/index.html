@@ -325,7 +325,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
 .meta-row .grow{flex:1}
 
-.live{max-width:440px;margin:20px auto 0}
+.live{max-width:440px;margin:0 auto 20px}
 .pane{background:var(--md-surface-container);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .pane-head{display:flex;align-items:center;gap:8px;min-height:28px}
 .pane-head .grow{flex:1;min-width:0;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -367,17 +367,6 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 }
 .disk.small .cell{font-size:0}
 
-details.logbox{margin-top:16px;border-radius:12px;background:var(--md-surface-container)}
-details.logbox summary{list-style:none;display:flex;align-items:center;gap:12px;padding:0 12px;height:48px;cursor:pointer;font-weight:700;color:var(--md-on-surface-variant);border-radius:12px}
-details.logbox summary::-webkit-details-marker{display:none}
-details.logbox summary .ic.chev{margin-left:auto;transition:transform .2s}
-details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
-.log{font-family:var(--mono);font-size:11px;line-height:17px;color:var(--md-on-surface-variant);padding:0 12px 12px;max-height:180px;overflow:auto}
-.log div{white-space:nowrap}
-.log .b{color:var(--md-on-surface)}
-.log .r{color:var(--s-review)}
-.log .c{color:var(--s-content)}
-.log .e{color:var(--s-del)}
 
 /* ---------- 確認 ---------- */
 .result-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -524,7 +513,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
   <symbol id="i-keep" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></symbol>
   <symbol id="i-text" viewBox="0 0 24 24"><path d="M2.5 4v3h5v12h3V7h5V4h-13zm19 5h-9v3h3v7h3v-7h3V9z"/></symbol>
   <symbol id="i-margin" viewBox="0 0 24 24"><path d="M3 5v4h2V5h4V3H5c-1.1 0-2 .9-2 2zm2 10H3v4c0 1.1.9 2 2 2h4v-2H5v-4zm14 4h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4zm0-16h-4v2h4v4h2V5c0-1.1-.9-2-2-2z"/></symbol>
-  <symbol id="i-hf" viewBox="0 0 24 24"><path d="M2 21h19v-3H2v3zM20 8H3c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h17c.55 0 1-.45 1-1V9c0-.55-.45-1-1-1zM2 3v3h19V3H2z"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"/></symbol>
   <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m20.38 8.57-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></symbol>
@@ -542,8 +530,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
   <symbol id="i-select" viewBox="0 0 24 24"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41 6 19l1.41-1.41L1.83 12 .41 13.41z"/></symbol>
   <symbol id="i-clear" viewBox="0 0 24 24"><path d="M5 13h14v-2H5v2zm-2 4h14v-2H3v2zM7 7v2h14V7H7z"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></symbol>
-  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></symbol>
   <symbol id="i-timer" viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0 0 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></symbol>
   <symbol id="i-speed" viewBox="0 0 24 24"><path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.92 6-4.72 7.28L13 17v5h5l-1.22-1.22C19.91 19.07 22 15.76 22 12c0-5.18-3.95-9.45-9-9.95zM11 2c-1.95.2-3.8.96-5.32 2.21L7.1 5.63A7.9 7.9 0 0 1 11 4V2zM4.2 5.68C2.96 7.2 2.2 9.05 2 11h2c.19-1.42.75-2.77 1.63-3.9L4.2 5.68zM6 18.62l-1.42 1.42A9.95 9.95 0 0 0 11 22v-2a7.9 7.9 0 0 1-5-1.38zM4 13H2c.2 1.95.97 3.8 2.21 5.32l1.42-1.42A8.09 8.09 0 0 1 4 13z"/></symbol>
   <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="6" cy="7" r="1.6"/><circle cx="16" cy="5" r="1.2"/><circle cx="11" cy="13" r="1.4"/><circle cx="18" cy="15" r="1.6"/><circle cx="7" cy="18" r="1.2"/></symbol>
@@ -673,11 +659,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
             <div class="li"><svg class="ic"><use href="#i-margin"/></svg><div class="txt"><b>外周の除外</b><small>スキャンの影や端の汚れを無視</small></div></div>
             <div class="slider"><input type="range" id="optMargin" min="0" max="12" step="1" aria-label="外周の除外"><span class="val" id="optMarginOut"></span></div>
           </div>
-          <div class="li">
-            <svg class="ic"><use href="#i-hf"/></svg>
-            <div class="txt"><b>ヘッダー・フッターを無視</b><small>ページ番号だけのページも空白に</small></div>
-            <label class="switch"><input type="checkbox" id="optHF" role="switch" aria-label="ヘッダー・フッターを無視"><span class="track"></span><span class="handle"><svg class="ic"><use href="#i-check"/></svg></span></label>
-          </div>
           <div class="li-block">
             <div class="li"><svg class="ic"><use href="#i-grid"/></svg><div class="txt"><b>解析の細かさ</b><small>細かいほど小さな文字まで拾います</small></div></div>
             <div class="seg check" id="optDpi" role="group" aria-label="解析の細かさ">
@@ -694,6 +675,17 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
 
   <!-- ③ 検出 -->
   <section id="secRun" class="card hidden">
+    <div class="live">
+      <div class="pane">
+        <div class="pane-head"><span class="grow mono" id="liveName">—</span></div>
+        <div class="stage"><canvas id="livePage"></canvas></div>
+      </div>
+      <div class="legend" style="margin-top:12px;justify-content:center">
+        <span class="lg"><i style="box-shadow:inset 0 0 0 2px var(--mark)"></i>検出あり</span>
+        <span class="lg"><i style="background:repeating-linear-gradient(135deg,var(--md-outline) 0 2px,transparent 2px 4px)"></i>判定しない範囲</span>
+      </div>
+    </div>
+
     <div class="run-top">
       <div class="ring" id="ring">
         <svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="10"/><circle class="fg" id="ringFg" cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.73" stroke-dashoffset="326.73"/></svg>
@@ -710,17 +702,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
           <span class="grow"></span>
           <button class="btn err sl" id="btnCancel"><svg class="ic"><use href="#i-stop"/></svg>中止</button>
         </div>
-      </div>
-    </div>
-
-    <div class="live">
-      <div class="pane">
-        <div class="pane-head"><span class="grow mono" id="liveName">—</span></div>
-        <div class="stage"><canvas id="livePage"></canvas></div>
-      </div>
-      <div class="legend" style="margin-top:12px;justify-content:center">
-        <span class="lg"><i style="box-shadow:inset 0 0 0 2px var(--mark)"></i>検出あり</span>
-        <span class="lg"><i style="background:repeating-linear-gradient(135deg,var(--md-outline) 0 2px,transparent 2px 4px)"></i>判定しない範囲</span>
       </div>
     </div>
   </section>
@@ -765,10 +746,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
       <span class="lg"><i style="background:repeating-linear-gradient(135deg,var(--s-del) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--s-del)"></i>削除</span>
     </div>
     <div class="disk" id="disk" role="grid" aria-label="ページ一覧（タップでプレビュー）"></div>
-    <details class="logbox">
-      <summary class="sl"><svg class="ic"><use href="#i-list"/></svg>判定ログ<svg class="ic chev"><use href="#i-expand"/></svg></summary>
-      <div class="log" id="log" aria-live="off"></div>
-    </details>
   </section>
 </main>
 
@@ -843,7 +820,8 @@ document.addEventListener('pointerdown', e => {
 window.addEventListener('scroll', () => $('appbar').classList.toggle('scrolled', window.scrollY > 4), { passive: true });
 
 // ---------------- 設定 ----------------
-const settings = Object.assign({ textDetect: true, level: 'normal', margin: 3, ignoreHF: false, dpi: 150 }, loadSettings());
+const settings = Object.assign({ textDetect: true, level: 'normal', margin: 3, dpi: 150 }, loadSettings());
+delete settings.ignoreHF;  // 以前の版で保存された設定は使わない
 function loadSettings() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
 function saveSettings() { try { localStorage.setItem(STORE, JSON.stringify(settings)); } catch {} }
 function bindChoice(el, key, conv = v => v) {
@@ -857,10 +835,8 @@ function bindChoice(el, key, conv = v => v) {
 bindChoice($('optLevel'), 'level');
 bindChoice($('optDpi'), 'dpi', Number);
 $('optText').checked = settings.textDetect;
-$('optHF').checked = settings.ignoreHF;
 $('optMargin').value = settings.margin;
 $('optText').onchange = e => { settings.textDetect = e.target.checked; saveSettings(); onSettings(); };
-$('optHF').onchange = e => { settings.ignoreHF = e.target.checked; saveSettings(); onSettings(); };
 $('optMargin').oninput = e => { settings.margin = Number(e.target.value); saveSettings(); onSettings(); };
 function onSettings() {
   $('levelHint').textContent = LEVEL_HINT[settings.level];
@@ -1115,8 +1091,7 @@ function drawScope() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.drawImage(firstPage, 0, 0, W, H);
   const mg = Math.round(Math.min(W, H) * settings.margin / 100);
-  const hf = settings.ignoreHF ? Math.round(H * 0.08) : 0;
-  const x0 = mg, y0 = Math.max(mg, hf), x1 = W - mg, y1 = H - Math.max(mg, hf);
+  const x0 = mg, y0 = mg, x1 = W - mg, y1 = H - mg;
   // 判定しない部分は斜線
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(x0, y0, x1 - x0, y1 - y0);
@@ -1201,7 +1176,7 @@ class Analyzer {
       this.w.postMessage({
         cmd: 'analyze', id, w: img.width, h: img.height, buf: img.data.buffer, dpi: r.dpi, wantBinary,
         textItems: r.textItems,
-        opts: { textDetect: settings.textDetect, level: settings.level, margin: settings.margin, ignoreHF: settings.ignoreHF },
+        opts: { textDetect: settings.textDetect, level: settings.level, margin: settings.margin },
       }, [img.data.buffer]);
     });
   }
@@ -1242,17 +1217,6 @@ disk.addEventListener('click', e => {
   if (!p.verdict) return;
   openPreview(+c.dataset.i, pages.filter(q => q.verdict).map(q => q.n - 1));
 });
-
-// ---------------- ログ ----------------
-const logEl = $('log');
-function log(msg, cls = '') {
-  const d = document.createElement('div');
-  if (cls) d.className = cls;
-  const t = new Date();
-  d.textContent = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}  ${msg}`;
-  logEl.prepend(d);
-  while (logEl.childElementCount > 300) logEl.lastChild.remove();
-}
 
 // ---------------- ライブ表示 ----------------
 const livePage = $('livePage');
@@ -1299,7 +1263,7 @@ function updateStats() {
 
 // ---------------- 検出処理 ----------------
 $('btnStart').onclick = start;
-$('btnCancel').onclick = () => { cancelFlag = true; $('btnCancel').disabled = true; log('中止しています…', 'e'); };
+$('btnCancel').onclick = () => { cancelFlag = true; $('btnCancel').disabled = true; };
 $('btnRedo').onclick = () => show('setup');
 
 async function start() {
@@ -1308,12 +1272,10 @@ async function start() {
   $('btnCancel').disabled = false;
   pages.forEach(p => { p.status = 'wait'; p.verdict = null; p.del = false; p.result = null; p.thumb = null; });
   $('bSpeed').textContent = '—'; $('bEta').textContent = '—';
-  logEl.innerHTML = '';
   show('run');
   buildDisk();
   t0 = performance.now();
   updateStats();
-  log(`開始：${pages.length}ページ ・ ${settings.dpi}dpi ・ ${({ strict: '厳しめ', normal: '標準', loose: 'ゆるめ' })[settings.level]} ・ テキスト検出${settings.textDetect ? 'あり' : 'なし'}`);
   const wake = await requestWakeLock();
 
   // 描画と解析を重ねて進める（次のページを描きながら今のページを解析）
@@ -1343,8 +1305,6 @@ async function start() {
   pages.forEach(p => { if (p.status === 'active') { p.status = 'wait'; paintCell(p); } });
   updateStats();
   const done = pages.filter(p => p.verdict).length;
-  if (cancelFlag) log(`中止しました（${done}ページまで判定済み）`, 'e');
-  else log(`完了：空白 ${pages.filter(p => p.verdict === 'blank').length} ・ 要確認 ${pages.filter(p => p.verdict === 'review').length}`);
   if (!done) { show('setup'); return; }
   show('review');
   renderReview();
@@ -1358,8 +1318,6 @@ function finish(p, res) {
   p.result = { reasons: res.reasons };
   paintCell(p);
   drawLiveBoxes(res);
-  const cls = { blank: 'b', review: 'r', content: 'c' }[res.verdict];
-  log(`p.${p.n}  ${VERDICT_LABEL[res.verdict]}  ${res.reasons.join(' / ')}`, cls);
   updateStats();
 }
 function fail(p, err) {
@@ -1367,7 +1325,6 @@ function fail(p, err) {
   p.status = 'error'; p.verdict = 'error'; p.del = false;
   p.result = { reasons: ['解析できませんでした'] };
   paintCell(p);
-  log(`p.${p.n}  エラー：${err && err.message || err}`, 'e');
   updateStats();
 }
 function makeThumb(canvas) {
@@ -1618,7 +1575,7 @@ function drawPreview() {
     strokeBoxes(ctx, res.marks, s, MARK, Math.max(1.5, s * 2.4));
   }
 }
-// 判定しない範囲（外周・ヘッダー/フッター・用紙の外側）を暗くして斜線を引く
+// 判定しない範囲（外周・用紙の外側）を暗くして斜線を引く
 function drawRegion(ctx, rg, s, w, h, outside) {
   const W = w * s, H = h * s;
   const hatch = clip => {
@@ -1634,7 +1591,7 @@ function drawRegion(ctx, rg, s, w, h, outside) {
     ctx.stroke();
     ctx.restore();
   };
-  // 外周・ヘッダー/フッター
+  // 外周
   hatch(() => { ctx.rect(0, 0, W, H); ctx.rect(rg[0] * s, rg[1] * s, rg[2] * s, rg[3] * s); ctx.clip('evenodd'); });
   // 用紙の外側（判定範囲の中にかかる部分だけ。外周と重なる部分は上で塗ってある）
   if (outside && outside.length) hatch(() => {
@@ -1709,7 +1666,6 @@ async function exportPdf(mode) {
       setTimeout(() => URL.revokeObjectURL(url), 60000);
       toast(`保存しました（${out.count}ページ・${fmtSize(blob.size)}）`);
     }
-    log(`出力：${out.name}（${out.count}ページ・${fmtSize(blob.size)}）`);
   } catch (err) {
     if (err && err.name === 'AbortError') return;
     console.error(err);
