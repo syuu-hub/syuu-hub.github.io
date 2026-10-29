@@ -49,6 +49,8 @@
   --s-on-blank:#1A1C20;
   --s-review:#C29BFF;    /* 要確認 */
   --s-on-review:#2A0F55;
+  --s-dup:#2EC4B6;       /* 重複 */
+  --s-on-dup:#00332E;
   --s-active:#4CD38A;    /* 処理中 */
   --s-on-active:#00391C;
   --s-del:#FF6B6B;       /* 削除 */
@@ -93,6 +95,8 @@
     --s-on-blank:#1A1C20;
     --s-review:#8E5BE8;
     --s-on-review:#FFFFFF;
+    --s-dup:#0F8C7E;
+    --s-on-dup:#FFFFFF;
     --s-active:#1E9E5A;
     --s-on-active:#FFFFFF;
     --s-del:#D93636;
@@ -315,7 +319,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .ring .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .ring .pct{font-size:32px;line-height:36px;font-weight:800;font-family:var(--mono)}
 .ring .sub{font-size:12px;color:var(--md-on-surface-variant);font-family:var(--mono)}
-.counters{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .counter{border-radius:12px;padding:12px;background:var(--md-surface-container);display:flex;flex-direction:column;gap:6px;min-width:0}
 .counter .top{display:flex;align-items:center;gap:8px}
 .counter .bub{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
@@ -334,6 +338,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .status-chip.content{background:var(--s-content);color:var(--s-on-content)}
 .status-chip.blank{background:var(--s-blank);color:var(--s-on-blank);box-shadow:inset 0 0 0 1px var(--md-outline-variant)}
 .status-chip.review{background:var(--s-review);color:var(--s-on-review)}
+.status-chip.dup{background:var(--s-dup);color:var(--s-on-dup)}
 .status-chip.error{background:var(--s-err);color:#fff}
 
 .legend{display:flex;flex-wrap:wrap;gap:6px}
@@ -356,6 +361,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .cell.content{background:var(--s-content);color:rgba(255,255,255,.75)}
 .cell.blank{background:var(--s-blank);color:rgba(0,0,0,.45);box-shadow:inset 0 0 0 1px var(--md-outline-variant)}
 .cell.review{background:var(--s-review);color:rgba(0,0,0,.5)}
+.cell.dup{background:var(--s-dup);color:rgba(0,0,0,.5)}
 .cell.error{background:var(--s-err)}
 .cell.active{background:var(--s-active)}
 .cell.del::after{
@@ -450,6 +456,8 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .reasons{display:flex;gap:6px;flex-wrap:wrap}
 .reason{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 8px;border-radius:8px;background:var(--md-surface-high);font-size:12px;font-weight:700}
 .reason .ic{width:16px;height:16px;color:var(--md-on-surface-variant)}
+.reason.compare{background:var(--md-secondary-container);color:var(--md-on-secondary-container);cursor:pointer}
+.reason.compare .ic{color:inherit}
 .modal .mfoot{display:flex;gap:12px;align-items:center;padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);max-width:900px;width:100%;margin:0 auto}
 .decide{flex:1;display:grid;grid-template-columns:1fr 1fr;height:56px;border-radius:28px;box-shadow:inset 0 0 0 1px var(--md-outline);overflow:hidden}
 .decide button{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:800;color:var(--md-on-surface-variant)}
@@ -502,6 +510,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
   <symbol id="i-stop" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
   <symbol id="i-left" viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></symbol>
@@ -635,6 +644,11 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
             <div class="txt"><b>テキスト検出</b><small>文字があるページは残す</small></div>
             <label class="switch"><input type="checkbox" id="optText" role="switch" aria-label="テキスト検出"><span class="track"></span><span class="handle"><svg class="ic"><use href="#i-check"/></svg></span></label>
           </div>
+          <div class="li">
+            <svg class="ic"><use href="#i-copy"/></svg>
+            <div class="txt"><b>重複ページの検出</b><small>表紙など同じ内容のページは2枚目以降を削除候補に</small></div>
+            <label class="switch"><input type="checkbox" id="optDup" role="switch" aria-label="重複ページの検出"><span class="track"></span><span class="handle"><svg class="ic"><use href="#i-check"/></svg></span></label>
+          </div>
           <div class="li-block">
             <div class="li"><svg class="ic"><use href="#i-gauge"/></svg><div class="txt"><b>空白とみなす厳しさ</b><small id="levelHint"></small></div></div>
             <div class="levels" id="optLevel" role="group" aria-label="空白とみなす厳しさ">
@@ -691,6 +705,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
         <div class="counters">
           <div class="counter"><div class="top"><span class="bub" style="background:var(--s-blank);color:var(--s-on-blank);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"><svg class="ic"><use href="#i-blank"/></svg></span><span>空白</span></div><b id="sBlank">0</b></div>
           <div class="counter"><div class="top"><span class="bub" style="background:var(--s-review);color:var(--s-on-review)"><svg class="ic"><use href="#i-help"/></svg></span><span>要確認</span></div><b id="sReview">0</b></div>
+          <div class="counter" id="cDup"><div class="top"><span class="bub" style="background:var(--s-dup);color:var(--s-on-dup)"><svg class="ic"><use href="#i-copy"/></svg></span><span>重複</span></div><b id="sDup">0</b></div>
         </div>
         <div class="meta-row">
           <span class="mini-chip"><svg class="ic"><use href="#i-speed"/></svg><span id="bSpeed">—</span></span>
@@ -720,11 +735,12 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
       <button class="chip sl" data-f="cand" aria-pressed="true"><svg class="ic"><use href="#i-check"/></svg>候補 <span class="n" id="tCand">0</span></button>
       <button class="chip sl" data-f="del"><svg class="ic"><use href="#i-check"/></svg><i style="background:var(--s-del)"></i>削除 <span class="n" id="tDel">0</span></button>
       <button class="chip sl" data-f="review"><svg class="ic"><use href="#i-check"/></svg><i style="background:var(--s-review)"></i>要確認 <span class="n" id="tReview">0</span></button>
+      <button class="chip sl" data-f="dup" id="chipDup"><svg class="ic"><use href="#i-check"/></svg><i style="background:var(--s-dup)"></i>重複 <span class="n" id="tDupN">0</span></button>
       <button class="chip sl" data-f="all"><svg class="ic"><use href="#i-check"/></svg>すべて <span class="n" id="tAll">0</span></button>
     </div>
     <div class="thumbs" id="thumbs"></div>
     <div class="actions">
-      <button class="btn tonal sl" id="btnAllBlank"><svg class="ic"><use href="#i-select"/></svg>空白をすべて削除に</button>
+      <button class="btn tonal sl" id="btnAllBlank"><svg class="ic"><use href="#i-select"/></svg>空白・重複をすべて削除に</button>
       <button class="btn text sl" id="btnClear"><svg class="ic"><use href="#i-clear"/></svg>選択を解除</button>
       <button class="btn text sl" id="btnRedo"><svg class="ic"><use href="#i-refresh"/></svg>設定を変えて再検出</button>
     </div>
@@ -738,6 +754,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
       <span class="lg"><i style="background:var(--s-active)"></i>処理中</span>
       <span class="lg"><i style="background:var(--s-content)"></i>内容あり</span>
       <span class="lg"><i style="background:var(--s-review)"></i>要確認</span>
+      <span class="lg"><i style="background:var(--s-dup)"></i>重複</span>
       <span class="lg"><i style="background:var(--s-blank);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>空白</span>
       <span class="lg"><i style="background:repeating-linear-gradient(135deg,var(--s-del) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--s-del)"></i>削除</span>
     </div>
@@ -794,8 +811,8 @@ const LEVEL_HINT = {
   normal: '文字や図があるページだけ残します',
   loose: '少しの跡は空白とみなします',
 };
-const VERDICT_LABEL = { content: '内容あり', blank: '空白', review: '要確認', error: 'エラー' };
-const VERDICT_ICON = { content: 'doc', blank: 'blank', review: 'help', error: 'error' };
+const VERDICT_LABEL = { content: '内容あり', blank: '空白', review: '要確認', dup: '重複', error: 'エラー' };
+const VERDICT_ICON = { content: 'doc', blank: 'blank', review: 'help', dup: 'copy', error: 'error' };
 const ic = (name, cls = '') => `<svg class="ic ${cls}"><use href="#i-${name}"/></svg>`;
 const cssVar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 let MARK = cssVar('--mark');
@@ -816,7 +833,7 @@ document.addEventListener('pointerdown', e => {
 window.addEventListener('scroll', () => $('appbar').classList.toggle('scrolled', window.scrollY > 4), { passive: true });
 
 // ---------------- 設定 ----------------
-const settings = Object.assign({ textDetect: true, level: 'normal', margin: 3, dpi: 150 }, loadSettings());
+const settings = Object.assign({ textDetect: true, dupDetect: true, level: 'normal', margin: 3, dpi: 150 }, loadSettings());
 delete settings.ignoreHF;  // 以前の版で保存された設定は使わない
 function loadSettings() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
 function saveSettings() { try { localStorage.setItem(STORE, JSON.stringify(settings)); } catch {} }
@@ -831,8 +848,10 @@ function bindChoice(el, key, conv = v => v) {
 bindChoice($('optLevel'), 'level');
 bindChoice($('optDpi'), 'dpi', Number);
 $('optText').checked = settings.textDetect;
+$('optDup').checked = settings.dupDetect;
 $('optMargin').value = settings.margin;
 $('optText').onchange = e => { settings.textDetect = e.target.checked; saveSettings(); onSettings(); };
+$('optDup').onchange = e => { settings.dupDetect = e.target.checked; saveSettings(); };
 $('optMargin').oninput = e => { settings.margin = Number(e.target.value); saveSettings(); onSettings(); };
 function onSettings() {
   $('levelHint').textContent = LEVEL_HINT[settings.level];
@@ -1135,20 +1154,28 @@ async function renderForAnalysis(n, dpi) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   await page.render({ canvasContext: ctx, viewport: vp, background: 'rgb(255,255,255)' }).promise;
-  let textItems = [];
+  let textItems = [], textKey = null;
   if (settings.textDetect) {
     const tc = await page.getTextContent();
+    let all = '';
     for (const it of tc.items) {
-      const chars = (it.str || '').replace(/\s/g, '').length;
+      const str = (it.str || '').replace(/\s/g, ''), chars = str.length;
+      all += str;
       if (!chars) continue;
       const t = pdfjsLib.Util.transform(vp.transform, it.transform);
       const fh = Math.hypot(t[2], t[3]) || 1;
       const wpx = Math.max(1, (it.width || 0) * scale);
       textItems.push([t[4], t[5] - fh, wpx, fh, chars]);
     }
+    // 重複ページの照合用に、埋め込み文字の内容を短いキーにする
+    if (all.length) {
+      let h = 2166136261;
+      for (let k = 0; k < all.length; k++) { h ^= all.charCodeAt(k); h = Math.imul(h, 16777619); }
+      textKey = (h >>> 0).toString(36) + ':' + all.length;
+    }
   }
   page.cleanup();
-  return { canvas, ctx, dpi: scale * 72, textItems };
+  return { canvas, ctx, dpi: scale * 72, textItems, textKey };
 }
 
 // ---------------- 解析ワーカー ----------------
@@ -1172,7 +1199,7 @@ class Analyzer {
       this.w.postMessage({
         cmd: 'analyze', id, w: img.width, h: img.height, buf: img.data.buffer, dpi: r.dpi, wantBinary,
         textItems: r.textItems,
-        opts: { textDetect: settings.textDetect, level: settings.level, margin: settings.margin },
+        opts: { textDetect: settings.textDetect, dupDetect: settings.dupDetect, level: settings.level, margin: settings.margin },
       }, [img.data.buffer]);
     });
   }
@@ -1237,11 +1264,12 @@ let t0 = 0;
 const RING = 326.73;
 function updateStats() {
   const done = pages.filter(p => p.verdict).length, N = pages.length;
-  const c = { blank: 0, review: 0, content: 0 };
+  const c = { blank: 0, review: 0, content: 0, dup: 0 };
   pages.forEach(p => { if (c[p.verdict] !== undefined) c[p.verdict]++; });
   $('sDone').textContent = `${done}/${N}`;
   $('sBlank').textContent = c.blank;
   $('sReview').textContent = c.review;
+  $('sDup').textContent = c.dup;
   const pct = N ? done / N : 0;
   $('ringFg').style.strokeDashoffset = String(RING * (1 - pct));
   $('ring').classList.toggle('done', !running && done === N);
@@ -1266,7 +1294,9 @@ async function start() {
   if (!pdf || running) return;
   running = true; cancelFlag = false; lastOut = null;
   $('btnCancel').disabled = false;
-  pages.forEach(p => { p.status = 'wait'; p.verdict = null; p.del = false; p.result = null; p.thumb = null; });
+  pages.forEach(p => { p.status = 'wait'; p.verdict = null; p.del = false; p.result = null; p.thumb = null; p.fp = null; p.dupOf = 0; p.textKey = null; });
+  $('cDup').classList.toggle('hidden', !settings.dupDetect);
+  $('secRun').querySelector('.counters').style.gridTemplateColumns = settings.dupDetect ? '' : 'repeat(2,1fr)';
   $('bSpeed').textContent = '—'; $('bEta').textContent = '—';
   show('run');
   buildDisk();
@@ -1289,6 +1319,7 @@ async function start() {
     if (pending) await pending;
     if (cancelFlag) break;
     p.thumb = makeThumb(r.canvas);
+    p.textKey = r.textKey;
     drawLivePage(r.canvas);
     pending = mainAnalyzer.run(r)
       .then(res => finish(p, res))
@@ -1306,11 +1337,137 @@ async function start() {
   if (cancelFlag) toast(`中止しました。${done}ページまでの結果を表示しています`);
 }
 
+// ---------------- 重複ページの検出 ----------------
+// 前のページと、用紙サイズ・インクの分布・濃淡がそろい、さらに 1mm 角の画像を区画ごとに位置合わせして
+// どの区画もよく一致すれば重複とみなす。様式が同じでも書き込みが違う用紙や、行の並びが同じでも文章が
+// 違うページは、書き込みや文字のある区画の一致度が下がるので重複にならない
+const FPW = 48, FPH = 64;
+function prepFingerprint(fp, textKey) {
+  const dil = new Uint8Array(FPW * FPH);
+  for (let y = 0; y < FPH; y++) for (let x = 0; x < FPW; x++) {
+    if (!fp.ink[y * FPW + x]) continue;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const yy = y + dy, xx = x + dx;
+      if (yy >= 0 && yy < FPH && xx >= 0 && xx < FPW) dil[yy * FPW + xx] = 1;
+    }
+  }
+  let m = 0, v = 0;
+  for (const t of fp.tone) m += t;
+  m /= fp.tone.length;
+  for (const t of fp.tone) v += (t - m) * (t - m);
+  return Object.assign(fp, { dil, toneMean: m, toneVar: v, textKey });
+}
+// a の (x0,y0) から幅 rw・高さ rh の区画と、(dx,dy) ずらした b との正規化相関。ほぼ一様な区画は null
+function ncc(a, b, fw, fh, x0, y0, rw, rh, dx, dy, step = 1) {
+  let sa = 0, sb = 0, saa = 0, sbb = 0, sab = 0, n = 0;
+  for (let y = y0; y < y0 + rh; y += step) {
+    const yb = y + dy;
+    if (yb < 0 || yb >= fh) continue;
+    for (let x = x0; x < x0 + rw; x += step) {
+      const xb = x + dx;
+      if (xb < 0 || xb >= fw) continue;
+      const va = a[y * fw + x], vb = b[yb * fw + xb];
+      sa += va; sb += vb; saa += va * va; sbb += vb * vb; sab += va * vb; n++;
+    }
+  }
+  if (!n) return null;
+  const ca = saa - sa * sa / n, cb = sbb - sb * sb / n;
+  if (ca < n * 4 || cb < n * 4) return null;
+  return (sab - sa * sb / n) / Math.sqrt(ca * cb);
+}
+function fineMatch(A, B) {
+  const fw = Math.min(A.fw, B.fw), fh = Math.min(A.fh, B.fh);
+  if (A.fw !== B.fw) return false;
+  const a = A.fine, b = B.fine;
+  // 全体のずれ：まず 2mm おきに ±10mm を粗く探し、1mm で詰める
+  let best = { c: -2, dx: 0, dy: 0 };
+  for (let dy = -10; dy <= 10; dy += 2) for (let dx = -10; dx <= 10; dx += 2) {
+    const c = ncc(a, b, fw, fh, 0, 0, fw, fh, dx, dy, 2);
+    if (c !== null && c > best.c) best = { c, dx, dy };
+  }
+  const g = best;
+  for (let dy = g.dy - 1; dy <= g.dy + 1; dy++) for (let dx = g.dx - 1; dx <= g.dx + 1; dx++) {
+    const c = ncc(a, b, fw, fh, 0, 0, fw, fh, dx, dy);
+    if (c !== null && c > best.c) best = { c, dx, dy };
+  }
+  // ほとんど白いページは全体では測れないので、ずれ0のまま区画ごとの比較に進む
+  if (best.c === -2) best = { c: 0, dx: 0, dy: 0 };
+  else if (best.c < 0.85) return false;
+  // 紙の傾きに対応するため、4x4 の区画ごとに ±2mm で位置を合わせ直して一致度を測る
+  const rx = Math.ceil(fw / 4), ry = Math.ceil(fh / 4), vals = [];
+  for (let gy = 0; gy < 4; gy++) for (let gx = 0; gx < 4; gx++) {
+    const x0 = gx * rx, y0 = gy * ry, w = Math.min(rx, fw - x0), h = Math.min(ry, fh - y0);
+    if (w <= 0 || h <= 0) continue;
+    let mx = null;
+    for (let dy = best.dy - 2; dy <= best.dy + 2; dy++) for (let dx = best.dx - 2; dx <= best.dx + 2; dx++) {
+      const c = ncc(a, b, fw, fh, x0, y0, w, h, dx, dy);
+      if (c !== null && (mx === null || c > mx)) mx = c;
+    }
+    if (mx !== null) vals.push(mx);
+  }
+  if (!vals.length) {
+    // 区画がどれもほぼ白い（ページ番号だけ等）ときは、インクのある部分だけを囲んで比べる
+    let x0 = fw, y0 = fh, x1 = -1, y1 = -1;
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) if (a[y * fw + x] < 245) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 < 0) return !!(A.textKey && A.textKey === B.textKey);
+    x0 = Math.max(0, x0 - 3); y0 = Math.max(0, y0 - 3); x1 = Math.min(fw - 1, x1 + 3); y1 = Math.min(fh - 1, y1 + 3);
+    let mx = null;
+    for (let dy = best.dy - 2; dy <= best.dy + 2; dy++) for (let dx = best.dx - 2; dx <= best.dx + 2; dx++) {
+      const c = ncc(a, b, fw, fh, x0, y0, x1 - x0 + 1, y1 - y0 + 1, dx, dy);
+      if (c !== null && (mx === null || c > mx)) mx = c;
+    }
+    return mx !== null && mx >= 0.92;
+  }
+  const min = Math.min(...vals), mean = vals.reduce((x, y) => x + y, 0) / vals.length;
+  return min >= 0.92 && mean >= 0.94;
+}
+function isDuplicate(a, b) {
+  if (Math.abs(a.wmm - b.wmm) > 3 || Math.abs(a.hmm - b.hmm) > 3) return false;
+  // 埋め込み文字が両方にあって内容が違えば別のページ
+  if (a.textKey && b.textKey && a.textKey !== b.textKey) return false;
+  if (Math.abs(a.inkArea - b.inkArea) > Math.max(2, 0.25 * Math.max(a.inkArea, b.inkArea))) return false;
+  // インクの分布（1マスのずれまでは許す）
+  let diff = 0, uni = 0;
+  for (let k = 0; k < FPW * FPH; k++) {
+    if (a.ink[k] || b.ink[k]) uni++;
+    if (a.ink[k] && !b.dil[k]) diff++;
+    if (b.ink[k] && !a.dil[k]) diff++;
+  }
+  // 画像上にインクが無い（埋め込み文字だけの）ページは、文字の内容が同じかどうかで決める
+  if (!uni) return !!(a.textKey && a.textKey === b.textKey);
+  if (diff / uni > 0.08) return false;
+  // 濃淡の分布（どちらも濃淡に差があるときだけ比べる）
+  if (a.toneVar > 2000 && b.toneVar > 2000) {
+    let c = 0;
+    for (let k = 0; k < a.tone.length; k++) c += (a.tone[k] - a.toneMean) * (b.tone[k] - b.toneMean);
+    if (c / Math.sqrt(a.toneVar * b.toneVar) < 0.85) return false;
+  }
+  return fineMatch(a, b);
+}
+function findDuplicate(p) {
+  for (const q of pages) {
+    if (q === p) break;
+    if (q.fp && !q.dupOf && isDuplicate(q.fp, p.fp)) return q;
+  }
+  return null;
+}
+
 function finish(p, res) {
   p.status = 'done';
   p.verdict = res.verdict;
   p.del = res.verdict === 'blank';
   p.result = { reasons: res.reasons };
+  if (res.fp) {
+    p.fp = prepFingerprint(res.fp, p.textKey);
+    const q = findDuplicate(p);
+    if (q) {
+      // 2枚目以降を重複として削除候補にする（1枚目は残す）
+      p.verdict = 'dup'; p.dupOf = q.n; p.del = true;
+      p.result = { reasons: [`p.${q.n} と同じ内容`] };
+    }
+  }
   paintCell(p);
   drawLiveBoxes(res);
   updateStats();
@@ -1345,9 +1502,10 @@ $('rTabs').addEventListener('click', e => {
 function filtered() {
   return pages.filter(p => {
     if (!p.verdict) return false;
-    if (reviewFilter === 'cand') return p.verdict === 'blank' || p.verdict === 'review' || p.del;
+    if (reviewFilter === 'cand') return p.verdict === 'blank' || p.verdict === 'review' || p.verdict === 'dup' || p.del;
     if (reviewFilter === 'del') return p.del;
     if (reviewFilter === 'review') return p.verdict === 'review';
+    if (reviewFilter === 'dup') return p.verdict === 'dup';
     return true;
   });
 }
@@ -1356,7 +1514,7 @@ function renderReview() {
   const box = $('thumbs');
   box.innerHTML = '';
   if (!list.length) {
-    box.innerHTML = `<div class="empty-note">${ic('keep')}<b>${reviewFilter === 'cand' ? '空白ページは見つかりませんでした' : '該当するページはありません'}</b></div>`;
+    box.innerHTML = `<div class="empty-note">${ic('keep')}<b>${reviewFilter === 'cand' ? '削除候補は見つかりませんでした' : '該当するページはありません'}</b></div>`;
   }
   const frag = document.createDocumentFragment();
   for (const p of list) {
@@ -1395,14 +1553,18 @@ function updateCounts() {
   $('rAll').textContent = N;
   $('rDel').textContent = del;
   $('rKeep').textContent = keep;
-  $('tCand').textContent = pages.filter(p => p.verdict === 'blank' || p.verdict === 'review' || p.del).length;
+  $('tCand').textContent = pages.filter(p => p.verdict === 'blank' || p.verdict === 'review' || p.verdict === 'dup' || p.del).length;
   $('tDel').textContent = del;
   $('tReview').textContent = pages.filter(p => p.verdict === 'review').length;
+  const nDup = pages.filter(p => p.verdict === 'dup').length;
+  $('tDupN').textContent = nDup;
+  $('chipDup').classList.toggle('hidden', !nDup);
   $('tAll').textContent = pages.filter(p => p.verdict).length;
   // 割合バー：残すページ（判定ごと）と削除するページ
   const seg = [
     ['内容あり', pages.filter(p => !p.del && p.verdict === 'content').length, 'var(--s-content)'],
     ['要確認', pages.filter(p => !p.del && p.verdict === 'review').length, 'var(--s-review)'],
+    ['残す重複', pages.filter(p => !p.del && p.verdict === 'dup').length, 'var(--s-dup)'],
     ['残す空白', pages.filter(p => !p.del && p.verdict === 'blank').length, 'var(--s-blank)'],
     ['未判定', pages.filter(p => !p.del && (!p.verdict || p.verdict === 'error')).length, 'var(--s-wait)'],
     ['削除', del, 'var(--s-del)'],
@@ -1414,7 +1576,7 @@ function updateCounts() {
   $('btnSave').disabled = !keep || !del;
   $('btnShare').disabled = !keep || !del;
 }
-$('btnAllBlank').onclick = () => { pages.forEach(p => { if (p.verdict === 'blank') { p.del = true; paintCell(p); } }); renderReview(); };
+$('btnAllBlank').onclick = () => { pages.forEach(p => { if (p.verdict === 'blank' || p.verdict === 'dup') { p.del = true; paintCell(p); } }); renderReview(); };
 $('btnClear').onclick = () => { pages.forEach(p => { p.del = false; paintCell(p); }); renderReview(); };
 
 // ---------------- プレビュー ----------------
@@ -1467,7 +1629,7 @@ function movePreview(d) {
   if (np < 0 || np >= pv.list.length) return;
   pv.pos = np; loadPreview();
 }
-const REASON_ICON = [[/書き込み/, 'doc'], [/汚れ|跡/, 'dots'], [/検出されず/, 'blank']];
+const REASON_ICON = [[/同じ内容/, 'copy'], [/書き込み/, 'doc'], [/汚れ|跡/, 'dots'], [/検出されず/, 'blank']];
 function updatePreviewHeader() {
   const p = pages[pv.list[pv.pos]];
   $('mTitle').innerHTML = `<span class="mono">p.${p.n}</span><span class="status-chip ${p.verdict}">${ic(VERDICT_ICON[p.verdict])}${VERDICT_LABEL[p.verdict]}</span><span class="pos">${pv.pos + 1} / ${pv.list.length}</span>`;
@@ -1478,11 +1640,18 @@ function updatePreviewHeader() {
   $('mPrev').disabled = pv.pos === 0;
   $('mNext').disabled = pv.pos === pv.list.length - 1;
   const r = p.result;
-  $('mReasons').innerHTML = r ? r.reasons.map(t => {
+  $('mReasons').innerHTML = (r ? r.reasons.map(t => {
     const hit = REASON_ICON.find(([re]) => re.test(t));
     return `<span class="reason">${ic(hit ? hit[1] : 'help')}${t}</span>`;
-  }).join('') : '';
+  }).join('') : '') + (p.dupOf ? `<button class="reason sl compare" data-goto="${p.dupOf}">${ic('swap')}p.${p.dupOf} と見比べる</button>` : '');
 }
+// 重複ページと比較元を、前後の矢印で行き来できるようにして開き直す
+$('mReasons').addEventListener('click', e => {
+  const b = e.target.closest('[data-goto]'); if (!b || !pv) return;
+  const cur = pv.list[pv.pos], orig = +b.dataset.goto - 1;
+  pv.list = [orig, cur]; pv.pos = 0;
+  loadPreview();
+});
 async function loadPreview() {
   const i = pv.list[pv.pos], token = ++pvToken;
   updatePreviewHeader();
