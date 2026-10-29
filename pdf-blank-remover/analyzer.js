@@ -17,9 +17,8 @@ const PRESETS = {
   loose:  { cut: 188, inkMax: 0.004,  compMax: 40, bigMm: 9, noiseMm2: 0.8,  charMin: 4, darkMax: 0.01 },
 };
 
-// 解析マップのタイル状態（画面側と共通）
-const T = { EMPTY: 0, EXCL: 1, NOISE: 2, INK: 3, TEXT: 4, DARK: 5, EMBED: 6, IGNORED: 7 };
-const RANK = [0, 0, 1, 3, 5, 4, 6, 2];
+// 解析マップのタイル状態（画面側と共通）：何もない / 判定しない範囲 / 検出あり
+const T = { EMPTY: 0, EXCL: 1, INK: 3 };
 
 // 成分の分類
 const C_NOISE = 0, C_IGNORED = 1, C_SIG = 2;
@@ -265,11 +264,11 @@ function analyze(m) {
       (cx1[c] >= R.x1 - 1 && R.x1 - cx0[c] < w * 0.03) ||
       (cy0[c] <= R.y0 && cy1[c] - R.y0 < h * 0.03) ||
       (cy1[c] >= R.y1 - 1 && R.y1 - cy0[c] < h * 0.03);
-    // パンチ穴：端の近くにある直径 4〜8.5mm の丸
+    // パンチ穴：端の近くにある直径 4〜8.5mm の丸（塗りつぶした円は面積比が約0.79。四角は1に近いので除く）
     const dmm = Math.max(cw, ch) / pxmm, ar = cw / ch, fill = a / (cw * ch);
     const mx = (cx0[c] + cx1[c]) / 2, my = (cy0[c] + cy1[c]) / 2;
     const nearEdge = mx < w * 0.18 || mx > w * 0.82 || my < h * 0.15 || my > h * 0.85;
-    const hole = nearEdge && dmm >= 4 && dmm <= 8.5 && ar > 0.75 && ar < 1.33 && fill > 0.5;
+    const hole = nearEdge && dmm >= 4 && dmm <= 8.5 && ar > 0.75 && ar < 1.33 && fill > 0.6 && fill < 0.88;
     if (edge || hole) {
       cls[c] = C_IGNORED;
       if (ignoredBoxes.length < 60) ignoredBoxes.push([cx0[c], cy0[c], cw, ch, hole ? 'hole' : 'edge']);
@@ -373,66 +372,61 @@ function analyze(m) {
     lines: opts.textDetect ? lineBoxes.length : 0,
   };
   const score = Math.max(...Object.values(ratios));
+  // 判定理由は種類を分けず、「文字があるか」「何か書かれているか」だけを伝える
+  const hasText = ratios.chars >= 1 || ratios.lines >= 1;
   const reasons = [];
-  if (ratios.chars >= 1) reasons.push(`埋め込みテキスト ${embedChars}文字`);
-  if (ratios.lines >= 1) reasons.push(`文字 約${textGlyphs}字（${lineBoxes.length}か所）`);
-  if (ratios.dark >= 1) reasons.push(`写真・塗り・色の領域 ${(darkRatio * 100).toFixed(1)}%`);
-  if (ratios.big >= 1) reasons.push('大きな図形あり');
-  else if (ratios.long >= 1) reasons.push('長い線あり');
-  if (ratios.ink >= 1) reasons.push(`インク ${(inkRatio * 100).toFixed(2)}%`);
-  if (ratios.comps >= 1) reasons.push(`図形 ${sigCount}個`);
-
   let verdict;
   if (score >= 1) {
     verdict = 'content';
+    reasons.push(hasText ? '文字あり' : '書き込み・画像あり');
     // 文字が少しだけ（「このページは白紙です」やページ番号だけ等）は目で確かめてもらう
     const pixelOnly = Math.max(ratios.ink, ratios.big, ratios.dark);
     if (opts.textDetect && pixelOnly < 1.5 && textGlyphs <= 40 && embedChars <= 40 && ratios.comps < 4) {
       verdict = 'review';
-      reasons.unshift(textGlyphs || embedChars ? 'わずかな文字のみ' : 'わずかな跡のみ');
+      reasons[0] = hasText ? 'わずかな文字のみ' : 'わずかな跡のみ';
     }
   } else if (score < 0.35) {
     verdict = 'blank';
-    reasons.push(sigCount ? `小さな汚れ ${sigCount}個のみ` : '何も検出されず');
+    reasons.push(sigCount ? '小さな汚れのみ' : '何も検出されず');
   } else {
     verdict = 'review';
-    reasons.push('かすかな痕跡');
+    reasons.push('かすかな跡');
   }
 
   // ---- 解析マップの最終状態 ----
-  const setTile = (t, s) => { if (tiles[t] !== T.EXCL && RANK[s] > RANK[tiles[t]]) tiles[t] = s; };
-  const clsTile = [T.NOISE, T.IGNORED, T.INK];
+  const setTile = (t, s) => { if (tiles[t] === T.EMPTY) tiles[t] = s; };
+  // ノイズ・影・穴は無視したものなので表示せず、判定に使ったものだけを1色で示す
   for (let y = R.y0; y < R.y1; y++) {
     const tr = tileRowOf[y] * cols;
-    for (let x = R.x0, i = y * w + R.x0; x < R.x1; x++, i++) if (lab[i]) setTile(tr + tileX[x], clsTile[cls[lab[i] - 1]]);
+    for (let x = R.x0, i = y * w + R.x0; x < R.x1; x++, i++) if (lab[i] && cls[lab[i] - 1] === C_SIG) setTile(tr + tileX[x], T.INK);
   }
   const markBox = (b, s) => {
     const tx0 = tileX[clamp(b[0] | 0, 0, w - 1)], tx1 = tileX[clamp((b[0] + b[2] - 1) | 0, 0, w - 1)];
     const ty0 = tileRowOf[clamp(b[1] | 0, 0, h - 1)], ty1 = tileRowOf[clamp((b[1] + b[3] - 1) | 0, 0, h - 1)];
     for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) setTile(ty * cols + tx, s);
   };
-  darkBoxes.forEach(b => markBox(b, T.DARK));
-  lineBoxes.forEach(b => markBox(b, T.TEXT));
-  embedBoxes.forEach(b => markBox(b, T.EMBED));
+  [darkBoxes, lineBoxes, embedBoxes].forEach(list => list.forEach(b => markBox(b, T.INK)));
+
+  // 検出結果の枠：文字の並びはまとめて1つの枠にし、文字1つずつには枠を付けない
+  const inside = (c, b) => cx0[c] >= b[0] - 2 && cy0[c] >= b[1] - 2 && cx1[c] <= b[0] + b[2] + 2 && cy1[c] <= b[1] + b[3] + 2;
+  const textAreas = lineBoxes.concat(embedBoxes);
+  const boxIn = (a, b) => a[0] >= b[0] - 2 && a[1] >= b[1] - 2 && a[0] + a[2] <= b[0] + b[2] + 2 && a[1] + a[3] <= b[1] + b[3] + 2;
+  const marks = textAreas.slice(0, 400).concat(darkBoxes.filter(d => !textAreas.some(b => boxIn(d, b))).slice(0, 200));
+  for (const c of sigIdx) {
+    if (marks.length >= 900) break;
+    if (!textAreas.some(b => inside(c, b))) marks.push([cx0[c], cy0[c], cx1[c] - cx0[c] + 1, cy1[c] - cy0[c] + 1]);
+  }
 
   const result = {
-    verdict, score, reasons,
-    features: { embedChars, lines: lineBoxes.length, glyphs: textGlyphs, inkRatio, comps: sigCount, noise: nc - sigCount - ignoredBoxes.length, darkRatio, bigMm: Math.sqrt(bigArea) / pxmm, longMm: longExt / pxmm },
+    verdict, reasons,
     cols, rows, tiles, w, h, region: [R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0],
-    boxes: {
-      lines: lineBoxes.slice(0, 300),
-      embed: embedBoxes.slice(0, 300),
-      dark: darkBoxes.slice(0, 400),
-      ignored: ignoredBoxes,
-      comps: sigIdx.slice(0, 400).map(c => [cx0[c], cy0[c], cx1[c] - cx0[c] + 1, cy1[c] - cy0[c] + 1]),
-    },
+    marks,
   };
   const transfer = [];
   if (m.wantBinary) {
-    // 0=背景 1=ノイズ 2=除外 3=図形
+    // 0=背景 1=無視した点（ノイズ・影・穴） 2=判定に使ったもの
     const out = new Uint8Array(N);
-    const map = [1, 2, 3];
-    for (let i = 0; i < N; i++) if (lab[i]) out[i] = map[cls[lab[i] - 1]];
+    for (let i = 0; i < N; i++) if (lab[i]) out[i] = cls[lab[i] - 1] === C_SIG ? 2 : 1;
     result.binary = out;
     transfer.push(out.buffer);
   }

@@ -58,12 +58,7 @@
   /* 解析マップのタイル */
   --t-empty:#23262C;
   --t-excl:#0C0E13;
-  --t-noise:#5A5F6A;
   --t-ink:#5B8DEF;
-  --t-text:#FFC14D;
-  --t-dark:#F48FB1;
-  --t-embed:#3CC6B5;
-  --t-ignored:#5F7C86;
 
   --font: "Noto Sans JP", system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
   --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
@@ -106,14 +101,9 @@
     --s-wait:#D3D6DD;
     --s-err:#B0405A;
 
-    --t-empty:#FFFFFF;
-    --t-excl:#D5D7DD;
-    --t-noise:#9AA0AA;
+    --t-empty:#E2E4EA;
+    --t-excl:#F7F7FB;
     --t-ink:#2F6FE0;
-    --t-text:#E8A100;
-    --t-dark:#D9558A;
-    --t-embed:#12A594;
-    --t-ignored:#6E8C96;
     color-scheme: light;
   }
 }
@@ -478,10 +468,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
 .reasons{display:flex;gap:6px;flex-wrap:wrap}
 .reason{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 8px;border-radius:8px;background:var(--md-surface-high);font-size:12px;font-weight:700}
 .reason .ic{width:16px;height:16px;color:var(--md-on-surface-variant)}
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.metric{background:var(--md-surface-container);border-radius:8px;padding:6px 8px;min-width:0}
-.metric small{display:block;font-size:10px;line-height:14px;font-weight:700;color:var(--md-on-surface-variant);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.metric b{display:block;font-family:var(--mono);font-size:13px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .modal .mfoot{display:flex;gap:12px;align-items:center;padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);max-width:900px;width:100%;margin:0 auto}
 .decide{flex:1;display:grid;grid-template-columns:1fr 1fr;height:56px;border-radius:28px;box-shadow:inset 0 0 0 1px var(--md-outline);overflow:hidden}
 .decide button{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:800;color:var(--md-on-surface-variant)}
@@ -563,8 +549,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></symbol>
   <symbol id="i-timer" viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0 0 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></symbol>
   <symbol id="i-speed" viewBox="0 0 24 24"><path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.92 6-4.72 7.28L13 17v5h5l-1.22-1.22C19.91 19.07 22 15.76 22 12c0-5.18-3.95-9.45-9-9.95zM11 2c-1.95.2-3.8.96-5.32 2.21L7.1 5.63A7.9 7.9 0 0 1 11 4V2zM4.2 5.68C2.96 7.2 2.2 9.05 2 11h2c.19-1.42.75-2.77 1.63-3.9L4.2 5.68zM6 18.62l-1.42 1.42A9.95 9.95 0 0 0 11 22v-2a7.9 7.9 0 0 1-5-1.38zM4 13H2c.2 1.95.97 3.8 2.21 5.32l1.42-1.42A8.09 8.09 0 0 1 4 13z"/></symbol>
-  <symbol id="i-photo" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></symbol>
-  <symbol id="i-shape" viewBox="0 0 24 24"><path d="M11.15 3.4 7.43 9.48c-.41.66.07 1.52.85 1.52h7.43c.78 0 1.26-.86.85-1.52L12.85 3.4a.993.993 0 0 0-1.7 0z"/><circle cx="17.5" cy="17.5" r="4.5"/><path d="M4 21.5h6c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1z"/></symbol>
   <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="6" cy="7" r="1.6"/><circle cx="16" cy="5" r="1.2"/><circle cx="11" cy="13" r="1.4"/><circle cx="18" cy="15" r="1.6"/><circle cx="7" cy="18" r="1.2"/></symbol>
 </svg>
 
@@ -743,13 +727,9 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
       </div>
     </div>
     <div class="legend" style="margin-top:12px">
-      <span class="lg"><i style="background:var(--t-ink)"></i>図形</span>
-      <span class="lg"><i style="background:var(--t-text)"></i>文字</span>
-      <span class="lg"><i style="background:var(--t-embed)"></i>埋め込み文字</span>
-      <span class="lg"><i style="background:var(--t-dark)"></i>写真・色</span>
-      <span class="lg"><i style="background:var(--t-noise)"></i>ノイズ</span>
-      <span class="lg"><i style="background:var(--t-ignored)"></i>影・穴</span>
-      <span class="lg"><i style="background:var(--t-excl);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>対象外</span>
+      <span class="lg"><i style="background:var(--t-ink)"></i>検出あり</span>
+      <span class="lg"><i style="background:var(--t-empty);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>何もない</span>
+      <span class="lg"><i style="background:var(--t-excl);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>判定しない範囲</span>
     </div>
   </section>
 
@@ -823,7 +803,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
       <button class="sl" data-v="det"><svg class="ic"><use href="#i-search"/></svg>検出</button>
     </div>
     <div class="reasons" id="mReasons"></div>
-    <div class="metrics" id="mFeat"></div>
   </div>
   <div class="mfoot">
     <button class="icon-btn tonal sl" id="mPrev" aria-label="前のページ"><svg class="ic"><use href="#i-left"/></svg></button>
@@ -853,7 +832,8 @@ const VERDICT_LABEL = { content: '内容あり', blank: '空白', review: '要�
 const VERDICT_ICON = { content: 'doc', blank: 'blank', review: 'help', error: 'error' };
 const ic = (name, cls = '') => `<svg class="ic ${cls}"><use href="#i-${name}"/></svg>`;
 const cssVar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const tileColors = () => ['--t-empty', '--t-excl', '--t-noise', '--t-ink', '--t-text', '--t-dark', '--t-embed', '--t-ignored'].map(cssVar);
+// 解析マップのタイル：0=何もない 1=判定しない範囲 3=検出あり（2は欠番）
+const tileColors = () => ['--t-empty', '--t-excl', '--t-empty', '--t-ink'].map(cssVar);
 let TILE_COLORS = tileColors();
 matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', () => { TILE_COLORS = tileColors(); renderMap(); drawScope(); });
 
@@ -1305,11 +1285,7 @@ function drawLiveBoxes(res) {
   const ctx = livePage.getContext('2d'), s = livePage._scale;
   ctx.drawImage(livePage._src, 0, 0, livePage.width, livePage.height);
   drawRegion(ctx, res.region, s, res.w, res.h);
-  fillBoxes(ctx, res.boxes.dark, s, hexA(TILE_COLORS[5], .3));
-  strokeBoxes(ctx, res.boxes.comps, s, TILE_COLORS[3], 1);
-  strokeBoxes(ctx, res.boxes.lines, s, TILE_COLORS[4], 2);
-  strokeBoxes(ctx, res.boxes.embed, s, TILE_COLORS[6], 1.5);
-  strokeBoxes(ctx, res.boxes.ignored, s, TILE_COLORS[7], 1.5);
+  strokeBoxes(ctx, res.marks, s, TILE_COLORS[3], 1.5);
 }
 function initMap(cols, rows, tiles) {
   mapState = { cols, rows, tiles: Uint8Array.from(tiles), scan: -1 };
@@ -1436,7 +1412,7 @@ function finish(p, res) {
   p.status = 'done';
   p.verdict = res.verdict;
   p.del = res.verdict === 'blank';
-  p.result = { score: res.score, reasons: res.reasons, features: res.features };
+  p.result = { reasons: res.reasons };
   paintCell(p);
   if (mapState) { mapState.tiles = res.tiles; mapState.scan = -1; renderMap(); }
   drawLiveBoxes(res);
@@ -1450,7 +1426,7 @@ function finish(p, res) {
 function fail(p, err) {
   console.error(err);
   p.status = 'error'; p.verdict = 'error'; p.del = false;
-  p.result = { score: 0, reasons: ['解析できませんでした'], features: null };
+  p.result = { reasons: ['解析できませんでした'] };
   paintCell(p);
   log(`p.${p.n}  エラー：${err && err.message || err}`, 'e');
   updateStats();
@@ -1598,10 +1574,7 @@ function movePreview(d) {
   if (np < 0 || np >= pv.list.length) return;
   pv.pos = np; loadPreview();
 }
-const REASON_ICON = [
-  [/文字/, 'text'], [/写真|色/, 'photo'], [/図形|線/, 'shape'],
-  [/インク/, 'bw'], [/汚れ|跡|痕跡/, 'dots'], [/検出されず/, 'blank'],
-];
+const REASON_ICON = [[/文字/, 'text'], [/書き込み/, 'doc'], [/汚れ|跡/, 'dots'], [/検出されず/, 'blank']];
 function updatePreviewHeader() {
   const p = pages[pv.list[pv.pos]];
   $('mTitle').innerHTML = `<span class="mono">p.${p.n}</span><span class="status-chip ${p.verdict}">${ic(VERDICT_ICON[p.verdict])}${VERDICT_LABEL[p.verdict]}</span><span class="pos">${pv.pos + 1} / ${pv.list.length}</span>`;
@@ -1616,13 +1589,6 @@ function updatePreviewHeader() {
     const hit = REASON_ICON.find(([re]) => re.test(t));
     return `<span class="reason">${ic(hit ? hit[1] : 'help')}${t}</span>`;
   }).join('') : '';
-  const f = r && r.features;
-  const m = (k, v) => `<div class="metric"><small>${k}</small><b>${v}</b></div>`;
-  $('mFeat').innerHTML = f ? [
-    m('文字（画像 / 埋込）', settings.textDetect ? `${f.glyphs ?? 0} / ${f.embedChars}` : '—'),
-    m('図形 / ノイズ', `${f.comps} / ${f.noise}`),
-    m('インク / 写真・色', `${(f.inkRatio * 100).toFixed(2)}% / ${(f.darkRatio * 100).toFixed(1)}%`),
-  ].join('') : '';
 }
 async function loadPreview() {
   const i = pv.list[pv.pos], token = ++pvToken;
@@ -1682,7 +1648,8 @@ function drawPreview() {
       c.width = res.w; c.height = res.h;
       const x = c.getContext('2d');
       const img = x.createImageData(res.w, res.h);
-      const pal = [[255, 255, 255], [255, 120, 120], [80, 190, 210], [0, 0, 0]];
+      // 判定に使ったものは黒、無視した点（ノイズ・影・穴）は薄い灰色
+      const pal = [[255, 255, 255], [215, 218, 224], [0, 0, 0]];
       const d = img.data, b = res.binary;
       for (let k = 0, j = 0; k < b.length; k++, j += 4) {
         const c3 = pal[b[k]];
@@ -1698,12 +1665,7 @@ function drawPreview() {
     drawRegion(ctx, res.region, s, res.w, res.h);
   }
   if (pvMode === 'det') {
-    const lw = Math.max(1.5, s * 2);
-    fillBoxes(ctx, res.boxes.dark, s, hexA(TILE_COLORS[5], .3));
-    strokeBoxes(ctx, res.boxes.comps, s, TILE_COLORS[3], lw * .7);
-    strokeBoxes(ctx, res.boxes.lines, s, TILE_COLORS[4], lw * 1.2);
-    strokeBoxes(ctx, res.boxes.embed, s, TILE_COLORS[6], lw);
-    strokeBoxes(ctx, res.boxes.ignored, s, TILE_COLORS[7], lw);
+    strokeBoxes(ctx, res.marks, s, TILE_COLORS[3], Math.max(1.5, s * 2.4));
   }
 }
 function drawRegion(ctx, rg, s, w, h) {
@@ -1720,18 +1682,6 @@ function strokeBoxes(ctx, boxes, s, color, lw) {
   ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw;
   for (const b of boxes) ctx.strokeRect(b[0] * s - 1, b[1] * s - 1, b[2] * s + 2, b[3] * s + 2);
   ctx.restore();
-}
-function fillBoxes(ctx, boxes, s, color) {
-  if (!boxes || !boxes.length) return;
-  ctx.save(); ctx.fillStyle = color;
-  for (const b of boxes) ctx.fillRect(b[0] * s, b[1] * s, b[2] * s, b[3] * s);
-  ctx.restore();
-}
-function hexA(hex, a) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return hex;
-  const n = parseInt(m[1], 16);
-  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 }
 window.addEventListener('resize', () => { if (pv && pv.data) drawPreview(); });
 
