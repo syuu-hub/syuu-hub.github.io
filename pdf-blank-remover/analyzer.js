@@ -1,6 +1,5 @@
 // 空白ページ判定ワーカー
 // 1ページ分の画像（RGBA）を受け取り、下処理 → 2値化 → 成分解析 → テキスト検出 → 判定 を行う
-// 進み具合は stage / band メッセージで逐次知らせ、画面側でデフラグ風に描く
 'use strict';
 
 // 判定の厳しさごとの基準値
@@ -16,9 +15,6 @@ const PRESETS = {
   normal: { cut: 205, inkMax: 0.0015, compMax: 15, bigMm: 5, noiseMm2: 0.4,  charMin: 2, darkMax: 0.005 },
   loose:  { cut: 188, inkMax: 0.004,  compMax: 40, bigMm: 9, noiseMm2: 0.8,  charMin: 4, darkMax: 0.01 },
 };
-
-// 解析マップのタイル状態（画面側と共通）：何もない / 判定しない範囲 / 検出あり
-const T = { EMPTY: 0, EXCL: 1, INK: 3 };
 
 // 成分の分類
 const C_NOISE = 0, C_IGNORED = 1, C_SIG = 2;
@@ -40,8 +36,6 @@ function analyze(m) {
   const P = PRESETS[opts.level] || PRESETS.normal;
   const src = new Uint8ClampedArray(m.buf);
   const N = w * h, pxmm = dpi / 25.4;
-  const post = o => self.postMessage(Object.assign({ id }, o));
-  const stage = s => post({ type: 'stage', stage: s });
 
   // ---- 判定対象の領域（外周の余白・ヘッダー/フッターを除く）----
   const mg = Math.round(Math.min(w, h) * (opts.margin || 0) / 100);
@@ -50,19 +44,7 @@ function analyze(m) {
   if (R.x1 <= R.x0 + 4 || R.y1 <= R.y0 + 4) { R.x0 = 0; R.y0 = 0; R.x1 = w; R.y1 = h; }
   const regionArea = (R.x1 - R.x0) * (R.y1 - R.y0);
 
-  // ---- 解析マップ（デフラグ表示用のタイル）----
-  const cols = 24, tw = w / cols, rows = Math.max(1, Math.round(h / tw)), th = h / rows;
-  const tiles = new Uint8Array(cols * rows);
-  for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
-    const x0 = tx * tw, x1 = x0 + tw, y0 = ty * th, y1 = y0 + th;
-    if (x1 <= R.x0 || x0 >= R.x1 || y1 <= R.y0 || y0 >= R.y1) tiles[ty * cols + tx] = T.EXCL;
-  }
-  const tileX = new Uint16Array(w), tileRowOf = new Uint16Array(h);
-  for (let x = 0; x < w; x++) tileX[x] = Math.min(cols - 1, Math.floor(x / tw));
-  for (let y = 0; y < h; y++) tileRowOf[y] = Math.min(rows - 1, Math.floor(y / th));
-
   // ================= 下処理 =================
-  stage('pre');
   // グレースケール
   const gray = new Uint8Array(N);
   for (let i = 0, j = 0; i < N; i++, j += 4) gray[i] = (src[j] * 77 + src[j + 1] * 150 + src[j + 2] * 29) >> 8;
@@ -148,11 +130,6 @@ function analyze(m) {
   }
   const hasOut = outBoxes.length > 0;
   const isOut = (x, y) => outside[((y / B) | 0) * bw + ((x / B) | 0)] === 1;
-  // 用紙の外側にかかるタイルは「判定しない範囲」にする
-  for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
-    if (isOut(Math.min(w - 1, (tx + 0.5) * tw), Math.min(h - 1, (ty + 0.5) * th))) tiles[ty * cols + tx] = T.EXCL;
-  }
-  post({ type: 'grid', cols, rows, tiles: tiles.slice() });
 
   // スキャンのノイズの強さ（紙だけのブロックのばらつき）を測り、2値化の基準に使う
   const quietStd = [];
@@ -234,7 +211,6 @@ function analyze(m) {
   }
 
   // ================= 2値化（Sauvola 法 + 最低コントラスト）=================
-  stage('bin');
   const W1 = w + 1;
   const sum = new Float64Array(W1 * (h + 1)), sq = new Float64Array(W1 * (h + 1));
   for (let y = 0; y < h; y++) {
@@ -260,19 +236,7 @@ function analyze(m) {
   // 芯：ぼかした画像でもはっきり濃い画素。ノイズの見分けや、インク量・大きさの計測に使う
   const core = new Uint8Array(N);
   let strong = new Int32Array(1 << 16), nStrong = 0;
-  const tileInk = new Uint32Array(cols * rows);
-  let curRow = tileRowOf[R.y0] || 0;
-  const sendBand = row => {
-    const data = new Uint8Array(cols);
-    for (let tx = 0; tx < cols; tx++) {
-      const t = row * cols + tx;
-      data[tx] = tiles[t] === T.EXCL ? T.EXCL : (tileInk[t] ? T.INK : T.EMPTY);
-    }
-    post({ type: 'band', row, data });
-  };
   for (let y = R.y0; y < R.y1; y++) {
-    const tr = tileRowOf[y];
-    if (tr !== curRow) { for (let r = curRow; r < tr; r++) sendBand(r); curRow = tr; }
     const ya = Math.max(0, y - rad), yb = Math.min(h, y + rad + 1);
     const A = ya * W1, Bo = yb * W1;
     for (let x = R.x0, i = y * w + R.x0; x < R.x1; x++, i++) {
@@ -289,14 +253,13 @@ function analyze(m) {
       // はっきりした線かどうかは、ぼかす前の濃さで見る（細い線はぼかしで薄くなるため）
       const local = v < thr || v < 96 || mean - vv >= minContrast;
       if (vv <= cut && local) {
-        bin[i] = 1; tileInk[tr * cols + tileX[x]]++;
+        bin[i] = 1;
         if (v <= cut) core[i] = 1;
         if (nStrong === strong.length) { const ns = new Int32Array(strong.length * 2); ns.set(strong); strong = ns; }
         strong[nStrong++] = i;
       } else if (v < thr || mean - vv >= minContrast * 0.5) bin[i] = 2;
     }
   }
-  for (let r = curRow; r < rows; r++) if (r <= tileRowOf[Math.max(0, R.y1 - 1)]) sendBand(r);
 
   // 弱い画素は、強い画素から8近傍でつながる範囲だけ残す（かすれた線はつなぎ、離れた裏写りは捨てる）
   while (nStrong) {
@@ -317,7 +280,6 @@ function analyze(m) {
   closing3(bin, w, h, R);
 
   // ================= 成分解析（8近傍ラベリング）=================
-  stage('cc');
   const lab = new Int32Array(N);
   let parent = new Int32Array(4096), next = 1;
   const find = a => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
@@ -444,7 +406,6 @@ function analyze(m) {
   let embedChars = 0, textGlyphs = 0;
   const embedBoxes = [];
   if (opts.textDetect) {
-    stage('text');
     // 埋め込みテキスト（判定対象の領域内にあるものだけ）
     for (const t of m.textItems || []) {
       const cxm = t[0] + t[2] / 2, cym = t[1] + t[3] / 2;
@@ -506,7 +467,6 @@ function analyze(m) {
   }
 
   // ================= 判定 =================
-  stage('judge');
   const bigThr = Math.pow(P.bigMm * pxmm, 2), longThr = P.bigMm * pxmm * 4;
   const inkRatio = sigArea / regionArea;
   const ratios = {
@@ -539,20 +499,6 @@ function analyze(m) {
     reasons.push('かすかな跡');
   }
 
-  // ---- 解析マップの最終状態 ----
-  const setTile = (t, s) => { if (tiles[t] === T.EMPTY) tiles[t] = s; };
-  // ノイズ・影・穴は無視したものなので表示せず、判定に使ったものだけを1色で示す
-  for (let y = R.y0; y < R.y1; y++) {
-    const tr = tileRowOf[y] * cols;
-    for (let x = R.x0, i = y * w + R.x0; x < R.x1; x++, i++) if (lab[i] && cls[lab[i] - 1] === C_SIG) setTile(tr + tileX[x], T.INK);
-  }
-  const markBox = (b, s) => {
-    const tx0 = tileX[clamp(b[0] | 0, 0, w - 1)], tx1 = tileX[clamp((b[0] + b[2] - 1) | 0, 0, w - 1)];
-    const ty0 = tileRowOf[clamp(b[1] | 0, 0, h - 1)], ty1 = tileRowOf[clamp((b[1] + b[3] - 1) | 0, 0, h - 1)];
-    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) setTile(ty * cols + tx, s);
-  };
-  [darkBoxes, embedBoxes].forEach(list => list.forEach(b => markBox(b, T.INK)));
-
   // 検出結果の枠：文字か図形かを分けず、検出したもの同士が近ければ（3mm以内）1つの枠にまとめる
   const marks = clusterBoxes(
     sigIdx.slice(0, 6000).map(c => [cx0[c], cy0[c], cx1[c] - cx0[c] + 1, cy1[c] - cy0[c] + 1])
@@ -562,7 +508,7 @@ function analyze(m) {
 
   const result = {
     verdict, reasons,
-    cols, rows, tiles, w, h, region: [R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0],
+    w, h, region: [R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0],
     marks,
     outside: outBoxes,
     noise: Math.round(noiseSigma * 10) / 10,
@@ -624,4 +570,3 @@ function median(arr) {
   const a = Array.from(arr).sort((x, y) => x - y);
   return a[a.length >> 1];
 }
-function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
