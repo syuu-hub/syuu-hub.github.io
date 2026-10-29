@@ -884,7 +884,7 @@ svg{display:block}
       <div class="d-clock num" id="dClock">--:--</div>
     </div>
     <div class="d-info">
-      <button class="d-row" id="dGoal"><span class="k">本日の目標</span><span class="v num" id="dGoalVal">¥0</span><span class="chev">変更</span></button>
+      <button class="d-row" id="dGoal"><span class="k">本日の必要額</span><span class="v num" id="dGoalVal">¥0</span><span class="chev">月の目標</span></button>
     </div>
     <div>
       <button class="btn primary depart-btn" id="departBtn">出庫</button>
@@ -909,9 +909,9 @@ svg{display:block}
     </div>
     <div class="hud-main">
       <div class="sales num" id="sales"><span class="cur">¥</span>0</div>
-      <button class="goal-btn" id="goalBtn" aria-label="目標金額を変更">
+      <button class="goal-btn" id="goalBtn" aria-label="月の目標金額を変更">
         <span class="pct num" id="pct">0<small>%</small></span>
-        <span class="goal-line">目標 <b class="num" id="goal">¥0</b></span>
+        <span class="goal-line"><span id="goalLbl">1日の必要</span> <b class="num" id="goal">¥0</b></span>
       </button>
     </div>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="barWrap"><div class="bar-fill" id="bar"></div></div>
@@ -1002,11 +1002,7 @@ svg{display:block}
           <button class="fold-h" aria-expanded="false" aria-controls="gWorkB"><span class="t">営業・勤務</span><span class="s num" id="gWorkSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gWorkB" hidden>
           <div class="setting">
-          <div><div class="k">1日の目標金額</div><div class="d">次の出庫から適用</div></div>
-          <button class="btn sm num" id="goalSetBtn">¥0</button>
-        </div>
-          <div class="setting">
-          <div><div class="k">月の目標金額</div><div class="d">締め期間ごと・0でなし</div></div>
+          <div><div class="k">月の目標金額</div><div class="d">1日の必要額を自動計算・0でなし</div></div>
           <button class="btn sm num" id="monthGoalBtn">未設定</button>
         </div>
           <div class="setting">
@@ -1514,7 +1510,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { goal: 50000, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
+    settings: { dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -2009,7 +2005,7 @@ async function resolveGeo() {
    ============================================================ */
 function startShift() {
   const now = Date.now();
-  const sh = { id: uid(), start: now, end: null, goal: S.settings.goal, status: 'off', statusSince: now, trip: null };
+  const sh = { id: uid(), start: now, end: null, goal: dailyNeed(now), status: 'off', statusSince: now, trip: null };
   S.shifts.push(sh);
   applyWakeLock();
   return sh;
@@ -2313,17 +2309,21 @@ function shiftStats(sh) {
 function renderHud() {
   const sh = curShift();
   const st = sh ? shiftStats(sh) : null;
-  const goal = sh ? sh.goal : S.settings.goal;
+  const mg = S.settings.monthGoal, goal = dailyNeed(sh ? sh.start : Date.now());
   const sales = st ? st.sales : 0;
   const ratio = goal > 0 ? sales / goal : 0;
 
   $('#sales').innerHTML = yenHtml(sales);
-  $('#goal').textContent = yen(goal);
+  // 1日の必要額＝月の目標の残り ÷ 残りの出勤日（月の目標が未設定・達成済みの時はその表示）
+  $('#goalLbl').textContent = !mg ? '' : goal ? '1日の必要' : '';
+  $('#goal').textContent = !mg ? '月の目標を設定' : goal ? yen(goal) : '月の目標達成';
+  $('#pct').style.display = goal ? '' : 'none';
+  $('#barWrap').style.visibility = goal ? '' : 'hidden';
   $('#pct').innerHTML = Math.floor(ratio * 100) + '<small>%</small>';
   $('#bar').style.width = clamp(ratio * 100, 0, 100) + '%';
   $('#barWrap').setAttribute('aria-valuenow', Math.round(clamp(ratio * 100, 0, 100)));
   $('#hud').classList.toggle('done', goal > 0 && sales >= goal);
-  $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `目標達成 ＋${yen(sales - goal)}` : `目標まで あと ${yen(goal - sales)}`;
+  $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `達成 ＋${yen(sales - goal)}` : `あと ${yen(goal - sales)}`;
 
   $('#stCount').innerHTML = (st ? st.count : 0) + '<small>回</small>';
   const fit = n => n >= 100000 ? compactYen(n) : yen(n);   // 狭い欄に収める
@@ -2423,6 +2423,32 @@ function planDays(y, m, from = new Date(y, m, 1), to = new Date(y, m + 1, 0)) { 
     if (!isHoliday(d) && !worked.has(dayKey(d))) out.push(dayKey(d));
   }
   return out;
+}
+// 1日の必要額：（月の目標 − 締め期間のうち t の日より前の売上）÷ t の日から締め日までの出勤日（固定休を除く）
+//   その日の売上は入れないので、営業中に必要額は変わらない。t の日に営業していれば固定休でも数える
+let NEED = { k: '', v: 0 };   // 毎秒の描画で計算し直さないよう、条件が同じなら前の結果を使う
+function dailyNeed(t = Date.now()) {
+  const g = S.settings.monthGoal;
+  if (!g) return 0;
+  const dk = dayKey(new Date(t)), ck = [dk, g, S.settings.closingDay, (S.settings.holidays || []).join(), S.shifts.length, S.rides.length, S.rides.reduce((a, r) => a + r.total, 0)].join('|');
+  if (NEED.k === ck) return NEED.v;
+  const v = calcNeed(t, g);
+  NEED = { k: ck, v };
+  return v;
+}
+function calcNeed(t, g) {
+  const p = periodOf(t), [, to] = periodRange(p.y, p.m);
+  const day = new Date(t); day.setHours(0, 0, 0, 0);
+  let sales = 0, workedToday = false;
+  for (const sh of S.shifts) {
+    const q = periodOf(sh.start);
+    if (q.y !== p.y || q.m !== p.m) continue;
+    if (sh.start < day.getTime()) sales += shiftStats(sh).sales;
+    else if (dayKey(new Date(sh.start)) === dayKey(day)) workedToday = true;
+  }
+  let days = 0;
+  for (const d = new Date(day); d <= to; d.setDate(d.getDate() + 1)) if (!isHoliday(d) || (workedToday && d.getTime() === day.getTime())) days++;
+  return Math.ceil(Math.max(0, g - sales) / Math.max(1, days));
 }
 // 暦月（1日〜末日）の労働時間。出庫日の月で数える
 const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.start); return d.getFullYear() === y && d.getMonth() === m; })
@@ -2850,7 +2876,7 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   const med = quant(useV, .5), q1 = quant(useV, .25), q3 = quant(useV, .75);
   // 見込みは中央値（帯と同じ物差し）。その曜日が3日未満なら全体の平均へ寄せる
   const est = sameV.length >= 3 ? med : sameV.length ? shrink(sameV.reduce((a, b) => a + b, 0), sameV.length, mean(allV), 3) : med;
-  const goal = (cur && cur.goal) || S.settings.goal || 0;
+  const goal = dailyNeed(cur ? cur.start : nd.getTime());
   const share0 = allV.filter(v => v >= goal).length / allV.length;
   const pGoal = goal ? (sameV.filter(v => v >= goal).length + 3 * share0) / (sameV.length + 3) : null;
   // 時間割（その曜日の3時間ごと）
@@ -3084,7 +3110,6 @@ function renderData() {
   const sh = curShift();
   $('#shiftSec').hidden = !sh;
   $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
-  $('#goalSetBtn').textContent = yen(S.settings.goal);
   $('#monthGoalBtn').textContent = S.settings.monthGoal ? yen(S.settings.monthGoal) : '未設定';
   $('#hiFareBtn').textContent = S.settings.hiFare ? yen(S.settings.hiFare) + '以上' : '自動';
   $('#closingBtn').textContent = closingLabel();
@@ -3114,7 +3139,7 @@ function renderData() {
   let bytes = 0; try { bytes = (localStorage.getItem(STORE_KEY) || '').length * 2; } catch (e) {}
   $('#storageInfo').textContent = (bytes / 1024).toFixed(0) + ' KB';
   // 折りたたみの見出しに今の設定を1行で
-  setFoldSum('gWork', [yen(S.settings.goal), S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', S.settings.dayHours ? '1日' + S.settings.dayHours + 'h' : '',
+  setFoldSum('gWork', [S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '目標なし', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', S.settings.dayHours ? '1日' + S.settings.dayHours + 'h' : '',
     S.settings.holidays.length ? S.settings.holidays.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
   setFoldSum('gPay', `決済${PAYS().length}・チケット${TICKETS().length}・アプリ${S.settings.apps.length}`);
   setFoldSum('gInput', [S.settings.dim ? '減光' : '', S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : '', S.settings.stationStand ? '駅→乗り場' : '', S.settings.histOrder === 'desc' ? '履歴は新しい順' : '履歴は古い順'].filter(Boolean).join(' ・ '));
@@ -3134,7 +3159,7 @@ function renderDepart() {
   const d = new Date();
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
-  $('#dGoalVal').textContent = yen(S.settings.goal);
+  $('#dGoalVal').textContent = S.settings.monthGoal ? (dailyNeed() ? yen(dailyNeed()) : '達成') : '未設定';
 }
 
 // 各画面右上のステータス表示（タップでホームへ）
@@ -3628,12 +3653,13 @@ function deleteApp() {
   save(); closeSheet($('#appSheet')); renderData();
 }
 
+// 月の目標金額（1日の必要額はここから自動で出す）。営業中の記録の目標も入れ直す
 function editGoal() {
-  openNumpad('1日の目標金額', S.settings.goal, v => {
-    S.settings.goal = v;
-    const sh = curShift(); if (sh) sh.goal = v;
-    save(); renderAll();
-  });
+  openNumpad('月の目標金額', S.settings.monthGoal, v => {
+    S.settings.monthGoal = v;
+    const sh = curShift(); if (sh) sh.goal = dailyNeed(sh.start);
+    save(); renderAll(); renderData();
+  }, { label: '1日の必要額を自動計算・0で目標なし', digits: 8 });
 }
 
 /* ============================================================
@@ -3807,7 +3833,7 @@ function importLogCsv(text) {
   // 出庫〜入庫で営業（シフト）に分ける
   const shifts = [];
   let cur = null;
-  const open = ts => { cur = { id: uid(), start: ts, end: null, goal: S.settings.goal, status: 'vacant', statusSince: ts, trip: null, evs: [], rides: [] }; shifts.push(cur); };
+  const open = ts => { cur = { id: uid(), start: ts, end: null, goal: 0, status: 'vacant', statusSince: ts, trip: null, evs: [], rides: [] }; shifts.push(cur); };
   for (const it of items) {
     if (it.type === 'ev') {
       if (it.ev.prev === 'off' || !cur) open(it.ts);
@@ -3905,15 +3931,11 @@ $$('.st-btn').forEach(b => b.addEventListener('click', () => setStatus(b.dataset
 $('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#goalBtn').addEventListener('click', editGoal);
-$('#goalSetBtn').addEventListener('click', editGoal);
 $('#hiFareBtn').addEventListener('click', () => openNumpad('高額乗車の基準', S.settings.hiFare, v => {
   S.settings.hiFare = v;
   save(); renderAll(); renderData();
 }, { label: 'この金額以上・0で自動（上位2割）', digits: 6 }));
-$('#monthGoalBtn').addEventListener('click', () => openNumpad('月の目標金額', S.settings.monthGoal, v => {
-  S.settings.monthGoal = v;
-  save(); renderAll();
-}, { label: '0で目標なし', digits: 8 }));
+$('#monthGoalBtn').addEventListener('click', editGoal);
 $('#hoursCapBtn').addEventListener('click', () => openNumpad('月の労働時間の上限', S.settings.hoursCap, v => {
   S.settings.hoursCap = Math.min(v, 744);
   save(); renderData();
