@@ -327,8 +327,6 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 
 .live{max-width:440px;margin:0 auto 20px}
 .pane{background:var(--md-surface-container);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.pane-head{display:flex;align-items:center;gap:8px;min-height:28px}
-.pane-head .grow{flex:1;min-width:0;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pane .stage{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1.25;background:var(--md-surface-lowest);border-radius:8px;overflow:hidden}
 .pane canvas{max-width:100%;max-height:100%;display:block}
 .status-chip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 10px 0 6px;border-radius:12px;font-size:12px;font-weight:800;background:var(--md-surface-highest);color:var(--md-on-surface-variant);white-space:nowrap}
@@ -391,7 +389,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .chip[aria-pressed="true"]{background:var(--md-secondary-container);color:var(--md-on-secondary-container);box-shadow:none;padding-left:8px}
 .chip[aria-pressed="true"] .ic{display:block}
 
-.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
 .thumb{position:relative;display:flex;flex-direction:column;border-radius:12px;background:var(--md-surface-container);overflow:hidden;transition:box-shadow .2s}
 .thumb .open{display:block;width:100%;text-align:left}
 .thumb .img{position:relative;margin:8px 8px 0;background:#fff;border-radius:6px;overflow:hidden;aspect-ratio:1/1.3;display:flex;align-items:center;justify-content:center}
@@ -407,13 +405,12 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
   background:rgba(255,255,255,.92);box-shadow:inset 0 0 0 2px #74777F,0 1px 3px rgba(0,0,0,.3);color:transparent;transition:all .15s var(--ease);
 }
 .thumb .sel .box .ic{width:18px;height:18px}
-.thumb.del{box-shadow:inset 0 0 0 2px var(--s-del)}
+.thumb.del{box-shadow:inset 0 0 0 3px var(--s-del)}
 .thumb.del .sel .box{background:var(--s-del);box-shadow:0 1px 3px rgba(0,0,0,.3);color:#fff}
-.thumb.del img{opacity:.7;filter:grayscale(1)}
-.thumb.del .img::after{
-  content:"";position:absolute;inset:0;
-  background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--s-del) 22%,transparent) 0 6px,transparent 6px 12px);
-}
+/* 削除予定でもページの中身はそのまま見せ、右上の小さなラベルと赤枠だけで示す */
+.thumb .dl{position:absolute;top:14px;right:14px;z-index:1;display:none;align-items:center;gap:2px;height:22px;padding:0 8px 0 4px;border-radius:11px;background:var(--s-del);color:#fff;font-size:11px;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.3);pointer-events:none}
+.thumb .dl .ic{width:14px;height:14px}
+.thumb.del .dl{display:inline-flex}
 .empty-note{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--md-on-surface-variant);padding:32px 8px;text-align:center}
 .empty-note .ic{width:48px;height:48px;opacity:.6}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
@@ -677,7 +674,6 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
   <section id="secRun" class="card hidden">
     <div class="live">
       <div class="pane">
-        <div class="pane-head"><span class="grow mono" id="liveName">—</span></div>
         <div class="stage"><canvas id="livePage"></canvas></div>
       </div>
       <div class="legend" style="margin-top:12px;justify-content:center">
@@ -1293,7 +1289,6 @@ async function start() {
     if (pending) await pending;
     if (cancelFlag) break;
     p.thumb = makeThumb(r.canvas);
-    $('liveName').textContent = `p.${p.n}`;
     drawLivePage(r.canvas);
     pending = mainAnalyzer.run(r)
       .then(res => finish(p, res))
@@ -1329,11 +1324,12 @@ function fail(p, err) {
 }
 function makeThumb(canvas) {
   const c = document.createElement('canvas');
-  const s = 240 / canvas.width;
-  c.width = 240; c.height = Math.max(1, Math.round(canvas.height * s));
+  // 確認画面で開かなくても中身が分かるよう、大きめに作る
+  const s = 360 / canvas.width;
+  c.width = 360; c.height = Math.max(1, Math.round(canvas.height * s));
   const x = c.getContext('2d');
   x.drawImage(canvas, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.72);
+  return c.toDataURL('image/jpeg', 0.8);
 }
 async function requestWakeLock() {
   try { return await navigator.wakeLock?.request('screen'); } catch { return null; }
@@ -1372,6 +1368,7 @@ function renderReview() {
         <div class="img">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ''}</div>
         <div class="info"><span class="pn">p.${p.n}</span><span class="status-chip ${p.verdict}">${ic(VERDICT_ICON[p.verdict])}${VERDICT_LABEL[p.verdict]}</span></div>
       </button>
+      <span class="dl" aria-hidden="true">${ic('delete')}削除</span>
       <button class="sel" data-a="toggle" role="checkbox" aria-checked="${p.del}" aria-label="p.${p.n}を削除する"><span class="box">${ic('check')}</span></button>`;
     frag.appendChild(b);
   }
