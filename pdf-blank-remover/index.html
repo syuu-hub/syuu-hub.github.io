@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A0C0F">
+<meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F9F9FF" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="PDFの白紙ページを画像解析とテキスト検出で見つけ、確認してから取り除いたPDFを端末に保存します。ファイルは端末の外に送られません。">
 <title>空白ページ削除</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -14,462 +15,799 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="空白ページ削除">
 <style>
+/* ============================================================
+   Material Design 3 トークン（ダーク）
+   ============================================================ */
 :root{
-  --bg:#0A0C0F;
-  --surface:#12151A;
-  --surface-2:#191D24;
-  --surface-3:#212630;
-  --line:#242A33;
-  --line-2:#343C48;
-  --text:#ECEFF3;
-  --muted:#8C96A4;
-  --faint:#5A6472;
+  --md-primary:#FFB951;
+  --md-on-primary:#452B00;
+  --md-primary-container:#633F00;
+  --md-on-primary-container:#FFDDB3;
+  --md-secondary-container:#3A3F48;
+  --md-on-secondary-container:#DAE2F0;
+  --md-error:#FFB4AB;
+  --md-on-error:#690005;
+  --md-error-container:#93000A;
+  --md-on-error-container:#FFDAD6;
+  --md-surface:#111318;
+  --md-surface-lowest:#0C0E13;
+  --md-surface-low:#191C20;
+  --md-surface-container:#1D2024;
+  --md-surface-high:#282A2F;
+  --md-surface-highest:#33353A;
+  --md-on-surface:#E2E2E9;
+  --md-on-surface-variant:#C4C6D0;
+  --md-outline:#8E9099;
+  --md-outline-variant:#44474E;
+  --md-elev-1:0 1px 2px rgba(0,0,0,.3),0 1px 3px 1px rgba(0,0,0,.15);
+  --md-elev-3:0 1px 3px rgba(0,0,0,.3),0 4px 8px 3px rgba(0,0,0,.15);
 
-  --accent:#FFB020;
-  --accent-ink:#1E1400;
-  --accent-soft:rgba(255,176,32,.14);
+  /* 意味の色（画面全体で同じ意味に使う） */
+  --s-content:#5B8DEF;   /* 内容あり */
+  --s-on-content:#fff;
+  --s-blank:#E6E8EE;     /* 空白 */
+  --s-on-blank:#1A1C20;
+  --s-review:#C29BFF;    /* 要確認 */
+  --s-on-review:#2A0F55;
+  --s-active:#4CD38A;    /* 処理中 */
+  --s-on-active:#00391C;
+  --s-del:#FF6B6B;       /* 削除 */
+  --s-wait:#2E3138;      /* 未処理 */
+  --s-err:#B0405A;
 
-  /* ページの判定色（デフラグ風）：内容あり=青 / 空白=白 / 要確認=黄 / 処理中=緑 / 削除=赤 */
-  --c-wait:#2A303A;
-  --c-content:#3A7BFF;
-  --c-blank:#E6EAF0;
-  --c-review:#FFB020;
-  --c-active:#3DD68C;
-  --c-del:#FF5D5D;
-  --c-err:#B0405A;
+  /* 解析マップのタイル */
+  --t-empty:#23262C;
+  --t-excl:#0C0E13;
+  --t-noise:#5A5F6A;
+  --t-ink:#5B8DEF;
+  --t-text:#FFC14D;
+  --t-dark:#F48FB1;
+  --t-embed:#3CC6B5;
+  --t-ignored:#5F7C86;
 
-  /* 解析マップのタイル色 */
-  --t-empty:#1A1F27;
-  --t-excl:#0F1216;
-  --t-noise:#4B5462;
-  --t-ink:#3A7BFF;
-  --t-text:#FFB020;
-  --t-dark:#B07CFF;
-  --t-embed:#3DD68C;
-  --t-ignored:#2C6E7A;
-
-  --r-lg:20px;
-  --r-md:14px;
-  --r-sm:10px;
-  --gap:12px;
-  --pad:16px;
-  --tap:52px;
-
-  --font: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font: "Noto Sans JP", system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2,0,0,1);
   color-scheme: dark;
 }
+@media (prefers-color-scheme: light){
+  :root{
+    --md-primary:#855400;
+    --md-on-primary:#FFFFFF;
+    --md-primary-container:#FFDDB3;
+    --md-on-primary-container:#2A1700;
+    --md-secondary-container:#DCE3EF;
+    --md-on-secondary-container:#151C25;
+    --md-error:#BA1A1A;
+    --md-on-error:#FFFFFF;
+    --md-error-container:#FFDAD6;
+    --md-on-error-container:#410002;
+    --md-surface:#F9F9FF;
+    --md-surface-lowest:#FFFFFF;
+    --md-surface-low:#F3F3FA;
+    --md-surface-container:#EDEDF4;
+    --md-surface-high:#E7E8EE;
+    --md-surface-highest:#E2E2E9;
+    --md-on-surface:#1A1C20;
+    --md-on-surface-variant:#44474E;
+    --md-outline:#74777F;
+    --md-outline-variant:#C4C6D0;
+    --md-elev-1:0 1px 2px rgba(0,0,0,.18),0 1px 3px 1px rgba(0,0,0,.08);
+    --md-elev-3:0 1px 3px rgba(0,0,0,.18),0 4px 8px 3px rgba(0,0,0,.1);
+
+    --s-content:#2F6FE0;
+    --s-blank:#FFFFFF;
+    --s-on-blank:#1A1C20;
+    --s-review:#8E5BE8;
+    --s-on-review:#FFFFFF;
+    --s-active:#1E9E5A;
+    --s-on-active:#FFFFFF;
+    --s-del:#D93636;
+    --s-wait:#D3D6DD;
+    --s-err:#B0405A;
+
+    --t-empty:#FFFFFF;
+    --t-excl:#D5D7DD;
+    --t-noise:#9AA0AA;
+    --t-ink:#2F6FE0;
+    --t-text:#E8A100;
+    --t-dark:#D9558A;
+    --t-embed:#12A594;
+    --t-ignored:#6E8C96;
+    color-scheme: light;
+  }
+}
+
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg);color:var(--text)}
+html,body{background:var(--md-surface);color:var(--md-on-surface)}
 body{
-  font-family:var(--font);font-size:15px;line-height:1.5;min-height:100vh;
+  font-family:var(--font);font-size:14px;line-height:20px;letter-spacing:.01em;min-height:100vh;
   -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
 }
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
 input{font:inherit;color:inherit}
 .hidden{display:none !important}
+.ic{width:24px;height:24px;fill:currentColor;flex:none;display:block}
+.ic.sm{width:18px;height:18px}
+.ic.xs{width:16px;height:16px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-header.top{
-  position:sticky;top:0;z-index:10;
-  display:flex;align-items:center;gap:10px;
-  padding:calc(env(safe-area-inset-top) + 10px) var(--pad) 10px;
-  background:rgba(10,12,15,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--line);
+/* タイプスケール */
+.t-headline{font-size:24px;line-height:32px;font-weight:700}
+.t-title-m{font-size:16px;line-height:24px;font-weight:700;letter-spacing:.01em}
+.t-body-l{font-size:16px;line-height:24px}
+.t-body-s{font-size:12px;line-height:16px;color:var(--md-on-surface-variant)}
+
+/* 状態レイヤーとリップル */
+.sl{position:relative;overflow:hidden;isolation:isolate}
+.sl::before{content:"";position:absolute;inset:0;background:currentColor;opacity:0;transition:opacity .15s;pointer-events:none;z-index:-1}
+@media (hover:hover){ .sl:hover::before{opacity:.08} }
+.sl:active::before{opacity:.12}
+.sl:focus-visible{outline:2px solid var(--md-primary);outline-offset:2px}
+.ripple{position:absolute;border-radius:50%;background:currentColor;opacity:.18;transform:scale(0);animation:rip .45s var(--ease) forwards;pointer-events:none;z-index:-1}
+@keyframes rip{to{transform:scale(1);opacity:0}}
+
+/* ---------- トップアプリバー ---------- */
+.appbar{
+  position:sticky;top:0;z-index:10;background:var(--md-surface);
+  padding:env(safe-area-inset-top) 4px 0;transition:background .2s;
 }
-header.top h1{font-size:17px;font-weight:800;flex:1;letter-spacing:.02em}
-header.top .file{font-size:12px;color:var(--muted);max-width:45%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar.scrolled{background:var(--md-surface-container)}
+.appbar .bar{max-width:1040px;margin:0 auto;height:64px;display:flex;align-items:center;gap:4px;padding:0 4px 0 12px}
+.appbar .logo{width:32px;height:32px;border-radius:8px;overflow:hidden;flex:none;margin-right:8px}
+.appbar h1{flex:1;min-width:0;font-size:20px;line-height:28px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-main{max-width:980px;margin:0 auto;padding:var(--pad);padding-bottom:calc(env(safe-area-inset-bottom) + 120px);display:flex;flex-direction:column;gap:var(--gap)}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--pad)}
-.card h2{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.card h2 .sp{flex:1}
-
-/* ---------- ファイル選択 ---------- */
-.drop{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
-  min-height:220px;border:2px dashed var(--line-2);border-radius:var(--r-lg);padding:24px;
-  background:var(--surface);transition:border-color .15s,background .15s;cursor:pointer;
+/* ステッパー */
+.stepper{max-width:1040px;margin:0 auto;display:flex;align-items:flex-start;padding:4px 16px 12px}
+.step{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;min-width:0}
+.step:not(:last-child)::after{
+  content:"";position:absolute;top:15px;left:calc(50% + 22px);right:calc(-50% + 22px);height:2px;border-radius:2px;
+  background:var(--md-outline-variant);transition:background .3s;
 }
-.drop.over{border-color:var(--accent);background:var(--accent-soft)}
-.drop svg{width:56px;height:56px;color:var(--accent)}
-.drop b{font-size:17px}
-.drop small{color:var(--muted);font-size:12px}
-.privacy{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px;justify-content:center}
-.privacy i{width:8px;height:8px;border-radius:50%;background:var(--c-active);display:inline-block}
+.step.done:not(:last-child)::after{background:var(--md-primary)}
+.step .dot{
+  width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--md-surface-high);color:var(--md-on-surface-variant);transition:all .25s var(--ease);
+}
+.step .dot .ic{width:18px;height:18px}
+.step.done .dot{background:var(--md-primary);color:var(--md-on-primary)}
+.step.cur .dot{background:var(--md-primary-container);color:var(--md-on-primary-container);box-shadow:0 0 0 3px color-mix(in srgb,var(--md-primary) 45%,transparent)}
+.step span{font-size:11px;line-height:14px;font-weight:700;color:var(--md-on-surface-variant);white-space:nowrap}
+.step.cur span{color:var(--md-on-surface)}
 
-.fileinfo{display:flex;gap:12px;align-items:center}
-.fileinfo canvas{width:64px;border-radius:6px;background:#fff;flex:none}
-.fileinfo .meta{flex:1;min-width:0}
-.fileinfo .name{font-weight:700;word-break:break-all}
-.fileinfo .sub{color:var(--muted);font-size:13px}
+main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bottom) + 112px);display:flex;flex-direction:column;gap:16px}
+.card{background:var(--md-surface-low);border-radius:16px;padding:20px;box-shadow:var(--md-elev-1)}
+.card-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;min-height:40px}
+.card-head .grow{flex:1;min-width:0}
+.card-head > .ic{color:var(--md-on-surface-variant)}
 
-/* ---------- 設定 ---------- */
-.set{display:flex;flex-direction:column;gap:14px}
-.row{display:flex;align-items:center;gap:12px}
-.row .lbl{flex:1;min-width:0}
-.row .lbl b{display:block;font-size:15px}
-.row .lbl small{display:block;color:var(--muted);font-size:12px}
-.switch{position:relative;width:52px;height:30px;flex:none}
-.switch input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1}
-.switch span{position:absolute;inset:0;border-radius:99px;background:var(--surface-3);border:1px solid var(--line-2);transition:background .15s}
-.switch span::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
-.switch input:checked + span{background:var(--accent)}
-.switch input:checked + span::after{transform:translateX(22px);background:var(--accent-ink)}
-.switch input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
-.seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:3px;gap:3px}
-.seg button{flex:1;padding:9px 6px;border-radius:8px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
-.seg button[aria-pressed="true"]{background:var(--surface-3);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-2)}
-.range{display:flex;align-items:center;gap:10px}
-.range input{flex:1;accent-color:var(--accent)}
-.range output{font-family:var(--mono);font-size:13px;min-width:36px;text-align:right;color:var(--muted)}
-.hint{font-size:12px;color:var(--muted)}
-
+/* ---------- ボタン ---------- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  min-height:var(--tap);padding:0 18px;border-radius:var(--r-md);font-weight:800;font-size:15px;
-  background:var(--surface-2);border:1px solid var(--line-2);
+  height:40px;padding:0 24px;border-radius:20px;font-size:14px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
 }
-.btn:active{transform:scale(.98)}
-.btn:disabled{opacity:.45;pointer-events:none}
-.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
-.btn.danger{color:var(--c-del)}
+.btn .ic{width:18px;height:18px}
+.btn.lg{height:56px;border-radius:28px;font-size:16px;padding:0 28px}
+.btn.lg .ic{width:24px;height:24px}
+.btn.filled{background:var(--md-primary);color:var(--md-on-primary)}
+.btn.tonal{background:var(--md-secondary-container);color:var(--md-on-secondary-container)}
+.btn.text{color:var(--md-primary);padding:0 12px}
+.btn.err{background:var(--md-error-container);color:var(--md-on-error-container)}
 .btn.block{width:100%}
-.btn svg{width:20px;height:20px}
-.btns{display:flex;gap:10px;flex-wrap:wrap}
-.btns .btn{flex:1 1 140px}
+.btn:disabled{opacity:.38;pointer-events:none;filter:grayscale(1)}
+.icon-btn{width:48px;height:48px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--md-on-surface-variant);flex:none}
+.icon-btn.tonal{background:var(--md-secondary-container);color:var(--md-on-secondary-container)}
+.icon-btn:disabled{opacity:.38;pointer-events:none}
 
-/* ---------- 処理状況 ---------- */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-.stat{background:var(--surface-2);border-radius:var(--r-sm);padding:8px 10px;min-width:0}
-.stat small{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;font-weight:700;white-space:nowrap}
-.stat b{display:block;font-size:20px;font-family:var(--mono);font-weight:700;line-height:1.3}
-.stat i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
-.bar{height:8px;border-radius:99px;background:var(--surface-3);overflow:hidden;margin-bottom:6px}
-.bar > div{height:100%;width:0;background:var(--c-active);transition:width .2s}
-.barinfo{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-family:var(--mono);margin-bottom:12px;gap:8px;flex-wrap:wrap}
-
-.pipe{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
-.pipe span{
-  flex:1 0 auto;text-align:center;font-size:11px;font-weight:800;padding:6px 8px;border-radius:8px;
-  background:var(--surface-2);color:var(--faint);white-space:nowrap;transition:background .1s,color .1s;
+/* ---------- はじめの画面 ---------- */
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:24px;align-items:center}
+.hero-art{display:flex;justify-content:center}
+.hero-art svg{width:100%;max-width:340px;height:auto}
+.hero h2{margin-bottom:8px}
+.feats{display:flex;flex-direction:column;gap:12px;margin:20px 0 24px}
+.feat-item{display:flex;align-items:center;gap:16px}
+.feat-item .bub{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.drop{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;
+  border:2px dashed var(--md-outline-variant);border-radius:28px;padding:24px 16px;transition:all .2s var(--ease);
 }
-.pipe span.on{background:var(--c-active);color:#04170D}
-.pipe span.off{text-decoration:line-through;opacity:.5}
+.drop.over{border-color:var(--md-primary);background:color-mix(in srgb,var(--md-primary) 10%,transparent);transform:scale(1.01)}
 
-.live{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.live figure{background:var(--surface-2);border-radius:var(--r-md);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.live figcaption{font-size:11px;font-weight:800;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
-.live .stage{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1.2;background:var(--t-excl);border-radius:8px;overflow:hidden}
-.live canvas{max-width:100%;max-height:100%;display:block}
-.verdict-pill{font-size:11px;font-weight:800;padding:1px 8px;border-radius:99px;background:var(--surface-3)}
+/* ---------- 設定 ---------- */
+.filecard{display:flex;gap:16px;align-items:center}
+.filecard .fthumb{width:48px;height:62px;border-radius:6px;background:#fff;flex:none;box-shadow:var(--md-elev-1);overflow:hidden}
+.filecard .fthumb canvas{width:100%;height:100%;object-fit:contain;display:block}
+.filecard .meta{flex:1;min-width:0}
+.filecard .name{font-weight:700;font-size:16px;line-height:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips-inline{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.mini-chip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:8px;background:var(--md-surface-high);font-size:12px;font-weight:700;color:var(--md-on-surface-variant);white-space:nowrap}
+.mini-chip .ic{width:14px;height:14px}
 
-.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:11px;color:var(--muted);margin-bottom:10px}
-.legend span{display:inline-flex;align-items:center;gap:5px}
-.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.setup-grid{display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:start}
+.scope{position:sticky;top:150px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.scope .frame{width:100%;background:var(--md-surface-lowest);border-radius:12px;padding:12px;display:flex;justify-content:center}
+.scope canvas{max-width:100%;height:auto;display:block;border-radius:4px;box-shadow:var(--md-elev-1)}
+.scope .cap{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.key{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--md-on-surface-variant)}
+.key i{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none}
+
+.list{display:flex;flex-direction:column}
+.li{display:flex;align-items:center;gap:16px;padding:12px 0;min-height:72px}
+.li + .li, .li + .li-block, .li-block + .li, .li-block + .li-block{border-top:1px solid var(--md-outline-variant)}
+.li > .ic{color:var(--md-on-surface-variant)}
+.li .txt{flex:1;min-width:0}
+.li .txt b{display:block;font-size:16px;line-height:24px;font-weight:600}
+.li .txt small{display:block;font-size:13px;line-height:18px;color:var(--md-on-surface-variant)}
+.li-block{padding:12px 0 16px}
+.li-block .li{padding:0 0 12px;min-height:0;border:0}
+
+/* スイッチ（M3） */
+.switch{position:relative;width:52px;height:32px;flex:none;display:inline-block}
+.switch input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:2}
+.switch .track{position:absolute;inset:0;border-radius:16px;background:var(--md-surface-highest);box-shadow:inset 0 0 0 2px var(--md-outline);transition:background .2s var(--ease)}
+.switch .handle{
+  position:absolute;top:50%;left:16px;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;
+  background:var(--md-outline);transition:all .2s var(--ease);display:flex;align-items:center;justify-content:center;
+}
+.switch .handle .ic{width:16px;height:16px;opacity:0;transition:opacity .2s}
+.switch input:checked ~ .track{background:var(--md-primary);box-shadow:none}
+.switch input:checked ~ .handle{left:36px;width:24px;height:24px;margin:-12px 0 0 -12px;background:var(--md-on-primary)}
+.switch input:checked ~ .handle .ic{opacity:1;color:var(--md-primary)}
+.switch input:focus-visible ~ .track{outline:2px solid var(--md-primary);outline-offset:2px}
+
+/* セグメントボタン（M3） */
+.seg{display:flex;height:40px;border-radius:20px;box-shadow:inset 0 0 0 1px var(--md-outline);overflow:hidden}
+.seg button{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;padding:0 8px;
+  font-size:14px;font-weight:700;color:var(--md-on-surface);border-left:1px solid var(--md-outline);white-space:nowrap;
+}
+.seg button:first-child{border-left:0}
+.seg button .ic{width:18px;height:18px}
+.seg.check button .ic{display:none}
+.seg button[aria-pressed="true"]{background:var(--md-secondary-container);color:var(--md-on-secondary-container)}
+.seg.check button[aria-pressed="true"] .ic{display:block}
+
+/* 厳しさのビジュアル */
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.level{
+  display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:12px;
+  box-shadow:inset 0 0 0 1px var(--md-outline-variant);text-align:center;
+}
+.level svg.art{width:52px;height:52px}
+.level b{font-size:14px}
+.level small{font-size:11px;line-height:14px;color:var(--md-on-surface-variant)}
+.level[aria-pressed="true"]{background:var(--md-secondary-container);color:var(--md-on-secondary-container);box-shadow:inset 0 0 0 2px var(--md-primary)}
+.level[aria-pressed="true"] small{color:inherit}
+
+/* スライダー */
+.slider{display:flex;align-items:center;gap:16px}
+.slider input{flex:1;accent-color:var(--md-primary);height:32px}
+.val{min-width:48px;height:32px;border-radius:8px;background:var(--md-surface-high);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:13px}
+
+/* ---------- 解析中 ---------- */
+.run-top{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center}
+.ring{position:relative;width:148px;height:148px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .bg{stroke:var(--md-surface-highest)}
+.ring .fg{stroke:var(--s-active);transition:stroke-dashoffset .3s var(--ease)}
+.ring.done .fg{stroke:var(--md-primary)}
+.ring .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .pct{font-size:32px;line-height:36px;font-weight:800;font-family:var(--mono)}
+.ring .sub{font-size:12px;color:var(--md-on-surface-variant);font-family:var(--mono)}
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.counter{border-radius:12px;padding:12px;background:var(--md-surface-container);display:flex;flex-direction:column;gap:6px;min-width:0}
+.counter .top{display:flex;align-items:center;gap:8px}
+.counter .bub{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.counter .bub .ic{width:18px;height:18px}
+.counter b{font-size:28px;line-height:32px;font-family:var(--mono);font-weight:800}
+.counter span{font-size:12px;font-weight:700;color:var(--md-on-surface-variant);white-space:nowrap}
+.meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.meta-row .grow{flex:1}
+
+/* 処理の段階 */
+.pipe{display:flex;align-items:flex-start;margin:20px 0 16px}
+.pipe .ps{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;position:relative;min-width:0}
+.pipe .ps:not(:last-child)::after{content:"";position:absolute;top:19px;left:calc(50% + 22px);right:calc(-50% + 22px);height:2px;background:var(--md-outline-variant)}
+.pipe .ps .dot{
+  width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  background:var(--md-surface-high);color:var(--md-on-surface-variant);transition:all .15s var(--ease);
+}
+.pipe .ps .dot .ic{width:20px;height:20px}
+.pipe .ps > span:last-child{font-size:11px;line-height:14px;font-weight:700;color:var(--md-on-surface-variant);white-space:nowrap}
+.pipe .ps.on .dot{background:var(--s-active);color:var(--s-on-active);transform:scale(1.1);box-shadow:0 0 0 4px color-mix(in srgb,var(--s-active) 30%,transparent)}
+.pipe .ps.on > span:last-child{color:var(--md-on-surface)}
+.pipe .ps.off{opacity:.35}
+.pipe .ps.off > span:last-child{text-decoration:line-through}
+
+.live{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pane{background:var(--md-surface-container);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pane-head{display:flex;align-items:center;gap:8px;min-height:28px}
+.pane-head .grow{flex:1;min-width:0;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pane .stage{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1.25;background:var(--md-surface-lowest);border-radius:8px;overflow:hidden}
+.pane canvas{max-width:100%;max-height:100%;display:block}
+.status-chip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 10px 0 6px;border-radius:12px;font-size:12px;font-weight:800;background:var(--md-surface-highest);color:var(--md-on-surface-variant);white-space:nowrap}
+.status-chip .ic{width:16px;height:16px}
+.status-chip.content{background:var(--s-content);color:var(--s-on-content)}
+.status-chip.blank{background:var(--s-blank);color:var(--s-on-blank);box-shadow:inset 0 0 0 1px var(--md-outline-variant)}
+.status-chip.review{background:var(--s-review);color:var(--s-on-review)}
+.status-chip.error{background:var(--s-err);color:#fff}
+.status-chip.busy{background:var(--s-active);color:var(--s-on-active)}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.legend .lg{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;box-shadow:inset 0 0 0 1px var(--md-outline-variant);font-size:12px;font-weight:600;color:var(--md-on-surface-variant)}
+.legend .lg i{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none}
 
 /* デフラグ風のページ一覧 */
 .disk{
   --cell:22px;
   display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cell),1fr));gap:3px;
-  background:#06080A;border:1px solid var(--line);border-radius:var(--r-md);padding:6px;
-  max-height:52vh;overflow:auto;
+  background:var(--md-surface-lowest);border-radius:12px;padding:8px;max-height:46vh;overflow:auto;
 }
 .cell{
-  position:relative;aspect-ratio:1;border-radius:3px;background:var(--c-wait);
-  font-family:var(--mono);font-size:9px;line-height:1;color:rgba(0,0,0,.55);
+  position:relative;aspect-ratio:1;border-radius:4px;background:var(--s-wait);cursor:pointer;
+  font-family:var(--mono);font-size:9px;line-height:1;color:var(--md-on-surface-variant);
   display:flex;align-items:flex-end;justify-content:flex-end;padding:2px;overflow:hidden;
-  transition:background .15s;
+  transition:background .2s,transform .15s var(--ease);
 }
-.cell.content{background:var(--c-content);color:rgba(255,255,255,.7)}
-.cell.blank{background:var(--c-blank)}
-.cell.review{background:var(--c-review)}
-.cell.error{background:var(--c-err)}
-.cell.active{background:var(--c-active);animation:blink .5s steps(2) infinite}
+@media (hover:hover){ .cell:hover{transform:scale(1.15);z-index:1} }
+.cell.content{background:var(--s-content);color:rgba(255,255,255,.75)}
+.cell.blank{background:var(--s-blank);color:rgba(0,0,0,.45);box-shadow:inset 0 0 0 1px var(--md-outline-variant)}
+.cell.review{background:var(--s-review);color:rgba(0,0,0,.5)}
+.cell.error{background:var(--s-err)}
+.cell.active{background:var(--s-active);animation:blink .6s steps(2) infinite}
 .cell.del::after{
-  content:"";position:absolute;inset:0;border-radius:3px;
-  background:repeating-linear-gradient(135deg,var(--c-del) 0 3px,transparent 3px 6px);opacity:.9;
-  box-shadow:inset 0 0 0 2px var(--c-del);
+  content:"";position:absolute;inset:0;border-radius:4px;
+  background:repeating-linear-gradient(135deg,var(--s-del) 0 3px,transparent 3px 6px);
+  box-shadow:inset 0 0 0 2px var(--s-del);
 }
-.cell.sel{outline:2px solid #fff;outline-offset:1px;z-index:1}
 .disk.small .cell{font-size:0}
-@keyframes blink{50%{background:#1E7A4F}}
+@keyframes blink{50%{filter:brightness(.6)}}
 
-.log{
-  margin-top:12px;background:#06080A;border:1px solid var(--line);border-radius:var(--r-md);
-  font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px 10px;height:120px;overflow:auto;
-}
+details.logbox{margin-top:16px;border-radius:12px;background:var(--md-surface-container)}
+details.logbox summary{list-style:none;display:flex;align-items:center;gap:12px;padding:0 12px;height:48px;cursor:pointer;font-weight:700;color:var(--md-on-surface-variant);border-radius:12px}
+details.logbox summary::-webkit-details-marker{display:none}
+details.logbox summary .ic.chev{margin-left:auto;transition:transform .2s}
+details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
+.log{font-family:var(--mono);font-size:11px;line-height:17px;color:var(--md-on-surface-variant);padding:0 12px 12px;max-height:180px;overflow:auto}
 .log div{white-space:nowrap}
-.log .b{color:var(--c-blank)}
-.log .r{color:var(--c-review)}
-.log .c{color:#86AEFF}
-.log .e{color:var(--c-del)}
+.log .b{color:var(--md-on-surface)}
+.log .r{color:var(--s-review)}
+.log .c{color:var(--s-content)}
+.log .e{color:var(--s-del)}
 
 /* ---------- 確認 ---------- */
-.summary{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.summary b{font-size:28px;font-family:var(--mono)}
-.summary span{color:var(--muted)}
-.tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
-.tabs button{
-  padding:8px 12px;border-radius:99px;font-size:13px;font-weight:700;white-space:nowrap;
-  background:var(--surface-2);border:1px solid var(--line);color:var(--muted);
-}
-.tabs button[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:transparent}
-.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
-.thumb{
-  position:relative;display:flex;flex-direction:column;gap:6px;text-align:left;
-  background:var(--surface-2);border:2px solid transparent;border-radius:var(--r-md);padding:6px;
-}
-.thumb.del{border-color:var(--c-del)}
-.thumb .img{position:relative;background:#fff;border-radius:6px;overflow:hidden;aspect-ratio:1/1.3;display:flex;align-items:center;justify-content:center}
-.thumb img{width:100%;height:100%;object-fit:contain;display:block}
-.thumb.del .img::after{content:"";position:absolute;inset:0;background:rgba(255,93,93,.18)}
-.thumb .cap{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700}
-.thumb .cap .pn{flex:1}
-.badge{font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;white-space:nowrap}
-.badge.blank{background:var(--c-blank);color:#111}
-.badge.review{background:var(--c-review);color:#1E1400}
-.badge.content{background:var(--c-content);color:#fff}
-.badge.error{background:var(--c-err);color:#fff}
-.thumb .act{
-  font-size:12px;font-weight:800;padding:6px;border-radius:8px;text-align:center;
-  background:var(--surface-3);color:var(--muted);
-}
-.thumb.del .act{background:var(--c-del);color:#fff}
-.empty-note{color:var(--muted);font-size:13px;text-align:center;padding:24px 8px}
+.result-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.flow{display:flex;align-items:center;gap:12px}
+.flow .num{display:flex;flex-direction:column;align-items:center}
+.flow .num b{font-size:36px;line-height:40px;font-weight:800;font-family:var(--mono)}
+.flow .num span{font-size:12px;color:var(--md-on-surface-variant);font-weight:700}
+.flow .arrow{color:var(--md-primary)}
+.delpill{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 8px;border-radius:16px;background:color-mix(in srgb,var(--s-del) 18%,transparent);color:var(--s-del);font-weight:800}
+.ratio{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:16px 0 8px;background:var(--md-surface-highest);gap:2px}
+.ratio div{transition:flex-grow .3s var(--ease);min-width:0}
+.ratio-keys{display:flex;gap:16px;flex-wrap:wrap}
 
-.dock{
-  position:fixed;left:0;right:0;bottom:0;z-index:20;
-  padding:10px var(--pad) calc(env(safe-area-inset-bottom) + 10px);
-  background:rgba(10,12,15,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border-top:1px solid var(--line);
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px;margin:-2px -2px 14px}
+.chip{
+  display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 16px;border-radius:8px;flex:none;
+  box-shadow:inset 0 0 0 1px var(--md-outline);font-size:14px;font-weight:700;color:var(--md-on-surface-variant);
 }
-.dock .in{max-width:980px;margin:0 auto;display:flex;gap:10px;align-items:center}
-.dock .info{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.3}
-.dock .info b{display:block;color:var(--text);font-size:15px}
-.dock .btn{flex:none}
+.chip .ic{width:18px;height:18px;display:none}
+.chip i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.chip .n{font-family:var(--mono)}
+.chip[aria-pressed="true"]{background:var(--md-secondary-container);color:var(--md-on-secondary-container);box-shadow:none;padding-left:8px}
+.chip[aria-pressed="true"] .ic{display:block}
 
-/* ---------- プレビュー ---------- */
-.modal{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column}
-.modal header{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px}
-.modal header h3{font-size:16px;flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.iconbtn{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);flex:none}
-.iconbtn svg{width:22px;height:22px}
-.modal .view{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;position:relative}
-.modal .view canvas{max-width:100%;max-height:100%;background:#fff;border-radius:4px;box-shadow:0 0 0 1px var(--line-2)}
-.modal .view .busy{position:absolute;color:var(--muted);font-size:13px}
-.modal .tools{padding:8px 12px;display:flex;flex-direction:column;gap:8px;max-width:760px;width:100%;margin:0 auto}
-.feat{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);font-family:var(--mono)}
-.feat b{color:var(--text);font-weight:600}
-.reasons{font-size:13px}
-.modal footer{display:flex;gap:8px;padding:8px 12px calc(env(safe-area-inset-bottom) + 10px);max-width:760px;width:100%;margin:0 auto}
-.modal footer .btn{flex:1;padding:0 10px}
-.modal footer .iconbtn{width:var(--tap);height:var(--tap)}
-.toggle-del[aria-pressed="true"]{background:var(--c-del);color:#fff;border-color:transparent}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+.thumb{position:relative;display:flex;flex-direction:column;border-radius:12px;background:var(--md-surface-container);overflow:hidden;transition:box-shadow .2s}
+.thumb .open{display:block;width:100%;text-align:left}
+.thumb .img{position:relative;margin:8px 8px 0;background:#fff;border-radius:6px;overflow:hidden;aspect-ratio:1/1.3;display:flex;align-items:center;justify-content:center}
+.thumb img{width:100%;height:100%;object-fit:contain;display:block;transition:opacity .2s,filter .2s}
+.thumb .info{display:flex;align-items:center;gap:6px;padding:8px 10px 10px}
+.thumb .info .pn{flex:1;font-weight:800;font-family:var(--mono)}
+.thumb .sel{
+  position:absolute;top:2px;left:2px;width:48px;height:48px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;z-index:2;
+}
+.thumb .sel .box{
+  width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.92);box-shadow:inset 0 0 0 2px #74777F,0 1px 3px rgba(0,0,0,.3);color:transparent;transition:all .15s var(--ease);
+}
+.thumb .sel .box .ic{width:18px;height:18px}
+.thumb.del{box-shadow:inset 0 0 0 2px var(--s-del)}
+.thumb.del .sel .box{background:var(--s-del);box-shadow:0 1px 3px rgba(0,0,0,.3);color:#fff}
+.thumb.del img{opacity:.7;filter:grayscale(1)}
+.thumb.del .img::after{
+  content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--s-del) 22%,transparent) 0 6px,transparent 6px 12px);
+}
+.empty-note{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--md-on-surface-variant);padding:32px 8px;text-align:center}
+.empty-note .ic{width:48px;height:48px;opacity:.6}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
 
-.toast{
-  position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);z-index:60;
-  background:var(--surface-3);border:1px solid var(--line-2);border-radius:var(--r-md);padding:10px 16px;
-  font-size:14px;font-weight:700;max-width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.5);
+/* ボトムアプリバー + 拡張FAB */
+.bottombar{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--md-surface-container);
+  padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);box-shadow:0 -1px 0 var(--md-outline-variant);
+  transition:transform .25s var(--ease),visibility 0s;
+}
+.bottombar.hidden{display:block !important;transform:translateY(110%);visibility:hidden;pointer-events:none;transition:transform .25s var(--ease),visibility 0s .25s}
+.bottombar .in{max-width:1040px;margin:0 auto;display:flex;gap:12px;align-items:center}
+.bottombar .info{flex:1;min-width:0;display:flex;flex-direction:column}
+.bottombar .info b{font-size:18px;line-height:24px;display:flex;align-items:center;gap:6px;white-space:nowrap;font-family:var(--mono)}
+.bottombar .info b .ic{color:var(--md-primary)}
+.bottombar .info span{font-size:12px;color:var(--md-on-surface-variant);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fab{
+  display:inline-flex;align-items:center;gap:12px;height:56px;padding:0 20px 0 16px;border-radius:16px;
+  background:var(--md-primary-container);color:var(--md-on-primary-container);font-size:16px;font-weight:800;box-shadow:var(--md-elev-3);flex:none;
+}
+.fab:disabled{opacity:.38;pointer-events:none;box-shadow:none}
+
+/* ---------- プレビュー（全画面ダイアログ） ---------- */
+.modal{position:fixed;inset:0;z-index:50;background:var(--md-surface);display:flex;flex-direction:column;animation:up .25s var(--ease)}
+@keyframes up{from{transform:translateY(24px);opacity:0}}
+.modal .mbar{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 8px 8px 4px;max-width:900px;width:100%;margin:0 auto}
+.modal .mbar h3{flex:1;display:flex;align-items:center;gap:10px;font-size:20px;line-height:28px;min-width:0}
+.modal .mbar .pos{font-size:13px;color:var(--md-on-surface-variant);font-family:var(--mono);font-weight:600;margin-left:auto}
+.modal .view{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 16px;position:relative;touch-action:pan-y}
+.modal .view canvas{max-width:100%;max-height:100%;background:#fff;border-radius:4px;box-shadow:var(--md-elev-3)}
+.modal .view .busy{position:absolute;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;background:var(--md-surface-highest);font-size:13px;font-weight:700}
+.spinner{width:18px;height:18px;border-radius:50%;border:3px solid var(--md-outline-variant);border-top-color:var(--md-primary);animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal .tools{padding:12px 16px 0;display:flex;flex-direction:column;gap:10px;max-width:900px;width:100%;margin:0 auto}
+.reasons{display:flex;gap:6px;flex-wrap:wrap}
+.reason{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 8px;border-radius:8px;background:var(--md-surface-high);font-size:12px;font-weight:700}
+.reason .ic{width:16px;height:16px;color:var(--md-on-surface-variant)}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.metric{background:var(--md-surface-container);border-radius:8px;padding:6px 8px;min-width:0}
+.metric small{display:block;font-size:10px;line-height:14px;font-weight:700;color:var(--md-on-surface-variant);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.metric b{display:block;font-family:var(--mono);font-size:13px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meter{height:4px;border-radius:2px;background:var(--md-surface-highest);margin-top:4px;overflow:hidden}
+.meter div{height:100%;border-radius:2px}
+.modal .mfoot{display:flex;gap:12px;align-items:center;padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);max-width:900px;width:100%;margin:0 auto}
+.decide{flex:1;display:grid;grid-template-columns:1fr 1fr;height:56px;border-radius:28px;box-shadow:inset 0 0 0 1px var(--md-outline);overflow:hidden}
+.decide button{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:800;color:var(--md-on-surface-variant)}
+.decide button + button{border-left:1px solid var(--md-outline)}
+.decide button[aria-pressed="true"][data-v="keep"]{background:var(--md-secondary-container);color:var(--md-on-secondary-container)}
+.decide button[aria-pressed="true"][data-v="del"]{background:var(--s-del);color:#fff}
+.decide button:disabled{opacity:.38;pointer-events:none}
+
+.snackbar{
+  position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 96px);transform:translate(-50%,0);z-index:60;
+  display:flex;align-items:center;gap:12px;min-height:48px;padding:12px 16px;border-radius:4px;
+  background:var(--md-on-surface);color:var(--md-surface);font-size:14px;font-weight:600;
+  max-width:calc(100% - 32px);box-shadow:var(--md-elev-3);animation:up .2s var(--ease);
 }
 
-@media (max-width:640px){
-  .stats{grid-template-columns:repeat(2,1fr)}
-  .live{grid-template-columns:1fr 1fr}
-  .stat b{font-size:18px}
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .hero-art{order:-1}
+  .hero-art svg{max-width:220px}
+  .setup-grid{grid-template-columns:1fr}
+  .scope{position:static;flex-direction:row;align-items:center;gap:16px}
+  .scope .frame{width:128px;flex:none;padding:8px}
+  .scope .cap{flex-direction:column;align-items:flex-start;gap:8px}
+  .run-top{grid-template-columns:1fr;justify-items:center}
+  .counters{width:100%}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:420px){
+  .card{padding:16px}
+  .counter{padding:10px}
+  .counter b{font-size:22px;line-height:28px}
+  .pipe .ps > span:last-child{font-size:10px}
+  .pipe .ps .dot{width:36px;height:36px}
+  .pipe .ps:not(:last-child)::after{top:17px;left:calc(50% + 20px);right:calc(-50% + 20px)}
+  .flow .num b{font-size:30px;line-height:34px}
+  .thumbs{grid-template-columns:repeat(2,1fr)}
 }
 @media (prefers-reduced-motion:reduce){
-  .cell.active{animation:none}
+  *{animation:none !important;transition:none !important}
 }
 </style>
 </head>
 <body>
-<header class="top">
-  <h1>空白ページ削除</h1>
-  <span class="file" id="hdrFile"></span>
+<!-- Material Symbols（オフラインで使えるよう埋め込み） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></symbol>
+  <symbol id="i-tune" viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path d="M7 9H2V7h5v2zm0 3H2v2h5v-2zm13.59 7-3.83-3.83c-.8.52-1.74.83-2.76.83-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5c0 1.02-.31 1.96-.83 2.75L22 17.59 20.59 19zM17 11c0-1.65-1.35-3-3-3s-3 1.35-3 3 1.35 3 3 3 3-1.35 3-3zM2 19h10v-2H2v2z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="m12 4-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></symbol>
+  <symbol id="i-delete" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></symbol>
+  <symbol id="i-keep" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M2.5 4v3h5v12h3V7h5V4h-13zm19 5h-9v3h3v7h3v-7h3V9z"/></symbol>
+  <symbol id="i-margin" viewBox="0 0 24 24"><path d="M3 5v4h2V5h4V3H5c-1.1 0-2 .9-2 2zm2 10H3v4c0 1.1.9 2 2 2h4v-2H5v-4zm14 4h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4zm0-16h-4v2h4v4h2V5c0-1.1-.9-2-2-2z"/></symbol>
+  <symbol id="i-hf" viewBox="0 0 24 24"><path d="M2 21h19v-3H2v3zM20 8H3c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h17c.55 0 1-.45 1-1V9c0-.55-.45-1-1-1zM2 3v3h19V3H2z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m20.38 8.57-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24"><path d="m19 9 1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></symbol>
+  <symbol id="i-contrast" viewBox="0 0 24 24"><path d="M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zm1-17.93c3.94.49 7 3.86 7 7.93s-3.06 7.44-7 7.93V4.07z"/></symbol>
+  <symbol id="i-bw" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16-7-8v8H5l7-8V5h7v14z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></symbol>
+  <symbol id="i-blank" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></symbol>
+  <symbol id="i-error" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></symbol>
+  <symbol id="i-bubble" viewBox="0 0 24 24"><circle cx="7.2" cy="14.4" r="3.2"/><circle cx="14.8" cy="18" r="2"/><circle cx="15.2" cy="8.8" r="4.8"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></symbol>
+  <symbol id="i-select" viewBox="0 0 24 24"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41 6 19l1.41-1.41L1.83 12 .41 13.41z"/></symbol>
+  <symbol id="i-clear" viewBox="0 0 24 24"><path d="M5 13h14v-2H5v2zm-2 4h14v-2H3v2zM7 7v2h14V7H7z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0 0 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></symbol>
+  <symbol id="i-speed" viewBox="0 0 24 24"><path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.92 6-4.72 7.28L13 17v5h5l-1.22-1.22C19.91 19.07 22 15.76 22 12c0-5.18-3.95-9.45-9-9.95zM11 2c-1.95.2-3.8.96-5.32 2.21L7.1 5.63A7.9 7.9 0 0 1 11 4V2zM4.2 5.68C2.96 7.2 2.2 9.05 2 11h2c.19-1.42.75-2.77 1.63-3.9L4.2 5.68zM6 18.62l-1.42 1.42A9.95 9.95 0 0 0 11 22v-2a7.9 7.9 0 0 1-5-1.38zM4 13H2c.2 1.95.97 3.8 2.21 5.32l1.42-1.42A8.09 8.09 0 0 1 4 13z"/></symbol>
+  <symbol id="i-photo" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></symbol>
+  <symbol id="i-shape" viewBox="0 0 24 24"><path d="M11.15 3.4 7.43 9.48c-.41.66.07 1.52.85 1.52h7.43c.78 0 1.26-.86.85-1.52L12.85 3.4a.993.993 0 0 0-1.7 0z"/><circle cx="17.5" cy="17.5" r="4.5"/><path d="M4 21.5h6c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1z"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="6" cy="7" r="1.6"/><circle cx="16" cy="5" r="1.2"/><circle cx="11" cy="13" r="1.4"/><circle cx="18" cy="15" r="1.6"/><circle cx="7" cy="18" r="1.2"/></symbol>
+</svg>
+
+<header class="appbar" id="appbar">
+  <div class="bar">
+    <img class="logo" src="icons/icon-192.png" alt="">
+    <h1>空白ページ削除</h1>
+    <button class="icon-btn sl hidden" id="btnNew" aria-label="別のPDFを選ぶ" title="別のPDFを選ぶ"><svg class="ic"><use href="#i-swap"/></svg></button>
+  </div>
+  <nav class="stepper" id="stepper" aria-label="手順">
+    <div class="step" data-k="open"><div class="dot"><svg class="ic"><use href="#i-upload"/></svg></div><span>PDFを選ぶ</span></div>
+    <div class="step" data-k="setup"><div class="dot"><svg class="ic"><use href="#i-tune"/></svg></div><span>設定</span></div>
+    <div class="step" data-k="run"><div class="dot"><svg class="ic"><use href="#i-search"/></svg></div><span>検出</span></div>
+    <div class="step" data-k="review"><div class="dot"><svg class="ic"><use href="#i-download"/></svg></div><span>確認・保存</span></div>
+  </nav>
 </header>
 
 <main>
-  <!-- ファイル選択 -->
-  <section id="secOpen">
-    <label class="drop" id="drop" tabindex="0">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 17v-6"/><path d="m9 14 3-3 3 3"/></svg>
-      <b>PDFを選ぶ</b>
-      <small>タップして選択、またはここにドロップ</small>
-      <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
-    </label>
-    <p class="privacy" style="margin-top:10px"><i></i>ファイルは端末の中だけで処理され、外部に送信されません</p>
+  <!-- ① PDFを選ぶ -->
+  <section id="secOpen" class="card">
+    <div class="hero">
+      <div>
+        <h2 class="t-headline">白紙ページを見つけて、<br>まとめて削除</h2>
+        <p class="t-body-l" style="color:var(--md-on-surface-variant)">スキャンしたPDFもそのまま使えます</p>
+        <div class="feats">
+          <div class="feat-item"><span class="bub" style="background:color-mix(in srgb,var(--s-active) 20%,transparent);color:var(--s-active)"><svg class="ic"><use href="#i-auto"/></svg></span><div><b>自動で検出</b><div class="t-body-s">汚れ・裏写り・パンチ穴は無視</div></div></div>
+          <div class="feat-item"><span class="bub" style="background:color-mix(in srgb,var(--s-review) 20%,transparent);color:var(--s-review)"><svg class="ic"><use href="#i-eye"/></svg></span><div><b>目で確かめる</b><div class="t-body-s">消す前にページを拡大して確認</div></div></div>
+          <div class="feat-item"><span class="bub" style="background:color-mix(in srgb,var(--s-content) 20%,transparent);color:var(--s-content)"><svg class="ic"><use href="#i-lock"/></svg></span><div><b>端末の中だけで処理</b><div class="t-body-s">ファイルは外部に送信されません</div></div></div>
+        </div>
+        <div class="drop" id="drop">
+          <button class="btn filled lg sl" id="btnPick"><svg class="ic"><use href="#i-upload"/></svg>PDFを選ぶ</button>
+          <span class="t-body-s">またはここにドラッグ＆ドロップ</span>
+          <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <svg viewBox="0 0 320 300">
+          <rect x="40" y="30" width="190" height="240" rx="14" fill="var(--md-surface-high)"/>
+          <rect x="70" y="16" width="190" height="240" rx="14" fill="var(--md-surface-highest)"/>
+          <g transform="translate(92 42)">
+            <rect width="40" height="40" rx="7" fill="var(--s-content)"/><rect x="50" width="40" height="40" rx="7" fill="var(--s-content)"/><rect x="100" width="40" height="40" rx="7" fill="var(--s-blank)"/>
+            <rect y="50" width="40" height="40" rx="7" fill="var(--s-blank)"/><rect x="50" y="50" width="40" height="40" rx="7" fill="var(--s-active)"/><rect x="100" y="50" width="40" height="40" rx="7" fill="var(--s-review)"/>
+            <rect y="100" width="40" height="40" rx="7" fill="var(--s-content)"/><rect x="50" y="100" width="40" height="40" rx="7" fill="var(--s-blank)"/><rect x="100" y="100" width="40" height="40" rx="7" fill="var(--s-content)"/>
+            <rect y="150" width="40" height="40" rx="7" fill="var(--s-content)"/><rect x="50" y="150" width="40" height="40" rx="7" fill="var(--s-content)"/><rect x="100" y="150" width="40" height="40" rx="7" fill="var(--s-wait)"/>
+          </g>
+          <circle cx="250" cy="236" r="44" fill="var(--s-del)"/>
+          <path d="M231 217l38 38M269 217l-38 38" stroke="#fff" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
   </section>
 
-  <!-- ファイル情報と検出設定 -->
-  <section id="secSetup" class="hidden">
-    <div class="card" style="margin-bottom:var(--gap)">
-      <div class="fileinfo">
-        <canvas id="firstThumb" width="64" height="84"></canvas>
+  <!-- ② 設定 -->
+  <section id="secSetup" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="filecard">
+        <div class="fthumb"><canvas id="fileThumb" width="48" height="62"></canvas></div>
         <div class="meta">
           <div class="name" id="fName"></div>
-          <div class="sub" id="fSub"></div>
+          <div class="chips-inline">
+            <span class="mini-chip"><svg class="ic"><use href="#i-file"/></svg><span id="fPages"></span></span>
+            <span class="mini-chip"><svg class="ic"><use href="#i-download"/></svg><span id="fSize"></span></span>
+          </div>
         </div>
-        <button class="btn" id="btnChange" style="min-height:40px;font-size:13px">変更</button>
+        <button class="btn text sl" id="btnChange"><svg class="ic"><use href="#i-swap"/></svg>変更</button>
       </div>
     </div>
+
     <div class="card">
-      <h2>検出の設定</h2>
-      <div class="set">
-        <div class="row">
-          <div class="lbl"><b>テキスト検出</b><small>埋め込み文字と、画像から文字の並びを探して判定に使います。オフにすると画素だけで速く判定します</small></div>
-          <label class="switch"><input type="checkbox" id="optText" checked><span></span></label>
-        </div>
-        <div>
-          <div class="row" style="margin-bottom:8px"><div class="lbl"><b>空白とみなす厳しさ</b><small id="levelHint"></small></div></div>
-          <div class="seg" id="optLevel" role="group" aria-label="空白とみなす厳しさ">
-            <button data-v="strict">厳しめ</button>
-            <button data-v="normal">標準</button>
-            <button data-v="loose">ゆるめ</button>
+      <div class="card-head"><svg class="ic"><use href="#i-tune"/></svg><div class="grow t-title-m">検出の設定</div></div>
+      <div class="setup-grid">
+        <div class="scope">
+          <div class="frame"><canvas id="scopeCanvas" width="236" height="300"></canvas></div>
+          <div class="cap">
+            <span class="key"><i style="box-shadow:inset 0 0 0 2px var(--md-primary)"></i>判定する範囲</span>
+            <span class="key"><i style="background:repeating-linear-gradient(135deg,var(--md-outline) 0 2px,transparent 2px 4px)"></i>判定しない</span>
           </div>
         </div>
-        <div>
-          <div class="row" style="margin-bottom:6px"><div class="lbl"><b>外周の除外</b><small>スキャンの影や端の汚れを判定に入れない幅</small></div></div>
-          <div class="range"><input type="range" id="optMargin" min="0" max="12" step="1"><output id="optMarginOut"></output></div>
-        </div>
-        <div class="row">
-          <div class="lbl"><b>ヘッダー・フッターを無視</b><small>上下 8% にあるページ番号や柱だけのページも空白として扱います</small></div>
-          <label class="switch"><input type="checkbox" id="optHF"><span></span></label>
-        </div>
-        <div>
-          <div class="row" style="margin-bottom:8px"><div class="lbl"><b>解析の解像度</b><small>高いほど細かい文字まで拾えますが時間がかかります</small></div></div>
-          <div class="seg" id="optDpi" role="group" aria-label="解析の解像度">
-            <button data-v="100">100 dpi</button>
-            <button data-v="150">150 dpi</button>
-            <button data-v="200">200 dpi</button>
+        <div class="list">
+          <div class="li">
+            <svg class="ic"><use href="#i-text"/></svg>
+            <div class="txt"><b>テキスト検出</b><small>文字があるページは残す</small></div>
+            <label class="switch"><input type="checkbox" id="optText" role="switch" aria-label="テキスト検出"><span class="track"></span><span class="handle"><svg class="ic"><use href="#i-check"/></svg></span></label>
+          </div>
+          <div class="li-block">
+            <div class="li"><svg class="ic"><use href="#i-gauge"/></svg><div class="txt"><b>空白とみなす厳しさ</b><small id="levelHint"></small></div></div>
+            <div class="levels" id="optLevel" role="group" aria-label="空白とみなす厳しさ">
+              <button class="level sl" data-v="strict">
+                <svg class="art" viewBox="0 0 56 56" aria-hidden="true"><rect x="10" y="4" width="36" height="48" rx="4" fill="#fff" stroke="#999"/><circle cx="22" cy="20" r="1.4" fill="#555"/></svg>
+                <b>厳しめ</b><small>点ひとつでも残す</small>
+              </button>
+              <button class="level sl" data-v="normal">
+                <svg class="art" viewBox="0 0 56 56" aria-hidden="true"><rect x="10" y="4" width="36" height="48" rx="4" fill="#fff" stroke="#999"/><circle cx="22" cy="20" r="1.4" fill="#555"/><circle cx="34" cy="34" r="1.2" fill="#555"/><path d="M16 42h22" stroke="#ccc" stroke-width="2"/></svg>
+                <b>標準</b><small>汚れ・裏写りは無視</small>
+              </button>
+              <button class="level sl" data-v="loose">
+                <svg class="art" viewBox="0 0 56 56" aria-hidden="true"><rect x="10" y="4" width="36" height="48" rx="4" fill="#fff" stroke="#999"/><circle cx="22" cy="20" r="1.4" fill="#555"/><circle cx="34" cy="34" r="1.6" fill="#555"/><circle cx="18" cy="38" r="1.2" fill="#555"/><circle cx="38" cy="14" r="1.4" fill="#555"/><path d="M16 26h10" stroke="#888" stroke-width="2"/></svg>
+                <b>ゆるめ</b><small>汚れが多い原稿に</small>
+              </button>
+            </div>
+          </div>
+          <div class="li-block">
+            <div class="li"><svg class="ic"><use href="#i-margin"/></svg><div class="txt"><b>外周の除外</b><small>スキャンの影や端の汚れを無視</small></div></div>
+            <div class="slider"><input type="range" id="optMargin" min="0" max="12" step="1" aria-label="外周の除外"><span class="val" id="optMarginOut"></span></div>
+          </div>
+          <div class="li">
+            <svg class="ic"><use href="#i-hf"/></svg>
+            <div class="txt"><b>ヘッダー・フッターを無視</b><small>ページ番号だけのページも空白に</small></div>
+            <label class="switch"><input type="checkbox" id="optHF" role="switch" aria-label="ヘッダー・フッターを無視"><span class="track"></span><span class="handle"><svg class="ic"><use href="#i-check"/></svg></span></label>
+          </div>
+          <div class="li-block">
+            <div class="li"><svg class="ic"><use href="#i-grid"/></svg><div class="txt"><b>解析の細かさ</b><small>細かいほど小さな文字まで拾います</small></div></div>
+            <div class="seg check" id="optDpi" role="group" aria-label="解析の細かさ">
+              <button class="sl" data-v="100"><svg class="ic"><use href="#i-check"/></svg>速い</button>
+              <button class="sl" data-v="150"><svg class="ic"><use href="#i-check"/></svg>標準</button>
+              <button class="sl" data-v="200"><svg class="ic"><use href="#i-check"/></svg>精密</button>
+            </div>
           </div>
         </div>
-        <button class="btn primary block" id="btnStart">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
-          空白ページを検出
-        </button>
       </div>
+      <button class="btn filled lg block sl" id="btnStart" style="margin-top:20px"><svg class="ic"><use href="#i-play"/></svg>検出をはじめる</button>
     </div>
   </section>
 
-  <!-- 処理状況 -->
-  <section id="secRun" class="hidden">
-    <div class="card">
-      <h2><span id="runTitle">解析中</span><span class="sp"></span><button class="btn danger" id="btnCancel" style="min-height:34px;padding:0 12px;font-size:13px">中止</button></h2>
-      <div class="stats">
-        <div class="stat"><small>処理済み</small><b id="sDone">0</b></div>
-        <div class="stat"><small><i style="background:var(--c-blank)"></i>空白</small><b id="sBlank">0</b></div>
-        <div class="stat"><small><i style="background:var(--c-review)"></i>要確認</small><b id="sReview">0</b></div>
-        <div class="stat"><small><i style="background:var(--c-content)"></i>内容あり</small><b id="sContent">0</b></div>
+  <!-- ③ 検出 -->
+  <section id="secRun" class="card hidden">
+    <div class="run-top">
+      <div class="ring" id="ring">
+        <svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="52" fill="none" stroke-width="10"/><circle class="fg" id="ringFg" cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.73" stroke-dashoffset="326.73"/></svg>
+        <div class="center"><span class="pct" id="bPct">0%</span><span class="sub" id="sDone">0/0</span></div>
       </div>
-      <div class="bar"><div id="bar"></div></div>
-      <div class="barinfo"><span id="bPct">0%</span><span id="bSpeed"></span><span id="bEta"></span></div>
+      <div style="min-width:0;width:100%">
+        <div class="counters">
+          <div class="counter"><div class="top"><span class="bub" style="background:var(--s-blank);color:var(--s-on-blank);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"><svg class="ic"><use href="#i-blank"/></svg></span><span>空白</span></div><b id="sBlank">0</b></div>
+          <div class="counter"><div class="top"><span class="bub" style="background:var(--s-review);color:var(--s-on-review)"><svg class="ic"><use href="#i-help"/></svg></span><span>要確認</span></div><b id="sReview">0</b></div>
+          <div class="counter"><div class="top"><span class="bub" style="background:var(--s-content);color:var(--s-on-content)"><svg class="ic"><use href="#i-doc"/></svg></span><span>内容あり</span></div><b id="sContent">0</b></div>
+        </div>
+        <div class="meta-row">
+          <span class="mini-chip"><svg class="ic"><use href="#i-speed"/></svg><span id="bSpeed">—</span></span>
+          <span class="mini-chip"><svg class="ic"><use href="#i-timer"/></svg><span id="bEta">—</span></span>
+          <span class="grow"></span>
+          <button class="btn err sl" id="btnCancel"><svg class="ic"><use href="#i-stop"/></svg>中止</button>
+        </div>
+      </div>
+    </div>
 
-      <div class="pipe" id="pipe">
-        <span data-s="render">読込</span>
-        <span data-s="pre">下処理</span>
-        <span data-s="bin">2値化</span>
-        <span data-s="cc">成分解析</span>
-        <span data-s="text">テキスト検出</span>
-        <span data-s="judge">判定</span>
-      </div>
+    <div class="pipe" id="pipe">
+      <div class="ps" data-s="render"><span class="dot"><svg class="ic"><use href="#i-file"/></svg></span><span>読込</span></div>
+      <div class="ps" data-s="pre"><span class="dot"><svg class="ic"><use href="#i-tune"/></svg></span><span>下処理</span></div>
+      <div class="ps" data-s="bin"><span class="dot"><svg class="ic"><use href="#i-bw"/></svg></span><span>2値化</span></div>
+      <div class="ps" data-s="cc"><span class="dot"><svg class="ic"><use href="#i-bubble"/></svg></span><span>成分解析</span></div>
+      <div class="ps" data-s="text"><span class="dot"><svg class="ic"><use href="#i-text"/></svg></span><span>文字検出</span></div>
+      <div class="ps" data-s="judge"><span class="dot"><svg class="ic"><use href="#i-keep"/></svg></span><span>判定</span></div>
+    </div>
 
-      <div class="live" id="live">
-        <figure>
-          <figcaption><span id="liveName">ページ</span><span class="verdict-pill" id="liveVerdict">—</span></figcaption>
-          <div class="stage"><canvas id="livePage"></canvas></div>
-        </figure>
-        <figure>
-          <figcaption><span>解析マップ</span><span id="liveScore" style="font-family:var(--mono)"></span></figcaption>
-          <div class="stage"><canvas id="liveMap"></canvas></div>
-        </figure>
+    <div class="live">
+      <div class="pane">
+        <div class="pane-head"><span class="grow mono" id="liveName">—</span><span class="status-chip" id="liveVerdict">待機中</span></div>
+        <div class="stage"><canvas id="livePage"></canvas></div>
       </div>
-      <div class="legend">
-        <span><i style="background:var(--t-empty);box-shadow:inset 0 0 0 1px var(--line-2)"></i>空き</span>
-        <span><i style="background:var(--t-noise)"></i>ノイズ</span>
-        <span><i style="background:var(--t-ink)"></i>図形</span>
-        <span><i style="background:var(--t-text)"></i>文字行</span>
-        <span><i style="background:var(--t-embed)"></i>埋め込み文字</span>
-        <span><i style="background:var(--t-dark)"></i>写真・色</span>
-        <span><i style="background:var(--t-ignored)"></i>影・穴(除外)</span>
-        <span><i style="background:var(--t-excl);box-shadow:inset 0 0 0 1px var(--line-2)"></i>対象外</span>
+      <div class="pane">
+        <div class="pane-head"><span class="grow">解析マップ</span><span class="mini-chip mono" id="liveScore">—</span></div>
+        <div class="stage"><canvas id="liveMap"></canvas></div>
       </div>
+    </div>
+    <div class="legend" style="margin-top:12px">
+      <span class="lg"><i style="background:var(--t-ink)"></i>図形</span>
+      <span class="lg"><i style="background:var(--t-text)"></i>文字</span>
+      <span class="lg"><i style="background:var(--t-embed)"></i>埋め込み文字</span>
+      <span class="lg"><i style="background:var(--t-dark)"></i>写真・色</span>
+      <span class="lg"><i style="background:var(--t-noise)"></i>ノイズ</span>
+      <span class="lg"><i style="background:var(--t-ignored)"></i>影・穴</span>
+      <span class="lg"><i style="background:var(--t-excl);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>対象外</span>
     </div>
   </section>
 
-  <!-- 全ページ（デフラグ表示）-->
-  <section id="secDisk" class="hidden">
-    <div class="card">
-      <h2>全ページ<span class="sp"></span><span style="font-weight:600;letter-spacing:0" id="diskNote"></span></h2>
-      <div class="legend">
-        <span><i style="background:var(--c-wait)"></i>未処理</span>
-        <span><i style="background:var(--c-active)"></i>処理中</span>
-        <span><i style="background:var(--c-content)"></i>内容あり</span>
-        <span><i style="background:var(--c-review)"></i>要確認</span>
-        <span><i style="background:var(--c-blank)"></i>空白</span>
-        <span><i style="background:repeating-linear-gradient(135deg,var(--c-del) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--c-del)"></i>削除</span>
+  <!-- ④ 確認 -->
+  <section id="secReview" class="card hidden">
+    <div class="result-top">
+      <div class="flow">
+        <div class="num"><b id="rAll">0</b><span>元のページ</span></div>
+        <svg class="ic arrow"><use href="#i-arrow"/></svg>
+        <div class="num"><b id="rKeep">0</b><span>保存するページ</span></div>
       </div>
-      <div class="disk" id="disk" role="grid" aria-label="ページ一覧"></div>
+      <span class="delpill"><svg class="ic sm"><use href="#i-delete"/></svg><span id="rDel">0</span>ページ削除</span>
+    </div>
+    <div class="ratio" id="ratio" aria-hidden="true"></div>
+    <div class="ratio-keys" id="ratioKeys"></div>
+
+    <div style="height:20px"></div>
+    <div class="chips" id="rTabs" role="group" aria-label="表示するページ">
+      <button class="chip sl" data-f="cand" aria-pressed="true"><svg class="ic"><use href="#i-check"/></svg>候補 <span class="n" id="tCand">0</span></button>
+      <button class="chip sl" data-f="del"><svg class="ic"><use href="#i-check"/></svg><i style="background:var(--s-del)"></i>削除 <span class="n" id="tDel">0</span></button>
+      <button class="chip sl" data-f="review"><svg class="ic"><use href="#i-check"/></svg><i style="background:var(--s-review)"></i>要確認 <span class="n" id="tReview">0</span></button>
+      <button class="chip sl" data-f="all"><svg class="ic"><use href="#i-check"/></svg>すべて <span class="n" id="tAll">0</span></button>
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="actions">
+      <button class="btn tonal sl" id="btnAllBlank"><svg class="ic"><use href="#i-select"/></svg>空白をすべて削除に</button>
+      <button class="btn text sl" id="btnClear"><svg class="ic"><use href="#i-clear"/></svg>選択を解除</button>
+      <button class="btn text sl" id="btnRedo"><svg class="ic"><use href="#i-refresh"/></svg>設定を変えて再検出</button>
+    </div>
+  </section>
+
+  <!-- 全ページ（デフラグ表示） -->
+  <section id="secDisk" class="card hidden">
+    <div class="card-head"><svg class="ic"><use href="#i-grid"/></svg><div class="grow t-title-m">全ページ</div><span class="mini-chip mono" id="diskNote"></span></div>
+    <div class="legend" style="margin-bottom:12px">
+      <span class="lg"><i style="background:var(--s-wait)"></i>未処理</span>
+      <span class="lg"><i style="background:var(--s-active)"></i>処理中</span>
+      <span class="lg"><i style="background:var(--s-content)"></i>内容あり</span>
+      <span class="lg"><i style="background:var(--s-review)"></i>要確認</span>
+      <span class="lg"><i style="background:var(--s-blank);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>空白</span>
+      <span class="lg"><i style="background:repeating-linear-gradient(135deg,var(--s-del) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--s-del)"></i>削除</span>
+    </div>
+    <div class="disk" id="disk" role="grid" aria-label="ページ一覧（タップでプレビュー）"></div>
+    <details class="logbox">
+      <summary class="sl"><svg class="ic"><use href="#i-list"/></svg>判定ログ<svg class="ic chev"><use href="#i-expand"/></svg></summary>
       <div class="log" id="log" aria-live="off"></div>
-    </div>
-  </section>
-
-  <!-- 確認 -->
-  <section id="secReview" class="hidden">
-    <div class="card">
-      <h2>削除するページの確認</h2>
-      <div class="summary"><b id="rDel">0</b><span>ページを削除 → </span><b id="rKeep">0</b><span>ページのPDFに</span></div>
-      <div class="tabs" id="rTabs">
-        <button data-f="cand" aria-pressed="true">候補 <span id="tCand">0</span></button>
-        <button data-f="del">削除 <span id="tDel">0</span></button>
-        <button data-f="review">要確認 <span id="tReview">0</span></button>
-        <button data-f="all">すべて</button>
-      </div>
-      <div class="thumbs" id="thumbs"></div>
-      <div class="btns" style="margin-top:14px">
-        <button class="btn" id="btnAllBlank">空白をすべて削除に</button>
-        <button class="btn" id="btnClear">選択を解除</button>
-        <button class="btn" id="btnRedo">設定を変えて再検出</button>
-      </div>
-    </div>
+    </details>
   </section>
 </main>
 
-<div class="dock hidden" id="dock">
+<div class="bottombar hidden" id="dock">
   <div class="in">
     <div class="info"><b id="dkMain"></b><span id="dkSub"></span></div>
-    <button class="btn hidden" id="btnShare">共有</button>
-    <button class="btn primary" id="btnSave">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
-      保存
-    </button>
+    <button class="icon-btn tonal sl hidden" id="btnShare" aria-label="共有" title="共有"><svg class="ic"><use href="#i-share"/></svg></button>
+    <button class="fab sl" id="btnSave"><svg class="ic"><use href="#i-download"/></svg><span>保存</span></button>
   </div>
 </div>
 
 <!-- プレビュー -->
 <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
-  <header>
+  <div class="mbar">
+    <button class="icon-btn sl" id="mClose" aria-label="閉じる"><svg class="ic"><use href="#i-close"/></svg></button>
     <h3 id="mTitle"></h3>
-    <button class="iconbtn" id="mClose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-  </header>
-  <div class="view" id="mView"><canvas id="mCanvas"></canvas><span class="busy hidden" id="mBusy">解析中…</span></div>
+  </div>
+  <div class="view" id="mView"><canvas id="mCanvas"></canvas><span class="busy hidden" id="mBusy"><span class="spinner"></span><span id="mBusyText">解析中…</span></span></div>
   <div class="tools">
     <div class="seg" id="mMode" role="group" aria-label="表示">
-      <button data-v="orig" aria-pressed="true">原本</button>
-      <button data-v="enh">強調</button>
-      <button data-v="bin">2値化</button>
-      <button data-v="det">検出結果</button>
+      <button class="sl" data-v="orig" aria-pressed="true"><svg class="ic"><use href="#i-eye"/></svg>原本</button>
+      <button class="sl" data-v="enh"><svg class="ic"><use href="#i-contrast"/></svg>強調</button>
+      <button class="sl" data-v="bin"><svg class="ic"><use href="#i-bw"/></svg>2値化</button>
+      <button class="sl" data-v="det"><svg class="ic"><use href="#i-search"/></svg>検出</button>
     </div>
     <div class="reasons" id="mReasons"></div>
-    <div class="feat" id="mFeat"></div>
+    <div class="metrics" id="mFeat"></div>
   </div>
-  <footer>
-    <button class="iconbtn" id="mPrev" aria-label="前のページ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg></button>
-    <button class="btn toggle-del" id="mToggle" aria-pressed="false"></button>
-    <button class="iconbtn" id="mNext" aria-label="次のページ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>
-  </footer>
+  <div class="mfoot">
+    <button class="icon-btn tonal sl" id="mPrev" aria-label="前のページ"><svg class="ic"><use href="#i-left"/></svg></button>
+    <div class="decide" id="mDecide" role="group" aria-label="このページを">
+      <button class="sl" data-v="keep"><svg class="ic"><use href="#i-keep"/></svg>残す</button>
+      <button class="sl" data-v="del"><svg class="ic"><use href="#i-delete"/></svg>削除</button>
+    </div>
+    <button class="icon-btn tonal sl" id="mNext" aria-label="次のページ"><svg class="ic"><use href="#i-right"/></svg></button>
+  </div>
 </div>
 
-<div class="toast hidden" id="toast" role="status"></div>
+<div class="snackbar hidden" id="toast" role="status"></div>
 
 <script src="vendor/pdf-lib.min.js" defer></script>
 <script type="module">
@@ -479,19 +817,37 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
 const $ = id => document.getElementById(id);
 const STORE = 'pdf-blank-remover:settings';
 const LEVEL_HINT = {
-  strict: 'うっすらした跡や小さな印もあれば内容ありにします',
-  normal: '汚れや裏写りは無視し、文字・図があれば内容ありにします',
-  loose: 'スキャンの汚れが多い原稿向け。少しの跡は空白とみなします',
+  strict: 'わずかな跡でもあれば残します',
+  normal: '文字や図があるページだけ残します',
+  loose: '少しの跡は空白とみなします',
 };
 const VERDICT_LABEL = { content: '内容あり', blank: '空白', review: '要確認', error: 'エラー' };
-const TILE_COLORS = ['--t-empty', '--t-excl', '--t-noise', '--t-ink', '--t-text', '--t-dark', '--t-embed', '--t-ignored']
-  .map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+const VERDICT_ICON = { content: 'doc', blank: 'blank', review: 'help', error: 'error' };
+const ic = (name, cls = '') => `<svg class="ic ${cls}"><use href="#i-${name}"/></svg>`;
+const cssVar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const tileColors = () => ['--t-empty', '--t-excl', '--t-noise', '--t-ink', '--t-text', '--t-dark', '--t-embed', '--t-ignored'].map(cssVar);
+let TILE_COLORS = tileColors();
+matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', () => { TILE_COLORS = tileColors(); renderMap(); drawScope(); });
+
+// ---------------- リップル ----------------
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.sl');
+  if (!el || el.disabled) return;
+  const r = el.getBoundingClientRect();
+  const d = Math.hypot(r.width, r.height) * 2;
+  const s = document.createElement('span');
+  s.className = 'ripple';
+  s.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
+  el.appendChild(s);
+  setTimeout(() => s.remove(), 500);
+});
+window.addEventListener('scroll', () => $('appbar').classList.toggle('scrolled', window.scrollY > 4), { passive: true });
 
 // ---------------- 設定 ----------------
 const settings = Object.assign({ textDetect: true, level: 'normal', margin: 3, ignoreHF: false, dpi: 150 }, loadSettings());
 function loadSettings() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
 function saveSettings() { try { localStorage.setItem(STORE, JSON.stringify(settings)); } catch {} }
-function bindSeg(el, key, conv = v => v) {
+function bindChoice(el, key, conv = v => v) {
   const sync = () => el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(conv(b.dataset.v) === settings[key])));
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -499,33 +855,38 @@ function bindSeg(el, key, conv = v => v) {
   });
   sync();
 }
-bindSeg($('optLevel'), 'level');
-bindSeg($('optDpi'), 'dpi', Number);
+bindChoice($('optLevel'), 'level');
+bindChoice($('optDpi'), 'dpi', Number);
 $('optText').checked = settings.textDetect;
 $('optHF').checked = settings.ignoreHF;
 $('optMargin').value = settings.margin;
 $('optText').onchange = e => { settings.textDetect = e.target.checked; saveSettings(); onSettings(); };
-$('optHF').onchange = e => { settings.ignoreHF = e.target.checked; saveSettings(); };
+$('optHF').onchange = e => { settings.ignoreHF = e.target.checked; saveSettings(); onSettings(); };
 $('optMargin').oninput = e => { settings.margin = Number(e.target.value); saveSettings(); onSettings(); };
 function onSettings() {
   $('levelHint').textContent = LEVEL_HINT[settings.level];
   $('optMarginOut').textContent = settings.margin + '%';
+  drawScope();
 }
-onSettings();
 
 // ---------------- 状態 ----------------
 let file = null, bytes = null, pdf = null, pages = [], running = false, cancelFlag = false;
-let reviewFilter = 'cand';
+let reviewFilter = 'cand', firstPage = null, lastOut = null;
 
 // ---------------- ファイル読み込み ----------------
 const drop = $('drop');
 $('fileInput').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) openFile(f); };
-drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('fileInput').click(); } });
+const pick = () => { if (!running) $('fileInput').click(); };
+$('btnPick').onclick = pick;
+$('btnChange').onclick = pick;
+$('btnNew').onclick = pick;
 ['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
 document.addEventListener('dragleave', e => { if (!e.relatedTarget) drop.classList.remove('over'); });
-document.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); });
-document.addEventListener('drop', e => { const f = [...(e.dataTransfer?.files || [])].find(isPdf); if (f && !running) openFile(f); });
-$('btnChange').onclick = () => { if (!running) $('fileInput').click(); };
+document.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('over');
+  const f = [...(e.dataTransfer?.files || [])].find(isPdf);
+  if (f && !running) openFile(f);
+});
 if ('launchQueue' in window) {
   window.launchQueue.setConsumer(async params => {
     const h = params.files && params.files[0];
@@ -552,31 +913,73 @@ async function openFile(f) {
     file = f; bytes = buf; lastOut = null;
     pages = Array.from({ length: pdf.numPages }, (_, i) => ({ n: i + 1, status: 'wait', verdict: null, del: false }));
     $('fName').textContent = f.name;
-    $('fSub').textContent = `${pdf.numPages}ページ ・ ${fmtSize(f.size)}`;
-    $('hdrFile').textContent = f.name;
-    drawFirstThumb();
+    $('fPages').textContent = `${pdf.numPages}ページ`;
+    $('fSize').textContent = fmtSize(f.size);
     show('setup');
+    await renderFirstPage();
   } catch (err) {
     console.error(err);
     toast(err && err.name === 'PasswordException' ? 'パスワードが必要です' : 'このPDFを開けませんでした');
   }
 }
-async function drawFirstThumb() {
+async function renderFirstPage() {
   const page = await pdf.getPage(1);
   const vp0 = page.getViewport({ scale: 1 });
-  const c = $('firstThumb'), s = 128 / vp0.width;
-  const vp = page.getViewport({ scale: s });
+  const vp = page.getViewport({ scale: 480 / vp0.width });
+  const c = document.createElement('canvas');
   c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
-  await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  firstPage = c;
+  const t = $('fileThumb');
+  t.width = 96; t.height = Math.round(96 * c.height / c.width);
+  t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
+  drawScope();
+}
+// 判定する範囲を1ページ目の上に描いて、設定の効き方を見せる
+function drawScope() {
+  const cv = $('scopeCanvas');
+  if (!firstPage || !cv) return;
+  const W = 236, s = W / firstPage.width, H = Math.round(firstPage.height * s);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.aspectRatio = `${W}/${H}`;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.drawImage(firstPage, 0, 0, W, H);
+  const mg = Math.round(Math.min(W, H) * settings.margin / 100);
+  const hf = settings.ignoreHF ? Math.round(H * 0.08) : 0;
+  const x0 = mg, y0 = Math.max(mg, hf), x1 = W - mg, y1 = H - Math.max(mg, hf);
+  // 判定しない部分は斜線
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(x0, y0, x1 - x0, y1 - y0);
+  ctx.clip('evenodd');
+  ctx.fillStyle = 'rgba(40,44,52,.55)'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1;
+  for (let k = -H; k < W; k += 6) { ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k + H, H); ctx.stroke(); }
+  ctx.restore();
+  ctx.strokeStyle = cssVar('--md-primary'); ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+  ctx.strokeRect(x0 + 1, y0 + 1, x1 - x0 - 2, y1 - y0 - 2);
+  ctx.setLineDash([]);
 }
 
+const ORDER = ['open', 'setup', 'run', 'review'];
+const STEP_ICON = ['upload', 'tune', 'search', 'download'];
 function show(stage) {
   $('secOpen').classList.toggle('hidden', stage !== 'open');
   $('secSetup').classList.toggle('hidden', stage !== 'setup');
   $('secRun').classList.toggle('hidden', stage !== 'run');
-  $('secDisk').classList.toggle('hidden', stage === 'open' || stage === 'setup');
+  $('secDisk').classList.toggle('hidden', stage !== 'run' && stage !== 'review');
   $('secReview').classList.toggle('hidden', stage !== 'review');
   $('dock').classList.toggle('hidden', stage !== 'review');
+  $('btnNew').classList.toggle('hidden', stage === 'open' || stage === 'run');
+  const k = ORDER.indexOf(stage);
+  $('stepper').querySelectorAll('.step').forEach((el, i) => {
+    el.classList.toggle('done', i < k);
+    el.classList.toggle('cur', i === k);
+    el.querySelector('.dot use').setAttribute('href', '#i-' + (i < k ? 'check' : STEP_ICON[i]));
+  });
   window.scrollTo({ top: 0 });
 }
 
@@ -644,7 +1047,7 @@ const previewAnalyzer = new Analyzer();
 const disk = $('disk');
 function buildDisk() {
   const n = pages.length;
-  const cell = n <= 60 ? 30 : n <= 200 ? 22 : n <= 600 ? 15 : 11;
+  const cell = n <= 60 ? 32 : n <= 200 ? 24 : n <= 600 ? 16 : 11;
   disk.style.setProperty('--cell', cell + 'px');
   disk.classList.toggle('small', cell < 20);
   disk.innerHTML = '';
@@ -690,9 +1093,13 @@ const livePage = $('livePage'), liveMap = $('liveMap');
 let mapState = null;
 // 描画（読込）は次のページを先読みするので、解析の段階とは別に点灯させる
 function setStage(s) {
-  $('pipe').querySelectorAll('span').forEach(el => { if (el.dataset.s !== 'render') el.classList.toggle('on', el.dataset.s === s); });
+  $('pipe').querySelectorAll('.ps').forEach(el => { if (el.dataset.s !== 'render') el.classList.toggle('on', el.dataset.s === s); });
 }
 function setRendering(on) { $('pipe').querySelector('[data-s="render"]').classList.toggle('on', on); }
+function setStatusChip(el, kind, label) {
+  el.className = 'status-chip ' + kind;
+  el.innerHTML = (kind === 'busy' ? ic('search') : VERDICT_ICON[kind] ? ic(VERDICT_ICON[kind]) : '') + label;
+}
 function drawLivePage(canvas) {
   const box = livePage.parentElement.getBoundingClientRect();
   const s = Math.min((box.width || 200) * 2 / canvas.width, (box.height || 240) * 2 / canvas.height, 1);
@@ -707,7 +1114,7 @@ function drawLiveBoxes(res) {
   const ctx = livePage.getContext('2d'), s = livePage._scale;
   ctx.drawImage(livePage._src, 0, 0, livePage.width, livePage.height);
   drawRegion(ctx, res.region, s, res.w, res.h);
-  strokeBoxes(ctx, res.boxes.dark, s, TILE_COLORS[5], 1);
+  fillBoxes(ctx, res.boxes.dark, s, hexA(TILE_COLORS[5], .3));
   strokeBoxes(ctx, res.boxes.comps, s, TILE_COLORS[3], 1);
   strokeBoxes(ctx, res.boxes.lines, s, TILE_COLORS[4], 2);
   strokeBoxes(ctx, res.boxes.embed, s, TILE_COLORS[6], 1.5);
@@ -725,17 +1132,21 @@ function renderMap() {
   if (!mapState) return;
   const { cols, rows, tiles, cs, scan } = mapState;
   const ctx = liveMap.getContext('2d');
-  ctx.fillStyle = '#06080A';
-  ctx.fillRect(0, 0, liveMap.width, liveMap.height);
-  const g = Math.max(1, Math.round(cs / 6));
+  ctx.clearRect(0, 0, liveMap.width, liveMap.height);
+  const g = Math.max(1, Math.round(cs / 6)), r = Math.max(1, cs / 5);
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
     ctx.fillStyle = TILE_COLORS[tiles[y * cols + x]];
-    ctx.fillRect(x * cs + g / 2, y * cs + g / 2, cs - g, cs - g);
+    roundRect(ctx, x * cs + g / 2, y * cs + g / 2, cs - g, cs - g, r);
   }
   if (scan >= 0 && scan < rows - 1) {
-    ctx.fillStyle = 'rgba(61,214,140,.9)';
-    ctx.fillRect(0, (scan + 1) * cs - 1, liveMap.width, Math.max(2, g));
+    ctx.fillStyle = cssVar('--s-active');
+    ctx.fillRect(0, (scan + 1) * cs - g, liveMap.width, Math.max(3, g * 2));
   }
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+  ctx.fill();
 }
 let mapRaf = 0;
 function queueMap() { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; renderMap(); }); }
@@ -751,6 +1162,7 @@ function onProgress(m) {
 
 // ---------------- 統計 ----------------
 let t0 = 0;
+const RING = 326.73;
 function updateStats() {
   const done = pages.filter(p => p.verdict).length, N = pages.length;
   const c = { blank: 0, review: 0, content: 0 };
@@ -760,7 +1172,8 @@ function updateStats() {
   $('sReview').textContent = c.review;
   $('sContent').textContent = c.content;
   const pct = N ? done / N : 0;
-  $('bar').style.width = (pct * 100).toFixed(1) + '%';
+  $('ringFg').style.strokeDashoffset = String(RING * (1 - pct));
+  $('ring').classList.toggle('done', !running && done === N);
   $('bPct').textContent = Math.floor(pct * 100) + '%';
   const el = (performance.now() - t0) / 1000;
   if (done && running) {
@@ -768,7 +1181,6 @@ function updateStats() {
     $('bSpeed').textContent = `${sp.toFixed(sp < 10 ? 1 : 0)} ページ/秒`;
     $('bEta').textContent = `残り ${fmtTime((N - done) / sp)}`;
   } else if (!running) {
-    $('bSpeed').textContent = '';
     $('bEta').textContent = `所要 ${fmtTime(el)}`;
   }
   $('diskNote').textContent = `${N}ページ`;
@@ -785,8 +1197,10 @@ async function start() {
   $('btnCancel').disabled = false;
   pages.forEach(p => { p.status = 'wait'; p.verdict = null; p.del = false; p.result = null; p.thumb = null; });
   $('pipe').querySelector('[data-s="text"]').classList.toggle('off', !settings.textDetect);
-  $('runTitle').textContent = '解析中';
+  $('bSpeed').textContent = '—'; $('bEta').textContent = '—';
   logEl.innerHTML = '';
+  mapState = null;
+  liveMap.getContext('2d').clearRect(0, 0, liveMap.width, liveMap.height);
   show('run');
   buildDisk();
   t0 = performance.now();
@@ -813,10 +1227,8 @@ async function start() {
     if (cancelFlag) break;
     p.thumb = makeThumb(r.canvas);
     $('liveName').textContent = `p.${p.n}`;
-    $('liveVerdict').textContent = '解析中';
-    $('liveVerdict').style.background = '';
-    $('liveVerdict').style.color = '';
-    $('liveScore').textContent = '';
+    setStatusChip($('liveVerdict'), 'busy', '解析中');
+    $('liveScore').textContent = '—';
     drawLivePage(r.canvas);
     pending = mainAnalyzer.run(r, { onProgress })
       .then(res => finish(p, res))
@@ -831,10 +1243,10 @@ async function start() {
   const done = pages.filter(p => p.verdict).length;
   if (cancelFlag) log(`中止しました（${done}ページまで判定済み）`, 'e');
   else log(`完了：空白 ${pages.filter(p => p.verdict === 'blank').length} ・ 要確認 ${pages.filter(p => p.verdict === 'review').length}`);
-  $('runTitle').textContent = cancelFlag ? '中止' : '完了';
   if (!done) { show('setup'); return; }
   show('review');
   renderReview();
+  if (cancelFlag) toast(`中止しました。${done}ページまでの結果を表示しています`);
 }
 
 function finish(p, res) {
@@ -846,10 +1258,7 @@ function finish(p, res) {
   setStage('judge');
   if (mapState) { mapState.tiles = res.tiles; mapState.scan = -1; renderMap(); }
   drawLiveBoxes(res);
-  const v = $('liveVerdict');
-  v.textContent = VERDICT_LABEL[res.verdict];
-  v.style.background = `var(--c-${res.verdict})`;
-  v.style.color = res.verdict === 'content' ? '#fff' : '#111';
+  setStatusChip($('liveVerdict'), res.verdict, VERDICT_LABEL[res.verdict]);
   $('liveScore').textContent = `内容度 ${Math.min(999, Math.round(res.score * 100))}%`;
   const cls = { blank: 'b', review: 'r', content: 'c' }[res.verdict];
   log(`p.${p.n}  ${VERDICT_LABEL[res.verdict]}  ${res.reasons.join(' / ')}`, cls);
@@ -865,8 +1274,8 @@ function fail(p, err) {
 }
 function makeThumb(canvas) {
   const c = document.createElement('canvas');
-  const s = 200 / canvas.width;
-  c.width = 200; c.height = Math.max(1, Math.round(canvas.height * s));
+  const s = 240 / canvas.width;
+  c.width = 240; c.height = Math.max(1, Math.round(canvas.height * s));
   const x = c.getContext('2d');
   x.drawImage(canvas, 0, 0, c.width, c.height);
   return c.toDataURL('image/jpeg', 0.72);
@@ -896,7 +1305,7 @@ function renderReview() {
   const box = $('thumbs');
   box.innerHTML = '';
   if (!list.length) {
-    box.innerHTML = `<p class="empty-note" style="grid-column:1/-1">${reviewFilter === 'cand' ? '空白ページは見つかりませんでした' : '該当するページはありません'}</p>`;
+    box.innerHTML = `<div class="empty-note">${ic('keep')}<b>${reviewFilter === 'cand' ? '空白ページは見つかりませんでした' : '該当するページはありません'}</b></div>`;
   }
   const frag = document.createDocumentFragment();
   for (const p of list) {
@@ -904,9 +1313,11 @@ function renderReview() {
     b.className = 'thumb' + (p.del ? ' del' : '');
     b.dataset.i = p.n - 1;
     b.innerHTML = `
-      <button class="img" data-a="open" aria-label="p.${p.n}をプレビュー">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ''}</button>
-      <div class="cap"><span class="pn">p.${p.n}</span><span class="badge ${p.verdict}">${VERDICT_LABEL[p.verdict]}</span></div>
-      <button class="act" data-a="toggle">${p.del ? '削除する' : '残す'}</button>`;
+      <button class="open sl" data-a="open" aria-label="p.${p.n}をプレビュー">
+        <div class="img">${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">` : ''}</div>
+        <div class="info"><span class="pn">p.${p.n}</span><span class="status-chip ${p.verdict}">${ic(VERDICT_ICON[p.verdict])}${VERDICT_LABEL[p.verdict]}</span></div>
+      </button>
+      <button class="sel" data-a="toggle" role="checkbox" aria-checked="${p.del}" aria-label="p.${p.n}を削除する"><span class="box">${ic('check')}</span></button>`;
     frag.appendChild(b);
   }
   box.appendChild(frag);
@@ -914,24 +1325,40 @@ function renderReview() {
 }
 $('thumbs').addEventListener('click', e => {
   const a = e.target.closest('[data-a]'); if (!a) return;
-  const i = +a.closest('.thumb').dataset.i;
-  if (a.dataset.a === 'toggle') { setDel(pages[i], !pages[i].del); renderReview(); }
-  else openPreview(i, filtered().map(p => p.n - 1));
+  const card = a.closest('.thumb'), i = +card.dataset.i;
+  if (a.dataset.a === 'toggle') {
+    setDel(pages[i], !pages[i].del);
+    card.classList.toggle('del', pages[i].del);
+    a.setAttribute('aria-checked', String(pages[i].del));
+  } else openPreview(i, filtered().map(p => p.n - 1));
 });
 function setDel(p, v) {
   if (p.verdict === 'error') return;
   p.del = v; paintCell(p); updateCounts();
 }
 function updateCounts() {
+  const N = pages.length;
   const del = pages.filter(p => p.del).length;
-  const keep = pages.length - del;
+  const keep = N - del;
+  $('rAll').textContent = N;
   $('rDel').textContent = del;
   $('rKeep').textContent = keep;
   $('tCand').textContent = pages.filter(p => p.verdict === 'blank' || p.verdict === 'review' || p.del).length;
   $('tDel').textContent = del;
   $('tReview').textContent = pages.filter(p => p.verdict === 'review').length;
-  $('dkMain').textContent = `${keep}ページで保存`;
-  $('dkSub').textContent = del ? `${del}ページを削除` : '削除するページがありません';
+  $('tAll').textContent = pages.filter(p => p.verdict).length;
+  // 割合バー：残すページ（判定ごと）と削除するページ
+  const seg = [
+    ['内容あり', pages.filter(p => !p.del && p.verdict === 'content').length, 'var(--s-content)'],
+    ['要確認', pages.filter(p => !p.del && p.verdict === 'review').length, 'var(--s-review)'],
+    ['残す空白', pages.filter(p => !p.del && p.verdict === 'blank').length, 'var(--s-blank)'],
+    ['未判定', pages.filter(p => !p.del && (!p.verdict || p.verdict === 'error')).length, 'var(--s-wait)'],
+    ['削除', del, 'var(--s-del)'],
+  ].filter(s => s[1]);
+  $('ratio').innerHTML = seg.map(s => `<div style="flex-grow:${s[1]};background:${s[2]}"></div>`).join('');
+  $('ratioKeys').innerHTML = seg.map(s => `<span class="key"><i style="background:${s[2]};box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>${s[0]} <b class="mono">${s[1]}</b></span>`).join('');
+  $('dkMain').innerHTML = `${N}${ic('arrow', 'xs')}${keep}<small style="font-family:var(--font);font-size:13px;font-weight:700">ページ</small>`;
+  $('dkSub').textContent = del ? `${del}ページを削除して保存` : '削除するページを選んでください';
   $('btnSave').disabled = !keep || !del;
   $('btnShare').disabled = !keep || !del;
 }
@@ -956,7 +1383,11 @@ function closePreview() {
 $('mClose').onclick = closePreview;
 $('mPrev').onclick = () => movePreview(-1);
 $('mNext').onclick = () => movePreview(1);
-$('mToggle').onclick = () => { const p = pages[pv.list[pv.pos]]; setDel(p, !p.del); updatePreviewHeader(); };
+$('mDecide').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !pv) return;
+  setDel(pages[pv.list[pv.pos]], b.dataset.v === 'del');
+  updatePreviewHeader();
+});
 $('mMode').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   pvMode = b.dataset.v;
@@ -968,7 +1399,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closePreview();
   else if (e.key === 'ArrowLeft') movePreview(-1);
   else if (e.key === 'ArrowRight') movePreview(1);
-  else if (e.key === 'd' || e.key === 'Delete') $('mToggle').click();
+  else if (e.key === 'd' || e.key === 'Delete') { const p = pages[pv.list[pv.pos]]; setDel(p, !p.del); updatePreviewHeader(); }
 });
 let touchX = null;
 $('mView').addEventListener('touchstart', e => { touchX = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
@@ -984,41 +1415,44 @@ function movePreview(d) {
   if (np < 0 || np >= pv.list.length) return;
   pv.pos = np; loadPreview();
 }
+const REASON_ICON = [
+  [/文字/, 'text'], [/写真|色/, 'photo'], [/図形|線/, 'shape'],
+  [/インク/, 'bw'], [/汚れ|跡|痕跡/, 'dots'], [/検出されず/, 'blank'],
+];
 function updatePreviewHeader() {
   const p = pages[pv.list[pv.pos]];
-  $('mTitle').innerHTML = `p.${p.n} <span class="badge ${p.verdict}">${VERDICT_LABEL[p.verdict]}</span><span style="font-size:12px;color:var(--muted);font-weight:600">${pv.pos + 1} / ${pv.list.length}</span>`;
-  const t = $('mToggle');
-  t.setAttribute('aria-pressed', String(p.del));
-  t.textContent = p.del ? '削除する（タップで残す）' : '残す（タップで削除）';
-  t.disabled = p.verdict === 'error';
+  $('mTitle').innerHTML = `<span class="mono">p.${p.n}</span><span class="status-chip ${p.verdict}">${ic(VERDICT_ICON[p.verdict])}${VERDICT_LABEL[p.verdict]}</span><span class="pos">${pv.pos + 1} / ${pv.list.length}</span>`;
+  $('mDecide').querySelectorAll('button').forEach(b => {
+    b.setAttribute('aria-pressed', String((b.dataset.v === 'del') === p.del));
+    b.disabled = p.verdict === 'error';
+  });
   $('mPrev').disabled = pv.pos === 0;
   $('mNext').disabled = pv.pos === pv.list.length - 1;
-  $('mPrev').style.opacity = pv.pos === 0 ? .35 : 1;
-  $('mNext').style.opacity = pv.pos === pv.list.length - 1 ? .35 : 1;
   const r = p.result;
-  $('mReasons').textContent = r ? r.reasons.join(' / ') : '';
+  $('mReasons').innerHTML = r ? r.reasons.map(t => {
+    const hit = REASON_ICON.find(([re]) => re.test(t));
+    return `<span class="reason">${ic(hit ? hit[1] : 'help')}${t}</span>`;
+  }).join('') : '';
   const f = r && r.features;
+  const m = (k, v, ratio, color) => `<div class="metric"><small>${k}</small><b>${v}</b>${ratio !== undefined ? `<div class="meter"><div style="width:${Math.max(2, Math.min(100, ratio * 100))}%;background:${color}"></div></div>` : ''}</div>`;
   $('mFeat').innerHTML = f ? [
-    ['内容度', Math.min(999, Math.round(r.score * 100)) + '%'],
-    ['埋め込み文字', settings.textDetect ? f.embedChars : '—'],
-    ['画像中の文字', settings.textDetect ? `${f.glyphs}字/${f.lines}か所` : '—'],
-    ['図形', f.comps],
-    ['ノイズ', f.noise],
-    ['インク', (f.inkRatio * 100).toFixed(3) + '%'],
-    ['写真・色', (f.darkRatio * 100).toFixed(1) + '%'],
-    ['最大図形', f.bigMm.toFixed(1) + 'mm'],
-  ].map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join('') : '';
+    m('内容度', Math.min(999, Math.round(r.score * 100)) + '%', Math.min(1, r.score), r.score >= 1 ? 'var(--s-content)' : r.score >= .35 ? 'var(--s-review)' : 'var(--s-active)'),
+    m('文字（画像 / 埋込）', settings.textDetect ? `${f.glyphs ?? 0} / ${f.embedChars}` : '—'),
+    m('図形 / ノイズ', `${f.comps} / ${f.noise}`),
+    m('インク / 写真・色', `${(f.inkRatio * 100).toFixed(2)}% / ${(f.darkRatio * 100).toFixed(1)}%`),
+  ].join('') : '';
 }
 async function loadPreview() {
   const i = pv.list[pv.pos], token = ++pvToken;
   updatePreviewHeader();
+  $('mBusyText').textContent = '解析中…';
   $('mBusy').classList.remove('hidden');
   pv.data = null;
   // 一覧の小さい画像を先に出しておく
   const p = pages[i];
   if (p.thumb) {
     const img = new Image();
-    img.onload = () => { if (token !== pvToken || pv.data) return; fitCanvas(img.width, img.height); mCanvas.getContext('2d').drawImage(img, 0, 0, mCanvas.width, mCanvas.height); };
+    img.onload = () => { if (token !== pvToken || !pv || pv.data) return; fitCanvas(img.width, img.height); mCanvas.getContext('2d').drawImage(img, 0, 0, mCanvas.width, mCanvas.height); };
     img.src = p.thumb;
   }
   try {
@@ -1026,18 +1460,18 @@ async function loadPreview() {
     if (token !== pvToken) return;
     const src = r.canvas;
     const res = await previewAnalyzer.run(r, { wantBinary: true });
-    if (token !== pvToken) return;
+    if (token !== pvToken || !pv) return;
     pv.data = { src, res };
     $('mBusy').classList.add('hidden');
     drawPreview();
   } catch (err) {
     console.error(err);
-    if (token === pvToken) $('mBusy').textContent = '表示できませんでした';
+    if (token === pvToken) $('mBusyText').textContent = '表示できませんでした';
   }
 }
 function fitCanvas(w, h) {
   const view = $('mView').getBoundingClientRect();
-  const s = Math.min((view.width - 24) / w, (view.height - 8) / h);
+  const s = Math.min((view.width - 32) / w, (view.height - 8) / h);
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   mCanvas.style.width = Math.floor(w * s) + 'px';
   mCanvas.style.height = Math.floor(h * s) + 'px';
@@ -1083,7 +1517,7 @@ function drawPreview() {
   }
   if (pvMode === 'det') {
     const lw = Math.max(1.5, s * 2);
-    fillBoxes(ctx, res.boxes.dark, s, 'rgba(176,124,255,.25)');
+    fillBoxes(ctx, res.boxes.dark, s, hexA(TILE_COLORS[5], .3));
     strokeBoxes(ctx, res.boxes.comps, s, TILE_COLORS[3], lw * .7);
     strokeBoxes(ctx, res.boxes.lines, s, TILE_COLORS[4], lw * 1.2);
     strokeBoxes(ctx, res.boxes.embed, s, TILE_COLORS[6], lw);
@@ -1092,7 +1526,7 @@ function drawPreview() {
 }
 function drawRegion(ctx, rg, s, w, h) {
   ctx.save();
-  ctx.fillStyle = 'rgba(10,12,15,.35)';
+  ctx.fillStyle = 'rgba(40,44,52,.4)';
   ctx.beginPath();
   ctx.rect(0, 0, w * s, h * s);
   ctx.rect(rg[0] * s, rg[1] * s, rg[2] * s, rg[3] * s);
@@ -1111,6 +1545,12 @@ function fillBoxes(ctx, boxes, s, color) {
   for (const b of boxes) ctx.fillRect(b[0] * s, b[1] * s, b[2] * s, b[3] * s);
   ctx.restore();
 }
+function hexA(hex, a) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
 window.addEventListener('resize', () => { if (pv && pv.data) drawPreview(); });
 
 // ---------------- 出力・保存 ----------------
@@ -1121,7 +1561,6 @@ $('btnShare').classList.toggle('hidden', !canShareFiles);
 $('btnSave').onclick = () => exportPdf('save');
 $('btnShare').onclick = () => exportPdf('share');
 
-let lastOut = null;
 async function buildOutput() {
   const keep = pages.filter(p => !p.del).map(p => p.n - 1);
   const key = keep.join(',');
@@ -1151,7 +1590,8 @@ async function exportPdf(mode) {
   if (!window.PDFLib) { toast('準備中です。少し待ってからもう一度お試しください'); return; }
   const btn = mode === 'share' ? $('btnShare') : $('btnSave');
   const label = btn.innerHTML;
-  btn.disabled = true; btn.textContent = '作成中…';
+  btn.disabled = true;
+  if (mode === 'save') btn.innerHTML = '<span class="spinner"></span><span>作成中…</span>';
   try {
     const out = await buildOutput();
     const blob = new Blob([out.data], { type: 'application/pdf' });
@@ -1198,6 +1638,8 @@ function fmtTime(s) {
 }
 window.addEventListener('beforeunload', e => { if (running) { e.preventDefault(); e.returnValue = ''; } });
 
+onSettings();
+show('open');
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
