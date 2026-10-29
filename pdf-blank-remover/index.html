@@ -341,7 +341,6 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .status-chip.blank{background:var(--s-blank);color:var(--s-on-blank);box-shadow:inset 0 0 0 1px var(--md-outline-variant)}
 .status-chip.review{background:var(--s-review);color:var(--s-on-review)}
 .status-chip.error{background:var(--s-err);color:#fff}
-.status-chip.busy{background:var(--s-active);color:var(--s-on-active)}
 
 .legend{display:flex;flex-wrap:wrap;gap:6px}
 .legend .lg{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;box-shadow:inset 0 0 0 1px var(--md-outline-variant);font-size:12px;font-weight:600;color:var(--md-on-surface-variant)}
@@ -364,14 +363,13 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .cell.blank{background:var(--s-blank);color:rgba(0,0,0,.45);box-shadow:inset 0 0 0 1px var(--md-outline-variant)}
 .cell.review{background:var(--s-review);color:rgba(0,0,0,.5)}
 .cell.error{background:var(--s-err)}
-.cell.active{background:var(--s-active);animation:blink .6s steps(2) infinite}
+.cell.active{background:var(--s-active)}
 .cell.del::after{
   content:"";position:absolute;inset:0;border-radius:4px;
   background:repeating-linear-gradient(135deg,var(--s-del) 0 3px,transparent 3px 6px);
   box-shadow:inset 0 0 0 2px var(--s-del);
 }
 .disk.small .cell{font-size:0}
-@keyframes blink{50%{filter:brightness(.6)}}
 
 details.logbox{margin-top:16px;border-radius:12px;background:var(--md-surface-container)}
 details.logbox summary{list-style:none;display:flex;align-items:center;gap:12px;padding:0 12px;height:48px;cursor:pointer;font-weight:700;color:var(--md-on-surface-variant);border-radius:12px}
@@ -461,7 +459,9 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
 .modal .mbar .pos{font-size:13px;color:var(--md-on-surface-variant);font-family:var(--mono);font-weight:600;margin-left:auto}
 .modal .view{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 16px;position:relative;touch-action:pan-y}
 .modal .view canvas{max-width:100%;max-height:100%;background:#fff;border-radius:4px;box-shadow:var(--md-elev-3)}
-.modal .view .busy{position:absolute;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;background:var(--md-surface-highest);font-size:13px;font-weight:700}
+.modal .view .busy{position:absolute;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;background:var(--md-surface-highest);font-size:13px;font-weight:700;opacity:0;animation:busyin .2s .4s forwards}
+/* すぐ終わるときは出さない（ページ送りのたびにチカチカしないように） */
+@keyframes busyin{to{opacity:1}}
 .spinner{display:block;width:18px;height:18px;border-radius:50%;border:3px solid var(--md-outline-variant);border-top-color:var(--md-primary);animation:spin .8s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 .modal .tools{padding:12px 16px 0;display:flex;flex-direction:column;gap:10px;max-width:900px;width:100%;margin:0 auto}
@@ -718,7 +718,7 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
 
     <div class="live">
       <div class="pane">
-        <div class="pane-head"><span class="grow mono" id="liveName">—</span><span class="status-chip" id="liveVerdict">待機中</span></div>
+        <div class="pane-head"><span class="grow mono" id="liveName">—</span></div>
         <div class="stage"><canvas id="livePage"></canvas></div>
       </div>
       <div class="pane">
@@ -1267,10 +1267,6 @@ function log(msg, cls = '') {
 // ---------------- ライブ表示 ----------------
 const livePage = $('livePage'), liveMap = $('liveMap');
 let mapState = null;
-function setStatusChip(el, kind, label) {
-  el.className = 'status-chip ' + kind;
-  el.innerHTML = (kind === 'busy' ? ic('search') : VERDICT_ICON[kind] ? ic(VERDICT_ICON[kind]) : '') + label;
-}
 function drawLivePage(canvas) {
   const box = livePage.parentElement.getBoundingClientRect();
   const s = Math.min((box.width || 200) * 2 / canvas.width, (box.height || 240) * 2 / canvas.height, 1);
@@ -1388,7 +1384,6 @@ async function start() {
     if (cancelFlag) break;
     p.thumb = makeThumb(r.canvas);
     $('liveName').textContent = `p.${p.n}`;
-    setStatusChip($('liveVerdict'), 'busy', '解析中');
     drawLivePage(r.canvas);
     pending = mainAnalyzer.run(r, { onProgress })
       .then(res => finish(p, res))
@@ -1416,9 +1411,6 @@ function finish(p, res) {
   paintCell(p);
   if (mapState) { mapState.tiles = res.tiles; mapState.scan = -1; renderMap(); }
   drawLiveBoxes(res);
-  // 判定は空白・要確認だけ表示する
-  if (res.verdict === 'content') { $('liveVerdict').className = 'status-chip hidden'; }
-  else setStatusChip($('liveVerdict'), res.verdict, VERDICT_LABEL[res.verdict]);
   const cls = { blank: 'b', review: 'r', content: 'c' }[res.verdict];
   log(`p.${p.n}  ${VERDICT_LABEL[res.verdict]}  ${res.reasons.join(' / ')}`, cls);
   updateStats();
