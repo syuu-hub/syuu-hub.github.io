@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0A0C0F"/>
+  <!-- デフラグ風のページ -->
+  <g transform="translate(116 96)">
+    <rect x="0" y="0" width="84" height="84" rx="12" fill="#3A7BFF"/>
+    <rect x="96" y="0" width="84" height="84" rx="12" fill="#3A7BFF"/>
+    <rect x="192" y="0" width="84" height="84" rx="12" fill="#E6EAF0"/>
+    <rect x="0" y="96" width="84" height="84" rx="12" fill="#E6EAF0"/>
+    <rect x="96" y="96" width="84" height="84" rx="12" fill="#3A7BFF"/>
+    <rect x="192" y="96" width="84" height="84" rx="12" fill="#FFB020"/>
+    <rect x="0" y="192" width="84" height="84" rx="12" fill="#3A7BFF"/>
+    <rect x="96" y="192" width="84" height="84" rx="12" fill="#E6EAF0"/>
+    <rect x="192" y="192" width="84" height="84" rx="12" fill="#3A7BFF"/>
+  </g>
+  <!-- 削除マーク -->
+  <circle cx="372" cy="380" r="76" fill="#FF5D5D"/>
+  <path d="M340 348l64 64M404 348l-64 64" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
+</svg>
