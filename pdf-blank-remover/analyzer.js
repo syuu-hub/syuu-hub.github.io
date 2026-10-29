@@ -60,7 +60,6 @@ function analyze(m) {
   const tileX = new Uint16Array(w), tileRowOf = new Uint16Array(h);
   for (let x = 0; x < w; x++) tileX[x] = Math.min(cols - 1, Math.floor(x / tw));
   for (let y = 0; y < h; y++) tileRowOf[y] = Math.min(rows - 1, Math.floor(y / th));
-  post({ type: 'grid', cols, rows, tiles: tiles.slice() });
 
   // ================= 下処理 =================
   stage('pre');
@@ -71,16 +70,17 @@ function analyze(m) {
   // 背景（紙の明るさ）をブロックごとに推定：明るい側 90% 点を紙の色とみなす
   const B = Math.max(8, Math.round(pxmm * 6));
   const bw = Math.ceil(w / B), bh = Math.ceil(h / B), NB = bw * bh;
-  const bP90 = new Float32Array(NB), bChroma = new Float32Array(NB);
+  const bP90 = new Float32Array(NB), bChroma = new Float32Array(NB), bStd = new Float32Array(NB);
   const hist = new Uint32Array(256);
   for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
     hist.fill(0);
     const x0 = bx * B, x1 = Math.min(w, x0 + B), y0 = by * B, y1 = Math.min(h, y0 + B);
-    let cnt = 0, sc = 0;
+    let cnt = 0, sc = 0, sg = 0, sg2 = 0;
     for (let y = y0; y < y1; y++) {
       let i = y * w + x0, j = i * 4;
       for (let x = x0; x < x1; x++, i++, j += 4) {
-        hist[gray[i]]++; cnt++;
+        const g0 = gray[i];
+        hist[g0]++; cnt++; sg += g0; sg2 += g0 * g0;
         const r = src[j], g = src[j + 1], b = src[j + 2];
         sc += Math.max(r, g, b) - Math.min(r, g, b);
       }
@@ -90,7 +90,75 @@ function analyze(m) {
     for (; v > 0; v--) { acc += hist[v]; if (acc >= lim) break; }
     bP90[by * bw + bx] = v;
     bChroma[by * bw + bx] = sc / cnt;
+    const mean = sg / cnt;
+    bStd[by * bw + bx] = Math.sqrt(Math.max(0, sg2 / cnt - mean * mean));
   }
+
+  // 用紙の外側（スキャン台の黒・影）：画像の端からつながる、暗くて一様なブロック
+  // 写真などを誤って消さないよう、一様（ばらつきが小さい）なものに限り、全体の4割を超えたら取り消す
+  const outside = new Uint8Array(NB);
+  {
+    const isBed = k => bP90[k] < 150 && bStd[k] < 14;
+    const q = [];
+    for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
+      if (bx && by && bx < bw - 1 && by < bh - 1) continue;
+      const k = by * bw + bx;
+      if (isBed(k)) { outside[k] = 1; q.push(k); }
+    }
+    while (q.length) {
+      const k = q.pop(), bx = k % bw, by = (k / bw) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const xx = bx + dx, yy = by + dy;
+        if (xx < 0 || yy < 0 || xx >= bw || yy >= bh) continue;
+        const kk = yy * bw + xx;
+        if (!outside[kk] && isBed(kk)) { outside[kk] = 1; q.push(kk); }
+      }
+    }
+    // スキャン台は紙の周りに帯状に写る。全体の4割を超える、または端から2割より奥まで入り込むなら紙の中身とみなす
+    let cnt = 0, deep = false;
+    for (let k = 0; k < NB; k++) if (outside[k]) {
+      cnt++;
+      const bx = k % bw, by = (k / bw) | 0;
+      if (Math.min(bx, bw - 1 - bx) > bw * 0.2 && Math.min(by, bh - 1 - by) > bh * 0.2) deep = true;
+    }
+    if (cnt > NB * 0.4 || deep) outside.fill(0);
+    else if (cnt) {
+      // 紙の縁の影も含めるため1ブロック広げる
+      const grow = outside.slice();
+      for (let k = 0; k < NB; k++) if (outside[k]) {
+        const bx = k % bw, by = (k / bw) | 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = bx + dx, yy = by + dy;
+          if (xx >= 0 && yy >= 0 && xx < bw && yy < bh) grow[yy * bw + xx] = 1;
+        }
+      }
+      outside.set(grow);
+    }
+  }
+  // 表示用に、行ごとに横へ連なるブロックを1つの長方形にまとめる
+  const outBoxes = [];
+  for (let by = 0; by < bh; by++) {
+    for (let bx = 0; bx < bw; bx++) {
+      if (!outside[by * bw + bx]) continue;
+      let ex = bx;
+      while (ex + 1 < bw && outside[by * bw + ex + 1]) ex++;
+      outBoxes.push([bx * B, by * B, Math.min(w, (ex + 1) * B) - bx * B, Math.min(B, h - by * B)]);
+      bx = ex;
+    }
+  }
+  const hasOut = outBoxes.length > 0;
+  const isOut = (x, y) => outside[((y / B) | 0) * bw + ((x / B) | 0)] === 1;
+  // 用紙の外側にかかるタイルは「判定しない範囲」にする
+  for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
+    if (isOut(Math.min(w - 1, (tx + 0.5) * tw), Math.min(h - 1, (ty + 0.5) * th))) tiles[ty * cols + tx] = T.EXCL;
+  }
+  post({ type: 'grid', cols, rows, tiles: tiles.slice() });
+
+  // スキャンのノイズの強さ（紙だけのブロックのばらつき）を測り、2値化の基準に使う
+  const quietStd = [];
+  for (let k = 0; k < NB; k++) if (!outside[k]) quietStd.push(bStd[k]);
+  quietStd.sort((a, b) => a - b);
+  const noiseSigma = quietStd.length ? quietStd[(quietStd.length * 0.25) | 0] : 0;
   // 文字の多いブロックに引っ張られないよう 3x3 最大 → 3x3 平均でならす
   const bMax = new Float32Array(NB), bg = new Float32Array(NB);
   for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
@@ -113,7 +181,7 @@ function analyze(m) {
   // 写真・塗りつぶし・色付き領域（背景補正で消える部分）をブロック単位で拾う
   const inRegionBlock = (bx, by) => {
     const x0 = bx * B, y0 = by * B;
-    return x0 >= R.x0 && y0 >= R.y0 && Math.min(w, x0 + B) <= R.x1 && Math.min(h, y0 + B) <= R.y1;
+    return !outside[by * bw + bx] && x0 >= R.x0 && y0 >= R.y0 && Math.min(w, x0 + B) <= R.x1 && Math.min(h, y0 + B) <= R.y1;
   };
   const regP90 = [], regChroma = [];
   for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) if (inRegionBlock(bx, by)) {
@@ -180,7 +248,18 @@ function analyze(m) {
     }
   }
   const rad = Math.max(7, Math.round(pxmm * 4)), k = 0.3;
+  // ノイズが強いページほど、ノイズを拾わないよう基準を濃い側へずらす（ぼかし後のノイズは元の約0.4倍）
+  const cut = Math.min(P.cut, 255 - Math.max(30, 4.5 * 0.4 * noiseSigma));
+  // 2段階しきい値：はっきりした線（強）と、うっすらした線（弱）を分けて拾い、弱は強につながるものだけ残す
+  const weakCut = Math.min(250, cut + 20);
+  // 周りの平均との差がこれ以上ならインクとみなす
+  const minContrast = (255 - cut) * 0.6;
+  // ぼかす前の画像はノイズを含むので、ノイズの強さ（背景補正後の尺度）の3倍だけ薄く見積もってから比べる
+  const normPenalty = Math.round(3 * noiseSigma * 255 / Math.max(1, paper));
   const bin = new Uint8Array(N);
+  // 芯：ぼかした画像でもはっきり濃い画素。ノイズの見分けや、インク量・大きさの計測に使う
+  const core = new Uint8Array(N);
+  let strong = new Int32Array(1 << 16), nStrong = 0;
   const tileInk = new Uint32Array(cols * rows);
   let curRow = tileRowOf[R.y0] || 0;
   const sendBand = row => {
@@ -197,18 +276,45 @@ function analyze(m) {
     const ya = Math.max(0, y - rad), yb = Math.min(h, y + rad + 1);
     const A = ya * W1, Bo = yb * W1;
     for (let x = R.x0, i = y * w + R.x0; x < R.x1; x++, i++) {
-      const v = den[i];
-      if (v > P.cut) continue;
+      const nv = norm[i] + normPenalty, v = den[i], vv = v < nv ? v : nv;
+      if (vv > weakCut) continue;
+      if (hasOut && isOut(x, y)) continue;
       const xa = Math.max(0, x - rad), xb = Math.min(w, x + rad + 1);
       const n = (yb - ya) * (xb - xa);
       const s = sum[Bo + xb] - sum[Bo + xa] - sum[A + xb] + sum[A + xa];
       const q = sq[Bo + xb] - sq[Bo + xa] - sq[A + xb] + sq[A + xa];
       const mean = s / n, sd = Math.sqrt(Math.max(0, q / n - mean * mean));
       const thr = mean * (1 + k * (sd / 128 - 1));
-      if (v < thr || v < 96) { bin[i] = 1; tileInk[tr * cols + tileX[x]]++; }
+      // 紙の明るさはそろえてあるので、周りより十分濃ければインク（Sauvola は濃い領域の中での補助）
+      // はっきりした線かどうかは、ぼかす前の濃さで見る（細い線はぼかしで薄くなるため）
+      const local = v < thr || v < 96 || mean - vv >= minContrast;
+      if (vv <= cut && local) {
+        bin[i] = 1; tileInk[tr * cols + tileX[x]]++;
+        if (v <= cut) core[i] = 1;
+        if (nStrong === strong.length) { const ns = new Int32Array(strong.length * 2); ns.set(strong); strong = ns; }
+        strong[nStrong++] = i;
+      } else if (v < thr || mean - vv >= minContrast * 0.5) bin[i] = 2;
     }
   }
   for (let r = curRow; r < rows; r++) if (r <= tileRowOf[Math.max(0, R.y1 - 1)]) sendBand(r);
+
+  // 弱い画素は、強い画素から8近傍でつながる範囲だけ残す（かすれた線はつなぎ、離れた裏写りは捨てる）
+  while (nStrong) {
+    const i = strong[--nStrong], x = i % w;
+    for (let dy = -w; dy <= w; dy += w) for (let dx = -1; dx <= 1; dx++) {
+      if ((dx === -1 && x === 0) || (dx === 1 && x === w - 1)) continue;
+      const j = i + dy + dx;
+      if (j >= 0 && j < N && bin[j] === 2) {
+        bin[j] = 1;
+        if (nStrong === strong.length) { const ns = new Int32Array(strong.length * 2); ns.set(strong); strong = ns; }
+        strong[nStrong++] = j;
+      }
+    }
+  }
+  for (let i = 0; i < N; i++) if (bin[i] === 2) bin[i] = 0;
+
+  // クロージング（3x3 の膨張→収縮）：1画素の切れ目をふさぎ、かすれた文字を1つのまとまりにする
+  closing3(bin, w, h, R);
 
   // ================= 成分解析（8近傍ラベリング）=================
   stage('cc');
@@ -237,13 +343,13 @@ function analyze(m) {
   const idOf = new Int32Array(next).fill(-1);
   let nc = 0;
   for (let l = 1; l < next; l++) if (find(l) === l) idOf[l] = nc++;
-  const cx0 = new Int32Array(nc).fill(w), cy0 = new Int32Array(nc).fill(h), cx1 = new Int32Array(nc).fill(-1), cy1 = new Int32Array(nc).fill(-1), carea = new Int32Array(nc);
+  const cx0 = new Int32Array(nc).fill(w), cy0 = new Int32Array(nc).fill(h), cx1 = new Int32Array(nc).fill(-1), cy1 = new Int32Array(nc).fill(-1), carea = new Int32Array(nc), ccore = new Int32Array(nc);
   for (let y = R.y0; y < R.y1; y++) {
     for (let x = R.x0, i = y * w + R.x0; x < R.x1; x++, i++) {
       if (!lab[i]) continue;
       const c = idOf[find(lab[i])];
       lab[i] = c + 1;
-      carea[c]++;
+      carea[c]++; ccore[c] += core[i];
       if (x < cx0[c]) cx0[c] = x; if (x > cx1[c]) cx1[c] = x;
       if (y < cy0[c]) cy0[c] = y; if (y > cy1[c]) cy1[c] = y;
     }
@@ -257,7 +363,8 @@ function analyze(m) {
   const sigIdx = [];
   for (let c = 0; c < nc; c++) {
     const cw = cx1[c] - cx0[c] + 1, ch = cy1[c] - cy0[c] + 1, a = carea[c];
-    if (a < noiseA) { cls[c] = C_NOISE; continue; }
+    // ノイズ：芯が小さく、短いもの（ホコリの点など）。かすれた線は芯が小さくても長さがあるので残す
+    if (ccore[c] < noiseA && Math.max(cw, ch) < 1.5 * pxmm) { cls[c] = C_NOISE; continue; }
     // スキャン端の影：領域の端に接し、端からの奥行きが浅い
     const edge =
       (cx0[c] <= R.x0 && cx1[c] - R.x0 < w * 0.03) ||
@@ -275,8 +382,48 @@ function analyze(m) {
       continue;
     }
     cls[c] = C_SIG;
-    sigCount++; sigArea += a; sigIdx.push(c);
-    if (a > bigArea) bigArea = a;
+    sigIdx.push(c);
+  }
+
+  // 孤立した小さな点（1.2mm 未満で、3mm 以内に他に何もない）はホコリとみなす。文字の点や句読点は近くに文字がある
+  {
+    const G = Math.max(4, Math.round(3 * pxmm)), gw = Math.ceil(w / G), gh = Math.ceil(h / G);
+    const cells = new Map();
+    for (const c of sigIdx) {
+      const gx0 = (cx0[c] / G) | 0, gx1 = Math.min(gw - 1, (cx1[c] / G) | 0), gy0 = (cy0[c] / G) | 0, gy1 = Math.min(gh - 1, (cy1[c] / G) | 0);
+      if ((gx1 - gx0 + 1) * (gy1 - gy0 + 1) > 400) continue;
+      for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
+        const key = gy * gw + gx;
+        let l = cells.get(key); if (!l) cells.set(key, l = []);
+        l.push(c);
+      }
+    }
+    const small = 1.2 * pxmm;
+    const isolated = c => {
+      const gx = ((cx0[c] + cx1[c]) / 2 / G) | 0, gy = ((cy0[c] + cy1[c]) / 2 / G) | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const l = cells.get((gy + dy) * gw + gx + dx);
+        if (!l) continue;
+        for (const o of l) {
+          if (o === c) continue;
+          const gapX = Math.max(cx0[o] - cx1[c], cx0[c] - cx1[o]), gapY = Math.max(cy0[o] - cy1[c], cy0[c] - cy1[o]);
+          if (gapX <= G && gapY <= G) return false;
+        }
+      }
+      return true;
+    };
+    const big = sigIdx.length > 3000;  // 図形がとても多いページは内容ありが明らかなので省く
+    for (let k = sigIdx.length - 1; k >= 0 && !big; k--) {
+      const c = sigIdx[k];
+      if (Math.max(cx1[c] - cx0[c] + 1, cy1[c] - cy0[c] + 1) < small && isolated(c)) { cls[c] = C_NOISE; sigIdx.splice(k, 1); }
+    }
+  }
+  for (const c of sigIdx) {
+    const cw = cx1[c] - cx0[c] + 1, ch = cy1[c] - cy0[c] + 1;
+    // インク量と大きさは芯で測る（薄い縁取りで膨らませない）。芯が無いかすれ線は全体の半分で数える
+    const ink = ccore[c] || carea[c] * 0.5;
+    sigCount++; sigArea += ink;
+    if (ink > bigArea) bigArea = ink;
     if (Math.max(cw, ch) > longExt) longExt = Math.max(cw, ch);
   }
 
@@ -417,6 +564,8 @@ function analyze(m) {
     verdict, reasons,
     cols, rows, tiles, w, h, region: [R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0],
     marks,
+    outside: outBoxes,
+    noise: Math.round(noiseSigma * 10) / 10,
   };
   const transfer = [];
   if (m.wantBinary) {
@@ -424,9 +573,22 @@ function analyze(m) {
     const out = new Uint8Array(N);
     for (let i = 0; i < N; i++) if (lab[i]) out[i] = cls[lab[i] - 1] === C_SIG ? 2 : 1;
     result.binary = out;
-    transfer.push(out.buffer);
+    result.pre = den;
+    transfer.push(out.buffer, den.buffer);
   }
   return { result, transfer };
+}
+
+// 3x3 のクロージング（膨張→収縮）。判定対象の領域 R の中だけ処理する
+function closing3(bin, w, h, R) {
+  const N = w * h, a = new Uint8Array(N), b = new Uint8Array(N);
+  const x0 = Math.max(1, R.x0), x1 = Math.min(w - 1, R.x1), y0 = Math.max(1, R.y0), y1 = Math.min(h - 1, R.y1);
+  // 膨張（横 → 縦）
+  for (let y = y0; y < y1; y++) for (let x = x0, i = y * w + x0; x < x1; x++, i++) a[i] = bin[i - 1] | bin[i] | bin[i + 1];
+  for (let y = y0; y < y1; y++) for (let x = x0, i = y * w + x0; x < x1; x++, i++) b[i] = a[i - w] | a[i] | a[i + w];
+  // 収縮（横 → 縦）
+  for (let y = y0; y < y1; y++) for (let x = x0, i = y * w + x0; x < x1; x++, i++) a[i] = b[i - 1] & b[i] & b[i + 1];
+  for (let y = y0 + 1; y < y1 - 1; y++) for (let x = x0 + 1, i = y * w + x0 + 1; x < x1 - 1; x++, i++) bin[i] = a[i - w] & a[i] & a[i + w];
 }
 
 // 近い枠同士をまとめる（x で並べて掃引し、間隔 gap 以内で重なるものを同じかたまりにする）

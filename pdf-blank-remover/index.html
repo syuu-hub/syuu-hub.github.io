@@ -494,6 +494,7 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
   .run-top{grid-template-columns:1fr;justify-items:center}
   .counters{width:100%}
   .ld-steps{grid-template-columns:repeat(2,1fr)}
+  #mMode button .ic{display:none}
   .fblocks{grid-template-columns:repeat(16,1fr)}
 }
 @media (max-width:420px){
@@ -799,6 +800,7 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
     <div class="seg" id="mMode" role="group" aria-label="表示">
       <button class="sl" data-v="orig" aria-pressed="true"><svg class="ic"><use href="#i-eye"/></svg>原本</button>
       <button class="sl" data-v="enh"><svg class="ic"><use href="#i-contrast"/></svg>強調</button>
+      <button class="sl" data-v="pre"><svg class="ic"><use href="#i-tune"/></svg>下処理</button>
       <button class="sl" data-v="bin"><svg class="ic"><use href="#i-bw"/></svg>2値化</button>
       <button class="sl" data-v="det"><svg class="ic"><use href="#i-search"/></svg>検出</button>
     </div>
@@ -1280,7 +1282,7 @@ function drawLiveBoxes(res) {
   if (!livePage._src) return;
   const ctx = livePage.getContext('2d'), s = livePage._scale;
   ctx.drawImage(livePage._src, 0, 0, livePage.width, livePage.height);
-  drawRegion(ctx, res.region, s, res.w, res.h);
+  drawRegion(ctx, res.region, s, res.w, res.h, res.outside);
   strokeBoxes(ctx, res.marks, s, TILE_COLORS[3], 1.5);
 }
 function initMap(cols, rows, tiles) {
@@ -1634,6 +1636,19 @@ function drawPreview() {
     ctx.filter = 'grayscale(1) contrast(6) brightness(1.02)';
     ctx.drawImage(src, 0, 0, mCanvas.width, mCanvas.height);
     ctx.filter = 'none';
+  } else if (pvMode === 'pre') {
+    // 下処理後の画像（紙の明るさをそろえ、ノイズをならしたもの）。これを2値化している
+    if (!pv.data.preCanvas) {
+      const c = document.createElement('canvas');
+      c.width = res.w; c.height = res.h;
+      const x = c.getContext('2d');
+      const img = x.createImageData(res.w, res.h);
+      const d = img.data, g = res.pre;
+      for (let k = 0, j = 0; k < g.length; k++, j += 4) { d[j] = d[j + 1] = d[j + 2] = g[k]; d[j + 3] = 255; }
+      x.putImageData(img, 0, 0);
+      pv.data.preCanvas = c;
+    }
+    ctx.drawImage(pv.data.preCanvas, 0, 0, mCanvas.width, mCanvas.height);
   } else if (pvMode === 'bin') {
     if (!pv.data.binCanvas) {
       const c = document.createElement('canvas');
@@ -1653,21 +1668,36 @@ function drawPreview() {
     ctx.imageSmoothingEnabled = s < 1;
     ctx.drawImage(pv.data.binCanvas, 0, 0, mCanvas.width, mCanvas.height);
   }
-  if (pvMode === 'det' || pvMode === 'bin') {
-    drawRegion(ctx, res.region, s, res.w, res.h);
-  }
+  if (pvMode !== 'orig' && pvMode !== 'enh') drawRegion(ctx, res.region, s, res.w, res.h, res.outside);
   if (pvMode === 'det') {
     strokeBoxes(ctx, res.marks, s, TILE_COLORS[3], Math.max(1.5, s * 2.4));
   }
 }
-function drawRegion(ctx, rg, s, w, h) {
-  ctx.save();
-  ctx.fillStyle = 'rgba(40,44,52,.4)';
-  ctx.beginPath();
-  ctx.rect(0, 0, w * s, h * s);
-  ctx.rect(rg[0] * s, rg[1] * s, rg[2] * s, rg[3] * s);
-  ctx.fill('evenodd');
-  ctx.restore();
+// 判定しない範囲（外周・ヘッダー/フッター・用紙の外側）を暗くして斜線を引く
+function drawRegion(ctx, rg, s, w, h, outside) {
+  const W = w * s, H = h * s;
+  const hatch = clip => {
+    ctx.save();
+    ctx.beginPath(); clip();
+    ctx.fillStyle = 'rgba(40,44,52,.45)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)';
+    ctx.lineWidth = Math.max(1, s * 1.5);
+    const step = Math.max(6, 24 * s);
+    ctx.beginPath();
+    for (let k = -H; k < W; k += step) { ctx.moveTo(k, 0); ctx.lineTo(k + H, H); }
+    ctx.stroke();
+    ctx.restore();
+  };
+  // 外周・ヘッダー/フッター
+  hatch(() => { ctx.rect(0, 0, W, H); ctx.rect(rg[0] * s, rg[1] * s, rg[2] * s, rg[3] * s); ctx.clip('evenodd'); });
+  // 用紙の外側（判定範囲の中にかかる部分だけ。外周と重なる部分は上で塗ってある）
+  if (outside && outside.length) hatch(() => {
+    ctx.rect(rg[0] * s, rg[1] * s, rg[2] * s, rg[3] * s); ctx.clip();
+    ctx.beginPath();
+    for (const o of outside) ctx.rect(o[0] * s, o[1] * s, o[2] * s, o[3] * s);
+    ctx.clip();
+  });
 }
 function strokeBoxes(ctx, boxes, s, color, lw) {
   if (!boxes || !boxes.length) return;
