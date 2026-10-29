@@ -55,10 +55,8 @@
   --s-wait:#2E3138;      /* 未処理 */
   --s-err:#B0405A;
 
-  /* 解析マップのタイル */
-  --t-empty:#23262C;
-  --t-excl:#0C0E13;
-  --t-ink:#5B8DEF;
+  /* 検出結果の枠 */
+  --mark:#5B8DEF;
 
   --font: "Noto Sans JP", system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
   --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
@@ -101,9 +99,7 @@
     --s-wait:#D3D6DD;
     --s-err:#B0405A;
 
-    --t-empty:#E2E4EA;
-    --t-excl:#F7F7FB;
-    --t-ink:#2F6FE0;
+    --mark:#2F6FE0;
     color-scheme: light;
   }
 }
@@ -329,7 +325,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
 .meta-row .grow{flex:1}
 
-.live{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+.live{max-width:440px;margin:20px auto 0}
 .pane{background:var(--md-surface-container);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .pane-head{display:flex;align-items:center;gap:8px;min-height:28px}
 .pane-head .grow{flex:1;min-width:0;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -722,15 +718,10 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
         <div class="pane-head"><span class="grow mono" id="liveName">—</span></div>
         <div class="stage"><canvas id="livePage"></canvas></div>
       </div>
-      <div class="pane">
-        <div class="pane-head"><span class="grow">解析マップ</span></div>
-        <div class="stage"><canvas id="liveMap"></canvas></div>
+      <div class="legend" style="margin-top:12px;justify-content:center">
+        <span class="lg"><i style="box-shadow:inset 0 0 0 2px var(--mark)"></i>検出あり</span>
+        <span class="lg"><i style="background:repeating-linear-gradient(135deg,var(--md-outline) 0 2px,transparent 2px 4px)"></i>判定しない範囲</span>
       </div>
-    </div>
-    <div class="legend" style="margin-top:12px">
-      <span class="lg"><i style="background:var(--t-ink)"></i>検出あり</span>
-      <span class="lg"><i style="background:var(--t-empty);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>何もない</span>
-      <span class="lg"><i style="background:var(--t-excl);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"></i>判定しない範囲</span>
     </div>
   </section>
 
@@ -834,10 +825,8 @@ const VERDICT_LABEL = { content: '内容あり', blank: '空白', review: '要�
 const VERDICT_ICON = { content: 'doc', blank: 'blank', review: 'help', error: 'error' };
 const ic = (name, cls = '') => `<svg class="ic ${cls}"><use href="#i-${name}"/></svg>`;
 const cssVar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-// 解析マップのタイル：0=何もない 1=判定しない範囲 3=検出あり（2は欠番）
-const tileColors = () => ['--t-empty', '--t-excl', '--t-empty', '--t-ink'].map(cssVar);
-let TILE_COLORS = tileColors();
-matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', () => { TILE_COLORS = tileColors(); renderMap(); drawScope(); });
+let MARK = cssVar('--mark');
+matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', () => { MARK = cssVar('--mark'); drawScope(); });
 
 // ---------------- リップル ----------------
 document.addEventListener('pointerdown', e => {
@@ -1201,15 +1190,14 @@ class Analyzer {
       if (!job) return;
       if (m.type === 'done') { this.jobs.delete(m.id); job.resolve(m.result); }
       else if (m.type === 'error') { this.jobs.delete(m.id); job.reject(new Error(m.message)); }
-      else job.onProgress && job.onProgress(m);
     };
     this.w.onerror = e => { for (const j of this.jobs.values()) j.reject(new Error(e.message || 'worker')); this.jobs.clear(); };
   }
-  run(r, { wantBinary = false, onProgress } = {}) {
+  run(r, { wantBinary = false } = {}) {
     const id = ++this.seq;
     const img = r.ctx.getImageData(0, 0, r.canvas.width, r.canvas.height);
     return new Promise((resolve, reject) => {
-      this.jobs.set(id, { resolve, reject, onProgress });
+      this.jobs.set(id, { resolve, reject });
       this.w.postMessage({
         cmd: 'analyze', id, w: img.width, h: img.height, buf: img.data.buffer, dpi: r.dpi, wantBinary,
         textItems: r.textItems,
@@ -1267,8 +1255,7 @@ function log(msg, cls = '') {
 }
 
 // ---------------- ライブ表示 ----------------
-const livePage = $('livePage'), liveMap = $('liveMap');
-let mapState = null;
+const livePage = $('livePage');
 function drawLivePage(canvas) {
   const box = livePage.parentElement.getBoundingClientRect();
   const s = Math.min((box.width || 200) * 2 / canvas.width, (box.height || 240) * 2 / canvas.height, 1);
@@ -1283,47 +1270,8 @@ function drawLiveBoxes(res) {
   const ctx = livePage.getContext('2d'), s = livePage._scale;
   ctx.drawImage(livePage._src, 0, 0, livePage.width, livePage.height);
   drawRegion(ctx, res.region, s, res.w, res.h, res.outside);
-  strokeBoxes(ctx, res.marks, s, TILE_COLORS[3], 1.5);
+  strokeBoxes(ctx, res.marks, s, MARK, 1.5);
 }
-function initMap(cols, rows, tiles) {
-  mapState = { cols, rows, tiles: Uint8Array.from(tiles), scan: -1 };
-  const box = liveMap.parentElement.getBoundingClientRect();
-  const cs = Math.max(4, Math.floor(Math.min((box.width || 200) / cols, (box.height || 240) / rows) * 2));
-  liveMap.width = cols * cs; liveMap.height = rows * cs;
-  mapState.cs = cs;
-  renderMap();
-}
-function renderMap() {
-  if (!mapState) return;
-  const { cols, rows, tiles, cs, scan } = mapState;
-  const ctx = liveMap.getContext('2d');
-  ctx.clearRect(0, 0, liveMap.width, liveMap.height);
-  const g = Math.max(1, Math.round(cs / 6)), r = Math.max(1, cs / 5);
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-    ctx.fillStyle = TILE_COLORS[tiles[y * cols + x]];
-    roundRect(ctx, x * cs + g / 2, y * cs + g / 2, cs - g, cs - g, r);
-  }
-  if (scan >= 0 && scan < rows - 1) {
-    ctx.fillStyle = cssVar('--s-active');
-    ctx.fillRect(0, (scan + 1) * cs - g, liveMap.width, Math.max(3, g * 2));
-  }
-}
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
-  ctx.fill();
-}
-let mapRaf = 0;
-function queueMap() { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; renderMap(); }); }
-function onProgress(m) {
-  if (m.type === 'grid') initMap(m.cols, m.rows, m.tiles);
-  else if (m.type === 'band' && mapState) {
-    mapState.tiles.set(m.data, m.row * mapState.cols);
-    mapState.scan = m.row;
-    queueMap();
-  }
-}
-
 // ---------------- 統計 ----------------
 let t0 = 0;
 const RING = 326.73;
@@ -1361,8 +1309,6 @@ async function start() {
   pages.forEach(p => { p.status = 'wait'; p.verdict = null; p.del = false; p.result = null; p.thumb = null; });
   $('bSpeed').textContent = '—'; $('bEta').textContent = '—';
   logEl.innerHTML = '';
-  mapState = null;
-  liveMap.getContext('2d').clearRect(0, 0, liveMap.width, liveMap.height);
   show('run');
   buildDisk();
   t0 = performance.now();
@@ -1387,7 +1333,7 @@ async function start() {
     p.thumb = makeThumb(r.canvas);
     $('liveName').textContent = `p.${p.n}`;
     drawLivePage(r.canvas);
-    pending = mainAnalyzer.run(r, { onProgress })
+    pending = mainAnalyzer.run(r)
       .then(res => finish(p, res))
       .catch(err => fail(p, err));
   }
@@ -1411,7 +1357,6 @@ function finish(p, res) {
   p.del = res.verdict === 'blank';
   p.result = { reasons: res.reasons };
   paintCell(p);
-  if (mapState) { mapState.tiles = res.tiles; mapState.scan = -1; renderMap(); }
   drawLiveBoxes(res);
   const cls = { blank: 'b', review: 'r', content: 'c' }[res.verdict];
   log(`p.${p.n}  ${VERDICT_LABEL[res.verdict]}  ${res.reasons.join(' / ')}`, cls);
@@ -1670,7 +1615,7 @@ function drawPreview() {
   }
   if (pvMode !== 'orig' && pvMode !== 'enh') drawRegion(ctx, res.region, s, res.w, res.h, res.outside);
   if (pvMode === 'det') {
-    strokeBoxes(ctx, res.marks, s, TILE_COLORS[3], Math.max(1.5, s * 2.4));
+    strokeBoxes(ctx, res.marks, s, MARK, Math.max(1.5, s * 2.4));
   }
 }
 // 判定しない範囲（外周・ヘッダー/フッター・用紙の外側）を暗くして斜線を引く
