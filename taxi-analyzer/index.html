@@ -240,8 +240,7 @@ svg{display:block}
 /* 折り返し・はみ出し防止：短いラベルは1行で、長い内容は … で省略 */
 .btn,.seg button,.badge,.close-btn,.chev,.opt,.fold-h .t,.setting .k,.sec-h h3,.glabel > *,.view-head h2{white-space:nowrap}
 .ell{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.setting > div:first-child{min-width:0;flex:1}
-.setting .d{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.setting > .k{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.danger{color:var(--danger);border-color:rgba(255,107,107,.4);background:transparent}
 .btn.ghost{background:transparent}
@@ -362,7 +361,7 @@ svg{display:block}
 .ana-card h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;white-space:nowrap}
 .ana-card h3 small{font-weight:500;letter-spacing:0;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
 .ana-tip{font-size:13px;color:var(--text);min-height:1.5em;margin-top:8px;line-height:1.5}   /* 数値の説明は省略せず折り返す */
-.ana-tip:empty::before{content:"グラフをタップすると数値を表示";color:var(--faint)}
+.ana-tip:empty{display:none}
 .ana-note{font-size:12px;color:var(--faint);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-empty{padding:28px 8px;text-align:center;color:var(--faint);font-size:14px;line-height:1.7}
 .ana-aim{background:linear-gradient(135deg,rgba(255,176,32,.22),rgba(255,176,32,.06));border:1px solid rgba(255,176,32,.45);border-radius:var(--r-md);padding:14px 16px;margin-bottom:8px}
@@ -418,9 +417,6 @@ svg{display:block}
 .kpi .s{font-size:10.5px;letter-spacing:-.02em;color:var(--faint);margin-top:2px;line-height:1.3}
 .plist .a small{font-size:11px;color:var(--muted);margin-left:1px;font-weight:600}
 .ana-note.wrap{white-space:normal;line-height:1.5}
-.ana-method summary{font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;min-height:24px}
-.ana-method ul{margin:10px 0 0 1.1em;display:grid;gap:8px;font-size:13px;color:var(--muted);line-height:1.6}
-.ana-method b{color:var(--text)}
 /* 縦棒（時間帯）・推移 */
 .axis{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;font-size:10px;color:var(--faint);margin-top:4px;font-variant-numeric:tabular-nums}
 .axis span{text-align:left;white-space:nowrap}
@@ -514,7 +510,6 @@ svg{display:block}
 .setting:last-child{border-bottom:0}
 .setting .k{font-size:15px}
 .setting .btn{white-space:nowrap;flex:none}
-.setting .d{font-size:12px;color:var(--faint);margin-top:2px}
 .switch{width:56px;height:34px;border-radius:999px;background:var(--surface-3);position:relative;flex:none;transition:background .2s}
 .switch::after{content:"";position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
 .switch[aria-checked="true"]{background:var(--accent)}
@@ -989,42 +984,42 @@ svg{display:block}
         <button class="btn danger" style="width:100%" id="shiftBtn">入庫（営業終了）</button>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>日報・出力</h3><span class="aside">CSVはExcel対応</span></div>
+        <div class="sec-h"><h3>CSV出力</h3></div>
         <div class="btn-col">
-          <button class="btn stack" data-export="log-all">営業ログ（全期間）<span class="hint">乗車・ステータスを時系列で</span></button>
+          <button class="btn stack" data-export="log-all">営業ログ（全期間）</button>
           <div class="btn-grid">
-            <button class="btn stack" data-export="log-shift">営業ログ<span class="hint">このシフトのみ</span></button>
-            <button class="btn stack" data-export="summary">日報サマリー<span class="hint">シフト別の集計</span></button>
+            <button class="btn stack" data-export="log-shift">営業ログ（今回）</button>
+            <button class="btn stack" data-export="summary">日報サマリー</button>
           </div>
         </div>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>設定</h3><span class="aside">タップで開く</span></div>
+        <div class="sec-h"><h3>設定</h3></div>
         <div class="fold" id="gWork">
           <button class="fold-h" aria-expanded="false" aria-controls="gWorkB"><span class="t">営業・勤務</span><span class="s num" id="gWorkSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gWorkB" hidden>
           <div class="setting">
-          <div><div class="k">月の目標金額</div><div class="d">1日の必要額を自動計算・0でなし</div></div>
+          <div class="k">月の目標金額</div>
           <button class="btn sm num" id="monthGoalBtn">未設定</button>
         </div>
           <div class="setting">
-          <div><div class="k">高額乗車の基準</div><div class="d">分析で使う・0で自動</div></div>
+          <div class="k">高額乗車の基準</div>
           <button class="btn sm num" id="hiFareBtn">自動</button>
         </div>
           <div class="setting">
-          <div><div class="k">締め日</div><div class="d" id="closingDesc"></div></div>
+          <div class="k">締め日</div>
           <button class="btn sm num" id="closingBtn">末日</button>
         </div>
           <div class="setting">
-          <div><div class="k">月の労働時間の上限</div><div class="d">暦月ごと・0で上限なし</div></div>
+          <div class="k">月の労働時間の上限</div>
           <button class="btn sm num" id="hoursCapBtn">288時間</button>
         </div>
           <div class="setting">
-          <div><div class="k">1日の予定労働時間</div><div class="d">カレンダーの予定に反映</div></div>
+          <div class="k">1日の予定労働時間</div>
           <button class="btn sm num" id="dayHoursBtn">未設定</button>
         </div>
           <div class="setting hol-setting">
-          <div><div class="k">固定休日</div><div class="d">複数選択・残り出勤日数に反映</div></div>
+          <div class="k">固定休日</div>
           <div class="seg hol" id="holidaySeg"></div>
         </div>
           </div>
@@ -1040,16 +1035,16 @@ svg{display:block}
         <button class="btn sm" style="width:100%;margin-top:10px" id="ticketAddBtn">＋ チケットを追加</button>
           <div class="sub-h">遠距離割</div>
           <div class="setting">
-          <div><div class="k">遠距離割を自動で適用</div><div class="d">超えた分の1割を差し引き</div></div>
-          <button class="switch" role="switch" aria-checked="true" data-setting="longOn" aria-label="遠距離割を自動で適用"></button>
+          <div class="k">遠距離割</div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="longOn" aria-label="遠距離割"></button>
         </div>
           <div class="setting" id="longFromRow">
-          <div><div class="k">適用する金額</div><div class="d">この金額を超えた分が対象</div></div>
+          <div class="k">遠距離割の基準</div>
           <button class="btn sm num" id="longFromBtn">¥9,000</button>
         </div>
           <div class="sub-h">配車アプリ</div>
           <div class="setting">
-          <div><div class="k">迎車料金（会社共通）</div><div class="d">アプリ配車の総額から差し引き</div></div>
+          <div class="k">迎車料金</div>
           <button class="btn sm num" id="pickupFeeBtn">¥0</button>
         </div>
         <ul class="list" id="appList"></ul>
@@ -1060,27 +1055,27 @@ svg{display:block}
           <button class="fold-h" aria-expanded="false" aria-controls="gInputB"><span class="t">入力・表示</span><span class="s num" id="gInputSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gInputB" hidden>
           <div class="setting">
-          <div><div class="k">減光モード</div><div class="d">夜間の車内向け</div></div>
+          <div class="k">減光モード</div>
           <button class="switch" role="switch" aria-checked="false" data-setting="dim" aria-label="減光モード"></button>
         </div>
           <div class="setting">
-          <div><div class="k">画面を常時点灯</div><div class="d">営業中はスリープしない</div></div>
+          <div class="k">画面を常時点灯</div>
           <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
         </div>
           <div class="setting hol-setting">
-          <div><div class="k">待機・休憩の表記</div><div class="d">ボタン・履歴などの名前</div></div>
+          <div class="k">待機・休憩の表記</div>
           <div class="seg hol" id="pauseLabelSeg"><button data-pl="both">待機・休憩</button><button data-pl="wait">待機</button><button data-pl="rest">休憩</button></div>
         </div>
           <div class="setting hol-setting">
-          <div><div class="k">履歴の並び順</div><div class="d">乗車・待機・休憩の順番</div></div>
+          <div class="k">履歴の並び順</div>
           <div class="seg hol" id="histOrderSeg"><button data-ho="asc">古い順</button><button data-ho="desc">新しい順</button></div>
         </div>
           <div class="setting">
-          <div><div class="k">GPSを住所に変換</div><div class="d">通信時のみ・国土地理院</div></div>
-          <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="GPSを住所に変換"></button>
+          <div class="k">住所を自動で取得</div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="住所を自動で取得"></button>
         </div>
           <div class="setting">
-          <div><div class="k">駅で乗車したら「乗り場」</div><div class="d">乗車種別を自動で切替</div></div>
+          <div class="k">駅で乗車したら「乗り場」</div>
           <button class="switch" role="switch" aria-checked="true" data-setting="stationStand" aria-label="駅で乗車したら乗り場"></button>
         </div>
           </div>
@@ -1089,7 +1084,7 @@ svg{display:block}
           <button class="fold-h" aria-expanded="false" aria-controls="gPlacesB"><span class="t">場所データ</span><span class="s num" id="gPlacesSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gPlacesB" hidden>
           <div class="setting">
-          <div><div class="k">施設・場所を検索して編集</div><div class="d">GitHubに保存・端末には残さない</div></div>
+          <div class="k">場所の検索・編集</div>
           <button class="btn sm" id="placeDbBtn">開く</button>
         </div>
           </div>
@@ -1141,8 +1136,8 @@ svg{display:block}
         <div class="keypad" id="eKeys"></div>
         <!-- 割引・高速代は金額に関わるので金額の入力と一緒に -->
         <div class="disc" aria-label="割引・高速代">
-          <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub">運賃の1割</small></button>
-          <button class="opt" id="eToll" aria-pressed="false">高速代<small id="eTollSub">売上外</small></button>
+          <button class="opt" id="eDiscHandi" aria-pressed="false">障害者割<small id="eDiscHandiSub"></small></button>
+          <button class="opt" id="eToll" aria-pressed="false">高速代<small id="eTollSub"></small></button>
         </div>
       </section>
 
@@ -1171,13 +1166,13 @@ svg{display:block}
         <div class="group">
           <div class="glabel">乗車種別</div>
           <div class="opts kind" id="eKind"></div>
-          <button class="opt no-pick" id="eNoPick" aria-pressed="false" hidden>迎車なし<small>メーターの迎車を押し忘れた時</small></button>
+          <button class="opt no-pick" id="eNoPick" aria-pressed="false" hidden>迎車なし</button>
         </div>
         <div class="group">
           <div class="glabel">決済方法</div>
           <div class="opts pay" id="ePay"></div>
           <div class="tickets" id="eTicketWrap" hidden>
-            <div class="glabel" style="margin-top:10px"><span>チケットの種類</span><span>設定で追加・編集</span></div>
+            <div class="glabel" style="margin-top:10px"><span>チケットの種類</span></div>
             <div class="opts tk" id="eTicket"></div>
           </div>
         </div>
@@ -1304,7 +1299,7 @@ svg{display:block}
       <input class="text-in" id="payName" placeholder="例：PayPay" maxlength="12" enterkeyhint="next">
     </div>
     <div class="group">
-      <div class="glabel"><span>補足（任意）</span><span>ボタンに小さく表示</span></div>
+      <div class="glabel"><span>補足</span></div>
       <input class="text-in" id="paySub" placeholder="例：QRコード" maxlength="16" enterkeyhint="done">
     </div>
     <footer class="e-foot">
@@ -1328,18 +1323,18 @@ svg{display:block}
       <input class="text-in" id="appName" placeholder="例：GO" maxlength="16" enterkeyhint="done">
     </div>
     <div class="group">
-      <div class="glabel"><span>アプリ手数料</span><span>総額から差し引く</span></div>
+      <div class="glabel"><span>アプリ手数料</span></div>
       <div class="fields">
         <button class="field" id="appFee"><span class="k">アプリ内決済の時</span><span class="v num">¥0</span></button>
         <button class="field" id="appFeeOther"><span class="k">それ以外の決済の時</span><span class="v num">¥0</span></button>
       </div>
     </div>
     <div class="group">
-      <div class="glabel"><span>アプリ内決済にあたる支払い</span><span>GOなら GO Pay</span></div>
+      <div class="glabel"><span>アプリ内決済</span></div>
       <div class="opts pay" id="appOwnPay"></div>
     </div>
     <div class="group">
-      <div class="glabel"><span>デフォルト決済方法</span><span>選んだ時に自動で適用</span></div>
+      <div class="glabel"><span>既定の決済</span></div>
       <div class="opts pay" id="appPay"></div>
     </div>
     <footer class="e-foot">
@@ -1385,11 +1380,11 @@ svg{display:block}
       <input class="text-in" id="mpAddr" placeholder="例：神戸市中央区三宮町1丁目1-1" maxlength="80" autocomplete="off" enterkeyhint="next">
     </div>
     <div class="group">
-      <div class="glabel"><span>別の呼び名</span><span>任意・「、」区切り</span></div>
+      <div class="glabel"><span>別の呼び名</span></div>
       <input class="text-in" id="mpAlias" placeholder="例：まるまるビル、〇〇" maxlength="120" autocomplete="off" enterkeyhint="next">
     </div>
     <div class="group">
-      <div class="glabel"><span>メモ</span><span>任意・候補に表示</span></div>
+      <div class="glabel"><span>メモ</span></div>
       <input class="text-in" id="mpNote" placeholder="例：北側の入口" maxlength="40" autocomplete="off" enterkeyhint="done">
     </div>
     <footer class="e-foot">
@@ -1700,7 +1695,7 @@ function hyogoSuggest(q) {
       if (t.startsWith(q)) list.push({ v: '兵庫県' + c.n + t, label: t, sub: c.n });
     }
   }
-  return list.length ? { list } : { hint: '兵庫県内の候補はありません（そのまま入力できます）' };
+  return list.length ? { list } : { hint: '候補なし' };
 }
 
 /* ============================================================
@@ -2465,7 +2460,7 @@ function goalHtml(sales, pdays, to) {
     <div class="top"><span>月の目標</span><span class="v">${Math.floor(r * 100)}<small>% / ${yen(g)}</small></span></div>
     <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div>
     <div class="cr">${left > 0 ? `<span>あと <b>${yen(left)}</b></span>${days ? `<span>1日 <b>${yen(Math.ceil(left / days))}</b> ×${days}日</span>` : ''}` : `<span><b class="ok">達成</b>（＋${yen(-left)}）</span>`}</div>
-    ${left > 0 ? `<div class="cap-note">締め日 ${to.getMonth() + 1}/${to.getDate()} まで・固定休を除く${days ? '' : '（残りの出勤日なし）'}</div>` : ''}
+    ${left > 0 ? `<div class="cap-note">〜${to.getMonth() + 1}/${to.getDate()}${days ? '' : '・残りの出勤日なし'}</div>` : ''}
   </div>`;
 }
 // 労働時間のカード：実績＋予定（残りの出勤予定日×1日の予定時間）＝見込みを上限と比べる
@@ -2537,7 +2532,7 @@ function renderCal() {
   }
   $('#calGrid').innerHTML = html;
 
-  $('#calDay').innerHTML = '<div class="cal-hint">日付をタップでその日の履歴へ</div>';
+  $('#calDay').innerHTML = '';
 }
 
 function openCal(t = Date.now()) {
@@ -2719,13 +2714,13 @@ function renderLog() {
   $('#pauseFilter').setAttribute('aria-pressed', !!S.settings.histPause);
   const list = $('#rideList');
   if (!st || (!st.rides.length && !st.pauses.length)) {
-    list.innerHTML = `<li class="empty">${!sh ? '出庫前です。ホームの「出庫」から営業を開始します。' : sh === curShift() ? 'まだ乗車記録はありません。<br>「実車」→「空車」で記録できます' : 'この日の乗車記録はありません。'}</li>`;
+    list.innerHTML = `<li class="empty">${!sh ? '出庫前' : '乗車なし'}</li>`;
     return;
   }
   // 乗車と待機・休憩を設定の順（既定は古い順）に並べる（待機・休憩は開始時刻で、フィルタで表示した時のみ）
   const showPause = !!S.settings.histPause, dir = S.settings.histOrder === 'desc' ? -1 : 1;
   const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => (a.t - b.t) * dir);
-  if (!items.length) { list.innerHTML = `<li class="empty">まだ乗車記録はありません。<br>${PL()}は「${PL()}も表示」で確認できます。</li>`; return; }
+  if (!items.length) { list.innerHTML = '<li class="empty">乗車なし</li>'; return; }
   // 1件＝1カード。情報の順位：①時刻と金額 ②乗車地→降車地 ③決済・種別
   const top = (t1, t2, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span><span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
   const route = (a, b) => `<div class="rc-route"><div class="rc-pl from">${esc(a)}</div><div class="rc-pl to">${esc(b)}</div></div>`;
@@ -2911,7 +2906,7 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
     const rideMin = timed.length ? mean(timed.map(r => effOf.get(r.id).ride)) : 15;
     const limit = Math.round(fare / perHour * 60 - rideMin);
     const waitAvg = timed.length >= 3 ? Math.round(mean(timed.map(r => effOf.get(r.id).wait))) : null;
-    if (limit > 0) standLine = `<li><span class="ic st">待</span><div>乗り場は <b class="num">${limit}分</b> まで<small>${waitAvg != null ? `いまの平均 ${waitAvg}分・${waitAvg > limit ? '待ちすぎ。流しや無線へ' : 'この調子で'}` : 'これより長く待つと平均より効率が下がります'}</small></div></li>`;
+    if (limit > 0) standLine = `<li><span class="ic st">待</span><div>乗り場は <b class="num">${limit}分</b> まで${waitAvg != null ? `<small>いま平均${waitAvg}分${waitAvg > limit ? '・待ちすぎ' : ''}</small>` : ''}</div></li>`;
   }
   // 働く長さ：日ごとの1時間あたりと営業時間の相関
   let hoursLine = '';
@@ -2920,7 +2915,7 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
     const mx = mean(hd.map(d => d.x)), my = mean(hd.map(d => d.y));
     const cov = mean(hd.map(d => (d.x - mx) * (d.y - my))), sx = Math.sqrt(mean(hd.map(d => (d.x - mx) ** 2))), sy = Math.sqrt(mean(hd.map(d => (d.y - my) ** 2)));
     const r = sx && sy ? cov / (sx * sy) : 0;
-    if (r <= -0.25) hoursLine = `<li><span class="ic tm">時</span><div>調子の良い日は <b>長めに</b> 走る<small>良い日ほど早く上がる傾向（相関 ${r.toFixed(2)}）。悪い日は早めに切り上げを</small></div></li>`;
+    if (r <= -0.25) hoursLine = `<li><span class="ic tm">時</span><div>調子の良い日は <b>長めに</b> 走る</div></li>`;
   }
   // 稼ぎどきが隣り合う時間なら1行にまとめる（例：20-23時と23-2時 → 20-2時）
   const goIdx = goSlots.map(s => HEAT_BLOCKS.indexOf(s.b));
@@ -2928,15 +2923,15 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   const goRow = g => {
     const hs = new Set(g.flatMap(s => s.b.hs)), pl = demandPlaces(A.rides.filter(r => hs.has(new Date(r.start || r.ts).getHours())), hiFrom).filter(c => c.name && c.n >= 2).slice(0, 2);
     const label = `${g[0].b.s}-${(g.at(-1).b.s + 3) % 24}`, lo = Math.min(...g.map(s => s.rate)), hi = Math.max(...g.map(s => s.rate));
-    return `<li><span class="ic go">▲</span><div><b>${label}時</b> ${g[0].weak ? 'がいちばん良い' : 'に走る'} <span class="num">${g.length > 1 ? k1(lo) + '〜' + k1(hi) : k1(hi)}千円/時</span>${pl.length ? `<small>よく乗せる場所：${pl.map(c => esc(placeName(c))).join('・')}</small>` : ''}</div></li>`;
+    return `<li><span class="ic go">▲</span><div><b>${label}時</b> ${g[0].weak ? 'がいちばん良い' : 'に走る'} <span class="num">${g.length > 1 ? k1(lo) + '〜' + k1(hi) : k1(hi)}千円/時</span>${pl.length ? `<small>${pl.map(c => esc(placeName(c))).join('・')}</small>` : ''}</div></li>`;
   };
   const html = `<div class="ana-card plan">
       <div class="phead"><span class="pk">次の営業</span><span class="pday">${dayLbl ? dayLbl + ' ' : ''}${nd.getMonth() + 1}/${nd.getDate()}（${WEEKDAYS[dow]}）</span></div>
       <div class="pexp"><span class="v num">${r100(est)}</span><span class="r">見込み</span>${pGoal != null ? `<span class="pg num">目標達成 ${Math.round(pGoal * 100)}%</span>` : ''}</div>
-      <div class="pr num">半分の日は ${r100(q1)}〜${r100(q3)}${sameV.length >= 3 ? `（${wname}の${sameV.length}日）` : '（全体から）'}</div>
+      <div class="pr num">${r100(q1)}〜${r100(q3)}</div>
       <ul class="plist">
         ${goGroups.map(goRow).join('')}
-        ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に<small>平均の${(restSlot.rate / Math.max(1, perHour)).toFixed(1)}倍。食事・給油もこの時間に</small></div></li>` : ''}
+        ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に</div></li>` : ''}
         ${standLine}${hoursLine}
       </ul>
       <div class="tipgrp">
@@ -2955,7 +2950,7 @@ function renderAnalysis() {
   $$('#anaRange [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === range));
   const A = analyze(range), body = $('#anaBody'), D = A.dayList;
   if (D.length < 2 || A.rides.length < 3) {
-    body.innerHTML = `<div class="ana-card"><div class="ana-empty">記録がたまるとグラフが表示されます<br><span class="num">（いま ${D.length}日・${A.rides.length}件）</span></div></div>`;
+    body.innerHTML = `<div class="ana-card"><div class="ana-empty">記録がまだ少ないです<br><span class="num">${D.length}日・${A.rides.length}件</span></div></div>`;
     return;
   }
   const kv = n => n >= 100000 ? compactYen(n) : yen(n);
@@ -3006,7 +3001,6 @@ function renderAnalysis() {
     return { ...c, avg: c.sales / c.n, wait: tr.length ? mean(tr.map(r => effOf.get(r.id).wait)) : null,
       eff: tr.length >= 3 ? shrink(sumOf(tr, r => r.total), mins / 60, perHour, 1) : null, hiR: shrink(c.hi, c.n, hiP0, 5) };
   });
-  const unknownN = sumOf(allPl.filter(c => !c.name), c => c.n);
   const PS = { eff: { k: 'eff', label: '時間効率', note: '待ち時間込み・推定/時', v: c => c.eff, fmt: c => `${kv(Math.round(c.eff))}<small>/時</small>` },
                n: { k: 'n', label: '回数', note: '乗せた回数', v: c => c.n, fmt: c => `${c.n}<small>回</small>` },
                hi: { k: 'hi', label: '高額', note: `${hiFrom >= 100000 ? compactYen(hiFrom) : yen(hiFrom)}以上の割合${hiAuto ? '・自動' : ''}`, v: c => c.hi ? c.hiR : null, fmt: c => `${Math.round(c.hi / c.n * 100)}<small>%</small>` } };
@@ -3042,10 +3036,10 @@ function renderAnalysis() {
       <div class="kpi"><div class="k">実車率</div><div class="v num">${Math.round(K.occ * 100)}<small>%</small></div>${delta('occ', true)}</div>
       <div class="kpi"><div class="k">1回あたり</div><div class="v num">${kv(Math.round(K.perRide))}</div>${delta('perRide')}</div>
     </div>
-    <div class="ana-note" style="margin:-4px 2px 8px">${D.length}日・${A.rides.length}回${P ? '・矢印は前の' + range + '日との比較' : ''}</div>
+    <div class="ana-note" style="margin:-4px 2px 8px">${D.length}日・${A.rides.length}回</div>
 
     <div class="ana-sh">くわしく見る</div>
-    ${fold('heat', '曜日×時間帯', heatTake, `<div class="af-note">千円/時・3時間ごと</div>
+    ${fold('heat', '曜日×時間帯（千円/時）', heatTake, `
       <div class="heat">
         <span></span>${HEAT_BLOCKS.map(b => `<span class="c num">${b.head}</span>`).join('')}
         <span class="r all">全</span>${allBlocks.map(c => c.rate == null
@@ -3060,20 +3054,19 @@ function renderAnalysis() {
         }).join('')).join('')}
       </div>
       <div class="heat-legend"><span>稼げない</span><span class="scale">${HEAT_LV.slice().reverse().map(l => `<i class="${l.cls}" title="${l.label}"></i>`).join('')}</span><span>稼げる</span>
-        <span class="avg">全体の平均 ${kv(Math.round(perHour))}/時を基準（±10%は平均並み）</span><span><i class="na"></i>記録が少ない</span></div>
+        <span>平均 ${kv(Math.round(perHour))}/時</span></div>
       <div class="ana-tip"></div>
 `)}
-    ${fold('place', '乗車地ランキング', plTake, `<div class="af-note">${ps.note}</div>
+    ${fold('place', '乗車地ランキング', plTake, `
       <div class="seg pl-sort" id="plSort">${Object.values(PS).map(x => `<button data-ps="${x.k}" aria-pressed="${x === ps}">${x.label}</button>`).join('')}</div>
       ${plRows.length ? `<ol class="prank">${plRows.map((c, i) => `<li>
         <span class="n num">${i + 1}</span>
         <span class="b"><span class="nm">${esc(placeName(c))}</span><span class="bar"><i style="width:${(ps.v(c) / plMax * 100).toFixed(1)}%"></i></span>
           <span class="sb num">${ps.k === 'hi' ? `高額${c.hi}/${c.n}回` : `${c.n}回`}・平均${kv(Math.round(c.avg))}${c.wait != null ? `・待ち${Math.round(c.wait)}分` : ''}</span></span>
         <span class="a num">${ps.fmt(c)}</span></li>`).join('')}</ol>`
-        : `<div class="ana-empty">${ps.k === 'eff' ? '乗車時刻のある乗車が3回以上ある場所を表示します' : ps.k === 'hi' ? '高額乗車がある場所を表示します' : '2回以上乗せた場所を表示します'}</div>`}
-      ${unknownN ? `<div class="ana-note wrap">ほかに住所が分からない乗車 ${unknownN}回</div>` : ''}
+        : `<div class="ana-empty">該当なし</div>`}
 `)}
-    ${kindList.length >= 2 ? fold('kind', '乗車の種類', kindTake, `<div class="af-note">売上の割合</div>
+    ${kindList.length >= 2 ? fold('kind', '乗車の種類（売上）', kindTake, `
       <div class="stack">${kindList.map((k, i) => `<i style="width:${(k.s / totSales * 100).toFixed(2)}%;background:${KIND_COL[Math.min(i, KIND_COL.length - 1)]}"></i>`).join('')}</div>
       <ul class="stack-leg">${kindList.map((k, i) => `<li><i style="background:${KIND_COL[Math.min(i, KIND_COL.length - 1)]}"></i><span>${esc(k.l)}</span><b class="num">${Math.round(k.s / totSales * 100)}%</b><small class="num">${k.n}回</small></li>`).join('')}</ul>
 `) : ''}
@@ -3089,17 +3082,7 @@ function renderAnalysis() {
       <div class="legend"><span><i class="dash"></i>1日あたり</span><span><i style="background:var(--accent)"></i>それより多い日</span><span><i style="background:#6B7584"></i>少ない日</span>${D.length >= 7 ? '<span><i style="background:var(--text)"></i>直近7日の平均</span>' : ''}</div>
       <div class="ana-tip"></div>
 `, 'trend')}
-    <details class="ana-card ana-method">
-      <summary>計算のしかた</summary>
-      <ul>
-        <li><b>1時間あたり</b>：売上 ÷ 営業時間（出庫〜入庫。待機・空車も含む）。矢印は直前の同じ長さの期間との比較</li>
-        <li><b>実車率</b>：お客さんを乗せていた時間（各乗車の乗車〜降車）÷ 待機・休憩を除いた営業時間</li>
-        <li><b>推定</b>：記録が少ない時間帯・場所は全体の平均に寄せて計算（経験ベイズの縮小推定）。たまたま1回良かっただけの所が上位に出にくくなります</li>
-        <li><b>時間効率</b>：その場所で乗せた売上 ÷（前の降車から乗車までの空車・待機時間 ＋ 乗車時間）。2時間を超える空きは休憩として2時間まで</li>
-        <li><b>次の営業プラン</b>：次に出る曜日の見込み売上（その曜日の中央値と真ん中の半分）、目標に届く割合、3時間ごとの1時間あたり（その曜日 → 全曜日の同じ時間 → 全体の平均 の順に寄せた推定）、乗り場の待ち時間の上限（乗り場の平均運賃 ÷ 1時間あたり − 乗車時間＝待つことの機会費用）、調子と営業時間の関係（タクシー運転手の労働供給の研究：Camerer ほか 1997・Farber 2015）</li>
-        <li><b>曜日×時間帯</b>：3時間ずつの1時間あたり（推定）を全体の平均と比べ、緑は平均より稼げる・赤は稼げない時間。「全」は全曜日、白枠が最も良い時間。次の営業プランの時間割と同じ数字</li>
-      </ul>
-    </details>`;
+    `;
 }
 $('#anaBody').addEventListener('click', e => { const b = e.target.closest('[data-ps]'); if (!b) return; haptic(); S.settings.anaPlace = b.dataset.ps; saveSoon(); renderAnalysis(); });
 $('#anaRange').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); S.settings.anaRange = b.dataset.v; saveSoon(); renderAnalysis(); });
@@ -3118,7 +3101,6 @@ function renderData() {
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
   $('#dayHoursBtn').textContent = S.settings.dayHours ? S.settings.dayHours + '時間' : '未設定';
   $('#holidaySeg').innerHTML = WEEKDAYS.split('').map((w, i) => `<button data-hol="${i}" aria-pressed="${S.settings.holidays.includes(i)}">${w}</button>`).join('');
-  $('#closingDesc').textContent = '集計期間 ' + (S.settings.closingDay ? `前月${S.settings.closingDay + 1}日〜当月${S.settings.closingDay}日` : '1日〜末日');
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
   $('#longFromBtn').textContent = yen(S.settings.longFrom);
   $('#longFromRow').hidden = !S.settings.longOn;
@@ -3367,16 +3349,16 @@ function renderEntry() {
   // 乗車詳細と同じ名前：メーター金額 → 迎車・手数料・割引 →（高速代があれば割引適用後合計・高速代）→ お支払い金額
   const adj = parts.length || discs.length;
   brk.innerHTML = short ? bi(`総額が ${[bd.pickup && '迎車料金', bd.appFee && 'アプリ手数料'].filter(Boolean).join('・')} より少ない`)
-    : !adj && !E.toll ? bi('迎車料金・手数料込みの総額を入力')
+    : !adj && !E.toll ? ''
     : [bi(`メーター金額 <b>${yen(Math.max(0, bd.gross - bd.pickup - bd.appFee))}</b>`),
        ...parts.map(t => bi(t)), ...discs.map(t => bi(t, 'disc-amt')),
        adj && E.toll && bi(`割引適用後合計 <b>${yen(bd.total)}</b>`),
        E.toll && bi(`高速代 +${yen(E.toll)}（売上外）`),
        bi(`お支払い金額 <b class="pay">${yen(bd.total + (E.toll || 0))}</b>`)].filter(Boolean).join('');
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
-  $('#eTollSub').textContent = E.toll ? yen(E.toll) : '売上外';
+  $('#eTollSub').textContent = E.toll ? yen(E.toll) : '';
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
-  $('#eDiscHandiSub').textContent = E.handi ? '−' + yen(bd.handi) : '運賃の1割';
+  $('#eDiscHandiSub').textContent = E.handi ? '−' + yen(bd.handi) : '';
   const noPick = $('#eNoPick');
   noPick.hidden = E.kind !== 'app';
   noPick.setAttribute('aria-pressed', !!E.noPickup);
@@ -3433,7 +3415,7 @@ function locLine(o, w) {
   if (!E.dirty[w] && o.place) return placeLine(o.place, o.addr);
   if (E.dirty[w]) return '手入力';
   if (o.manual) return '手入力';
-  if (o.lat == null) return w === 'from' && E.noFrom ? '乗車地なし・必要なら入力できます' : E.editId ? '位置情報なし・住所は手入力できます' : 'GPS取得中…';
+  if (o.lat == null) return w === 'from' && E.noFrom ? '乗車地なし' : E.editId ? '位置情報なし' : 'GPS取得中…';
   if (o.addr) return 'GPSから自動入力';
   if (o.addr === undefined && S.settings.addr && navigator.onLine !== false && !addrFailed.has(o)) {
     fillAddr(o).then(ok => { if (!ok) addrFailed.add(o); if (E && (E.from === o || E.to === o)) renderEntryLoc(); });
@@ -4001,7 +3983,7 @@ function renderPlaceDb() {
   const tok = !!ghToken(), t = PDB.at ? new Date(PDB.at) : null;
   $('#pdSt').className = 'pd-st' + (PDB.state === 'error' || PDB.err ? ' err' : '');
   $('#pdSt').innerHTML = `<span>${PDB.state === 'loading' ? '読み込み中…' : PDB.state === 'error' || PDB.err ? esc(PDB.err)
-    : (tok ? 'GitHubに保存' : '閲覧のみ（登録・編集はGitHub連携が必要）') + (t ? ` ・ ${pad2(t.getHours())}:${pad2(t.getMinutes())} 読込` : '')}</span>` +
+    : (tok ? 'GitHub連携中' : '閲覧のみ') + (t ? ` ・ ${pad2(t.getHours())}:${pad2(t.getMinutes())} 読込` : '')}</span>` +
     `<button class="link-btn" type="button" data-gh>${tok ? '連携設定' : 'GitHub連携'}</button>`;
   let rows;
   if (!kq) rows = db.filter(p => p.kind === '登録').reverse().slice(0, 30);
@@ -4015,8 +3997,8 @@ function renderPlaceDb() {
       <span class="body"><div class="main">${esc(p.name)}${tag(p)}</div><div class="sub">${esc(p.kind)} ・ ${esc(shortAddr(p.addr) || '住所なし')}${p.note ? ' ・ ' + esc(p.note) : ''}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') + (rows.length ? '' : kq
-      ? `<li class="empty">「${esc(q)}」は見つかりませんでした。<button class="btn sm primary" style="width:100%;margin-top:10px" data-pd-new>＋「${esc(q)}」を登録</button></li>`
-      : '<li class="empty">施設名・別名・住所で検索すると、一致した場所だけを表示します。自分で登録した場所はここに新しい順で並びます。</li>');
+      ? `<li class="empty">「${esc(q)}」なし<button class="btn sm primary" style="width:100%;margin-top:10px" data-pd-new>＋「${esc(q)}」を登録</button></li>`
+      : '');
   $('#pdCount').textContent = PDB.state === 'ok' ? PDB.list.length + '件' : '';
 }
 function openPlaceDb() {
