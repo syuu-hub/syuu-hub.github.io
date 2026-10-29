@@ -396,7 +396,7 @@ function analyze(m) {
     reasons.push(sigCount ? `小さな汚れ ${sigCount}個のみ` : '何も検出されず');
   } else {
     verdict = 'review';
-    reasons.push(`かすかな痕跡（内容度 ${Math.round(score * 100)}%）`);
+    reasons.push('かすかな痕跡');
   }
 
   // ---- 解析マップの最終状態 ----

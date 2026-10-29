@@ -329,7 +329,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .ring .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .ring .pct{font-size:32px;line-height:36px;font-weight:800;font-family:var(--mono)}
 .ring .sub{font-size:12px;color:var(--md-on-surface-variant);font-family:var(--mono)}
-.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.counters{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .counter{border-radius:12px;padding:12px;background:var(--md-surface-container);display:flex;flex-direction:column;gap:6px;min-width:0}
 .counter .top{display:flex;align-items:center;gap:8px}
 .counter .bub{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
@@ -339,22 +339,7 @@ main{max-width:1040px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bo
 .meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
 .meta-row .grow{flex:1}
 
-/* 処理の段階 */
-.pipe{display:flex;align-items:flex-start;margin:20px 0 16px}
-.pipe .ps{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;position:relative;min-width:0}
-.pipe .ps:not(:last-child)::after{content:"";position:absolute;top:19px;left:calc(50% + 22px);right:calc(-50% + 22px);height:2px;background:var(--md-outline-variant)}
-.pipe .ps .dot{
-  width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;
-  background:var(--md-surface-high);color:var(--md-on-surface-variant);transition:all .15s var(--ease);
-}
-.pipe .ps .dot .ic{width:20px;height:20px}
-.pipe .ps > span:last-child{font-size:11px;line-height:14px;font-weight:700;color:var(--md-on-surface-variant);white-space:nowrap}
-.pipe .ps.on .dot{background:var(--s-active);color:var(--s-on-active);transform:scale(1.1);box-shadow:0 0 0 4px color-mix(in srgb,var(--s-active) 30%,transparent)}
-.pipe .ps.on > span:last-child{color:var(--md-on-surface)}
-.pipe .ps.off{opacity:.35}
-.pipe .ps.off > span:last-child{text-decoration:line-through}
-
-.live{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.live{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
 .pane{background:var(--md-surface-container);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .pane-head{display:flex;align-items:center;gap:8px;min-height:28px}
 .pane-head .grow{flex:1;min-width:0;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -493,12 +478,10 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
 .reasons{display:flex;gap:6px;flex-wrap:wrap}
 .reason{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 8px;border-radius:8px;background:var(--md-surface-high);font-size:12px;font-weight:700}
 .reason .ic{width:16px;height:16px;color:var(--md-on-surface-variant)}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .metric{background:var(--md-surface-container);border-radius:8px;padding:6px 8px;min-width:0}
 .metric small{display:block;font-size:10px;line-height:14px;font-weight:700;color:var(--md-on-surface-variant);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .metric b{display:block;font-family:var(--mono);font-size:13px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.meter{height:4px;border-radius:2px;background:var(--md-surface-highest);margin-top:4px;overflow:hidden}
-.meter div{height:100%;border-radius:2px}
 .modal .mfoot{display:flex;gap:12px;align-items:center;padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);max-width:900px;width:100%;margin:0 auto}
 .decide{flex:1;display:grid;grid-template-columns:1fr 1fr;height:56px;border-radius:28px;box-shadow:inset 0 0 0 1px var(--md-outline);overflow:hidden}
 .decide button{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:800;color:var(--md-on-surface-variant)}
@@ -524,7 +507,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
   .scope .cap{flex-direction:column;align-items:flex-start;gap:8px}
   .run-top{grid-template-columns:1fr;justify-items:center}
   .counters{width:100%}
-  .metrics{grid-template-columns:repeat(2,1fr)}
   .ld-steps{grid-template-columns:repeat(2,1fr)}
   .fblocks{grid-template-columns:repeat(16,1fr)}
 }
@@ -532,9 +514,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
   .card{padding:16px}
   .counter{padding:10px}
   .counter b{font-size:22px;line-height:28px}
-  .pipe .ps > span:last-child{font-size:10px}
-  .pipe .ps .dot{width:36px;height:36px}
-  .pipe .ps:not(:last-child)::after{top:17px;left:calc(50% + 20px);right:calc(-50% + 20px)}
   .flow .num b{font-size:30px;line-height:34px}
   .thumbs{grid-template-columns:repeat(2,1fr)}
 }
@@ -743,7 +722,6 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
         <div class="counters">
           <div class="counter"><div class="top"><span class="bub" style="background:var(--s-blank);color:var(--s-on-blank);box-shadow:inset 0 0 0 1px var(--md-outline-variant)"><svg class="ic"><use href="#i-blank"/></svg></span><span>空白</span></div><b id="sBlank">0</b></div>
           <div class="counter"><div class="top"><span class="bub" style="background:var(--s-review);color:var(--s-on-review)"><svg class="ic"><use href="#i-help"/></svg></span><span>要確認</span></div><b id="sReview">0</b></div>
-          <div class="counter"><div class="top"><span class="bub" style="background:var(--s-content);color:var(--s-on-content)"><svg class="ic"><use href="#i-doc"/></svg></span><span>内容あり</span></div><b id="sContent">0</b></div>
         </div>
         <div class="meta-row">
           <span class="mini-chip"><svg class="ic"><use href="#i-speed"/></svg><span id="bSpeed">—</span></span>
@@ -754,22 +732,13 @@ details.logbox[open] summary .ic.chev{transform:rotate(180deg)}
       </div>
     </div>
 
-    <div class="pipe" id="pipe">
-      <div class="ps" data-s="render"><span class="dot"><svg class="ic"><use href="#i-file"/></svg></span><span>読込</span></div>
-      <div class="ps" data-s="pre"><span class="dot"><svg class="ic"><use href="#i-tune"/></svg></span><span>下処理</span></div>
-      <div class="ps" data-s="bin"><span class="dot"><svg class="ic"><use href="#i-bw"/></svg></span><span>2値化</span></div>
-      <div class="ps" data-s="cc"><span class="dot"><svg class="ic"><use href="#i-bubble"/></svg></span><span>成分解析</span></div>
-      <div class="ps" data-s="text"><span class="dot"><svg class="ic"><use href="#i-text"/></svg></span><span>文字検出</span></div>
-      <div class="ps" data-s="judge"><span class="dot"><svg class="ic"><use href="#i-keep"/></svg></span><span>判定</span></div>
-    </div>
-
     <div class="live">
       <div class="pane">
         <div class="pane-head"><span class="grow mono" id="liveName">—</span><span class="status-chip" id="liveVerdict">待機中</span></div>
         <div class="stage"><canvas id="livePage"></canvas></div>
       </div>
       <div class="pane">
-        <div class="pane-head"><span class="grow">解析マップ</span><span class="mini-chip mono" id="liveScore">—</span></div>
+        <div class="pane-head"><span class="grow">解析マップ</span></div>
         <div class="stage"><canvas id="liveMap"></canvas></div>
       </div>
     </div>
@@ -1318,11 +1287,6 @@ function log(msg, cls = '') {
 // ---------------- ライブ表示 ----------------
 const livePage = $('livePage'), liveMap = $('liveMap');
 let mapState = null;
-// 描画（読込）は次のページを先読みするので、解析の段階とは別に点灯させる
-function setStage(s) {
-  $('pipe').querySelectorAll('.ps').forEach(el => { if (el.dataset.s !== 'render') el.classList.toggle('on', el.dataset.s === s); });
-}
-function setRendering(on) { $('pipe').querySelector('[data-s="render"]').classList.toggle('on', on); }
 function setStatusChip(el, kind, label) {
   el.className = 'status-chip ' + kind;
   el.innerHTML = (kind === 'busy' ? ic('search') : VERDICT_ICON[kind] ? ic(VERDICT_ICON[kind]) : '') + label;
@@ -1378,8 +1342,7 @@ function roundRect(ctx, x, y, w, h, r) {
 let mapRaf = 0;
 function queueMap() { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; renderMap(); }); }
 function onProgress(m) {
-  if (m.type === 'stage') setStage(m.stage);
-  else if (m.type === 'grid') initMap(m.cols, m.rows, m.tiles);
+  if (m.type === 'grid') initMap(m.cols, m.rows, m.tiles);
   else if (m.type === 'band' && mapState) {
     mapState.tiles.set(m.data, m.row * mapState.cols);
     mapState.scan = m.row;
@@ -1397,7 +1360,6 @@ function updateStats() {
   $('sDone').textContent = `${done}/${N}`;
   $('sBlank').textContent = c.blank;
   $('sReview').textContent = c.review;
-  $('sContent').textContent = c.content;
   const pct = N ? done / N : 0;
   $('ringFg').style.strokeDashoffset = String(RING * (1 - pct));
   $('ring').classList.toggle('done', !running && done === N);
@@ -1423,7 +1385,6 @@ async function start() {
   running = true; cancelFlag = false; lastOut = null;
   $('btnCancel').disabled = false;
   pages.forEach(p => { p.status = 'wait'; p.verdict = null; p.del = false; p.result = null; p.thumb = null; });
-  $('pipe').querySelector('[data-s="text"]').classList.toggle('off', !settings.textDetect);
   $('bSpeed').textContent = '—'; $('bEta').textContent = '—';
   logEl.innerHTML = '';
   mapState = null;
@@ -1440,22 +1401,18 @@ async function start() {
   for (let i = 0; i < pages.length && !cancelFlag; i++) {
     const p = pages[i];
     p.status = 'active'; paintCell(p);
-    setRendering(true);
     let r;
     try {
       r = await renderForAnalysis(p.n, settings.dpi);
     } catch (err) {
-      setRendering(false);
       if (pending) await pending;
       fail(p, err); continue;
     }
-    setRendering(false);
     if (pending) await pending;
     if (cancelFlag) break;
     p.thumb = makeThumb(r.canvas);
     $('liveName').textContent = `p.${p.n}`;
     setStatusChip($('liveVerdict'), 'busy', '解析中');
-    $('liveScore').textContent = '—';
     drawLivePage(r.canvas);
     pending = mainAnalyzer.run(r, { onProgress })
       .then(res => finish(p, res))
@@ -1464,7 +1421,6 @@ async function start() {
   if (pending) await pending;
   if (wake) wake.release().catch(() => {});
   running = false;
-  setStage(''); setRendering(false);
   pages.forEach(p => { if (p.status === 'active') { p.status = 'wait'; paintCell(p); } });
   updateStats();
   const done = pages.filter(p => p.verdict).length;
@@ -1482,11 +1438,11 @@ function finish(p, res) {
   p.del = res.verdict === 'blank';
   p.result = { score: res.score, reasons: res.reasons, features: res.features };
   paintCell(p);
-  setStage('judge');
   if (mapState) { mapState.tiles = res.tiles; mapState.scan = -1; renderMap(); }
   drawLiveBoxes(res);
-  setStatusChip($('liveVerdict'), res.verdict, VERDICT_LABEL[res.verdict]);
-  $('liveScore').textContent = `内容度 ${Math.min(999, Math.round(res.score * 100))}%`;
+  // 判定は空白・要確認だけ表示する
+  if (res.verdict === 'content') { $('liveVerdict').className = 'status-chip hidden'; }
+  else setStatusChip($('liveVerdict'), res.verdict, VERDICT_LABEL[res.verdict]);
   const cls = { blank: 'b', review: 'r', content: 'c' }[res.verdict];
   log(`p.${p.n}  ${VERDICT_LABEL[res.verdict]}  ${res.reasons.join(' / ')}`, cls);
   updateStats();
@@ -1661,9 +1617,8 @@ function updatePreviewHeader() {
     return `<span class="reason">${ic(hit ? hit[1] : 'help')}${t}</span>`;
   }).join('') : '';
   const f = r && r.features;
-  const m = (k, v, ratio, color) => `<div class="metric"><small>${k}</small><b>${v}</b>${ratio !== undefined ? `<div class="meter"><div style="width:${Math.max(2, Math.min(100, ratio * 100))}%;background:${color}"></div></div>` : ''}</div>`;
+  const m = (k, v) => `<div class="metric"><small>${k}</small><b>${v}</b></div>`;
   $('mFeat').innerHTML = f ? [
-    m('内容度', Math.min(999, Math.round(r.score * 100)) + '%', Math.min(1, r.score), r.score >= 1 ? 'var(--s-content)' : r.score >= .35 ? 'var(--s-review)' : 'var(--s-active)'),
     m('文字（画像 / 埋込）', settings.textDetect ? `${f.glyphs ?? 0} / ${f.embedChars}` : '—'),
     m('図形 / ノイズ', `${f.comps} / ${f.noise}`),
     m('インク / 写真・色', `${(f.inkRatio * 100).toFixed(2)}% / ${(f.darkRatio * 100).toFixed(1)}%`),
