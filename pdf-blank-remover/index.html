@@ -887,12 +887,6 @@ document.addEventListener('drop', e => {
   const f = [...(e.dataTransfer?.files || [])].find(isPdf);
   if (f && !running) openFile(f);
 });
-if ('launchQueue' in window) {
-  window.launchQueue.setConsumer(async params => {
-    const h = params.files && params.files[0];
-    if (h) openFile(await h.getFile());
-  });
-}
 function isPdf(f) { return f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)); }
 
 async function openFile(f) {
