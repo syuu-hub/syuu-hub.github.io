@@ -372,18 +372,17 @@ function analyze(m) {
     lines: opts.textDetect ? lineBoxes.length : 0,
   };
   const score = Math.max(...Object.values(ratios));
-  // 判定理由は種類を分けず、「文字があるか」「何か書かれているか」だけを伝える
-  const hasText = ratios.chars >= 1 || ratios.lines >= 1;
+  // 判定理由は文字か図形かを分けず、「何か書かれているか」だけを伝える
   const reasons = [];
   let verdict;
   if (score >= 1) {
     verdict = 'content';
-    reasons.push(hasText ? '文字あり' : '書き込み・画像あり');
+    reasons.push('書き込みあり');
     // 文字が少しだけ（「このページは白紙です」やページ番号だけ等）は目で確かめてもらう
     const pixelOnly = Math.max(ratios.ink, ratios.big, ratios.dark);
     if (opts.textDetect && pixelOnly < 1.5 && textGlyphs <= 40 && embedChars <= 40 && ratios.comps < 4) {
       verdict = 'review';
-      reasons[0] = hasText ? 'わずかな文字のみ' : 'わずかな跡のみ';
+      reasons[0] = 'わずかな書き込みのみ';
     }
   } else if (score < 0.35) {
     verdict = 'blank';
@@ -405,17 +404,14 @@ function analyze(m) {
     const ty0 = tileRowOf[clamp(b[1] | 0, 0, h - 1)], ty1 = tileRowOf[clamp((b[1] + b[3] - 1) | 0, 0, h - 1)];
     for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) setTile(ty * cols + tx, s);
   };
-  [darkBoxes, lineBoxes, embedBoxes].forEach(list => list.forEach(b => markBox(b, T.INK)));
+  [darkBoxes, embedBoxes].forEach(list => list.forEach(b => markBox(b, T.INK)));
 
-  // 検出結果の枠：文字の並びはまとめて1つの枠にし、文字1つずつには枠を付けない
-  const inside = (c, b) => cx0[c] >= b[0] - 2 && cy0[c] >= b[1] - 2 && cx1[c] <= b[0] + b[2] + 2 && cy1[c] <= b[1] + b[3] + 2;
-  const textAreas = lineBoxes.concat(embedBoxes);
-  const boxIn = (a, b) => a[0] >= b[0] - 2 && a[1] >= b[1] - 2 && a[0] + a[2] <= b[0] + b[2] + 2 && a[1] + a[3] <= b[1] + b[3] + 2;
-  const marks = textAreas.slice(0, 400).concat(darkBoxes.filter(d => !textAreas.some(b => boxIn(d, b))).slice(0, 200));
-  for (const c of sigIdx) {
-    if (marks.length >= 900) break;
-    if (!textAreas.some(b => inside(c, b))) marks.push([cx0[c], cy0[c], cx1[c] - cx0[c] + 1, cy1[c] - cy0[c] + 1]);
-  }
+  // 検出結果の枠：文字か図形かを分けず、検出したもの同士が近ければ（3mm以内）1つの枠にまとめる
+  const marks = clusterBoxes(
+    sigIdx.slice(0, 6000).map(c => [cx0[c], cy0[c], cx1[c] - cx0[c] + 1, cy1[c] - cy0[c] + 1])
+      .concat(darkBoxes, embedBoxes),
+    3 * pxmm,
+  ).slice(0, 600);
 
   const result = {
     verdict, reasons,
@@ -431,6 +427,34 @@ function analyze(m) {
     transfer.push(out.buffer);
   }
   return { result, transfer };
+}
+
+// 近い枠同士をまとめる（x で並べて掃引し、間隔 gap 以内で重なるものを同じかたまりにする）
+function clusterBoxes(boxes, gap) {
+  const n = boxes.length;
+  if (!n) return [];
+  const order = boxes.map((b, i) => i).sort((a, b) => boxes[a][0] - boxes[b][0]);
+  const par = Int32Array.from({ length: n }, (_, i) => i);
+  const find = a => { while (par[a] !== a) { par[a] = par[par[a]]; a = par[a]; } return a; };
+  for (let oi = 0; oi < n; oi++) {
+    const a = boxes[order[oi]], ax1 = a[0] + a[2] + gap;
+    for (let oj = oi + 1; oj < n; oj++) {
+      const b = boxes[order[oj]];
+      if (b[0] > ax1) break;
+      if (b[1] <= a[1] + a[3] + gap && a[1] <= b[1] + b[3] + gap) {
+        const ra = find(order[oi]), rb = find(order[oj]);
+        if (ra !== rb) par[rb] = ra;
+      }
+    }
+  }
+  const out = new Map();
+  for (let i = 0; i < n; i++) {
+    const r = find(i), b = boxes[i];
+    const c = out.get(r);
+    if (!c) out.set(r, [b[0], b[1], b[0] + b[2], b[1] + b[3]]);
+    else { c[0] = Math.min(c[0], b[0]); c[1] = Math.min(c[1], b[1]); c[2] = Math.max(c[2], b[0] + b[2]); c[3] = Math.max(c[3], b[1] + b[3]); }
+  }
+  return [...out.values()].map(c => [c[0], c[1], c[2] - c[0], c[3] - c[1]]).sort((a, b) => b[2] * b[3] - a[2] * a[3]);
 }
 
 function median(arr) {

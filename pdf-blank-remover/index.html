@@ -1566,7 +1566,7 @@ function movePreview(d) {
   if (np < 0 || np >= pv.list.length) return;
   pv.pos = np; loadPreview();
 }
-const REASON_ICON = [[/文字/, 'text'], [/書き込み/, 'doc'], [/汚れ|跡/, 'dots'], [/検出されず/, 'blank']];
+const REASON_ICON = [[/書き込み/, 'doc'], [/汚れ|跡/, 'dots'], [/検出されず/, 'blank']];
 function updatePreviewHeader() {
   const p = pages[pv.list[pv.pos]];
   $('mTitle').innerHTML = `<span class="mono">p.${p.n}</span><span class="status-chip ${p.verdict}">${ic(VERDICT_ICON[p.verdict])}${VERDICT_LABEL[p.verdict]}</span><span class="pos">${pv.pos + 1} / ${pv.list.length}</span>`;
