@@ -666,7 +666,9 @@ svg{display:block}
 /* 数値入力ダイアログ */
 .np-inner{max-width:480px;margin:auto;height:auto;max-height:100%;overflow-y:auto;border-radius:var(--r-lg);border:1px solid var(--line);padding:var(--pad)}
 .sheet.center{align-items:center}
-.np-inner .total{padding:8px 4px 16px}
+.np-inner .total{padding:8px 4px 16px;flex-direction:column;align-items:stretch;gap:4px}
+.np-inner .total .lbl{white-space:normal;font-size:13px}
+.np-inner .total .v{text-align:right;overflow:hidden}   /* 桁が多い時は fitNumpad で文字を小さくして収める */
 .np-inner .keypad{grid-auto-rows:64px}
 
 /* 日報（入庫後の振り返り） */
@@ -884,7 +886,7 @@ svg{display:block}
       <div class="d-clock num" id="dClock">--:--</div>
     </div>
     <div class="d-info">
-      <button class="d-row" id="dGoal"><span class="k">本日の必要額</span><span class="v num" id="dGoalVal">¥0</span><span class="chev">月の目標</span></button>
+      <div class="d-row" id="dGoal"><span class="k">本日の必要額</span><span class="v num" id="dGoalVal">¥0</span></div>
     </div>
     <div>
       <button class="btn primary depart-btn" id="departBtn">出庫</button>
@@ -909,10 +911,10 @@ svg{display:block}
     </div>
     <div class="hud-main">
       <div class="sales num" id="sales"><span class="cur">¥</span>0</div>
-      <button class="goal-btn" id="goalBtn" aria-label="月の目標金額を変更">
+      <div class="goal-btn" id="goalBtn">
         <span class="pct num" id="pct">0<small>%</small></span>
         <span class="goal-line"><span id="goalLbl">1日の必要</span> <b class="num" id="goal">¥0</b></span>
-      </button>
+      </div>
     </div>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="barWrap"><div class="bar-fill" id="bar"></div></div>
     <div class="remain num" id="remain">&nbsp;</div>
@@ -3575,6 +3577,14 @@ const NP = { val: '', onOk: null, unit: null, digits: MAX_DIGITS };
 function renderNumpad() {
   const n = +NP.val || 0;
   $('#npVal').innerHTML = NP.unit ? `${n}<span class="cur" style="vertical-align:0;margin-left:.1em">${NP.unit}</span>` : yenHtml(n);
+  fitNumpad();
+}
+// 金額が枠に収まるまで文字を小さくする（100万円以上でもはみ出さない）
+function fitNumpad() {
+  const v = $('#npVal');
+  v.style.fontSize = '';
+  if (!v.clientWidth) return;   // 開く前は幅が無いので、開いてから合わせ直す
+  for (let fs = parseFloat(getComputedStyle(v).fontSize); v.scrollWidth > v.clientWidth && fs > 24; fs -= 2) v.style.fontSize = (fs - 2) + 'px';
 }
 function openNumpad(title, value, onOk, { unit = null, label = '金額', digits = MAX_DIGITS } = {}) {
   $('#npTitle').textContent = title;
@@ -3582,6 +3592,7 @@ function openNumpad(title, value, onOk, { unit = null, label = '金額', digits 
   NP.val = value ? String(value) : ''; NP.onOk = onOk; NP.unit = unit; NP.digits = digits;
   renderNumpad();
   openSheet($('#numpad'));
+  requestAnimationFrame(fitNumpad);
 }
 // 決済方法の追加・編集（削除は非表示にするだけ：過去の記録の表示名を残すため）
 const PE = { k: null };
@@ -3653,13 +3664,13 @@ function deleteApp() {
   save(); closeSheet($('#appSheet')); renderData();
 }
 
-// 月の目標金額（1日の必要額はここから自動で出す）。営業中の記録の目標も入れ直す
+// 月の目標金額（設定から変更。1日の必要額はここから自動で出す）。営業中の記録の目標も入れ直す
 function editGoal() {
   openNumpad('月の目標金額', S.settings.monthGoal, v => {
     S.settings.monthGoal = v;
     const sh = curShift(); if (sh) sh.goal = dailyNeed(sh.start);
     save(); renderAll(); renderData();
-  }, { label: '1日の必要額を自動計算・0で目標なし', digits: 8 });
+  }, { label: '0で目標なし', digits: 8 });
 }
 
 /* ============================================================
@@ -3930,7 +3941,6 @@ function toast(msg, actLabel, actFn) {
 $$('.st-btn').forEach(b => b.addEventListener('click', () => setStatus(b.dataset.st)));
 $('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
-$('#goalBtn').addEventListener('click', editGoal);
 $('#hiFareBtn').addEventListener('click', () => openNumpad('高額乗車の基準', S.settings.hiFare, v => {
   S.settings.hiFare = v;
   save(); renderAll(); renderData();
@@ -4219,7 +4229,6 @@ $('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pau
 $('#shiftBtn').addEventListener('click', endShift);
 $('#endBtn').addEventListener('click', endShift);
 $('#departBtn').addEventListener('click', depart);
-$('#dGoal').addEventListener('click', editGoal);
 $$('[data-export]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.export;
   if (k === 'log-all') exportLog();
