@@ -513,6 +513,10 @@ function analyze(m) {
     noise: Math.round(noiseSigma * 10) / 10,
   };
   const transfer = [];
+  if (opts.dupDetect && verdict !== 'blank') {
+    result.fp = fingerprint();
+    transfer.push(result.fp.fine.buffer, result.fp.ink.buffer, result.fp.tone.buffer);
+  }
   if (m.wantBinary) {
     // 0=背景 1=無視した点（ノイズ・影・穴） 2=判定に使ったもの
     const out = new Uint8Array(N);
@@ -522,6 +526,51 @@ function analyze(m) {
     transfer.push(out.buffer, den.buffer);
   }
   return { result, transfer };
+
+  // 重複ページ検出用の指紋
+  //  fine : 下処理後の画像を 1mm 角に縮め、3x3 でならしたもの（少しのずれでは一致度が落ちないように）
+  //  ink  : 判定範囲を 48x64 マスに分けたインクの有無（候補をすばやく絞るため）
+  //  tone : 下処理後の画像の 16x16 平均濃淡
+  function fingerprint() {
+    const mm2 = pxmm * pxmm, fw = Math.max(1, Math.floor(w / pxmm)), fh = Math.max(1, Math.floor(h / pxmm));
+    const raw = new Float32Array(fw * fh);
+    for (let gy = 0; gy < fh; gy++) for (let gx = 0; gx < fw; gx++) {
+      const x0 = Math.round(gx * pxmm), x1 = Math.max(x0 + 1, Math.round((gx + 1) * pxmm));
+      const y0 = Math.round(gy * pxmm), y1 = Math.max(y0 + 1, Math.round((gy + 1) * pxmm));
+      let sm = 0, c = 0;
+      for (let y = y0; y < y1 && y < h; y++) for (let x = x0, i = y * w + x0; x < x1 && x < w; x++, i++) { sm += den[i]; c++; }
+      raw[gy * fw + gx] = c ? sm / c : 255;
+    }
+    const fine = new Uint8Array(fw * fh);
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
+      let sm = 0, c = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const yy = y + dy, xx = x + dx;
+        if (yy >= 0 && yy < fh && xx >= 0 && xx < fw) { sm += raw[yy * fw + xx]; c++; }
+      }
+      fine[y * fw + x] = Math.round(sm / c);
+    }
+    const FW = 48, FH = 64, rw = R.x1 - R.x0, rh = R.y1 - R.y0;
+    const cnt = new Uint16Array(FW * FH), toneSum = new Float64Array(256), toneN = new Uint32Array(256);
+    for (let y = R.y0; y < R.y1; y++) {
+      const fy = ((y - R.y0) * FH / rh) | 0, ty = ((y - R.y0) * 16 / rh) | 0;
+      for (let x = R.x0, i = y * w + R.x0; x < R.x1; x++, i++) {
+        const tk = ty * 16 + (((x - R.x0) * 16 / rw) | 0);
+        toneSum[tk] += den[i]; toneN[tk]++;
+        if (lab[i] && cls[lab[i] - 1] === C_SIG) cnt[fy * FW + (((x - R.x0) * FW / rw) | 0)]++;
+      }
+    }
+    const ink = new Uint8Array(FW * FH);
+    for (let k = 0; k < ink.length; k++) ink[k] = cnt[k] >= 3 ? 1 : 0;
+    for (const b of darkBoxes) {
+      const gx0 = Math.max(0, ((b[0] - R.x0) * FW / rw) | 0), gx1 = Math.min(FW - 1, ((b[0] + b[2] - 1 - R.x0) * FW / rw) | 0);
+      const gy0 = Math.max(0, ((b[1] - R.y0) * FH / rh) | 0), gy1 = Math.min(FH - 1, ((b[1] + b[3] - 1 - R.y0) * FH / rh) | 0);
+      for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) ink[gy * FW + gx] = 1;
+    }
+    const tone = new Float32Array(256);
+    for (let k = 0; k < 256; k++) tone[k] = toneN[k] ? toneSum[k] / toneN[k] : 255;
+    return { fine, fw, fh, ink, tone, wmm: w / pxmm, hmm: h / pxmm, inkArea: sigArea / mm2 };
+  }
 }
 
 // 3x3 のクロージング（膨張→収縮）。判定対象の領域 R の中だけ処理する
