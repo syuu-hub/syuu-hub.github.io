@@ -465,6 +465,7 @@ svg{display:block}
 .pstrip{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px}
 .pstrip .c{font-size:10px;color:var(--faint);text-align:center;font-weight:600}
 .pstrip button{height:38px;border-radius:6px;padding:0;font-size:13px;font-weight:700;color:var(--text);background:var(--surface-3)}
+.pstrip button.na.out{border-color:transparent;background:var(--surface-2);opacity:.5}
 .pstrip button.na{background:transparent;border:1px dashed var(--line-2);color:var(--faint)}
 .pstrip button[aria-pressed="true"]{outline:2px solid var(--text);outline-offset:1px}
 .pstrip button.top{box-shadow:inset 0 0 0 2px var(--text)}
@@ -2849,11 +2850,22 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   const goal = dailyNeed(cur ? cur.start : nd.getTime());
   const share0 = allV.filter(v => v >= goal).length / allV.length;
   const pGoal = goal ? (sameV.filter(v => v >= goal).length + 3 * share0) / (sameV.length + 3) : null;
-  // 時間割（その曜日の3時間ごと）
+  // いつもの営業時間：過去の営業日のうち3割以上の日に営業していた時（その曜日が3日以上あればその曜日で）
+  const dayHrs = new Map();
+  for (const sh of A.shifts) {
+    const k = dayKey(new Date(sh.start)), set = dayHrs.get(k) || { dow: new Date(sh.start).getDay(), hs: new Set() };
+    for (let x = sh.start, end = sh.end || Date.now(); x < end; x += 15 * 60000) set.hs.add(new Date(x).getHours());
+    dayHrs.set(k, set);
+  }
+  const sameDays = [...dayHrs.values()].filter(d => d.dow === dow), useDays = sameDays.length >= 3 ? sameDays : [...dayHrs.values()];
+  const usual = h => useDays.filter(d => d.hs.has(h)).length >= useDays.length * 0.3;
+  const inRange = b => b.hs.filter(usual).length >= 2;   // 3時間のうち2時間以上がいつもの営業時間なら提案の対象
+  // 時間割（その曜日の3時間ごと）。いつもの営業時間の外は出さない
   const sumH = (rows, hs) => hs.reduce((a, h) => a + rows.reduce((x, r) => x + r[h], 0), 0);
   const slots = HEAT_BLOCKS.map(b => {
     const duAll = sumH(A.duty, b.hs), saAll = sumH(A.sales, b.hs);
     const du = b.hs.reduce((a, h) => a + A.duty[dow][h], 0), sa = b.hs.reduce((a, h) => a + A.sales[dow][h], 0);
+    if (!inRange(b)) return { b, rate: null, out: true };
     if (duAll < 60) return { b, rate: null };
     const base = shrink(saAll, duAll / 60, perHour, 2);
     return { b, du, duAll, base, rate: shrink(sa, du / 60, base, 3), raw: du ? sa / (du / 60) : null };
@@ -2910,7 +2922,7 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
       <div class="tipgrp">
       <div class="sub-h">${wname}の時間割（千円/時）</div>
       <div class="pstrip">${HEAT_BLOCKS.map(b => `<span class="c num">${b.head}</span>`).join('')}${slots.map(s => s.rate == null
-        ? `<button class="na" aria-pressed="false" data-tip="${s.b.label}時：記録が少ない時間です"></button>`
+        ? `<button class="na${s.out ? ' out' : ''}" aria-pressed="false" data-tip="${s.b.label}時：${s.out ? 'いつもの営業時間外' : '記録が少ない時間です'}"></button>`
         : `<button class="${heatLv(s.rate / Math.max(1, perHour)).cls} ${tops.has(s.b) ? 'top' : ''} num" aria-pressed="false" data-tip="${wname} ${s.b.label}時：推定 ${yen(Math.round(s.rate))}/時（平均の${(s.rate / Math.max(1, perHour)).toFixed(1)}倍${s.du ? `・この曜日の実績 ${yen(Math.round(s.raw))}/時・${(s.du / 60).toFixed(1)}時間` : '・この曜日の記録なし。全曜日から推定'}）">${k1(s.rate)}</button>`).join('')}</div>
       <div class="ana-tip"></div>
       </div>
