@@ -399,6 +399,19 @@ svg{display:block}
 .prank li:not(:first-child) .bar i{background:#6B7584}
 .prank .sb{font-size:12px;color:var(--faint);line-height:1.4;overflow-wrap:anywhere}
 .prank .a{font-size:18px;font-weight:800;white-space:nowrap;text-align:right}
+.prank li{cursor:pointer;border-radius:6px}
+.prank li.open{background:var(--surface-2);margin:0 -8px;padding:10px 8px}
+.prank .pdet{display:none;grid-column:1 / -1;margin-top:10px}
+.prank li.open .pdet{display:grid;gap:6px}
+.pd-cells{display:grid;gap:3px}
+.pd-cells.c7{grid-template-columns:repeat(7,minmax(0,1fr))}
+.pd-cells.c8{grid-template-columns:repeat(8,minmax(0,1fr))}
+.pd-cells span{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:38px;border-radius:6px;background:var(--surface-3)}
+.pd-cells b{font-size:11px;font-weight:600;color:var(--muted)}
+.pd-cells small{font-size:13px;font-weight:800;color:var(--text);min-height:1em}
+.pd-cells span.mx{box-shadow:inset 0 0 0 2px var(--text)}
+.pd-cells span.mx b{color:var(--text)}
+.pd-best{font-size:12px;color:var(--muted);text-align:right}
 .stack{display:flex;height:16px;border-radius:5px;overflow:hidden;gap:2px;margin-top:4px}
 .stack i{display:block;height:100%;min-width:2px}
 .stack-leg{list-style:none;display:grid;gap:6px;margin-top:10px}
@@ -2930,6 +2943,21 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   return html;
 }
 
+// 乗車地ランキングの詳細（タップで開閉）：その場所で乗せた曜日・時間帯（3時間ごと）の回数
+const PL_OPEN = new Set();
+function placeDetail(c) {
+  const blk = HEAT_BLOCKS.map(b => b.hs.reduce((a, h) => a + c.hours[h], 0));
+  const dows = [1, 2, 3, 4, 5, 6, 0].map(d => ({ l: WEEKDAYS[d], n: c.dows[d] }));   // 月〜日
+  const cells = (arr, cls) => { const mx = Math.max(...arr.map(x => x.n), 1);
+    return `<div class="pd-cells ${cls}">${arr.map(x => `<span class="${x.n === mx && x.n ? 'mx' : ''}" style="${x.n ? `background:rgba(255,176,32,${(0.12 + 0.6 * x.n / mx).toFixed(2)})` : ''}"><b>${x.l}</b><small class="num">${x.n || ''}</small></span>`).join('')}</div>`; };
+  const bd = dows.reduce((a, x) => x.n > a.n ? x : a), bi = blk.indexOf(Math.max(...blk));
+  return `<div class="pdet">
+      ${cells(dows, 'c7')}
+      ${cells(HEAT_BLOCKS.map((b, i) => ({ l: b.head, n: blk[i] })), 'c8')}
+      <div class="pd-best">多い ${bd.l}曜・${HEAT_BLOCKS[bi].label}時</div>
+    </div>`;
+}
+
 function renderAnalysis() {
   const range = S.settings.anaRange || '90';
   $$('#anaRange [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === range));
@@ -3044,11 +3072,11 @@ function renderAnalysis() {
 `)}
     ${fold('place', '乗車地ランキング', plTake, `
       <div class="seg pl-sort" id="plSort">${Object.values(PS).map(x => `<button data-ps="${x.k}" aria-pressed="${x === ps}">${x.label}</button>`).join('')}</div>
-      ${plRows.length ? `<ol class="prank">${plRows.map((c, i) => `<li>
+      ${plRows.length ? `<ol class="prank">${plRows.map((c, i) => `<li class="${PL_OPEN.has(c.key) ? 'open' : ''}" data-pl="${esc(c.key)}" role="button" tabindex="0" aria-expanded="${PL_OPEN.has(c.key)}">
         <span class="n num">${i + 1}</span>
         <span class="b"><span class="nm">${esc(placeName(c))}</span><span class="bar"><i style="width:${(ps.v(c) / plMax * 100).toFixed(1)}%"></i></span>
           <span class="sb num">${ps.k === 'hi' ? `高額${c.hi}/${c.n}回` : `${c.n}回`}・平均${kv(Math.round(c.avg))}${c.wait != null ? `・待ち${Math.round(c.wait)}分` : ''}</span></span>
-        <span class="a num">${ps.fmt(c)}</span></li>`).join('')}</ol>`
+        <span class="a num">${ps.fmt(c)}</span>${placeDetail(c)}</li>`).join('')}</ol>`
         : `<div class="ana-empty">該当なし</div>`}
 `)}
     ${kindList.length >= 2 ? fold('kind', '乗車の種類（売上）', kindTake, `
@@ -3072,6 +3100,13 @@ function renderAnalysis() {
 $('#anaBody').addEventListener('click', e => { const b = e.target.closest('[data-ps]'); if (!b) return; haptic(); S.settings.anaPlace = b.dataset.ps; saveSoon(); renderAnalysis(); });
 $('#anaRange').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); S.settings.anaRange = b.dataset.v; saveSoon(); renderAnalysis(); });
 $('#anaBody').addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) { haptic(); anaTip(el, el.dataset.tip); } });
+$('#anaBody').addEventListener('click', e => {
+  const li = e.target.closest('.prank li[data-pl]'); if (!li) return;
+  haptic();
+  const k = li.dataset.pl, open = !li.classList.contains('open');
+  open ? PL_OPEN.add(k) : PL_OPEN.delete(k);
+  li.classList.toggle('open', open); li.setAttribute('aria-expanded', open);
+});
 
 /* ============================================================
    描画：出力・設定
