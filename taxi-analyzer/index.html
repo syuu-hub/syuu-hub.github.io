@@ -647,8 +647,6 @@ svg{display:block}
 .sug button small{font-size:11px;color:var(--muted);margin-left:4px;font-weight:600}
 .sug button.add-pl{border-style:dashed;border-color:var(--accent);color:var(--accent);background:var(--surface)}
 .pd-list{margin-top:8px}
-.pd-st{display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:12px;color:var(--muted);margin:0 2px 8px}
-.pd-st.err{color:var(--danger,#e5484d)}
 .pd-list .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:6px;margin-left:6px;vertical-align:2px;background:var(--surface-2);color:var(--muted)}
 .pd-list .tag.ed{color:var(--accent)}
 .pd-list .empty{padding:14px 4px;color:var(--muted);font-size:14px}
@@ -1356,7 +1354,6 @@ svg{display:block}
       <span class="spacer"></span>
       <span class="sub num" id="pdCount"></span>
     </header>
-    <div class="pd-st" id="pdSt"></div>
     <input class="text-in" id="pdQ" type="search" placeholder="施設名・別名・住所で検索" autocomplete="off" enterkeyhint="search">
     <ul class="list pd-list" id="pdList"></ul>
     <button class="btn sm" style="width:100%;margin-top:12px" id="pdAdd">＋ 新しい場所を登録</button>
@@ -1388,6 +1385,7 @@ svg{display:block}
       <div class="glabel"><span>メモ</span></div>
       <input class="text-in" id="mpNote" placeholder="例：北側の入口" maxlength="40" autocomplete="off" enterkeyhint="done">
     </div>
+    <button class="link-btn" id="mpReset" type="button" hidden>元に戻す</button>
     <footer class="e-foot">
       <button class="btn danger" id="mpDelete">削除</button>
       <button class="btn primary" id="mpOk">保存</button>
@@ -1770,93 +1768,35 @@ function placeRank(pl, kq, words) {
     : kq.length >= 2 && [n, ...al].some(x => x.includes(kq)) ? 3
     : words.length >= 2 && words.every(w => [n, ...al].some(x => x.includes(w))) ? 4 : -1;
 }
-// 場所データ：施設名・住所の一覧。端末には保存せず、GitHubのリポジトリ（taxi-analyzer/places.json）に置く
-//   {id,name,kind,info,note?,addr,alias:[]}。読むのは誰でも可、登録・編集はGitHubのトークンで直接ファイルを更新する
-const PLACE_REPO = 'syuu-hub/syuu-hub.github.io', PLACE_PATH = 'taxi-analyzer/places.json', PLACE_BRANCH = 'main';
-const PLACE_API = `https://api.github.com/repos/${PLACE_REPO}/contents/${PLACE_PATH}`;
-const GH_KEY = 'taxiboard.ghToken';   // 書き込み用のトークン（バックアップには含めない）
-const PDB = { list: [], sha: null, state: 'loading', at: 0, err: '' };
-const ghToken = () => { try { return localStorage.getItem(GH_KEY) || ''; } catch (e) { return ''; } };
-const ghHeaders = () => ({ Accept: 'application/vnd.github+json', ...(ghToken() ? { Authorization: 'Bearer ' + ghToken() } : {}) });
-const b64enc = s => { const u = new TextEncoder().encode(s); let b = ''; for (let i = 0; i < u.length; i += 0x8000) b += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(b); };
-const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, '')), c => c.charCodeAt(0)));
-const placesText = list => '[\n' + list.map(p => JSON.stringify(p)).join(',\n') + '\n]\n';   // 1件1行（GitHubで差分が読みやすい）
+// 場所データ：内蔵の施設（taxi-analyzer/places.json を読むだけ）＋ 端末内の登録・変更（設定の places）
+//   内蔵 {id,name,kind,info,note?,addr,alias:[]}
+//   端末内：自分で登録 {id,name,addr,alias,note} ／ 内蔵の書き換え {id,base:内蔵の名前,name,addr,alias,note} ／ 内蔵を候補に出さない {id,base,hidden:true}
+const PDB = { list: [], state: 'loading' };
 // 住所から候補の補足に出す「市区町村＋町名」（番地は省く）
 const placeInfo = a => shortAddr(a).replace(/[0-9０-９].*$/, '').replace(/[一二三四五六七八九十]+丁目$/, '');
-async function ghGet() {
-  const res = await fetch(`${PLACE_API}?ref=${PLACE_BRANCH}`, { headers: ghHeaders(), cache: 'no-store' });
-  if (!res.ok) throw new Error(res.status === 401 ? 'GitHubのトークンが無効です' : '場所データを読み込めませんでした（' + res.status + '）');
-  const j = await res.json();
-  return { list: JSON.parse(b64dec(j.content)), sha: j.sha };
-}
-// 最新のファイルを読み、fn で書き換えて保存する（他の端末と同時に更新した時は読み直してやり直す）
-async function remoteUpdate(fn, message) {
-  for (let i = 0; i < 3; i++) {
-    const cur = await ghGet();
-    const ret = fn(cur.list);
-    const res = await fetch(PLACE_API, { method: 'PUT', headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, content: b64enc(placesText(cur.list)), sha: cur.sha, branch: PLACE_BRANCH }) });
-    if (res.ok) {
-      const j = await res.json();
-      Object.assign(PDB, { list: cur.list, sha: j.content.sha, state: 'ok', at: Date.now(), err: '' });
-      return ret;
-    }
-    if (res.status === 409) continue;
-    throw new Error(res.status === 401 ? 'GitHubのトークンが無効です' : res.status === 403 || res.status === 404 ? 'トークンに書き込みの権限がありません' : '保存できませんでした（' + res.status + '）');
-  }
-  throw new Error('他の端末の更新と重なりました。もう一度保存してください');
-}
+try { localStorage.removeItem('taxiboard.ghToken'); } catch (e) {}   // 以前のGitHub連携のトークンは使わない
 async function loadPlaces() {
-  PDB.state = PDB.list.length ? PDB.state : 'loading';
-  let list = null, sha = null, err = '';
-  if (ghToken()) try { ({ list, sha } = await ghGet()); } catch (e) { err = e.message; }
-  if (!list) try {
-    // 公開ファイル（圏外ではアプリが覚えている最後の内容）
-    const res = await fetch('places.json', { cache: 'no-cache' });
-    if (res.ok) list = await res.json();
-  } catch (e) {}
-  if (list) Object.assign(PDB, { list: list.map(p => ({ ...p, alias: p.alias || [] })), sha, state: 'ok', at: Date.now(), err });
-  else Object.assign(PDB, { state: PDB.list.length ? 'ok' : 'error', err: err || '場所データを読み込めませんでした（通信を確認）' });
-  migrateLocalPlaces();
-  renderPlaceViews();
-}
-// 以前の版で端末内に保存した場所（登録・内蔵の書き換え・削除）を、連携したらGitHubへ移して端末から消す
-let migrating = false;
-async function migrateLocalPlaces() {
-  const L = S.settings.places;
-  if (!L.length || !ghToken() || PDB.state !== 'ok' || migrating) return;
-  migrating = true;
   try {
-    await remoteUpdate(list => {
-      for (const o of L) {
-        if (o.base) {
-          const i = list.findIndex(x => x.name === o.base);
-          if (i < 0) continue;
-          if (o.hidden) list.splice(i, 1);
-          else { const p = list[i]; delete p.note; Object.assign(p, { name: o.name, addr: o.addr, alias: o.alias || [], ...(o.note ? { note: o.note } : {}) }); if (p.addr) p.info = placeInfo(p.addr); }
-        } else if (!list.some(x => normName(x.name) === normName(o.name)))
-          list.push({ id: uid(), name: o.name, kind: '登録', info: placeInfo(o.addr), ...(o.note ? { note: o.note } : {}), addr: o.addr || '', alias: o.alias || [] });
-      }
-    }, `場所データ: 端末内の${L.length}件を移行`);
-    S.settings.places = []; save();
-    toast(`端末内の場所${L.length}件をGitHubへ移しました`);
-    renderPlaceViews();
-  } catch (e) { toast(e.message); }
-  finally { migrating = false; }
+    const res = await fetch('places.json', { cache: 'no-cache' });   // 圏外ではアプリが覚えている最後の内容
+    if (res.ok) Object.assign(PDB, { list: (await res.json()).map(p => ({ ...p, alias: p.alias || [] })), state: 'ok' });
+  } catch (e) {}
+  if (PDB.state !== 'ok') PDB.state = 'error';
+  renderPlaceViews();
 }
 function renderPlaceViews() {
   renderData();
   if (!$('#placeDbSheet').hidden) renderPlaceDb();
 }
-// 候補・検索に使う場所の一覧。連携前に端末内に残っている以前の登録も重ねて使う
-function placeDb() {
+// 候補・検索に使う場所の一覧（同じ順位なら自分で登録した場所を先に）。all=true なら候補から外した内蔵の施設も含める
+function placeDb(all) {
   const L = S.settings.places;
   const ov = new Map(L.filter(p => p.base).map(p => [p.base, p]));
-  const out = L.filter(p => !p.base).map(p => ({ ...p, kind: '登録', info: placeInfo(p.addr), alias: p.alias || [], key: 'l:' + p.id, local: true }));
+  const out = L.filter(p => !p.base).map(p => ({ ...p, kind: '登録', info: placeInfo(p.addr), alias: p.alias || [], key: 'l:' + p.id, mine: true }));
   for (const b of PDB.list) {
     const o = ov.get(b.name);
-    if (!o) out.push({ ...b, key: b.id });
-    else if (!o.hidden) out.push({ ...b, name: o.name, addr: o.addr, alias: o.alias || [], note: o.note, key: b.id, local: true });
+    if (!o) out.push({ ...b, key: b.id, builtin: b });
+    else if (o.hidden) { if (all) out.push({ ...b, key: b.id, builtin: b, hidden: true }); }
+    else out.push({ ...b, name: o.name, addr: o.addr, info: o.addr === b.addr ? b.info : placeInfo(o.addr), alias: o.alias || [], note: o.note, key: b.id, builtin: b, edited: true });
   }
   return out;
 }
@@ -3149,7 +3089,8 @@ function renderData() {
       <span class="body"><div class="main">${esc(a.name)}</div><div class="sub num">既定 ${esc(payLabel(a.defaultPay, a))} ・ 手数料 ${yen(a.fee)}／他 ${yen(a.feeOther)}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') : '<li class="empty">配車アプリが登録されていません。</li>';
-  setFoldSum('gPlaces', (PDB.state === 'ok' ? PDB.list.length + '件' : PDB.state === 'loading' ? '読み込み中' : '読み込めません') + ' ・ ' + (ghToken() ? 'GitHub連携' : '閲覧のみ'));
+  { const mine = S.settings.places.filter(p => !p.base).length, ed = S.settings.places.length - mine;
+    setFoldSum('gPlaces', (PDB.state === 'ok' ? `内蔵${PDB.list.length}件` : PDB.state === 'loading' ? '読み込み中' : '内蔵を読み込めません') + (mine ? `・登録${mine}件` : '') + (ed ? `・変更${ed}件` : '')); }
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
 
 
@@ -4013,59 +3954,31 @@ const canRegister = v => {
 function renderPlaceDb() {
   const q = $('#pdQ').value.trim(), kq = normName(q);
   const words = q.split(/[\s　の]+/).map(normName).filter(w => w.length >= 2);
-  const db = placeDb();
-  const tok = !!ghToken(), t = PDB.at ? new Date(PDB.at) : null;
-  $('#pdSt').className = 'pd-st' + (PDB.state === 'error' || PDB.err ? ' err' : '');
-  $('#pdSt').innerHTML = `<span>${PDB.state === 'loading' ? '読み込み中…' : PDB.state === 'error' || PDB.err ? esc(PDB.err)
-    : (tok ? 'GitHub連携中' : '閲覧のみ') + (t ? ` ・ ${pad2(t.getHours())}:${pad2(t.getMinutes())} 読込` : '')}</span>` +
-    `<button class="link-btn" type="button" data-gh>${tok ? '連携設定' : 'GitHub連携'}</button>`;
+  const db = placeDb(true);
   let rows;
-  if (!kq) rows = db.filter(p => p.kind === '登録').reverse().slice(0, 30);
+  if (!kq) rows = db.filter(p => p.mine || p.edited || p.hidden).reverse().slice(0, 30);
   else rows = db.map(p => {
     let r = placeRank(p, kq, words);
     if (r < 0 && kq.length >= 2 && normName(p.addr || '').includes(kq)) r = 5;   // 住所でも探せる
     return [r, p];
   }).filter(h => h[0] >= 0).sort((a, b) => a[0] - b[0]).slice(0, 30).map(h => h[1]);
-  const tag = p => p.local ? '<span class="tag">端末内</span>' : p.kind === '登録' ? '<span class="tag ed">登録</span>' : '';
+  const tag = p => p.hidden ? '<span class="tag">削除済み</span>' : p.edited ? '<span class="tag ed">変更済み</span>' : p.mine ? '<span class="tag ed">登録</span>' : '';
   $('#pdList').innerHTML = rows.map(p => `<li><button class="row" data-pd="${esc(p.key)}">
       <span class="body"><div class="main">${esc(p.name)}${tag(p)}</div><div class="sub">${esc(p.kind)} ・ ${esc(shortAddr(p.addr) || '住所なし')}${p.note ? ' ・ ' + esc(p.note) : ''}</div></span>
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') + (rows.length ? '' : kq
       ? `<li class="empty">「${esc(q)}」なし<button class="btn sm primary" style="width:100%;margin-top:10px" data-pd-new>＋「${esc(q)}」を登録</button></li>`
       : '');
-  $('#pdCount').textContent = PDB.state === 'ok' ? PDB.list.length + '件' : '';
+  $('#pdCount').textContent = db.filter(p => !p.hidden).length + '件';
 }
 function openPlaceDb() {
   $('#pdQ').value = '';
   renderPlaceDb();
   $('#placeDbSheet .sheet-inner').scrollTop = 0;
   openSheet($('#placeDbSheet'));
-  if (Date.now() - PDB.at > 60000) loadPlaces();   // 他の端末で登録した分を取り込む
-}
-// GitHub連携：リポジトリの Contents に書き込めるトークンを登録（空欄で解除）
-async function setupToken() {
-  const v = prompt('GitHubの個人アクセストークンを入力してください。\n（Fine-grained token・リポジトリ ' + PLACE_REPO + ' の Contents: Read and write）\n空欄で連携を解除します。', '');
-  if (v == null) return false;
-  const tok = v.trim();
-  if (!tok) { try { localStorage.removeItem(GH_KEY); } catch (e) {} toast('GitHub連携を解除しました'); renderPlaceViews(); return false; }
-  try {
-    const res = await fetch(`https://api.github.com/repos/${PLACE_REPO}`, { headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + tok } });
-    if (!res.ok) throw new Error(res.status === 401 ? 'トークンが無効です' : '確認できませんでした（' + res.status + '）');
-    const j = await res.json();
-    if (!j.permissions || !j.permissions.push) throw new Error('このトークンには書き込みの権限がありません');
-  } catch (e) { toast(e.message.startsWith('Failed') ? '通信できませんでした' : e.message); return false; }
-  try { localStorage.setItem(GH_KEY, tok); } catch (e) { toast('トークンを保存できませんでした'); return false; }
-  toast('GitHubと連携しました');
-  await loadPlaces();
-  return true;
-}
-async function needToken() {
-  if (ghToken()) return true;
-  if (!confirm('場所の登録・編集はGitHubのリポジトリに保存します。\nGitHub連携を設定しますか？')) return false;
-  return setupToken();
 }
 function openPlaceEditor(key, w, name) {
-  const p = key ? placeDb().find(x => x.key === key) : null;
+  const p = key ? placeDb(true).find(x => x.key === key) : null;
   Object.assign(MP, { key: p ? p.key : null, w: w || null });
   const o = w && E ? E[w] : null;
   $('#mpTitle').textContent = p ? '場所の編集' : '場所を登録';
@@ -4075,7 +3988,9 @@ function openPlaceEditor(key, w, name) {
   $('#mpAddr').value = p ? p.addr || '' : typed ? withPref(typed.replace(/\s+/g, '')) : o && !o.manual && o.addr ? o.addr : '';
   $('#mpAlias').value = p ? p.alias.join('、') : '';
   $('#mpNote').value = p ? p.note || '' : '';
-  $('#mpDelete').hidden = !p;
+  $('#mpDelete').hidden = !p || !!p.hidden;
+  $('#mpReset').hidden = !p || !(p.edited || p.hidden);
+  $('#mpReset').textContent = p && p.hidden ? '削除を取り消す' : '元に戻す';
   $('#placeSheet .sheet-inner').scrollTop = 0;
   openSheet($('#placeSheet'));
   if (!p && !$('#mpName').value) setTimeout(() => $('#mpName').focus(), 250);
@@ -4084,57 +3999,52 @@ function afterPlaceChange() {
   closeSheet($('#placeSheet'));
   renderPlaceViews();
 }
-let placeBusy = false;
-async function savePlace() {
-  if (placeBusy) return;
+// 保存・削除は端末内（設定の places）。内蔵の施設は書き換え・候補から外すを記録し、元に戻せる
+function savePlace() {
   const name = $('#mpName').value.trim().replace(/\s+/g, ' ');
   if (!name) { toast('名称を入力してください'); $('#mpName').focus(); return; }
   if (placeDb().some(x => x.key !== MP.key && normName(x.name) === normName(name))) { toast('同じ名称の場所が登録済みです'); return; }
-  if (!await needToken()) return;
   const addr = withPref($('#mpAddr').value.trim().replace(/\s+/g, ''));
   const alias = [...new Set($('#mpAlias').value.split(/[、,，\/／\n]+/).map(s => s.trim()).filter(s => s && s !== name))];
   const note = $('#mpNote').value.trim();
-  const key = MP.key && !MP.key.startsWith('l:') ? MP.key : null, isNew = !key, w = MP.w;
-  placeBusy = true; $('#mpOk').textContent = '保存中…';
-  try {
-    const id = await remoteUpdate(list => {
-      if (key) {
-        const p = list.find(x => x.id === key);
-        if (!p) throw new Error('この場所は他の端末で削除されています');
-        if (p.addr !== addr || p.kind === '登録') p.info = placeInfo(addr);
-        p.name = name; p.addr = addr; p.alias = alias;
-        if (note) p.note = note; else delete p.note;
-        return p.id;
-      }
-      if (list.some(x => normName(x.name) === normName(name))) throw new Error('同じ名称の場所が登録済みです');
-      const id = uid();
-      list.push({ id, name, kind: '登録', info: placeInfo(addr), ...(note ? { note } : {}), addr, alias });
-      return id;
-    }, `場所データ: ${isNew ? '登録' : '変更'} ${name}`);
-    afterPlaceChange();
-    // 乗車記録から登録した時は、その欄に登録した場所を入れる
-    if (w && E) {
-      const pl = placeDb().find(x => x.key === id);
-      if (pl) { addrInput(w).value = pl.name; E.dirty[w] = true; E.pick[w] = pl; $(sugId(w)).innerHTML = ''; renderEntryLoc(); }
-    }
-    toast(`${name} を${isNew ? '登録' : '保存'}しました`);
-  } catch (e) { toast(e.message.startsWith('Failed') ? '通信できませんでした。電波の良い所で保存してください' : e.message); }
-  finally { placeBusy = false; $('#mpOk').textContent = '保存'; }
+  const cfg = { name, addr, alias, ...(note ? { note } : {}) };
+  const p = MP.key ? placeDb(true).find(x => x.key === MP.key) : null, isNew = !p, w = MP.w;
+  let key = MP.key;
+  if (p && p.builtin) {
+    // 内蔵の施設：書き換えを記録（内蔵と同じ内容なら記録を消す）
+    const b = p.builtin;
+    S.settings.places = S.settings.places.filter(x => x.base !== b.name);
+    const same = name === b.name && addr === b.addr && note === (b.note || '') && alias.join('\n') === b.alias.join('\n');
+    if (!same) S.settings.places.push({ id: uid(), base: b.name, ...cfg });
+  } else if (p) {
+    const o = S.settings.places.find(x => 'l:' + x.id === p.key);
+    delete o.note; Object.assign(o, cfg);
+  } else { const id = uid(); S.settings.places.push({ id, ...cfg }); key = 'l:' + id; }
+  save(); afterPlaceChange();
+  // 乗車記録から登録した時は、その欄に登録した場所を入れる
+  if (w && E) {
+    const pl = placeDb().find(x => x.key === key);
+    if (pl) { addrInput(w).value = pl.name; E.dirty[w] = true; E.pick[w] = pl; $(sugId(w)).innerHTML = ''; renderEntryLoc(); }
+  }
+  toast(`${name} を${isNew ? '登録' : '保存'}しました`);
 }
-async function deletePlace() {
-  const p = placeDb().find(x => x.key === MP.key);
-  if (!p || placeBusy) return;
-  if (!confirm(`${p.name} を場所データから削除しますか？\n（記録済みの乗車の場所はそのまま残ります）`)) return;
-  if (!await needToken()) return;
-  placeBusy = true;
-  try {
-    if (!p.local) await remoteUpdate(list => { const i = list.findIndex(x => x.id === p.key); if (i >= 0) list.splice(i, 1); }, `場所データ: 削除 ${p.name}`);
-    afterPlaceChange();
-    toast(`${p.name} を削除しました`);
-  } catch (e) { toast(e.message.startsWith('Failed') ? '通信できませんでした' : e.message); }
-  finally { placeBusy = false; }
+function deletePlace() {
+  const p = placeDb(true).find(x => x.key === MP.key);
+  if (!p || !confirm(`${p.name} を削除しますか？`)) return;
+  if (p.builtin) {
+    S.settings.places = S.settings.places.filter(x => x.base !== p.builtin.name);
+    S.settings.places.push({ id: uid(), base: p.builtin.name, hidden: true });
+  } else S.settings.places = S.settings.places.filter(x => 'l:' + x.id !== p.key);
+  save(); afterPlaceChange();
+  toast(`${p.name} を削除しました`);
 }
-$('#pdSt').addEventListener('click', e => { if (e.target.closest('[data-gh]')) { haptic(); setupToken(); } });
+function resetPlace() {
+  const p = placeDb(true).find(x => x.key === MP.key);
+  if (!p || !p.builtin) return;
+  S.settings.places = S.settings.places.filter(x => x.base !== p.builtin.name);
+  save(); afterPlaceChange();
+  toast(`${p.builtin.name} を元に戻しました`);
+}
 $('#placeDbBtn').addEventListener('click', openPlaceDb);
 $('#pdQ').addEventListener('input', renderPlaceDb);
 $('#pdQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
@@ -4147,6 +4057,7 @@ $('#pdAdd').addEventListener('click', () => openPlaceEditor(null, null, $('#pdQ'
 $('#placeDbSheet [data-close]').addEventListener('click', () => closeSheet($('#placeDbSheet')));
 $('#mpOk').addEventListener('click', savePlace);
 $('#mpDelete').addEventListener('click', deletePlace);
+$('#mpReset').addEventListener('click', resetPlace);
 $('#placeSheet [data-close]').addEventListener('click', () => closeSheet($('#placeSheet')));
 $('#mpHere').addEventListener('click', async () => {
   haptic();
