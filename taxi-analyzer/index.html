@@ -2859,13 +2859,15 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   const dow = nd.getDay(), wname = WEEKDAYS[dow] + '曜';
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const dayLbl = cur ? 'いまの営業' : nd.getTime() === today.getTime() ? '今日' : nd.getTime() - today.getTime() === 86400e3 ? '明日' : '';
-  // 見込み売上
-  const sameV = D.filter(d => d.dow === dow).map(d => d.sales), allV = D.map(d => d.sales);
+  // 見込み売上（今日の記録は入れない：今日の入力で見込みや目標が動かないように）
+  const tk = dayKey(new Date()), past = D.filter(d => d.k !== tk), PD = past.length >= 3 ? past : D;
+  const sameV = PD.filter(d => d.dow === dow).map(d => d.sales), allV = PD.map(d => d.sales);
   const useV = sameV.length >= 3 ? sameV : allV;
   const med = quant(useV, .5), q1 = quant(useV, .25), q3 = quant(useV, .75);
   // 見込みは中央値（帯と同じ物差し）。その曜日が3日未満なら全体の平均へ寄せる
   const est = sameV.length >= 3 ? med : sameV.length ? shrink(sameV.reduce((a, b) => a + b, 0), sameV.length, mean(allV), 3) : med;
-  const goal = dailyNeed(cur ? cur.start : nd.getTime());
+  // 目標は今日の必要額（前日までの売上で決まるので、今日の入力では変わらない）
+  const goal = dailyNeed(cur ? cur.start : Date.now());
   const share0 = allV.filter(v => v >= goal).length / allV.length;
   const pGoal = goal ? (sameV.filter(v => v >= goal).length + 3 * share0) / (sameV.length + 3) : null;
   // いつもの営業時間：過去の営業日のうち3割以上の日に営業していた時（その曜日が3日以上あればその曜日で）
@@ -2913,7 +2915,7 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   }
   // 働く長さ：日ごとの1時間あたりと営業時間の相関
   let hoursLine = '';
-  const hd = D.filter(d => d.ms >= 2 * 3600e3).map(d => ({ x: d.sales / (d.ms / 3600e3), y: d.ms / 3600e3 }));
+  const hd = PD.filter(d => d.ms >= 2 * 3600e3).map(d => ({ x: d.sales / (d.ms / 3600e3), y: d.ms / 3600e3 }));
   if (hd.length >= 8) {
     const mx = mean(hd.map(d => d.x)), my = mean(hd.map(d => d.y));
     const cov = mean(hd.map(d => (d.x - mx) * (d.y - my))), sx = Math.sqrt(mean(hd.map(d => (d.x - mx) ** 2))), sy = Math.sqrt(mean(hd.map(d => (d.y - my) ** 2)));
