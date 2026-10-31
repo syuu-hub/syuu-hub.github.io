@@ -3034,10 +3034,6 @@ function renderAnalysis() {
   const plRows = pls.filter(c => ps.v(c) != null).sort((a, b) => ps.v(b) - ps.v(a)).slice(0, 6);
   const plMax = Math.max(...plRows.map(c => ps.v(c)), 1e-9);
 
-  // ── 乗車の種類：待ち時間込みの1時間あたり（どの乗せ方が効率的か）
-  const totSales = sumOf(A.rides, r => r.total);
-  const kindList = kindEff(A.rides, effOf, perHour);
-  const kMax = Math.max(...kindList.map(k => k.eff), 1);
   // ── 推移
   const trendW = 320, trendH = 110, maxY = Math.max(...D.map(d => d.sales), 1);
   const bx = i => 6 + i * (trendW - 12) / Math.max(1, D.length - 1), by = v => trendH - v / maxY * (trendH - 6);
@@ -3050,7 +3046,6 @@ function renderAnalysis() {
       <div class="af-h"><span class="t">${title}</span><span class="tk">${take}</span></div><div class="af-b">${inner}</div></div>`;
   const heatTake = bestBlock ? `最も稼げる ${WEEKDAYS[bestBlock.d]}曜 ${bestBlock.b.label}時` : '';
   const plTake = plRows.length ? `${ps.label}1位 ${esc(placeName(plRows[0]))}` : '';
-  const kindTake = kindList.length ? `最も効率 ${esc(kindList[0].l)} ${kv(Math.round(kindList[0].eff))}/時` : '';
 
   body.innerHTML = `
     ${plan}
@@ -3090,13 +3085,6 @@ function renderAnalysis() {
         <span class="a num">${ps.fmt(c)}</span>${placeDetail(c, rideOf)}</li>`).join('')}</ol>`
         : `<div class="ana-empty">該当なし</div>`}
 `)}
-    ${kindList.length >= 2 ? fold('kind', '乗車の種類（1時間あたり）', kindTake, `
-      <ol class="prank">${kindList.map(k => `<li>
-        <span class="n"></span>
-        <span class="b"><span class="nm">${esc(k.l)}</span><span class="bar"><i style="width:${(k.eff / kMax * 100).toFixed(1)}%"></i></span>
-          <span class="sb num">${k.n}回・売上の${Math.round(k.s / totSales * 100)}%</span></span>
-        <span class="a num">${kv(Math.round(k.eff))}<small>/時</small></span></li>`).join('')}</ol>
-`) : ''}
     ${fold('trend', '1日あたりの売上', `${kv(Math.round(K.perDay))} ${delta('perDay')}`, `
       <svg viewBox="0 0 ${trendW} ${trendH}" preserveAspectRatio="none" role="img" aria-label="営業日ごとの売上">
         <line x1="0" y1="${trendH}" x2="${trendW}" y2="${trendH}" stroke="var(--line-2)" stroke-width="1"/>
