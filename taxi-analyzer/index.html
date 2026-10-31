@@ -1510,14 +1510,14 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { sv: SETTINGS_VER, holAuto: true, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
+    settings: { sv: SETTINGS_VER, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
   };
 }
 // 設定の引き継ぎ：機能の変更で設定の形が変わった時は、ここで古い値を新しい設定に移す（消さずに引き継ぐ）
-const SETTINGS_VER = 2;
+const SETTINGS_VER = 3;
 function migrateSettings(st) {
   const v = st.sv || 0;
   if (v < 1) {
@@ -1532,8 +1532,7 @@ function migrateSettings(st) {
     }
     delete st.goal;
   }
-  // 固定休日：自分で選んでいなければ過去の営業から自動で推定する
-  if (v < 2 && st.holAuto === undefined) st.holAuto = !(st.holidays && st.holidays.length);
+  delete st.holAuto;   // 固定休日の自動推定はやめた（選んだ曜日だけを使う）
   st.sv = SETTINGS_VER;
   return st;
 }
@@ -2396,27 +2395,18 @@ function monthData(y, m) {
 
 // 月の労働時間の上限と残り出勤日（固定休日を除く）
 const capMs = () => (S.settings.hoursCap || 0) * 3600000;
-// 予定労働時間・固定休日の自動推定（直近8週の入庫済みの営業から）
-//   1日の予定労働時間：出庫〜入庫の中央値（30分単位、5回以上）
-//   固定休日：営業した日が10日以上ある時、その曜日のうち営業した日が2割未満の曜日（3回以上来た曜日だけ）
-let EST = { k: '', v: { hours: 0, hol: [] } };
+// 1日の予定労働時間の自動推定：直近8週の入庫済みの営業の出庫〜入庫の中央値（30分単位、5回以上）
+let EST = { k: '', v: { hours: 0 } };
 function estWork() {
   const now = new Date(), k = [S.shifts.length, S.shifts.reduce((a, s) => a + (s.end || 0), 0), dayKey(now)].join('|');
   if (EST.k === k) return EST.v;
   const sh = S.shifts.filter(s => s.end && s.start >= now - 56 * 86400e3);
-  const v = { hours: 0, hol: [] };
+  const v = { hours: 0 };
   if (sh.length >= 5) v.hours = Math.round(quant(sh.map(s => (s.end - s.start) / 3600e3), .5) * 2) / 2;
-  const days = new Set(sh.map(s => dayKey(new Date(s.start))));
-  if (days.size >= 10) {
-    const occ = new Array(7).fill(0), wk = new Array(7).fill(0);
-    const today = new Date(now); today.setHours(0, 0, 0, 0);
-    for (const d = new Date(Math.min(...sh.map(s => s.start))); d < today; d.setDate(d.getDate() + 1)) { d.setHours(0, 0, 0, 0); occ[d.getDay()]++; if (days.has(dayKey(d))) wk[d.getDay()]++; }
-    v.hol = occ.map((n, i) => n >= 3 && wk[i] / n < 0.2 ? i : -1).filter(i => i >= 0);
-  }
   EST = { k, v };
   return v;
 }
-const holidayList = () => S.settings.holAuto ? estWork().hol : (S.settings.holidays || []);
+const holidayList = () => S.settings.holidays || [];
 const dayHoursEff = () => S.settings.dayHours || estWork().hours;   // 0（未設定）なら自動推定
 const isHoliday = d => holidayList().includes(d.getDay());
 // 出勤予定日：実績のある最後の日の翌日（今日より前なら今日）から月末まで、固定休日を除く
@@ -3147,7 +3137,7 @@ function renderData() {
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
   const est = estWork(), hl = holidayList();
   $('#dayHoursBtn').textContent = S.settings.dayHours ? S.settings.dayHours + '時間' : est.hours ? `自動 ${est.hours}時間` : '自動';
-  $('#holidaySeg').innerHTML = `<button data-hol="auto" aria-pressed="${!!S.settings.holAuto}">自動</button>` + WEEKDAYS.split('').map((w, i) => `<button data-hol="${i}" aria-pressed="${hl.includes(i)}">${w}</button>`).join('');
+  $('#holidaySeg').innerHTML = WEEKDAYS.split('').map((w, i) => `<button data-hol="${i}" aria-pressed="${hl.includes(i)}">${w}</button>`).join('');
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
   $('#longFromBtn').textContent = yen(S.settings.longFrom);
   $('#longFromRow').hidden = !S.settings.longOn;
@@ -3996,13 +3986,8 @@ $('#histOrderSeg').addEventListener('click', e => {
 $('#holidaySeg').addEventListener('click', e => {
   const b = e.target.closest('[data-hol]'); if (!b) return;
   haptic();
-  if (b.dataset.hol === 'auto') S.settings.holAuto = !S.settings.holAuto;
-  else {
-    // 曜日を選んだら手動に切り替え（自動で推定していた曜日を引き継ぐ）
-    const i = +b.dataset.hol, h = holidayList();
-    S.settings.holidays = h.includes(i) ? h.filter(x => x !== i) : [...h, i].sort();
-    S.settings.holAuto = false;
-  }
+  const i = +b.dataset.hol, h = holidayList();
+  S.settings.holidays = h.includes(i) ? h.filter(x => x !== i) : [...h, i].sort();
   save(); renderData();
 });
 
