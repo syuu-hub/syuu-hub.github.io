@@ -188,6 +188,8 @@ svg{display:block}
 .hud.done .bar-fill{background:var(--ok)}
 .hud.done .pct{color:var(--ok)}
 .remain{font-size:13px;color:var(--muted);text-align:right}
+.goal-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;min-height:1.4em}
+.goal-row .goal-line{margin-top:0}
 .hud.done .remain{color:var(--ok)}
 
 .stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:clamp(10px,1.8vh,18px);padding-top:clamp(10px,1.8vh,16px);border-top:1px solid var(--line)}
@@ -917,11 +919,10 @@ svg{display:block}
       <div class="sales num" id="sales"><span class="cur">¥</span>0</div>
       <div class="goal-btn" id="goalBtn">
         <span class="pct num" id="pct">0<small>%</small></span>
-        <span class="goal-line"><span id="goalLbl">1日の必要</span> <b class="num" id="goal">¥0</b></span>
       </div>
     </div>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="barWrap"><div class="bar-fill" id="bar"></div></div>
-    <div class="remain num" id="remain">&nbsp;</div>
+    <div class="goal-row"><span class="goal-line"><span id="goalLbl">1日の必要</span> <b class="num" id="goal">¥0</b></span><span class="remain num" id="remain"></span></div>
     <div class="stats">
       <div class="stat"><div class="k">乗車</div><div class="v num" id="stCount">0<small>回</small></div></div>
       <div class="stat"><div class="k">平均単価</div><div class="v num" id="stAvg">—</div></div>
@@ -2294,7 +2295,8 @@ function renderHud() {
   const sales = st ? st.sales : 0;
   const ratio = goal > 0 ? sales / goal : 0;
 
-  $('#sales').innerHTML = yenHtml(sales);
+  const se = $('#sales');
+  if (se.dataset.v !== String(sales)) { se.dataset.v = sales; se.innerHTML = yenHtml(sales); }
   // 1日の必要額＝月の目標の残り ÷ 残りの出勤日（月の目標が未設定・達成済みの時はその表示）
   $('#goalLbl').textContent = !mg ? '' : goal ? '1日の必要' : '';
   $('#goal').textContent = !mg ? '月の目標を設定' : goal ? yen(goal) : '月の目標達成';
@@ -2305,6 +2307,12 @@ function renderHud() {
   $('#barWrap').setAttribute('aria-valuenow', Math.round(clamp(ratio * 100, 0, 100)));
   $('#hud').classList.toggle('done', goal > 0 && sales >= goal);
   $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `達成 ＋${yen(sales - goal)}` : `あと ${yen(goal - sales)}`;
+  // 桁が増えても右の％と重ならないよう、枠に収まるまで売上の文字を小さくする（金額・％・画面幅が変わった時だけ）
+  const fk = [sales, $('#pct').textContent, $('#pct').style.display, innerWidth, innerHeight].join('|');
+  if (se.dataset.fit !== fk && se.clientWidth) {
+    se.dataset.fit = fk; se.style.fontSize = '';
+    for (let fs = parseFloat(getComputedStyle(se).fontSize); se.scrollWidth > se.clientWidth && fs > 24; fs -= 2) se.style.fontSize = (fs - 2) + 'px';
+  }
 
   $('#stCount').innerHTML = (st ? st.count : 0) + '<small>回</small>';
   const fit = n => n >= 100000 ? compactYen(n) : yen(n);   // 狭い欄に収める
