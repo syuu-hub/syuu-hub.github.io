@@ -424,9 +424,15 @@ svg{display:block}
 /* 縦棒（時間帯）・推移 */
 .axis{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;font-size:10px;color:var(--faint);margin-top:4px;font-variant-numeric:tabular-nums}
 .axis span{text-align:left;white-space:nowrap}
-.adrop .n{font-size:16px;color:var(--text);width:auto}
-.adrop .n small{font-size:10px;color:var(--muted);margin-left:1px}
-.adrop .bar i{background:#6B7584!important}
+.adrop{list-style:none}
+.adrop li{padding:10px 0;display:grid;gap:3px}
+.adrop li + li{border-top:1px solid var(--line)}
+.adrop .from{font-size:13px;color:var(--muted)}
+.adrop .from small{margin-left:6px;color:var(--faint);font-size:11px}
+.adrop .go{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.adrop .go b{font-size:16px;font-weight:800;color:var(--ok)}
+.adrop .go span{font-size:13px;font-weight:700}
+.adrop .vs{font-size:12px;color:var(--faint)}
 .prank .a small{font-size:11px;color:var(--muted);margin-left:1px;font-weight:600}
 .heat{display:grid;grid-template-columns:1.5em repeat(8,minmax(0,1fr));gap:3px}
 .heat .r{font-size:12px;color:var(--muted);font-weight:700;display:flex;align-items:center;justify-content:center}
@@ -3043,7 +3049,9 @@ function renderAnalysis() {
   const totSales = sumOf(A.rides, r => r.total);
   const kindList = kindEff(A.rides, effOf, perHour);
   const kMax = Math.max(...kindList.map(k => k.eff), 1);
-  // ── 降ろした後：降車地ごとに、次に乗せるまでの時間と次に乗せた場所（同じ営業の次の乗車。2時間を超える空きは休憩として除く）
+  // ── 降ろした後どこへ：よく降ろす場所ごとに、次の乗車を「その付近（800m以内）で乗せた」か「どこで乗せたか」で分け、
+  //    その後の1時間あたり＝次の乗車の売上 ÷（降車から次の降車までの時間）で比べて、いちばん良い動き方を出す。
+  //    同じ営業の次の乗車だけ。2時間を超える空きは休憩として除く。少ない回数は全体の平均へ寄せる（1時間分）
   const afterDrop = (() => {
     const byShift = new Map();
     for (const r of A.rides) { if (!byShift.has(r.shiftId)) byShift.set(r.shiftId, []); byShift.get(r.shiftId).push(r); }
@@ -3051,21 +3059,28 @@ function renderAnalysis() {
     for (const rs of byShift.values()) {
       rs.sort((a, b) => (a.start || a.ts) - (b.start || b.ts));
       for (let i = 0; i + 1 < rs.length; i++) {
-        const r = rs[i], nx = rs[i + 1], gap = ((nx.start || nx.ts) - r.ts) / 60000;
-        if (!r.to || gap < 0 || gap > 120) continue;
+        const r = rs[i], nx = rs[i + 1], st = nx.start || nx.ts, gap = (st - r.ts) / 60000;
+        if (!r.to || !nx.from || gap < 0 || gap > 120) continue;
+        const dp = ridePos(r.to), np = ridePos(nx.from);
+        const label = (nx.from.place && nx.from.place.name) || placeInfo(nx.from.addr || '');
+        const near = dp && np ? haversine(dp, np) <= 800 : false;
+        if (!near && !label) continue;
         pseudo.push({ id: r.id, from: r.to, ts: r.ts, total: 0 });
-        const f = nx.from || {};
-        info.set(r.id, { gap, next: (f.place && f.place.name) || placeInfo(f.addr || '') });
+        info.set(r.id, { gap, min: gap + (nx.start ? Math.max(1, (nx.ts - nx.start) / 60000) : 15), fare: nx.total, opt: near ? '' : label });
       }
     }
-    return demandPlaces(pseudo).filter(c => c.name && c.n >= 3).map(c => {
-      const xs = c.ids.map(id => info.get(id)), cnt = {};
-      for (const x of xs) if (x.next) cnt[x.next] = (cnt[x.next] || 0) + 1;
-      const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
-      return { c, n: c.n, gap: quant(xs.map(x => x.gap), .5), next: top ? top[0] : '', nextN: top ? top[1] : 0 };
-    }).slice(0, 6).sort((a, b) => a.gap - b.gap);   // よく降ろす6か所を、次が早い順に
+    const eff = o => (o.fare + perHour) / (o.min / 60 + 1);
+    return demandPlaces(pseudo).filter(c => c.name && c.n >= 5).slice(0, 6).map(c => {
+      const opts = new Map();
+      for (const id of c.ids) {
+        const x = info.get(id), o = opts.get(x.opt) || { opt: x.opt, n: 0, fare: 0, min: 0, gaps: [] };
+        o.n++; o.fare += x.fare; o.min += x.min; o.gaps.push(x.gap); opts.set(x.opt, o);
+      }
+      const list = [...opts.values()].filter(o => o.n >= 3).map(o => ({ ...o, eff: eff(o), gap: quant(o.gaps, .5) })).sort((a, b) => b.eff - a.eff);
+      return list.length ? { c, n: c.n, best: list[0], others: list.slice(1, 3) } : null;
+    }).filter(Boolean);
   })();
-  const adMax = Math.max(...afterDrop.map(x => x.gap), 1);
+  const optName = o => o.opt ? esc(shortPl(o.opt)) + 'へ' : 'その付近で';
   // ── 推移
   const trendW = 320, trendH = 110, maxY = Math.max(...D.map(d => d.sales), 1);
   const bx = i => 6 + i * (trendW - 12) / Math.max(1, D.length - 1), by = v => trendH - v / maxY * (trendH - 6);
@@ -3079,8 +3094,7 @@ function renderAnalysis() {
   const heatTake = bestBlock ? `最も稼げる ${WEEKDAYS[bestBlock.d]}曜 ${bestBlock.b.label}時` : '';
   const plTake = plRows.length ? `${ps.label}1位 ${esc(placeName(plRows[0]))}` : '';
   const kindTake = kindList.length ? `最も効率 ${esc(kindList[0].l)} ${kv(Math.round(kindList[0].eff))}/時` : '';
-  const adBest = afterDrop.slice().sort((a, b) => a.gap - b.gap)[0];
-  const adTake = adBest ? `次が早い ${esc(shortPl(placeName(adBest.c)))} ${Math.round(adBest.gap)}分` : '';
+  const adTake = afterDrop.length ? `${esc(shortPl(placeName(afterDrop[0].c)))} → ${optName(afterDrop[0].best)}` : '';
 
   body.innerHTML = `
     ${plan}
@@ -3120,11 +3134,12 @@ function renderAnalysis() {
         <span class="a num">${ps.fmt(c)}</span>${placeDetail(c, rideOf)}</li>`).join('')}</ol>`
         : `<div class="ana-empty">該当なし</div>`}
 `)}
-    ${afterDrop.length ? fold('after', '降ろした後（次まで）', adTake, `
-      <ol class="prank adrop">${afterDrop.map(x => `<li>
-        <span class="n num">${Math.round(x.gap)}<small>分</small></span>
-        <span class="b"><span class="nm">${esc(shortPl(placeName(x.c)))}</span><span class="bar"><i style="width:${(x.gap / adMax * 100).toFixed(1)}%"></i></span>
-          <span class="sb num">${x.n}回${x.next ? `・次は ${esc(shortPl(x.next))}（${x.nextN}回）` : ''}</span></span></li>`).join('')}</ol>
+    ${afterDrop.length ? fold('after', '降ろした後どこへ', adTake, `
+      <ul class="adrop">${afterDrop.map(x => `<li>
+        <div class="from">${esc(shortPl(placeName(x.c)))}で降ろしたら<small class="num">${x.n}回</small></div>
+        <div class="go"><b>→ ${optName(x.best)}</b><span class="num">${kv(Math.round(x.best.eff))}/時・次まで${Math.round(x.best.gap)}分</span></div>
+        ${x.others.length ? `<div class="vs num">${x.others.map(o => `${optName(o)} ${kv(Math.round(o.eff))}/時`).join('・')}</div>` : ''}
+      </li>`).join('')}</ul>
 `) : ''}
     ${kindList.length >= 2 ? fold('kind', '乗車の種類（1時間あたり）', kindTake, `
       <ol class="prank">${kindList.map(k => `<li>
