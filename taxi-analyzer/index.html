@@ -698,9 +698,8 @@ svg{display:block}
 .rr.pay-fold::after{content:'';width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);justify-self:end;margin-bottom:3px;transition:transform .15s}
 .rr.pay-fold[aria-expanded="true"]::after{transform:rotate(-135deg);margin:3px 0 0}
 .rp-rides{padding:0 0 8px 8px;display:grid}
-.rp-ride{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"t a" "pl pl";gap:2px 8px;align-items:baseline;padding:8px 0;text-align:left;width:100%;font-size:13px;border-top:1px dashed var(--line)}
+.rp-ride{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"t a";gap:2px 8px;align-items:baseline;padding:8px 0;text-align:left;width:100%;font-size:13px;border-top:1px dashed var(--line)}
 .rp-ride .t{grid-area:t;color:var(--muted);white-space:nowrap}
-.rp-ride .pl{grid-area:pl;font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rp-ride .a{grid-area:a;font-weight:700;text-align:right;white-space:nowrap}
 .rp-ride .a small{font-size:10px;color:var(--faint);font-weight:500;margin-left:4px}
 .rp-rides + .rr{border-top:1px solid var(--line)}
@@ -2241,11 +2240,10 @@ function openReport(id) {
       <h3><span>支払い種別</span><span>件数・金額</span></h3>
       <div class="rp-card num">
         ${pays.map(p => { const tk = p.k.startsWith('ticket:') ? p.k.slice(7) : '';   // チケットは種類を注記に
-          // 行をタップすると、その支払い種別の乗車が開く（乗車をタップで詳細）
+          // 行をタップすると、その支払い種別の乗車（時刻・金額）が開く（乗車をタップで詳細）
           return row(tk ? 'チケット' : p.label, p.n, p.amt, 'pay-fold', [tk, p.toll && `うち高速代 ${yen(p.toll)}`].filter(Boolean).join(' ・ ')).replace('<div class="rr pay-fold', '<div data-pf role="button" tabindex="0" aria-expanded="false" class="rr pay-fold') +
             `<div class="rp-rides" hidden>${p.rides.map(r => `<button class="rp-ride" data-rd="${r.id}">
               <span class="t num">${r.start ? hhmm(r.start) : '--:--'}–${hhmm(r.ts)}</span>
-              <span class="pl">${esc(placeText(r.from))} → ${esc(placeText(r.to))}</span>
               <span class="a num">${yen(r.total)}${r.toll ? `<small>＋高速${yen(r.toll)}</small>` : ''}</span></button>`).join('')}</div>`; }).join('') || '<div class="rr zero"><span class="l">乗車記録なし</span></div>'}
         ${st.toll && pays.length ? row('計', pn, pa, 'sum', '高速代込み') : ''}
       </div>
