@@ -676,12 +676,13 @@ svg{display:block}
 .rp-times{display:flex;align-items:baseline;gap:10px;font-size:22px;font-weight:800;white-space:nowrap;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .rp-times small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:2px}
 .rp-times i{font-style:normal;color:var(--faint);font-size:16px;font-weight:400}
+.rp-times .du{margin-left:auto;text-align:right;font-size:18px;color:var(--muted)}
 .rp-sum{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-top:10px}
 .rp-sum .k{font-size:13px;color:var(--muted)}
 .rp-sum .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1;color:var(--accent)}
 .rp-sum .c{font-size:14px;color:var(--muted);white-space:nowrap}
 .rp-sum .c b{font-size:20px;color:var(--text);margin-right:2px}
-.rp-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
+.rp-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px;overflow:hidden}
 .rr{display:grid;grid-template-columns:minmax(0,1fr) 3em 6.6em;align-items:center;column-gap:8px;padding:12px 0}   /* 件数・金額の列を全行でそろえる */
 .rr + .rr{border-top:1px solid var(--line)}
 .rr .l{font-size:15px;font-weight:600;min-width:0;line-height:1.35;overflow-wrap:anywhere}   /* 名前・注記は省略せず折り返す */
@@ -694,13 +695,15 @@ svg{display:block}
 .rr.sum{border-top:2px solid var(--line-2)}
 .rr.sum .l{font-weight:800}
 .rr.zero .l{color:var(--faint)}
-.rr.pay-fold{cursor:pointer;grid-template-columns:minmax(0,1fr) 3em 6.6em 12px}
+.rr.pay-fold{cursor:pointer;grid-template-columns:minmax(0,1fr) 3em 6.6em 12px;margin:0 -14px;padding:12px 14px;transition:background .15s}
+.rr.pay-fold[aria-expanded="true"]{background:var(--surface-2)}
 .rr.pay-fold::after{content:'';width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);justify-self:end;margin-bottom:3px;transition:transform .15s}
 .rr.pay-fold[aria-expanded="true"]::after{transform:rotate(-135deg);margin:3px 0 0}
-.rp-rides{padding:0 0 8px 8px;display:grid}
-.rp-ride{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"t a";gap:2px 8px;align-items:baseline;padding:8px 0;text-align:left;width:100%;font-size:13px;border-top:1px dashed var(--line)}
-.rp-ride .t{grid-area:t;color:var(--muted);white-space:nowrap}
-.rp-ride .a{grid-area:a;font-weight:700;text-align:right;white-space:nowrap}
+.rp-rides{display:grid;margin:0 -14px;padding:0 14px 6px;background:var(--surface-2)}
+.rp-ride{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:9px 0 9px 4px;text-align:left;width:100%;font-size:14px;border-top:1px solid var(--line)}
+.rp-ride .i{font-size:11px;color:var(--faint);text-align:center}
+.rp-ride .t{color:var(--muted);white-space:nowrap}
+.rp-ride .a{font-weight:700;text-align:right;white-space:nowrap;font-size:15px}
 .rp-ride .a small{font-size:10px;color:var(--faint);font-weight:500;margin-left:4px}
 .rp-rides + .rr{border-top:1px solid var(--line)}
 .rp-sec{margin-bottom:18px}
@@ -2222,15 +2225,15 @@ function openReport(id) {
   const row = (label, n, amt, cls = '', note = '') => `<div class="rr ${cls}"><span class="l">${esc(label)}${note ? `<small>${esc(note)}</small>` : ''}</span><span class="n">${n != null ? n + '<i>件</i>' : ''}</span><b>${yen(amt)}</b></div>`;
   const cnt = f => rides.filter(f).length;
   const extras = [
-    st.toll && row('高速代', st.tollN, st.toll, '', '営業収入に含まない'),
-    st.fare.long && row('遠距離割', cnt(r => r.fare.long), st.fare.long, 'disc', '営業収入から差引済'),
-    st.fare.handi && row('障害者割', cnt(r => r.fare.handi), st.fare.handi, 'disc', '営業収入から差引済'),
+    st.toll && row('高速代', st.tollN, st.toll, '', '売上外'),
+    st.fare.long && row('遠距離割', cnt(r => r.fare.long), st.fare.long, 'disc', '差引済'),
+    st.fare.handi && row('障害者割', cnt(r => r.fare.handi), st.fare.handi, 'disc', '差引済'),
   ].filter(Boolean);
   $('#rpDate').textContent = ymd(sh.start);
   const pn = pays.reduce((a, p) => a + p.n, 0), pa = pays.reduce((a, p) => a + p.amt, 0);
   $('#rpBody').innerHTML = `
     <div class="rp-head">
-      <div class="rp-times num"><span><small>出庫</small>${hhmm(sh.start)}</span><i>→</i><span><small>入庫</small>${sh.end ? hhmm(sh.end) : '営業中'}</span></div>
+      <div class="rp-times num"><span><small>出庫</small>${hhmm(sh.start)}</span><i>→</i><span><small>入庫</small>${sh.end ? hhmm(sh.end) : '営業中'}</span><span class="du"><small>営業時間</small>${dur(st.elapsed)}</span></div>
       <div class="rp-sum">
         <div><div class="k">合計金額（営業収入）</div><div class="v num">${yen(st.sales)}</div></div>
         <div class="c num"><b>${st.count}</b>件</div>
@@ -2242,8 +2245,8 @@ function openReport(id) {
         ${pays.map(p => { const tk = p.k.startsWith('ticket:') ? p.k.slice(7) : '';   // チケットは種類を注記に
           // 行をタップすると、その支払い種別の乗車（時刻・金額）が開く（乗車をタップで詳細）
           return row(tk ? 'チケット' : p.label, p.n, p.amt, 'pay-fold', [tk, p.toll && `うち高速代 ${yen(p.toll)}`].filter(Boolean).join(' ・ ')).replace('<div class="rr pay-fold', '<div data-pf role="button" tabindex="0" aria-expanded="false" class="rr pay-fold') +
-            `<div class="rp-rides" hidden>${p.rides.map(r => `<button class="rp-ride" data-rd="${r.id}">
-              <span class="t num">${r.start ? hhmm(r.start) : '--:--'}–${hhmm(r.ts)}</span>
+            `<div class="rp-rides" hidden>${p.rides.map((r, i) => `<button class="rp-ride" data-rd="${r.id}">
+              <span class="i num">${i + 1}</span><span class="t num">${r.start ? hhmm(r.start) : '--:--'}–${hhmm(r.ts)}</span>
               <span class="a num">${yen(r.total)}${r.toll ? `<small>＋高速${yen(r.toll)}</small>` : ''}</span></button>`).join('')}</div>`; }).join('') || '<div class="rr zero"><span class="l">乗車記録なし</span></div>'}
         ${st.toll && pays.length ? row('計', pn, pa, 'sum', '高速代込み') : ''}
       </div>
