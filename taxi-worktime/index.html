@@ -159,6 +159,14 @@ svg{display:block}
 .input{width:100%;min-height:48px;padding:0 14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line-2);font-size:16px}
 textarea.input{padding:10px 14px;min-height:72px;resize:vertical}
 .sheet .actions{margin-top:20px}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tgrid .input{min-width:0}
+.input:disabled{opacity:.4}
+.check{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:15px;font-weight:600}
+.check input{width:22px;height:22px;accent-color:var(--accent)}
+.preview{margin-top:14px;padding:10px 14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line)}
+.preview .kv{padding:4px 0 8px}
+.preview .warns{display:flex;flex-wrap:wrap;gap:6px}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--surface-3);border:1px solid var(--line-2);padding:10px 18px;border-radius:999px;font-size:14px;font-weight:700;z-index:30;max-width:calc(100% - 32px);text-align:center}
 
 /* ---------- ルール説明 ---------- */
@@ -328,6 +336,7 @@ function viewNow(now = Date.now()) {
       ${alerts.length ? `<div class="alerts">${alerts.map(([lv, t]) => `<div class="alert lv-${lv}">${t}</div>`).join('')}</div>` : ''}
       <div class="actions">
         <button class="btn big primary block" data-act="end">終業（帰庫）</button>
+        <button class="btn block" data-act="edit-active">始業時刻を修正</button>
       </div>
     </div>`;
   } else {
@@ -352,7 +361,8 @@ function viewNow(now = Date.now()) {
       <div class="seg" style="margin-top:14px" role="group" aria-label="勤務形態">
         ${Object.entries(TYPES).map(([k, v]) => `<button data-act="type" data-v="${k}" aria-pressed="${k === type}">${v}</button>`).join('')}
       </div>
-      <div class="actions"><button class="btn big primary block" data-act="start">始業（出庫）</button></div>
+      <div class="actions"><button class="btn big primary block" data-act="start">始業（出庫）</button>
+        <button class="btn block" data-act="add">押し忘れた勤務を手入力</button></div>
     </div>`;
   }
   const mk = monthKey(now), st = monthStats(mk, now), lim = monthLimit(), kh = st.k / H;
@@ -393,7 +403,7 @@ function viewLog(now = Date.now()) {
         <div class="stat"><div class="k">注意</div><div class="v num" style="color:${st.warn ? 'var(--lv-warn)' : 'inherit'}">${st.warn}</div></div>
       </div>
     </div>
-    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center"><span>勤務一覧</span><button class="chip" data-act="add">＋ 手入力で追加</button></div>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center"><span>勤務一覧</span><button class="chip" data-act="add" style="border-color:var(--accent);color:var(--accent)">＋ 手入力で追加</button></div>
     <div class="list">${items || '<div class="empty">この月の記録はありません</div>'}</div>`;
 }
 
@@ -444,40 +454,81 @@ function viewSettings() {
    編集シート
    ============================================================ */
 let editing = null;
-function openEditor(id, draft) {
-  const now = Date.now();
-  const src = id ? S.shifts.find(s => s.id === id) : null;
-  const s = draft || (src ? JSON.parse(JSON.stringify(src)) : { id: uid(), type: S.settings.type, start: now - 10 * H - (now % M), end: now - (now % M), note: '', _new: true });
-  editing = s;
-  document.getElementById('sheet-root').innerHTML = `<div class="sheet-bg" data-act="close"><div class="sheet" role="dialog" aria-label="勤務の編集">
-    <h3>${s._new ? '勤務を追加' : '勤務を編集'}<button class="icon-btn" data-act="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
-    <div class="seg" role="group">${Object.entries(TYPES).map(([k, v]) => `<button data-act="etype" data-v="${k}" aria-pressed="${k === (s.type || 'day')}">${v}</button>`).join('')}</div>
-    <label class="field"><span>始業</span><input class="input num" type="datetime-local" id="e-start" value="${toLocalInput(s.start)}"></label>
-    <label class="field"><span>終業${s.end == null ? '（乗務中は空欄）' : ''}</span><input class="input num" type="datetime-local" id="e-end" value="${s.end != null ? toLocalInput(s.end) : ''}"></label>
-    <label class="field"><span>メモ</span><textarea class="input" id="e-note" placeholder="営業所・車番など">${esc(s.note)}</textarea></label>
-    <div class="actions"><button class="btn primary big block" data-act="esave">保存</button>${s._new ? '' : '<button class="btn danger block" data-act="edel">この勤務を削除</button>'}</div>
-  </div></div>`;
+// 新しく追加するときの初期値：同じ勤務形態の前回と同じ時刻、なければ標準的な時刻
+function newDraft(dayOffset) {
+  const type = S.settings.type, last = sorted().filter(x => x.end != null && (x.type || 'day') === type).pop();
+  const base = new Date(); base.setHours(0, 0, 0, 0);
+  if (dayOffset != null) base.setTime(dayOffset);
+  const [sh, sm, dur] = last ? [new Date(last.start).getHours(), new Date(last.start).getMinutes(), last.end - last.start]
+    : type === 'alt' ? [7, 0, 20 * H] : [8, 0, 11 * H];
+  const st = new Date(base); st.setHours(sh, sm, 0, 0);
+  return { id: uid(), type, start: st.getTime(), end: st.getTime() + dur, note: '', _new: true };
 }
-// 編集中の入力値を editing に読み込む
+const toDateInput = t => toLocalInput(t).slice(0, 10);
+function openEditor(id, draft) {
+  const src = id ? S.shifts.find(s => s.id === id) : null;
+  const s = draft || (src ? JSON.parse(JSON.stringify(src)) : newDraft());
+  editing = s;
+  const canActive = s.end === null || !S.shifts.some(x => x.end == null && x.id !== s.id);
+  document.getElementById('sheet-root').innerHTML = `<div class="sheet-bg" data-act="close"><div class="sheet" role="dialog" aria-label="勤務の編集">
+    <h3>${s._new ? '勤務を手入力' : '勤務を編集'}<button class="icon-btn" data-act="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
+    <div class="seg" role="group">${Object.entries(TYPES).map(([k, v]) => `<button data-act="etype" data-v="${k}" aria-pressed="${k === (s.type || 'day')}">${v}</button>`).join('')}</div>
+    <label class="field"><span>勤務日（始業した日）</span><input class="input num" type="date" id="e-date" value="${toDateInput(s.start)}"></label>
+    <div class="tgrid">
+      <label class="field"><span>始業</span><input class="input num" type="time" id="e-start" value="${hhmm(s.start)}"></label>
+      <label class="field"><span>終業</span><input class="input num" type="time" id="e-end" value="${s.end != null ? hhmm(s.end) : ''}"${s.end === null ? ' disabled' : ''}></label>
+    </div>
+    ${canActive ? `<label class="check"><input type="checkbox" id="e-active"${s.end === null ? ' checked' : ''}> まだ終業していない（乗務中）</label>` : ''}
+    <div class="preview" id="e-preview"></div>
+    <label class="field"><span>メモ</span><textarea class="input" id="e-note" placeholder="営業所・車番など">${esc(s.note)}</textarea></label>
+    <div class="actions">${s._new ? `<div class="actions two" style="margin-top:0"><button class="btn primary big" data-act="esave">保存</button><button class="btn big" data-act="esave-next">保存して次へ</button></div>` : '<button class="btn primary big block" data-act="esave">保存</button>'}
+      ${s._new ? '' : '<button class="btn danger block" data-act="edel">この勤務を削除</button>'}</div>
+  </div></div>`;
+  updatePreview();
+}
+// 編集中の入力値を editing に読み込む（終業の時刻が始業以前なら翌日の終業とみなす）
 function readEditor() {
-  const s = editing, v = id => document.getElementById(id).value;
-  s.start = v('e-start') ? new Date(v('e-start')).getTime() : NaN;
-  s.end = v('e-end') ? new Date(v('e-end')).getTime() : null;
+  const s = editing, v = id => document.getElementById(id)?.value || '';
+  const d = v('e-date'), st = v('e-start'), en = v('e-end'), act = document.getElementById('e-active')?.checked;
+  s.start = d && st ? new Date(`${d}T${st}`).getTime() : NaN;
+  if (act) s.end = null;
+  else if (en && isFinite(s.start)) { let e = new Date(`${d}T${en}`).getTime(); while (e <= s.start) e += 24 * H; s.end = e; }
+  else s.end = undefined;
   s.note = v('e-note').trim();
   delete s.breaks;
 }
+function updatePreview() {
+  const el = document.getElementById('e-preview'); if (!el || !editing) return;
+  readEditor();
+  const s = editing, endIn = document.getElementById('e-end'), act = document.getElementById('e-active')?.checked;
+  if (endIn) endIn.disabled = !!act;
+  if (!isFinite(s.start)) { el.innerHTML = '<span class="muted">勤務日と始業時刻を入れてください</span>'; return; }
+  if (s.end === undefined) { el.innerHTML = '<span class="muted">終業時刻を入れてください</span>'; return; }
+  const list = sorted().filter(x => x.id !== s.id).concat(s).sort((a, b) => a.start - b.start), c = check(s, list);
+  const nextDay = s.end != null && new Date(s.end).toDateString() !== new Date(s.start).toDateString();
+  el.innerHTML = `<div class="kv"><span class="k">${s.end == null ? '乗務中' : `終業 ${nextDay ? '<b class="tag" style="color:var(--accent)">翌日</b> ' : ''}${md(s.end)} ${hhmm(s.end)}`}</span><span class="v num">拘束 ${hm(kousoku(s))}</span></div>
+    ${c.length ? `<div class="warns">${c.map(x => `<span class="pill lv-${x.lv}"><i></i>${esc(x.t)}</span>`).join('')}</div>` : '<span class="pill lv-ok"><i></i>基準内です</span>'}`;
+}
 function closeEditor() { editing = null; document.getElementById('sheet-root').innerHTML = ''; }
-function saveEditor() {
+function saveEditor(next) {
   readEditor();
   const s = editing;
-  if (!isFinite(s.start)) return toast('始業の日時を入力してください');
-  if (s.end != null && s.end <= s.start) return toast('終業は始業より後にしてください');
-  if (s.end != null && s.end - s.start > 48 * H) return toast('48時間を超える勤務は登録できません');
+  if (!isFinite(s.start)) return toast('勤務日と始業時刻を入力してください');
+  if (s.end === undefined) return toast('終業時刻を入力してください');
+  if (s.end == null && s.start > Date.now()) return toast('乗務中にする勤務は、始業を現在より前にしてください');
   if (s.end == null && S.shifts.some(x => x.end == null && x.id !== s.id)) return toast('乗務中の勤務がほかにあります。終業を入力してください');
+  if (S.shifts.some(x => x.id !== s.id && x.start < (s.end ?? Date.now()) && (x.end ?? Date.now()) > s.start)) return toast('ほかの勤務と時間が重なっています');
   delete s._new;
   const i = S.shifts.findIndex(x => x.id === s.id);
   if (i >= 0) S.shifts[i] = s; else S.shifts.push(s);
-  save(); closeEditor(); render(); toast('保存しました');
+  save(); render();
+  if (next && s.end != null) {
+    // 次の勤務日：日勤は翌日、隔勤は明け番を挟んで2日後
+    const d = new Date(s.start); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + ((s.type || 'day') === 'alt' ? 2 : 1));
+    const n = newDraft(d.getTime()); n.type = s.type || 'day';
+    const st = new Date(d); st.setHours(new Date(s.start).getHours(), new Date(s.start).getMinutes()); n.start = st.getTime(); n.end = n.start + (s.end - s.start);
+    openEditor(null, n); toast(`保存しました。続けて ${md(n.start)} を入力できます`);
+  } else { closeEditor(); toast('保存しました'); }
 }
 
 /* ============================================================
@@ -495,6 +546,7 @@ document.addEventListener('click', e => {
   if (act === 'close' && e.target !== el && el.classList.contains('sheet-bg')) return; // シートの中のタップは閉じない
   switch (act) {
     case 'start': {
+      if (S.shifts.some(x => x.end != null && x.end > now)) return toast('終業が現在より後の勤務があります。記録を修正してください');
       const last = sorted().filter(s => s.end != null).pop(), R = RULES[S.settings.type];
       if (last && now - last.end < R.restMin && !confirm(`前回の終業から ${hm(now - last.end)} しか経っていません（休息は${R.restMin / H}時間以上が必要）。それでも始業しますか？`)) return;
       S.shifts.push({ id: uid(), type: S.settings.type, start: now, end: null, note: '' });
@@ -517,7 +569,9 @@ document.addEventListener('click', e => {
     case 'add': openEditor(null); break;
     case 'close': closeEditor(); break;
     case 'etype': readEditor(); editing.type = v; reopen(); break;
-    case 'esave': saveEditor(); break;
+    case 'esave': saveEditor(false); break;
+    case 'esave-next': saveEditor(true); break;
+    case 'edit-active': if (a) openEditor(a.id); break;
     case 'edel':
       if (!confirm('この勤務を削除しますか？')) return;
       S.shifts = S.shifts.filter(x => x.id !== editing.id); save(); closeEditor(); render(); toast('削除しました'); break;
@@ -532,7 +586,9 @@ document.addEventListener('click', e => {
 // 編集シートを、いまの editing の内容で描き直す
 function reopen() { openEditor(null, editing); }
 
+document.addEventListener('input', e => { if (e.target.closest('.sheet')) updatePreview(); });
 document.addEventListener('change', e => {
+  if (e.target.id === 'e-active') return updatePreview();
   if (e.target.id !== 'restore-file') return;
   const f = e.target.files[0]; if (!f) return;
   f.text().then(t => {
