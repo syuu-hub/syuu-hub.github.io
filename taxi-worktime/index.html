@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="タクシードライバー向けの労働時間管理。始業・休憩・終業をワンタップで記録し、改善基準告示の拘束時間・休息期間を自動でチェックします。">
+<meta name="description" content="タクシードライバー向けの労働時間管理。始業・終業をワンタップで記録し、改善基準告示の拘束時間・休息期間を自動でチェックします。">
 <title>拘束時間チェッカー</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -125,7 +125,6 @@ svg{display:block}
 .stat .v{font-size:20px;font-weight:800;margin-top:2px}
 .actions{display:grid;gap:10px;margin-top:14px}
 .actions.two{grid-template-columns:1fr 1fr}
-.on-break .timer .big{color:var(--lv-unk)}
 .alerts{display:grid;gap:8px;margin-top:12px}
 .alert{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-md);font-size:14px;line-height:1.5;background:color-mix(in srgb,var(--c) 12%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
 .alert::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:var(--c);margin-top:6px}
@@ -159,8 +158,6 @@ svg{display:block}
 .field > span{font-size:13px;font-weight:700;color:var(--muted)}
 .input{width:100%;min-height:48px;padding:0 14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line-2);font-size:16px}
 textarea.input{padding:10px 14px;min-height:72px;resize:vertical}
-.brow{display:grid;grid-template-columns:1fr auto 1fr auto;gap:8px;align-items:center;margin-top:8px}
-.brow .input{min-width:0;padding:0 10px}
 .sheet .actions{margin-top:20px}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--surface-3);border:1px solid var(--line-2);padding:10px 18px;border-radius:999px;font-size:14px;font-weight:700;z-index:30;max-width:calc(100% - 32px);text-align:center}
 
@@ -218,26 +215,17 @@ const monthLimit = () => S.settings.type === 'alt' ? (+S.settings.altMonth || 26
    計算
    ============================================================ */
 const endOf = (s, now) => s.end ?? now;
-function breakMs(s, now = Date.now()) {
-  const e = endOf(s, now);
-  return (s.breaks || []).reduce((t, b) => t + Math.max(0, Math.min(b.e ?? now, e) - Math.max(b.s, s.start)), 0);
-}
 const kousoku = (s, now = Date.now()) => Math.max(0, endOf(s, now) - s.start);
-const jitsudo = (s, now = Date.now()) => Math.max(0, kousoku(s, now) - breakMs(s, now));
-const onBreak = s => s && (s.breaks || []).some(b => b.e == null);
 
 // 日勤の「1日」は始業から24時間。その間に次の勤務が始まった分も、その日の拘束に数える
 function dayKousoku(s, list, now = Date.now()) {
   const w0 = s.start, w1 = s.start + 24 * H;
   return list.reduce((t, x) => t + Math.max(0, Math.min(endOf(x, now), w1) - Math.max(x.start, w0)), 0);
 }
-// 労基法34条の休憩：実働6時間超で45分、8時間超で60分
-function legalBreak(workMs) { return workMs > 8 * H ? 60 * M : workMs > 6 * H ? 45 * M : 0; }
-
 // 1勤務ごとのチェック結果 [{lv:'ng'|'warn', t:'…'}]
 function check(s, list, now = Date.now()) {
   const out = [], i = list.indexOf(s), prev = list[i - 1], type = s.type || 'day';
-  const k = kousoku(s, now), br = breakMs(s, now), need = legalBreak(k - br);
+  const k = kousoku(s, now);
   if (type === 'day') {
     const dk = dayKousoku(s, list, now);
     if (dk > RULES.day.max) out.push({ lv: 'ng', t: `1日の拘束 ${hm(dk)}（上限15時間超）` });
@@ -254,17 +242,16 @@ function check(s, list, now = Date.now()) {
     else if (r < R.restMin) out.push({ lv: 'ng', t: `休息 ${hm(r)}（${R.restMin / H}時間未満）` });
     else if (r < R.restGoal) out.push({ lv: 'warn', t: `休息 ${hm(r)}（目標${R.restGoal / H}時間に届かず）` });
   }
-  if (s.end != null && br < need) out.push({ lv: 'ng', t: `休憩 ${hm(br)}（実働${need === 60 * M ? 8 : 6}時間超は${need / M}分以上）` });
   return out;
 }
 
 function monthKey(t) { const d = new Date(t); return d.getFullYear() * 100 + d.getMonth() + 1; }
 function monthStats(mk, now = Date.now()) {
   const list = sorted(), ms = list.filter(s => monthKey(s.start) === mk);
-  const r = { n: ms.length, k: 0, w: 0, b: 0, ng: 0, warn: 0, over14: 0, list: ms, all: list };
+  const r = { n: ms.length, k: 0, max: 0, ng: 0, warn: 0, over14: 0, list: ms, all: list };
   const weeks = {};
   for (const s of ms) {
-    r.k += kousoku(s, now); r.w += jitsudo(s, now); r.b += breakMs(s, now);
+    const k = kousoku(s, now); r.k += k; r.max = Math.max(r.max, k);
     const c = check(s, list, now);
     r.ng += c.filter(x => x.lv === 'ng').length; r.warn += c.filter(x => x.lv === 'warn').length;
     if ((s.type || 'day') === 'day' && dayKousoku(s, list, now) > RULES.day.over14) {
@@ -312,16 +299,14 @@ function render() {
 
 function viewNow(now = Date.now()) {
   const a = active(), list = sorted();
-  const clock = `<div class="status"><span class="clock num">${md(now)} ${hhmm(now)}</span>${a ? (onBreak(a) ? '<span class="pill lv-unk"><i></i>休憩中</span>' : '<span class="pill lv-ok"><i></i>乗務中</span>') : '<span class="pill lv-unk" style="--c:var(--muted)"><i></i>休息中</span>'}</div>`;
+  const clock = `<div class="status"><span class="clock num">${md(now)} ${hhmm(now)}</span>${a ? '<span class="pill lv-ok"><i></i>乗務中</span>' : '<span class="pill lv-unk" style="--c:var(--muted)"><i></i>休息中</span>'}</div>`;
   let main;
   if (a) {
-    const type = a.type || 'day', k = kousoku(a, now), br = breakMs(a, now), w = k - br;
+    const type = a.type || 'day', k = kousoku(a, now);
     const lim = type === 'day' ? RULES.day.max : RULES.alt.max, soft = type === 'day' ? RULES.day.warn : null;
     const used = type === 'day' ? dayKousoku(a, list, now) : k;
     const pct = Math.min(100, used / lim * 100);
     const color = used > lim ? 'var(--lv-ng)' : soft && used > soft ? 'var(--lv-warn)' : lim - used < H ? 'var(--lv-warn)' : 'var(--lv-ok)';
-    const need = legalBreak(w), lack = Math.max(0, need - br);
-    const nextNeed = w <= 6 * H ? 45 * M : w <= 8 * H ? 60 * M : 0;
     const alerts = [];
     if (used > lim) alerts.push(['ng', `拘束時間が上限（${lim / H}時間）を ${hm(used - lim)} 超えています。すぐに終業してください。`]);
     else if (soft && used > soft) alerts.push(['warn', `13時間を超えました（14時間超は週3回までが目安）。上限15時間まであと ${hm(lim - used)}。`]);
@@ -332,25 +317,17 @@ function viewNow(now = Date.now()) {
       if (pk > RULES.day.max) alerts.push(['ng', `前回の始業から24時間以内のため、前回の「1日」の拘束が ${hm(pk)} になっています（上限15時間超）。`]);
       else if (now < pend) alerts.push(['unk', `${hhmm(pend)} までは前回の「1日」の拘束にも算入されます（いま ${hm(pk)} / 15時間）。`]);
     }
-    if (lack > 0) alerts.push(['warn', `法定休憩があと ${lack / M | 0}分 足りません（実働${need === 60 * M ? 8 : 6}時間超は${need / M}分以上）。`]);
-    else if (nextNeed && br < nextNeed && (w > 5 * H && w <= 6 * H || w > 7 * H && w <= 8 * H)) alerts.push(['unk', `実働${w > 7 * H ? 8 : 6}時間を超えると休憩${nextNeed / M}分が必要です（いま ${br / M | 0}分）。`]);
-    main = `<div class="card${onBreak(a) ? ' on-break' : ''}">
+    main = `<div class="card">
       <div class="timer">
         <div class="label">${TYPES[type]}・拘束時間（${hhmm(a.start)} 始業）</div>
         <div class="big num" id="tick">${hms(k)}</div>
         <div class="sub num">上限 ${lim / H}時間まで <b>${hm(lim - used)}</b>・終業リミット <b>${whenStr(a.start + lim - (used - k), now)}</b></div>
         <div class="bar"><span style="width:${pct}%;--c:${color}"></span>${soft ? `<i class="mark" style="left:${soft / lim * 100}%"></i>` : ''}</div>
         <div class="bar-legend num"><span>0h</span>${soft ? '<span>13h</span>' : ''}<span>${lim / H}h</span></div>
-        <div class="stats">
-          <div class="stat"><div class="k">実働</div><div class="v num">${hm(w)}</div></div>
-          <div class="stat"><div class="k">休憩</div><div class="v num">${hm(br)}</div></div>
-          <div class="stat"><div class="k">休憩回数</div><div class="v num">${(a.breaks || []).length}</div></div>
-        </div>
       </div>
       ${alerts.length ? `<div class="alerts">${alerts.map(([lv, t]) => `<div class="alert lv-${lv}">${t}</div>`).join('')}</div>` : ''}
-      <div class="actions two">
-        ${onBreak(a) ? `<button class="btn big primary" data-act="break-end">休憩終了</button>` : `<button class="btn big" data-act="break-start">休憩開始</button>`}
-        <button class="btn big danger" data-act="end">終業（帰庫）</button>
+      <div class="actions">
+        <button class="btn big primary block" data-act="end">終業（帰庫）</button>
       </div>
     </div>`;
   } else {
@@ -384,7 +361,7 @@ function viewNow(now = Date.now()) {
     <div class="month-head"><span class="muted small" style="font-weight:700">今月の拘束時間（${TYPES[S.settings.type]}・月${lim}時間）</span><span class="small muted">${st.n}勤務</span></div>
     <div class="month-head" style="margin-top:4px"><b class="num">${hm(st.k)}</b><span class="num ${kh > lim ? '' : 'muted'}" style="font-weight:700;${kh > lim ? 'color:var(--lv-ng)' : ''}">${kh > lim ? '超過 ' + hm(st.k - lim * H) : 'のこり ' + hm(lim * H - st.k)}</span></div>
     <div class="bar"><span style="width:${Math.min(100, kh / lim * 100)}%;--c:${mcolor}"></span></div>
-    <div class="kv"><span class="k">実働の合計</span><span class="v num">${hm(st.w)}</span></div>
+    <div class="kv"><span class="k">1勤務の平均拘束</span><span class="v num">${st.n ? hm(st.k / st.n) : '-'}</span></div>
     ${S.settings.type === 'day' ? `<div class="kv"><span class="k">14時間超の日</span><span class="v num" style="${st.weekOver ? 'color:var(--lv-warn)' : ''}">${st.over14}回${st.weekOver ? '（週3回超あり）' : ''}</span></div>` : ''}
     <div class="kv"><span class="k">基準違反・注意</span><span class="v num"><span style="color:${st.ng ? 'var(--lv-ng)' : 'inherit'}">${st.ng}</span> / <span style="color:${st.warn ? 'var(--lv-warn)' : 'inherit'}">${st.warn}</span></span></div>
   </div>`;
@@ -397,7 +374,7 @@ function viewLog(now = Date.now()) {
     const c = check(s, st.all, now), ng = c.some(x => x.lv === 'ng');
     return `<button class="shift${ng ? ' ng' : ''}" data-edit="${s.id}">
       <div class="row1"><span class="date">${md(s.start)}</span><span class="tag">${TYPES[s.type || 'day']}</span><span class="time num">${hhmm(s.start)} 〜 ${s.end != null ? whenStr(s.end, s.start).replace(/^今日 /, '') : '乗務中'}</span></div>
-      <div class="row2 num"><span>拘束 <b>${hm(kousoku(s, now))}</b></span><span>実働 <b>${hm(jitsudo(s, now))}</b></span><span>休憩 <b>${hm(breakMs(s, now))}</b></span></div>
+      <div class="row2 num"><span>拘束 <b>${hm(kousoku(s, now))}</b></span>${(() => { const p = st.all[st.all.indexOf(s) - 1]; return p && p.end != null ? `<span>前の休息 <b>${hm(s.start - p.end)}</b></span>` : ''; })()}</div>
       ${c.length ? `<div class="warns">${c.map(x => `<span class="pill lv-${x.lv}"><i></i>${esc(x.t)}</span>`).join('')}</div>` : ''}
       ${s.note ? `<div class="small muted" style="margin-top:6px">${esc(s.note)}</div>` : ''}
     </button>`;
@@ -409,9 +386,9 @@ function viewLog(now = Date.now()) {
       <div class="bar"><span style="width:${Math.min(100, st.k / (lim * H) * 100)}%;--c:${st.k > lim * H ? 'var(--lv-ng)' : st.k > lim * H * .9 ? 'var(--lv-warn)' : 'var(--lv-ok)'}"></span></div>
       <div class="sumgrid">
         <div class="stat"><div class="k">勤務回数</div><div class="v num">${st.n}</div></div>
-        <div class="stat"><div class="k">実働合計</div><div class="v num">${hm(st.w)}</div></div>
-        <div class="stat"><div class="k">休憩合計</div><div class="v num">${hm(st.b)}</div></div>
+        <div class="stat"><div class="k">月の上限まで</div><div class="v num" style="color:${st.k > lim * H ? 'var(--lv-ng)' : 'inherit'}">${hm(lim * H - st.k)}</div></div>
         <div class="stat"><div class="k">1勤務の平均拘束</div><div class="v num">${st.n ? hm(st.k / st.n) : '-'}</div></div>
+        <div class="stat"><div class="k">最長の拘束</div><div class="v num">${st.n ? hm(st.max) : '-'}</div></div>
         <div class="stat"><div class="k">違反</div><div class="v num" style="color:${st.ng ? 'var(--lv-ng)' : 'inherit'}">${st.ng}</div></div>
         <div class="stat"><div class="k">注意</div><div class="v num" style="color:${st.warn ? 'var(--lv-warn)' : 'inherit'}">${st.warn}</div></div>
       </div>
@@ -459,10 +436,6 @@ function viewSettings() {
         <li>2暦日の拘束時間 <b>22時間以内</b>、かつ2回の隔勤の平均で <b>21時間以内</b></li>
         <li>休息期間は継続 <b>24時間以上</b>が基本、<b>22時間を下回らない</b></li>
       </ul>
-      <h4>休憩（労働基準法34条）</h4>
-      <ul>
-        <li>実働6時間超で <b>45分以上</b>、8時間超で <b>60分以上</b></li>
-      </ul>
       <p class="small faint" style="margin-top:12px">車庫待ち等の自動車運転者、予期し得ない事象への対応などの特例は判定に含めていません。目安としてお使いいただき、正式な勤怠は会社の記録・労使協定に従ってください。</p>
     </div>`;
 }
@@ -474,19 +447,13 @@ let editing = null;
 function openEditor(id, draft) {
   const now = Date.now();
   const src = id ? S.shifts.find(s => s.id === id) : null;
-  const s = draft || (src ? JSON.parse(JSON.stringify(src)) : { id: uid(), type: S.settings.type, start: now - 10 * H - (now % M), end: now - (now % M), breaks: [], note: '', _new: true });
+  const s = draft || (src ? JSON.parse(JSON.stringify(src)) : { id: uid(), type: S.settings.type, start: now - 10 * H - (now % M), end: now - (now % M), note: '', _new: true });
   editing = s;
-  const breaks = (s.breaks || []).map((b, i) => `<div class="brow" data-b="${i}">
-      <input class="input num" type="time" value="${hhmm(b.s)}" data-bs="${i}"><span class="muted">〜</span>
-      <input class="input num" type="time" value="${b.e != null ? hhmm(b.e) : ''}" data-be="${i}">
-      <button class="icon-btn" data-act="bdel" data-v="${i}" aria-label="この休憩を削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('');
   document.getElementById('sheet-root').innerHTML = `<div class="sheet-bg" data-act="close"><div class="sheet" role="dialog" aria-label="勤務の編集">
     <h3>${s._new ? '勤務を追加' : '勤務を編集'}<button class="icon-btn" data-act="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
     <div class="seg" role="group">${Object.entries(TYPES).map(([k, v]) => `<button data-act="etype" data-v="${k}" aria-pressed="${k === (s.type || 'day')}">${v}</button>`).join('')}</div>
     <label class="field"><span>始業</span><input class="input num" type="datetime-local" id="e-start" value="${toLocalInput(s.start)}"></label>
     <label class="field"><span>終業${s.end == null ? '（乗務中は空欄）' : ''}</span><input class="input num" type="datetime-local" id="e-end" value="${s.end != null ? toLocalInput(s.end) : ''}"></label>
-    <div class="field"><span>休憩（時刻だけ入力。日付は始業以降で自動判定）</span>${breaks || '<span class="small faint" style="font-weight:400">休憩なし</span>'}
-      <button class="chip" data-act="badd" style="justify-self:start;margin-top:6px">＋ 休憩を追加</button></div>
     <label class="field"><span>メモ</span><textarea class="input" id="e-note" placeholder="営業所・車番など">${esc(s.note)}</textarea></label>
     <div class="actions"><button class="btn primary big block" data-act="esave">保存</button>${s._new ? '' : '<button class="btn danger block" data-act="edel">この勤務を削除</button>'}</div>
   </div></div>`;
@@ -497,17 +464,7 @@ function readEditor() {
   s.start = v('e-start') ? new Date(v('e-start')).getTime() : NaN;
   s.end = v('e-end') ? new Date(v('e-end')).getTime() : null;
   s.note = v('e-note').trim();
-  const at = (str, from) => {
-    if (!str) return null;
-    const [h, m] = str.split(':').map(Number), d = new Date(from); d.setHours(h, m, 0, 0);
-    if (d.getTime() < from - M) d.setDate(d.getDate() + 1);
-    return d.getTime();
-  };
-  s.breaks = (s.breaks || []).map((b, i) => {
-    const bs = document.querySelector(`[data-bs="${i}"]`)?.value, be = document.querySelector(`[data-be="${i}"]`)?.value;
-    const st = at(bs, s.start); if (st == null) return null;
-    return { s: st, e: be ? at(be, st) : null };
-  }).filter(Boolean);
+  delete s.breaks;
 }
 function closeEditor() { editing = null; document.getElementById('sheet-root').innerHTML = ''; }
 function saveEditor() {
@@ -517,8 +474,6 @@ function saveEditor() {
   if (s.end != null && s.end <= s.start) return toast('終業は始業より後にしてください');
   if (s.end != null && s.end - s.start > 48 * H) return toast('48時間を超える勤務は登録できません');
   if (s.end == null && S.shifts.some(x => x.end == null && x.id !== s.id)) return toast('乗務中の勤務がほかにあります。終業を入力してください');
-  if (s.breaks.some(b => s.end != null && (b.e == null || b.e > s.end))) return toast('休憩の終わりが終業より後になっています');
-  if (s.end != null) s.breaks.forEach(b => { if (b.e == null) b.e = s.end; });
   delete s._new;
   const i = S.shifts.findIndex(x => x.id === s.id);
   if (i >= 0) S.shifts[i] = s; else S.shifts.push(s);
@@ -542,14 +497,11 @@ document.addEventListener('click', e => {
     case 'start': {
       const last = sorted().filter(s => s.end != null).pop(), R = RULES[S.settings.type];
       if (last && now - last.end < R.restMin && !confirm(`前回の終業から ${hm(now - last.end)} しか経っていません（休息は${R.restMin / H}時間以上が必要）。それでも始業しますか？`)) return;
-      S.shifts.push({ id: uid(), type: S.settings.type, start: now, end: null, breaks: [], note: '' });
+      S.shifts.push({ id: uid(), type: S.settings.type, start: now, end: null, note: '' });
       notified = {}; save(); render(); toast('始業しました。安全運転で！'); break;
     }
-    case 'break-start': if (a && !onBreak(a)) { a.breaks.push({ s: now, e: null }); save(); render(); } break;
-    case 'break-end': if (a) { const b = a.breaks.find(b => b.e == null); if (b) b.e = now; save(); render(); } break;
     case 'end':
       if (!a || !confirm('終業（帰庫）しますか？')) return;
-      a.breaks.forEach(b => { if (b.e == null) b.e = now; });
       a.end = now; save(); render(); toast(`おつかれさまでした。拘束 ${hm(kousoku(a))}`); break;
     case 'type': S.settings.type = v; save(); render(); break;
     case 'altmonth': S.settings.altMonth = +v; save(); render(); break;
@@ -565,8 +517,6 @@ document.addEventListener('click', e => {
     case 'add': openEditor(null); break;
     case 'close': closeEditor(); break;
     case 'etype': readEditor(); editing.type = v; reopen(); break;
-    case 'badd': readEditor(); editing.breaks.push({ s: editing.start + 4 * H, e: editing.start + 4 * H + 30 * M }); reopen(); break;
-    case 'bdel': readEditor(); editing.breaks.splice(+v, 1); reopen(); break;
     case 'esave': saveEditor(); break;
     case 'edel':
       if (!confirm('この勤務を削除しますか？')) return;
@@ -602,8 +552,8 @@ function download(name, text, type = 'text/csv') {
 function exportCsv() {
   const list = sorted(), now = Date.now(), fmt = t => t == null ? '' : `${new Date(t).getFullYear()}/${pad(new Date(t).getMonth() + 1)}/${pad(new Date(t).getDate())} ${hhmm(t)}`;
   const q = v => `"${String(v).replace(/"/g, '""')}"`;
-  const rows = [['勤務形態', '始業', '終業', '拘束時間', '休憩時間', '実働時間', '休憩回数', 'チェック結果', 'メモ']];
-  for (const s of list) rows.push([TYPES[s.type || 'day'], fmt(s.start), fmt(s.end), hm(kousoku(s, now)), hm(breakMs(s, now)), hm(jitsudo(s, now)), (s.breaks || []).length, check(s, list, now).map(c => (c.lv === 'ng' ? '違反:' : '注意:') + c.t).join(' / '), s.note || '']);
+  const rows = [['勤務形態', '始業', '終業', '拘束時間', 'チェック結果', 'メモ']];
+  for (const s of list) rows.push([TYPES[s.type || 'day'], fmt(s.start), fmt(s.end), hm(kousoku(s, now)), check(s, list, now).map(c => (c.lv === 'ng' ? '違反:' : '注意:') + c.t).join(' / '), s.note || '']);
   download(`taxi-worktime-${fileDate()}.csv`, rows.map(r => r.map(q).join(',')).join('\r\n'));
 }
 
