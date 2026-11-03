@@ -1,0 +1,12 @@
+{
+  "appId": "io.github.syuuhub.taxianalyzer",
+  "appName": "タクシーアナライザー",
+  "webDir": "www",
+  "server": {
+    "url": "https://syuu-hub.github.io/taxi-analyzer/",
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

@@ -1,0 +1,68 @@
+# タクシーアナライザーの Android 外枠アプリ（APK）を作る
+# 中身は公開ページ（https://syuu-hub.github.io/taxi-analyzer/）を開くので、画面の更新に作り直しは不要
+name: taxi-analyzer-android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'taxi-analyzer-android/**'
+      - 'taxi-analyzer/icons/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: taxi-analyzer-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Capacitor の Android プロジェクトを作る
+        run: |
+          npm ci
+          npx cap add android
+          node scripts/patch-android.mjs
+          npx cap sync android
+      - name: APK を作る
+        working-directory: taxi-analyzer-android/android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: 署名する（Secrets の鍵があれば毎回同じ鍵：上書きインストールしてもデータが消えない）
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > release.keystore; PASS="$KEY_PASS"
+          else
+            echo "::warning::ANDROID_KEYSTORE_B64 が未登録のため、この実行だけの鍵で署名します（次の APK は上書きインストールできません）"
+            PASS="$(openssl rand -hex 16)"
+            keytool -genkeypair -keystore release.keystore -alias taxianalyzer -keyalg RSA -keysize 2048 -validity 36500 \
+              -storepass "$PASS" -keypass "$PASS" -dname "CN=Taxi Analyzer, C=JP"
+          fi
+          "$BT/zipalign" -f -p 4 android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          "$BT/apksigner" sign --ks release.keystore --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --out taxi-analyzer.apk aligned.apk
+          "$BT/apksigner" verify taxi-analyzer.apk
+          rm -f release.keystore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: taxi-analyzer-apk
+          path: taxi-analyzer-android/taxi-analyzer.apk
+      - name: Release に添付（スマホから直接ダウンロードできるように）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view taxi-analyzer-apk >/dev/null 2>&1 || gh release create taxi-analyzer-apk --title "タクシーアナライザー Android" --notes "提供元不明のアプリとしてインストールしてください。"
+          gh release upload taxi-analyzer-apk taxi-analyzer.apk --clobber
