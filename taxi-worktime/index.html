@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0C0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="タクシードライバー向けの労働時間管理。始業・休憩・終業をワンタップで記録し、改善基準告示の拘束時間・休息期間を自動でチェックします。">
+<title>拘束時間チェッカー</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="拘束時間">
+<style>
+/* ============================================================
+   Design tokens（タクシーアナライザー・乗り場ルールと共通）
+   ============================================================ */
+:root{
+  --bg:#0A0C0F;
+  --surface:#12151A;
+  --surface-2:#191D24;
+  --surface-3:#212630;
+  --line:#242A33;
+  --line-2:#343C48;
+  --text:#ECEFF3;
+  --muted:#8C96A4;
+  --faint:#5A6472;
+
+  --accent:#FFB020;
+  --accent-ink:#1E1400;
+  --accent-soft:rgba(255,176,32,.14);
+
+  --lv-ok:#3DD68C;
+  --lv-ng:#FF5D5D;
+  --lv-warn:#FFB020;
+  --lv-unk:#5B9BFF;
+
+  --r-lg:20px;
+  --r-md:14px;
+  --r-sm:10px;
+  --pad:16px;
+
+  --font: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  color-scheme: dark;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text)}
+body{
+  font-family:var(--font);font-size:16px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;overflow:hidden;touch-action:manipulation;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
+input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+[hidden]{display:none !important}
+svg{display:block}
+
+/* ---------- Layout ---------- */
+.app{height:100vh;height:100dvh;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+.view{
+  min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:max(var(--pad),env(safe-area-inset-top)) max(var(--pad),env(safe-area-inset-right)) 40px max(var(--pad),env(safe-area-inset-left));
+}
+.view-body{max-width:640px;margin:0 auto}
+.view-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;margin-bottom:8px}
+.view-head h2{font-size:22px;font-weight:800}
+
+.tabbar{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  border-top:1px solid var(--line);background:var(--surface);
+  padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.tab-btn{height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);position:relative}
+.tab-btn svg{width:24px;height:24px}
+.tab-btn[aria-current="page"]{color:var(--accent)}
+.tab-btn[aria-current="page"]::before{content:"";position:absolute;top:-1px;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+.tab-btn .dot{position:absolute;top:10px;left:calc(50% + 10px);width:10px;height:10px;border-radius:50%;background:var(--lv-ok)}
+
+/* ---------- 共通パーツ ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px}
+.card + .card{margin-top:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line-2);font-size:15px;font-weight:700;text-decoration:none;color:var(--text)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--lv-ng);border-color:rgba(255,93,93,.4)}
+.btn.block{width:100%}
+.btn.big{min-height:64px;font-size:19px;font-weight:800;border-radius:18px}
+.btn svg{width:22px;height:22px}
+.btn:disabled{opacity:.4}
+.chip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font-size:14px;font-weight:600;color:var(--muted);white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line)}
+.seg button{min-height:42px;border-radius:10px;font-size:15px;font-weight:700;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface-3);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-2)}
+.icon-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none}
+.icon-btn svg{width:24px;height:24px}
+.muted{color:var(--muted)}
+.faint{color:var(--faint)}
+.small{font-size:13px}
+.section-title{font-size:13px;font-weight:700;color:var(--muted);margin:20px 4px 8px;letter-spacing:.04em}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent);border:1px solid color-mix(in srgb,var(--c) 45%,transparent)}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.lv-ok{--c:var(--lv-ok)} .lv-ng{--c:var(--lv-ng)} .lv-warn{--c:var(--lv-warn)} .lv-unk{--c:var(--lv-unk)}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--surface-3);color:var(--muted);white-space:nowrap}
+
+/* ---------- いま（タイマー） ---------- */
+.status{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.clock{font-size:15px;color:var(--muted)}
+.timer{text-align:center;padding:22px 18px 18px}
+.timer .label{font-size:14px;font-weight:700;color:var(--muted)}
+.timer .big{font-size:clamp(52px,16vw,76px);font-weight:900;line-height:1.05;letter-spacing:-.02em;margin:6px 0 2px}
+.timer .sub{font-size:14px;color:var(--muted)}
+.timer .sub b{color:var(--text)}
+.bar{position:relative;height:14px;border-radius:999px;background:var(--surface-3);overflow:hidden;margin:16px 0 6px}
+.bar > span{position:absolute;inset:0 auto 0 0;border-radius:inherit;background:var(--c,var(--lv-ok));transition:width .4s}
+.bar .mark{position:absolute;top:0;bottom:0;width:2px;background:var(--bg);opacity:.9}
+.bar-legend{display:flex;justify-content:space-between;font-size:12px;color:var(--faint)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.stat{background:var(--surface-2);border-radius:var(--r-md);padding:10px 8px;text-align:center}
+.stat .k{font-size:12px;color:var(--muted);font-weight:600}
+.stat .v{font-size:20px;font-weight:800;margin-top:2px}
+.actions{display:grid;gap:10px;margin-top:14px}
+.actions.two{grid-template-columns:1fr 1fr}
+.on-break .timer .big{color:var(--lv-unk)}
+.alerts{display:grid;gap:8px;margin-top:12px}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-md);font-size:14px;line-height:1.5;background:color-mix(in srgb,var(--c) 12%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
+.alert::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:var(--c);margin-top:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.kv:first-of-type{border-top:0}
+.kv .k{color:var(--muted);font-size:14px}
+.kv .v{font-weight:800;font-size:17px;text-align:right}
+.month-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.month-head b{font-size:26px;font-weight:900}
+
+/* ---------- 記録 ---------- */
+.monthnav{display:flex;align-items:center;gap:4px}
+.monthnav .m{font-size:17px;font-weight:800;min-width:96px;text-align:center}
+.sumgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.list{display:grid;gap:8px}
+.shift{display:block;width:100%;text-align:left;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md)}
+.shift .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.shift .date{font-weight:800;font-size:16px}
+.shift .time{color:var(--muted);font-size:14px}
+.shift .row2{display:flex;gap:14px;margin-top:6px;font-size:14px;color:var(--muted);flex-wrap:wrap}
+.shift .row2 b{color:var(--text)}
+.shift .warns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.shift.ng{border-color:rgba(255,93,93,.45)}
+.empty{padding:36px 20px;text-align:center;color:var(--muted)}
+
+/* ---------- シート（編集） ---------- */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:640px;max-height:92dvh;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom))}
+.sheet h3{font-size:19px;font-weight:800;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.field{display:grid;gap:6px;margin-top:14px}
+.field > span{font-size:13px;font-weight:700;color:var(--muted)}
+.input{width:100%;min-height:48px;padding:0 14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line-2);font-size:16px}
+textarea.input{padding:10px 14px;min-height:72px;resize:vertical}
+.brow{display:grid;grid-template-columns:1fr auto 1fr auto;gap:8px;align-items:center;margin-top:8px}
+.brow .input{min-width:0;padding:0 10px}
+.sheet .actions{margin-top:20px}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--surface-3);border:1px solid var(--line-2);padding:10px 18px;border-radius:999px;font-size:14px;font-weight:700;z-index:30;max-width:calc(100% - 32px);text-align:center}
+
+/* ---------- ルール説明 ---------- */
+.rules h4{font-size:15px;font-weight:800;margin:14px 0 6px}
+.rules h4:first-child{margin-top:0}
+.rules ul{padding-left:1.2em;font-size:14px;color:var(--muted);display:grid;gap:4px}
+.rules ul b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="app">
+  <main class="view" id="view"><div class="view-body" id="body"></div></main>
+  <nav class="tabbar" aria-label="画面切り替え">
+    <button class="tab-btn" data-tab="now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>いま<span class="dot" id="dot" hidden></span></button>
+    <button class="tab-btn" data-tab="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>記録</button>
+    <button class="tab-btn" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>設定</button>
+  </nav>
+</div>
+<div id="sheet-root"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   データ
+   ============================================================ */
+const KEY = 'taxi-worktime-v1';
+const H = 3600e3, M = 60e3;
+const TYPES = { day: '日勤', alt: '隔勤' };
+
+// 改善基準告示（タクシー・2024年4月施行）の基準値
+const RULES = {
+  day: { warn: 13 * H, max: 15 * H, over14: 14 * H, restMin: 9 * H, restGoal: 11 * H, month: 288 },
+  alt: { max: 22 * H, avg2: 21 * H, restMin: 22 * H, restGoal: 24 * H, month: 262 }
+};
+
+let S = load();
+function defaults() {
+  return { v: 1, settings: { type: 'day', altMonth: 262, notify: false }, shifts: [] };
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) { const d = JSON.parse(raw); const base = defaults(); return { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } }; }
+  } catch (e) {}
+  return defaults();
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('保存できませんでした（ブラウザの保存領域を確認してください）'); } }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const sorted = () => S.shifts.slice().sort((a, b) => a.start - b.start);
+const active = () => S.shifts.find(s => s.end == null);
+const monthLimit = () => S.settings.type === 'alt' ? (+S.settings.altMonth || 262) : RULES.day.month;
+
+/* ============================================================
+   計算
+   ============================================================ */
+const endOf = (s, now) => s.end ?? now;
+function breakMs(s, now = Date.now()) {
+  const e = endOf(s, now);
+  return (s.breaks || []).reduce((t, b) => t + Math.max(0, Math.min(b.e ?? now, e) - Math.max(b.s, s.start)), 0);
+}
+const kousoku = (s, now = Date.now()) => Math.max(0, endOf(s, now) - s.start);
+const jitsudo = (s, now = Date.now()) => Math.max(0, kousoku(s, now) - breakMs(s, now));
+const onBreak = s => s && (s.breaks || []).some(b => b.e == null);
+
+// 日勤の「1日」は始業から24時間。その間に次の勤務が始まった分も、その日の拘束に数える
+function dayKousoku(s, list, now = Date.now()) {
+  const w0 = s.start, w1 = s.start + 24 * H;
+  return list.reduce((t, x) => t + Math.max(0, Math.min(endOf(x, now), w1) - Math.max(x.start, w0)), 0);
+}
+// 労基法34条の休憩：実働6時間超で45分、8時間超で60分
+function legalBreak(workMs) { return workMs > 8 * H ? 60 * M : workMs > 6 * H ? 45 * M : 0; }
+
+// 1勤務ごとのチェック結果 [{lv:'ng'|'warn', t:'…'}]
+function check(s, list, now = Date.now()) {
+  const out = [], i = list.indexOf(s), prev = list[i - 1], type = s.type || 'day';
+  const k = kousoku(s, now), br = breakMs(s, now), need = legalBreak(k - br);
+  if (type === 'day') {
+    const dk = dayKousoku(s, list, now);
+    if (dk > RULES.day.max) out.push({ lv: 'ng', t: `1日の拘束 ${hm(dk)}（上限15時間超）` });
+    else if (dk > RULES.day.warn) out.push({ lv: 'warn', t: `1日の拘束 ${hm(dk)}（13時間超）` });
+    if (dk > k + M) out.push({ lv: 'warn', t: `次の勤務が24時間以内に開始（${hm(dk - k)}を重複して算入）` });
+  } else {
+    if (k > RULES.alt.max) out.push({ lv: 'ng', t: `拘束 ${hm(k)}（隔勤の上限22時間超）` });
+    const p = list.slice(0, i).reverse().find(x => (x.type || 'day') === 'alt');
+    if (p && s.end != null && (k + kousoku(p, now)) / 2 > RULES.alt.avg2) out.push({ lv: 'ng', t: `前回との平均 ${hm((k + kousoku(p, now)) / 2)}（2回平均21時間超）` });
+  }
+  if (prev && prev.end != null) {
+    const r = s.start - prev.end, R = RULES[type];
+    if (r < 0) out.push({ lv: 'ng', t: '前の勤務と時間が重なっています' });
+    else if (r < R.restMin) out.push({ lv: 'ng', t: `休息 ${hm(r)}（${R.restMin / H}時間未満）` });
+    else if (r < R.restGoal) out.push({ lv: 'warn', t: `休息 ${hm(r)}（目標${R.restGoal / H}時間に届かず）` });
+  }
+  if (s.end != null && br < need) out.push({ lv: 'ng', t: `休憩 ${hm(br)}（実働${need === 60 * M ? 8 : 6}時間超は${need / M}分以上）` });
+  return out;
+}
+
+function monthKey(t) { const d = new Date(t); return d.getFullYear() * 100 + d.getMonth() + 1; }
+function monthStats(mk, now = Date.now()) {
+  const list = sorted(), ms = list.filter(s => monthKey(s.start) === mk);
+  const r = { n: ms.length, k: 0, w: 0, b: 0, ng: 0, warn: 0, over14: 0, list: ms, all: list };
+  const weeks = {};
+  for (const s of ms) {
+    r.k += kousoku(s, now); r.w += jitsudo(s, now); r.b += breakMs(s, now);
+    const c = check(s, list, now);
+    r.ng += c.filter(x => x.lv === 'ng').length; r.warn += c.filter(x => x.lv === 'warn').length;
+    if ((s.type || 'day') === 'day' && dayKousoku(s, list, now) > RULES.day.over14) {
+      r.over14++; const wk = weekKey(s.start); weeks[wk] = (weeks[wk] || 0) + 1;
+    }
+  }
+  r.weekOver = Object.values(weeks).some(n => n > 3);
+  return r;
+}
+function weekKey(t) { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); }
+
+/* ============================================================
+   表示用の書式
+   ============================================================ */
+const pad = n => String(n).padStart(2, '0');
+function hm(ms) { const neg = ms < 0; ms = Math.abs(ms); const m = Math.floor(ms / M); return (neg ? '-' : '') + Math.floor(m / 60) + ':' + pad(m % 60); }
+function hms(ms) { const s = Math.floor(Math.max(0, ms) / 1000); return Math.floor(s / 3600) + ':' + pad(Math.floor(s / 60) % 60) + ':' + pad(s % 60); }
+const hhmm = t => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const WD = '日月火水木金土';
+const md = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}（${WD[d.getDay()]}）`; };
+function whenStr(t, now = Date.now()) {
+  const a = new Date(t), b = new Date(now); a.setHours(0, 0, 0, 0); b.setHours(0, 0, 0, 0);
+  const diff = Math.round((a - b) / 864e5);
+  return (diff === 0 ? '今日 ' : diff === 1 ? '明日 ' : diff === 2 ? 'あさって ' : diff === -1 ? '昨日 ' : md(t) + ' ') + hhmm(t);
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const toLocalInput = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+function toast(msg) {
+  document.querySelector('.toast')?.remove();
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; document.body.append(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+/* ============================================================
+   画面
+   ============================================================ */
+let tab = 'now', viewMonth = monthKey(Date.now());
+const body = document.getElementById('body');
+
+function render() {
+  document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
+  document.getElementById('dot').hidden = !active();
+  body.innerHTML = tab === 'now' ? viewNow() : tab === 'log' ? viewLog() : viewSettings();
+}
+
+function viewNow(now = Date.now()) {
+  const a = active(), list = sorted();
+  const clock = `<div class="status"><span class="clock num">${md(now)} ${hhmm(now)}</span>${a ? (onBreak(a) ? '<span class="pill lv-unk"><i></i>休憩中</span>' : '<span class="pill lv-ok"><i></i>乗務中</span>') : '<span class="pill lv-unk" style="--c:var(--muted)"><i></i>休息中</span>'}</div>`;
+  let main;
+  if (a) {
+    const type = a.type || 'day', k = kousoku(a, now), br = breakMs(a, now), w = k - br;
+    const lim = type === 'day' ? RULES.day.max : RULES.alt.max, soft = type === 'day' ? RULES.day.warn : null;
+    const used = type === 'day' ? dayKousoku(a, list, now) : k;
+    const pct = Math.min(100, used / lim * 100);
+    const color = used > lim ? 'var(--lv-ng)' : soft && used > soft ? 'var(--lv-warn)' : lim - used < H ? 'var(--lv-warn)' : 'var(--lv-ok)';
+    const need = legalBreak(w), lack = Math.max(0, need - br);
+    const nextNeed = w <= 6 * H ? 45 * M : w <= 8 * H ? 60 * M : 0;
+    const alerts = [];
+    if (used > lim) alerts.push(['ng', `拘束時間が上限（${lim / H}時間）を ${hm(used - lim)} 超えています。すぐに終業してください。`]);
+    else if (soft && used > soft) alerts.push(['warn', `13時間を超えました（14時間超は週3回までが目安）。上限15時間まであと ${hm(lim - used)}。`]);
+    else if (lim - used < H) alerts.push(['warn', `上限まであと ${hm(lim - used)} です。帰庫の準備をしてください。`]);
+    const prev = list[list.indexOf(a) - 1];
+    if (prev && (prev.type || 'day') === 'day' && prev.start + 24 * H > a.start) {
+      const pk = dayKousoku(prev, list, now), pend = prev.start + 24 * H;
+      if (pk > RULES.day.max) alerts.push(['ng', `前回の始業から24時間以内のため、前回の「1日」の拘束が ${hm(pk)} になっています（上限15時間超）。`]);
+      else if (now < pend) alerts.push(['unk', `${hhmm(pend)} までは前回の「1日」の拘束にも算入されます（いま ${hm(pk)} / 15時間）。`]);
+    }
+    if (lack > 0) alerts.push(['warn', `法定休憩があと ${lack / M | 0}分 足りません（実働${need === 60 * M ? 8 : 6}時間超は${need / M}分以上）。`]);
+    else if (nextNeed && br < nextNeed && (w > 5 * H && w <= 6 * H || w > 7 * H && w <= 8 * H)) alerts.push(['unk', `実働${w > 7 * H ? 8 : 6}時間を超えると休憩${nextNeed / M}分が必要です（いま ${br / M | 0}分）。`]);
+    main = `<div class="card${onBreak(a) ? ' on-break' : ''}">
+      <div class="timer">
+        <div class="label">${TYPES[type]}・拘束時間（${hhmm(a.start)} 始業）</div>
+        <div class="big num" id="tick">${hms(k)}</div>
+        <div class="sub num">上限 ${lim / H}時間まで <b>${hm(lim - used)}</b>・終業リミット <b>${whenStr(a.start + lim - (used - k), now)}</b></div>
+        <div class="bar"><span style="width:${pct}%;--c:${color}"></span>${soft ? `<i class="mark" style="left:${soft / lim * 100}%"></i>` : ''}</div>
+        <div class="bar-legend num"><span>0h</span>${soft ? '<span>13h</span>' : ''}<span>${lim / H}h</span></div>
+        <div class="stats">
+          <div class="stat"><div class="k">実働</div><div class="v num">${hm(w)}</div></div>
+          <div class="stat"><div class="k">休憩</div><div class="v num">${hm(br)}</div></div>
+          <div class="stat"><div class="k">休憩回数</div><div class="v num">${(a.breaks || []).length}</div></div>
+        </div>
+      </div>
+      ${alerts.length ? `<div class="alerts">${alerts.map(([lv, t]) => `<div class="alert lv-${lv}">${t}</div>`).join('')}</div>` : ''}
+      <div class="actions two">
+        ${onBreak(a) ? `<button class="btn big primary" data-act="break-end">休憩終了</button>` : `<button class="btn big" data-act="break-start">休憩開始</button>`}
+        <button class="btn big danger" data-act="end">終業（帰庫）</button>
+      </div>
+    </div>`;
+  } else {
+    const last = list.filter(s => s.end != null).pop(), type = S.settings.type, R = RULES[type];
+    let restHtml = '';
+    if (last) {
+      const rest = now - last.end, minOk = last.end + R.restMin, goal = last.end + R.restGoal;
+      const lv = now >= goal ? 'ok' : now >= minOk ? 'warn' : 'ng';
+      restHtml = `<div class="timer">
+        <div class="label">休息時間（前回 ${whenStr(last.end, now)} 終業）</div>
+        <div class="big num" id="tick">${hms(rest)}</div>
+        <div class="bar"><span style="width:${Math.min(100, rest / R.restGoal * 100)}%;--c:var(--lv-${lv})"></span><i class="mark" style="left:${R.restMin / R.restGoal * 100}%"></i></div>
+        <div class="bar-legend num"><span>0h</span><span>${R.restMin / H}h</span><span>${R.restGoal / H}h</span></div>
+      </div>
+      <div class="kv"><span class="k">始業できる時刻（${R.restMin / H}時間）</span><span class="v num" style="color:var(--lv-${now >= minOk ? 'ok' : 'ng'})">${whenStr(minOk, now)}</span></div>
+      <div class="kv"><span class="k">目標の休息（${R.restGoal / H}時間）</span><span class="v num">${whenStr(goal, now)}</span></div>
+      ${lv === 'ng' ? `<div class="alerts"><div class="alert lv-ng">休息が${R.restMin / H}時間に満たないため、まだ始業できません（あと ${hm(minOk - now)}）。</div></div>` : ''}`;
+    } else {
+      restHtml = `<div class="timer"><div class="label">記録はまだありません</div><div class="sub" style="margin-top:8px">出庫するときに「始業」を押すと、拘束時間の計測が始まります。</div></div>`;
+    }
+    main = `<div class="card">${restHtml}
+      <div class="seg" style="margin-top:14px" role="group" aria-label="勤務形態">
+        ${Object.entries(TYPES).map(([k, v]) => `<button data-act="type" data-v="${k}" aria-pressed="${k === type}">${v}</button>`).join('')}
+      </div>
+      <div class="actions"><button class="btn big primary block" data-act="start">始業（出庫）</button></div>
+    </div>`;
+  }
+  const mk = monthKey(now), st = monthStats(mk, now), lim = monthLimit(), kh = st.k / H;
+  const mcolor = kh > lim ? 'var(--lv-ng)' : kh > lim * .9 ? 'var(--lv-warn)' : 'var(--lv-ok)';
+  const month = `<div class="card">
+    <div class="month-head"><span class="muted small" style="font-weight:700">今月の拘束時間（${TYPES[S.settings.type]}・月${lim}時間）</span><span class="small muted">${st.n}勤務</span></div>
+    <div class="month-head" style="margin-top:4px"><b class="num">${hm(st.k)}</b><span class="num ${kh > lim ? '' : 'muted'}" style="font-weight:700;${kh > lim ? 'color:var(--lv-ng)' : ''}">${kh > lim ? '超過 ' + hm(st.k - lim * H) : 'のこり ' + hm(lim * H - st.k)}</span></div>
+    <div class="bar"><span style="width:${Math.min(100, kh / lim * 100)}%;--c:${mcolor}"></span></div>
+    <div class="kv"><span class="k">実働の合計</span><span class="v num">${hm(st.w)}</span></div>
+    ${S.settings.type === 'day' ? `<div class="kv"><span class="k">14時間超の日</span><span class="v num" style="${st.weekOver ? 'color:var(--lv-warn)' : ''}">${st.over14}回${st.weekOver ? '（週3回超あり）' : ''}</span></div>` : ''}
+    <div class="kv"><span class="k">基準違反・注意</span><span class="v num"><span style="color:${st.ng ? 'var(--lv-ng)' : 'inherit'}">${st.ng}</span> / <span style="color:${st.warn ? 'var(--lv-warn)' : 'inherit'}">${st.warn}</span></span></div>
+  </div>`;
+  return `<div class="view-head"><h2>拘束時間チェッカー</h2></div>${clock}${main}${month}`;
+}
+
+function viewLog(now = Date.now()) {
+  const st = monthStats(viewMonth, now), y = Math.floor(viewMonth / 100), m = viewMonth % 100, lim = monthLimit();
+  const items = st.list.slice().reverse().map(s => {
+    const c = check(s, st.all, now), ng = c.some(x => x.lv === 'ng');
+    return `<button class="shift${ng ? ' ng' : ''}" data-edit="${s.id}">
+      <div class="row1"><span class="date">${md(s.start)}</span><span class="tag">${TYPES[s.type || 'day']}</span><span class="time num">${hhmm(s.start)} 〜 ${s.end != null ? whenStr(s.end, s.start).replace(/^今日 /, '') : '乗務中'}</span></div>
+      <div class="row2 num"><span>拘束 <b>${hm(kousoku(s, now))}</b></span><span>実働 <b>${hm(jitsudo(s, now))}</b></span><span>休憩 <b>${hm(breakMs(s, now))}</b></span></div>
+      ${c.length ? `<div class="warns">${c.map(x => `<span class="pill lv-${x.lv}"><i></i>${esc(x.t)}</span>`).join('')}</div>` : ''}
+      ${s.note ? `<div class="small muted" style="margin-top:6px">${esc(s.note)}</div>` : ''}
+    </button>`;
+  }).join('');
+  return `<div class="view-head"><h2>記録</h2>
+      <div class="monthnav"><button class="icon-btn" data-act="mprev" aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><span class="m num">${y}年${m}月</span><button class="icon-btn" data-act="mnext" aria-label="次の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
+    <div class="card">
+      <div class="month-head"><span class="muted small" style="font-weight:700">拘束時間 / 月${lim}時間</span><span class="num" style="font-weight:800;color:${st.k > lim * H ? 'var(--lv-ng)' : 'var(--text)'}">${hm(st.k)}</span></div>
+      <div class="bar"><span style="width:${Math.min(100, st.k / (lim * H) * 100)}%;--c:${st.k > lim * H ? 'var(--lv-ng)' : st.k > lim * H * .9 ? 'var(--lv-warn)' : 'var(--lv-ok)'}"></span></div>
+      <div class="sumgrid">
+        <div class="stat"><div class="k">勤務回数</div><div class="v num">${st.n}</div></div>
+        <div class="stat"><div class="k">実働合計</div><div class="v num">${hm(st.w)}</div></div>
+        <div class="stat"><div class="k">休憩合計</div><div class="v num">${hm(st.b)}</div></div>
+        <div class="stat"><div class="k">1勤務の平均拘束</div><div class="v num">${st.n ? hm(st.k / st.n) : '-'}</div></div>
+        <div class="stat"><div class="k">違反</div><div class="v num" style="color:${st.ng ? 'var(--lv-ng)' : 'inherit'}">${st.ng}</div></div>
+        <div class="stat"><div class="k">注意</div><div class="v num" style="color:${st.warn ? 'var(--lv-warn)' : 'inherit'}">${st.warn}</div></div>
+      </div>
+    </div>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center"><span>勤務一覧</span><button class="chip" data-act="add">＋ 手入力で追加</button></div>
+    <div class="list">${items || '<div class="empty">この月の記録はありません</div>'}</div>`;
+}
+
+function viewSettings() {
+  const s = S.settings;
+  return `<div class="view-head"><h2>設定</h2></div>
+    <div class="card">
+      <div class="field" style="margin-top:0"><span>ふだんの勤務形態（月の上限に使います）</span>
+        <div class="seg" role="group">${Object.entries(TYPES).map(([k, v]) => `<button data-act="type" data-v="${k}" aria-pressed="${k === s.type}">${v}</button>`).join('')}</div></div>
+      ${s.type === 'alt' ? `<div class="field"><span>隔勤の月の拘束時間の上限</span>
+        <div class="seg" role="group">${[262, 270].map(v => `<button data-act="altmonth" data-v="${v}" aria-pressed="${+s.altMonth === v}">${v}時間</button>`).join('')}</div>
+        <span class="small faint" style="font-weight:400">270時間は、労使協定がある場合に年6か月まで認められる延長です。</span></div>` : ''}
+      <div class="field"><span>お知らせ（アプリを開いている間）</span>
+        <div class="seg" role="group"><button data-act="notify" data-v="1" aria-pressed="${!!s.notify}">オン</button><button data-act="notify" data-v="0" aria-pressed="${!s.notify}">オフ</button></div>
+        <span class="small faint" style="font-weight:400">上限の1時間前・30分前、13時間超え、上限超えのときに通知と振動でお知らせします。</span></div>
+    </div>
+    <div class="section-title">データ</div>
+    <div class="card">
+      <div class="actions two" style="margin-top:0">
+        <button class="btn" data-act="csv">CSVで書き出し</button>
+        <button class="btn" data-act="backup">バックアップ</button>
+        <button class="btn" data-act="restore">バックアップを読み込む</button>
+        <button class="btn danger" data-act="wipe">すべて削除</button>
+      </div>
+      <input type="file" id="restore-file" accept="application/json,.json" hidden>
+      <p class="small faint" style="margin-top:12px">記録はこの端末のブラウザの中だけに保存されます。機種変更の前にはバックアップを書き出してください。</p>
+    </div>
+    <div class="section-title">チェックの基準（改善基準告示・2024年4月〜）</div>
+    <div class="card rules">
+      <h4>日勤</h4>
+      <ul>
+        <li>1か月の拘束時間 <b>288時間以内</b></li>
+        <li>1日の拘束時間 <b>13時間以内</b>、延長しても <b>上限15時間</b>（14時間超は週3回までが目安）</li>
+        <li>「1日」は始業から24時間。その間に次の勤務が始まると、重なった分も拘束に数えます</li>
+        <li>休息期間は継続 <b>11時間以上</b>が基本、<b>9時間を下回らない</b></li>
+      </ul>
+      <h4>隔日勤務</h4>
+      <ul>
+        <li>1か月の拘束時間 <b>262時間以内</b>（労使協定により年6か月まで270時間）</li>
+        <li>2暦日の拘束時間 <b>22時間以内</b>、かつ2回の隔勤の平均で <b>21時間以内</b></li>
+        <li>休息期間は継続 <b>24時間以上</b>が基本、<b>22時間を下回らない</b></li>
+      </ul>
+      <h4>休憩（労働基準法34条）</h4>
+      <ul>
+        <li>実働6時間超で <b>45分以上</b>、8時間超で <b>60分以上</b></li>
+      </ul>
+      <p class="small faint" style="margin-top:12px">車庫待ち等の自動車運転者、予期し得ない事象への対応などの特例は判定に含めていません。目安としてお使いいただき、正式な勤怠は会社の記録・労使協定に従ってください。</p>
+    </div>`;
+}
+
+/* ============================================================
+   編集シート
+   ============================================================ */
+let editing = null;
+function openEditor(id, draft) {
+  const now = Date.now();
+  const src = id ? S.shifts.find(s => s.id === id) : null;
+  const s = draft || (src ? JSON.parse(JSON.stringify(src)) : { id: uid(), type: S.settings.type, start: now - 10 * H - (now % M), end: now - (now % M), breaks: [], note: '', _new: true });
+  editing = s;
+  const breaks = (s.breaks || []).map((b, i) => `<div class="brow" data-b="${i}">
+      <input class="input num" type="time" value="${hhmm(b.s)}" data-bs="${i}"><span class="muted">〜</span>
+      <input class="input num" type="time" value="${b.e != null ? hhmm(b.e) : ''}" data-be="${i}">
+      <button class="icon-btn" data-act="bdel" data-v="${i}" aria-label="この休憩を削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('');
+  document.getElementById('sheet-root').innerHTML = `<div class="sheet-bg" data-act="close"><div class="sheet" role="dialog" aria-label="勤務の編集">
+    <h3>${s._new ? '勤務を追加' : '勤務を編集'}<button class="icon-btn" data-act="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
+    <div class="seg" role="group">${Object.entries(TYPES).map(([k, v]) => `<button data-act="etype" data-v="${k}" aria-pressed="${k === (s.type || 'day')}">${v}</button>`).join('')}</div>
+    <label class="field"><span>始業</span><input class="input num" type="datetime-local" id="e-start" value="${toLocalInput(s.start)}"></label>
+    <label class="field"><span>終業${s.end == null ? '（乗務中は空欄）' : ''}</span><input class="input num" type="datetime-local" id="e-end" value="${s.end != null ? toLocalInput(s.end) : ''}"></label>
+    <div class="field"><span>休憩（時刻だけ入力。日付は始業以降で自動判定）</span>${breaks || '<span class="small faint" style="font-weight:400">休憩なし</span>'}
+      <button class="chip" data-act="badd" style="justify-self:start;margin-top:6px">＋ 休憩を追加</button></div>
+    <label class="field"><span>メモ</span><textarea class="input" id="e-note" placeholder="営業所・車番など">${esc(s.note)}</textarea></label>
+    <div class="actions"><button class="btn primary big block" data-act="esave">保存</button>${s._new ? '' : '<button class="btn danger block" data-act="edel">この勤務を削除</button>'}</div>
+  </div></div>`;
+}
+// 編集中の入力値を editing に読み込む
+function readEditor() {
+  const s = editing, v = id => document.getElementById(id).value;
+  s.start = v('e-start') ? new Date(v('e-start')).getTime() : NaN;
+  s.end = v('e-end') ? new Date(v('e-end')).getTime() : null;
+  s.note = v('e-note').trim();
+  const at = (str, from) => {
+    if (!str) return null;
+    const [h, m] = str.split(':').map(Number), d = new Date(from); d.setHours(h, m, 0, 0);
+    if (d.getTime() < from - M) d.setDate(d.getDate() + 1);
+    return d.getTime();
+  };
+  s.breaks = (s.breaks || []).map((b, i) => {
+    const bs = document.querySelector(`[data-bs="${i}"]`)?.value, be = document.querySelector(`[data-be="${i}"]`)?.value;
+    const st = at(bs, s.start); if (st == null) return null;
+    return { s: st, e: be ? at(be, st) : null };
+  }).filter(Boolean);
+}
+function closeEditor() { editing = null; document.getElementById('sheet-root').innerHTML = ''; }
+function saveEditor() {
+  readEditor();
+  const s = editing;
+  if (!isFinite(s.start)) return toast('始業の日時を入力してください');
+  if (s.end != null && s.end <= s.start) return toast('終業は始業より後にしてください');
+  if (s.end != null && s.end - s.start > 48 * H) return toast('48時間を超える勤務は登録できません');
+  if (s.end == null && S.shifts.some(x => x.end == null && x.id !== s.id)) return toast('乗務中の勤務がほかにあります。終業を入力してください');
+  if (s.breaks.some(b => s.end != null && (b.e == null || b.e > s.end))) return toast('休憩の終わりが終業より後になっています');
+  if (s.end != null) s.breaks.forEach(b => { if (b.e == null) b.e = s.end; });
+  delete s._new;
+  const i = S.shifts.findIndex(x => x.id === s.id);
+  if (i >= 0) S.shifts[i] = s; else S.shifts.push(s);
+  save(); closeEditor(); render(); toast('保存しました');
+}
+
+/* ============================================================
+   操作
+   ============================================================ */
+document.querySelector('.tabbar').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if (!b) return;
+  tab = b.dataset.tab; render(); document.getElementById('view').scrollTop = 0;
+});
+
+document.addEventListener('click', e => {
+  const ed = e.target.closest('[data-edit]'); if (ed) return openEditor(ed.dataset.edit);
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act, v = el.dataset.v, now = Date.now(), a = active();
+  if (act === 'close' && e.target !== el && el.classList.contains('sheet-bg')) return; // シートの中のタップは閉じない
+  switch (act) {
+    case 'start': {
+      const last = sorted().filter(s => s.end != null).pop(), R = RULES[S.settings.type];
+      if (last && now - last.end < R.restMin && !confirm(`前回の終業から ${hm(now - last.end)} しか経っていません（休息は${R.restMin / H}時間以上が必要）。それでも始業しますか？`)) return;
+      S.shifts.push({ id: uid(), type: S.settings.type, start: now, end: null, breaks: [], note: '' });
+      notified = {}; save(); render(); toast('始業しました。安全運転で！'); break;
+    }
+    case 'break-start': if (a && !onBreak(a)) { a.breaks.push({ s: now, e: null }); save(); render(); } break;
+    case 'break-end': if (a) { const b = a.breaks.find(b => b.e == null); if (b) b.e = now; save(); render(); } break;
+    case 'end':
+      if (!a || !confirm('終業（帰庫）しますか？')) return;
+      a.breaks.forEach(b => { if (b.e == null) b.e = now; });
+      a.end = now; save(); render(); toast(`おつかれさまでした。拘束 ${hm(kousoku(a))}`); break;
+    case 'type': S.settings.type = v; save(); render(); break;
+    case 'altmonth': S.settings.altMonth = +v; save(); render(); break;
+    case 'notify':
+      S.settings.notify = v === '1'; save(); render();
+      if (S.settings.notify && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+      break;
+    case 'mprev': case 'mnext': {
+      let y = Math.floor(viewMonth / 100), m = viewMonth % 100 + (act === 'mnext' ? 1 : -1);
+      if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+      viewMonth = y * 100 + m; render(); break;
+    }
+    case 'add': openEditor(null); break;
+    case 'close': closeEditor(); break;
+    case 'etype': readEditor(); editing.type = v; reopen(); break;
+    case 'badd': readEditor(); editing.breaks.push({ s: editing.start + 4 * H, e: editing.start + 4 * H + 30 * M }); reopen(); break;
+    case 'bdel': readEditor(); editing.breaks.splice(+v, 1); reopen(); break;
+    case 'esave': saveEditor(); break;
+    case 'edel':
+      if (!confirm('この勤務を削除しますか？')) return;
+      S.shifts = S.shifts.filter(x => x.id !== editing.id); save(); closeEditor(); render(); toast('削除しました'); break;
+    case 'csv': exportCsv(); break;
+    case 'backup': download(`taxi-worktime-backup-${fileDate()}.json`, JSON.stringify(S), 'application/json'); break;
+    case 'restore': document.getElementById('restore-file').click(); break;
+    case 'wipe':
+      if (!confirm('すべての記録を削除します。元に戻せません。よろしいですか？')) return;
+      S.shifts = []; save(); render(); toast('削除しました'); break;
+  }
+});
+// 編集シートを、いまの editing の内容で描き直す
+function reopen() { openEditor(null, editing); }
+
+document.addEventListener('change', e => {
+  if (e.target.id !== 'restore-file') return;
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(t => {
+    const d = JSON.parse(t);
+    if (!d || !Array.isArray(d.shifts)) throw new Error();
+    if (!confirm(`${d.shifts.length}件の記録を読み込みます。いまの記録は置き換わります。よろしいですか？`)) return;
+    const base = defaults(); S = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } }; save(); render(); toast('読み込みました');
+  }).catch(() => toast('このファイルは読み込めませんでした')).finally(() => { e.target.value = ''; });
+});
+
+function fileDate() { const d = new Date(); return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`; }
+function download(name, text, type = 'text/csv') {
+  const url = URL.createObjectURL(new Blob([type === 'text/csv' ? '﻿' + text : text], { type }));
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportCsv() {
+  const list = sorted(), now = Date.now(), fmt = t => t == null ? '' : `${new Date(t).getFullYear()}/${pad(new Date(t).getMonth() + 1)}/${pad(new Date(t).getDate())} ${hhmm(t)}`;
+  const q = v => `"${String(v).replace(/"/g, '""')}"`;
+  const rows = [['勤務形態', '始業', '終業', '拘束時間', '休憩時間', '実働時間', '休憩回数', 'チェック結果', 'メモ']];
+  for (const s of list) rows.push([TYPES[s.type || 'day'], fmt(s.start), fmt(s.end), hm(kousoku(s, now)), hm(breakMs(s, now)), hm(jitsudo(s, now)), (s.breaks || []).length, check(s, list, now).map(c => (c.lv === 'ng' ? '違反:' : '注意:') + c.t).join(' / '), s.note || '']);
+  download(`taxi-worktime-${fileDate()}.csv`, rows.map(r => r.map(q).join(',')).join('\r\n'));
+}
+
+/* ============================================================
+   毎秒の更新とお知らせ
+   ============================================================ */
+let notified = {}, lastMinute = -1;
+function notify(key, msg) {
+  if (notified[key]) return; notified[key] = true;
+  toast(msg); try { navigator.vibrate?.([200, 100, 200]); } catch (e) {}
+  if (S.settings.notify && 'Notification' in window && Notification.permission === 'granted') {
+    navigator.serviceWorker?.getRegistration().then(r => r ? r.showNotification('拘束時間チェッカー', { body: msg, icon: 'icons/icon-192.png', tag: key }) : new Notification('拘束時間チェッカー', { body: msg })).catch(() => {});
+  }
+}
+setInterval(() => {
+  const now = Date.now(), a = active();
+  if (editing) return;
+  const minute = Math.floor(now / M);
+  if (tab === 'now' && minute !== lastMinute) { lastMinute = minute; const st = document.getElementById('view').scrollTop; render(); document.getElementById('view').scrollTop = st; }
+  else if (tab === 'now') { const el = document.getElementById('tick'); if (el) { const last = sorted().filter(s => s.end != null).pop(); el.textContent = hms(a ? kousoku(a, now) : last ? now - last.end : 0); } }
+  if (!a) return;
+  const type = a.type || 'day', used = type === 'day' ? dayKousoku(a, sorted(), now) : kousoku(a, now), lim = RULES[type].max;
+  const key = a.id + ':';
+  if (used > lim) notify(key + 'over', `拘束時間が上限の${lim / H}時間を超えました`);
+  else if (lim - used <= 30 * M) notify(key + '30', `拘束時間の上限まであと30分です`);
+  else if (lim - used <= H) notify(key + '60', `拘束時間の上限まであと1時間です`);
+  if (type === 'day' && used > RULES.day.warn) notify(key + '13', '拘束時間が13時間を超えました');
+}, 1000);
+// 起動時点ですでに過ぎている通知はまとめて出さない
+(() => { const a = active(); if (!a) return; const now = Date.now(), type = a.type || 'day', used = type === 'day' ? dayKousoku(a, sorted(), now) : kousoku(a, now), lim = RULES[type].max, k = a.id + ':';
+  if (used > lim) notified[k + 'over'] = true; if (lim - used <= 30 * M) notified[k + '30'] = true; if (lim - used <= H) notified[k + '60'] = true; if (used > RULES.day.warn) notified[k + '13'] = true; })();
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !editing) render(); });
+render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
