@@ -1,0 +1,18 @@
+{
+  "name": "taxi-analyzer-android",
+  "private": true,
+  "version": "1.0.0",
+  "description": "タクシーアナライザーの Android 外枠アプリ（公開ページをアプリ内で開く）",
+  "scripts": {
+    "add": "cap add android && node scripts/patch-android.mjs && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
+}

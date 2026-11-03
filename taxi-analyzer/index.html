@@ -3716,7 +3716,16 @@ function editGoal() {
 const csvCell = v => { if (v == null) return ''; v = String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
 const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
 function download(name, text, type = 'text/csv;charset=utf-8') {
-  const blob = new Blob([type.startsWith('text/csv') ? '﻿' + text : text], { type });
+  const body = type.startsWith('text/csv') ? '﻿' + text : text;
+  // Android アプリ（Capacitor）の中ではリンクでの保存ができないので、ファイルを作って共有メニューから保存先を選ぶ
+  const cap = window.Capacitor;
+  if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.nativePromise) {
+    cap.nativePromise('Filesystem', 'writeFile', { path: name, data: body, directory: 'CACHE', encoding: 'utf8' })
+      .then(r => cap.nativePromise('Share', 'share', { title: name, files: [r.uri] }))
+      .catch(e => { if (!/cancel/i.test(String(e && e.message))) toast('保存できませんでした'); });
+    return;
+  }
+  const blob = new Blob([body], { type });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click();
