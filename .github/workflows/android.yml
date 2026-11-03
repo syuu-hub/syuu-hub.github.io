@@ -31,6 +31,7 @@ jobs:
           node-version: '22'
       - name: Capacitor の Android プロジェクトを作る
         run: |
+          command -v magick || command -v convert || (sudo apt-get update && sudo apt-get install -y imagemagick)
           npm ci
           npx cap add android
           node scripts/patch-android.mjs
