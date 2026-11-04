@@ -102,8 +102,8 @@ svg{display:block}
 .faint{color:var(--faint)}
 .small{font-size:13px}
 .section-title{font-size:13px;font-weight:700;color:var(--muted);margin:20px 4px 8px;letter-spacing:.04em}
-.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent);border:1px solid color-mix(in srgb,var(--c) 45%,transparent)}
-.pill i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:3px 11px;border-radius:14px;font-size:13px;font-weight:800;line-height:1.35;max-width:100%;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent);border:1px solid color-mix(in srgb,var(--c) 45%,transparent)}
+.pill i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--c)}
 .lv-ok{--c:var(--lv-ok)} .lv-ng{--c:var(--lv-ng)} .lv-warn{--c:var(--lv-warn)} .lv-unk{--c:var(--lv-unk)}
 .tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:700;background:var(--surface-3);color:var(--muted);white-space:nowrap}
 
@@ -186,6 +186,8 @@ textarea.input{padding:10px 14px;min-height:72px;resize:vertical}
   </nav>
 </div>
 <div id="sheet-root"></div>
+<!-- ファイル選択は描き直す範囲の外に置く（スマホではファイル選択から戻ると画面を描き直すため、中に置くと選んだファイルが届かない） -->
+<input type="file" id="restore-file" hidden>
 
 <script>
 'use strict';
@@ -428,8 +430,7 @@ function viewSettings() {
         <button class="btn" data-act="restore">バックアップを読み込む</button>
         <button class="btn danger" data-act="wipe">すべて削除</button>
       </div>
-      <input type="file" id="restore-file" accept="application/json,.json" hidden>
-      <p class="small faint" style="margin-top:12px">記録はこの端末のブラウザの中だけに保存されます。機種変更の前にはバックアップを書き出してください。</p>
+      <p class="small faint" style="margin-top:12px">記録はこの端末のブラウザの中だけに保存されます。機種変更の前にはバックアップを書き出してください。<br>タクシーアナライザーの「記録のCSV」も読み込めます（出庫〜入庫を1勤務として追加）。</p>
     </div>
     <div class="section-title">チェックの基準（改善基準告示・2024年4月〜）</div>
     <div class="card rules">
@@ -587,17 +588,62 @@ document.addEventListener('click', e => {
 function reopen() { openEditor(null, editing); }
 
 document.addEventListener('input', e => { if (e.target.closest('.sheet')) updatePreview(); });
-document.addEventListener('change', e => {
-  if (e.target.id === 'e-active') return updatePreview();
-  if (e.target.id !== 'restore-file') return;
-  const f = e.target.files[0]; if (!f) return;
+document.addEventListener('change', e => { if (e.target.id === 'e-active') updatePreview(); });
+document.getElementById('restore-file').addEventListener('change', e => {
+  const input = e.target, f = input.files[0]; if (!f) return;
   f.text().then(t => {
-    const d = JSON.parse(t);
-    if (!d || !Array.isArray(d.shifts)) throw new Error();
-    if (!confirm(`${d.shifts.length}件の記録を読み込みます。いまの記録は置き換わります。よろしいですか？`)) return;
-    const base = defaults(); S = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } }; save(); render(); toast('読み込みました');
-  }).catch(() => toast('このファイルは読み込めませんでした')).finally(() => { e.target.value = ''; });
+    t = t.replace(/^﻿/, '');
+    if (/^\s*\{/.test(t)) {
+      const d = JSON.parse(t);
+      if (!d || !Array.isArray(d.shifts)) throw new Error('拘束時間チェッカーのバックアップではありません');
+      if (!confirm(`${d.shifts.length}件の記録を読み込みます。いまの記録は置き換わります。よろしいですか？`)) return;
+      const base = defaults(); S = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } };
+      save(); tab = 'log'; viewMonth = monthKey(Date.now()); render(); toast(`${d.shifts.length}件を読み込みました`);
+    } else {
+      const add = shiftsFromAnalyzerCsv(t);
+      if (!add.length) throw new Error('出庫・入庫の記録が見つかりませんでした');
+      const fresh = add.filter(n => !S.shifts.some(x => x.start < (n.end ?? Date.now()) && (x.end ?? Date.now()) > n.start));
+      if (!fresh.length) return toast('すべて読み込み済みです');
+      if (!confirm(`CSVから${fresh.length}件の勤務を追加します${add.length > fresh.length ? `（すでにある${add.length - fresh.length}件は飛ばします）` : ''}。よろしいですか？`)) return;
+      S.shifts.push(...fresh); save(); tab = 'log'; viewMonth = monthKey(fresh[fresh.length - 1].start); render(); toast(`${fresh.length}件を追加しました`);
+    }
+  }).catch(err => toast('読み込めませんでした：' + (err && err.message && !/JSON|token/i.test(err.message) ? err.message : 'ファイルの形式が違います')))
+    .finally(() => { input.value = ''; });
 });
+
+// CSV を行・列に分ける（"…" で囲まれた値の中のカンマ・改行に対応）
+function parseCsv(text) {
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+// タクシーアナライザーの記録CSV → 勤務（「出庫」で始業、「入庫」で終業。入庫がなければその営業日の最後の記録で終業）
+function shiftsFromAnalyzerCsv(text) {
+  const rows = parseCsv(text), head = rows.shift() || [];
+  const col = n => head.indexOf(n), iT = col('日時'), iD = col('営業日'), iK = col('種別'), iS = col('ステータス'), iN = col('備考');
+  if ([iT, iD, iK, iS].includes(-1)) throw new Error('タクシーアナライザーの記録CSVではありません');
+  const time = v => { const m = /(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(v || ''); return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)).getTime() : NaN; };
+  const days = new Map();
+  for (const r of rows) {
+    const t = time(r[iT]); if (!isFinite(t) || !r[iD]) continue;
+    const d = days.get(r[iD]) || { start: null, end: null, last: t }; days.set(r[iD], d);
+    d.last = Math.max(d.last, t);
+    if (r[iK] === 'ステータス' && /^出庫/.test(r[iN] || '')) d.start = t;
+    if (r[iK] === 'ステータス' && r[iS] === '入庫') d.end = t;
+  }
+  return [...days.entries()].filter(([, d]) => d.start != null).sort((a, b) => a[1].start - b[1].start).map(([k, d]) => ({
+    id: uid(), type: 'day', start: d.start, end: d.end ?? (d.last > d.start ? d.last : null),
+    note: d.end == null ? '入庫の記録なし（最後の記録の時刻を終業としています）' : ''
+  })).filter(s => s.end != null);
+}
 
 function fileDate() { const d = new Date(); return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`; }
 function download(name, text, type = 'text/csv') {
