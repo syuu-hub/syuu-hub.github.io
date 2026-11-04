@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="タクシードライバー向けの労働時間管理。始業・終業をワンタップで記録し、改善基準告示の拘束時間・休息期間を自動でチェックします。">
+<meta name="description" content="タクシードライバー向けの労働時間管理。シフトカレンダーで予定と実績の労働時間を管理し、改善基準告示の拘束時間・休息期間を自動でチェックします。">
 <title>拘束時間チェッカー</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -150,6 +150,45 @@ svg{display:block}
 .shift.ng{border-color:rgba(255,93,93,.45)}
 .empty{padding:36px 20px;text-align:center;color:var(--muted)}
 
+/* ---------- カレンダー ---------- */
+.sum-big{display:flex;align-items:baseline;gap:6px;margin-top:2px}
+.sum-big b{font-size:40px;font-weight:900;letter-spacing:-.02em;line-height:1.1}
+.sum-big span{color:var(--muted);font-weight:700}
+.bar.stack > span + span{background:var(--lv-unk);opacity:.75}
+.sum3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.sum3 .v{font-size:18px}
+.cal{margin-top:12px;padding:12px 10px}
+.cal-week,.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.cal-week div{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding-bottom:6px}
+.cal-week div:first-child,.cal-day .n.sun{color:var(--lv-ng)}
+.cal-week div:last-child,.cal-day .n.sat{color:var(--lv-unk)}
+.cal-day{position:relative;min-height:58px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:5px 2px 7px;min-width:0}
+.cal-day .n{font-size:12px;font-weight:700;color:var(--text);width:22px;height:22px;display:grid;place-items:center;border-radius:50%}
+.cal-day.today .n{background:var(--accent);color:var(--accent-ink) !important}
+.cal-day .h{font-size:13px;font-weight:800;white-space:nowrap}
+.cal-day .h small{font-size:9px;opacity:.7;margin-left:1px}
+.cal-day.actual .h{color:var(--lv-ok)}
+.cal-day.plan .h{color:var(--lv-unk);opacity:.8}
+.cal-day.plan.virtual .h{opacity:.45}
+.cal-day.off .h,.cal-day.ake .h{color:var(--muted);font-size:12px}
+.cal-day.off.virtual .h{opacity:.4}
+.cal-day.lv-ng{border-color:rgba(255,93,93,.6)}
+.cal-day.lv-warn{border-color:rgba(255,176,32,.5)}
+.cal-day .streak{position:absolute;top:3px;right:3px;width:14px;height:14px;border-radius:50%;background:var(--lv-ng);color:#fff;font-size:9px;font-weight:900;display:grid;place-items:center}
+.cal-day .run{position:absolute;top:5px;left:5px;width:7px;height:7px;border-radius:50%;background:var(--lv-ok)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 4px 0;font-size:12px;color:var(--muted)}
+.cal-legend b{font-weight:800}
+.daybig{display:flex;align-items:baseline;gap:6px}
+.daybig b{font-size:44px;font-weight:900;line-height:1.1}
+.calc{margin-top:14px;padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line)}
+.calc .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.calc .row b{font-size:24px;font-weight:900}
+.calc .warns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.daychips{display:flex;gap:6px;flex-wrap:wrap}
+.daychips button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line-2);background:var(--surface-2);font-weight:700;color:var(--muted)}
+.daychips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.daychips.off{opacity:.4;pointer-events:none}
+
 /* ---------- シート（編集） ---------- */
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20;display:flex;align-items:flex-end;justify-content:center}
 .sheet{width:100%;max-width:640px;max-height:92dvh;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom))}
@@ -180,8 +219,8 @@ textarea.input{padding:10px 14px;min-height:72px;resize:vertical}
 <div class="app">
   <main class="view" id="view"><div class="view-body" id="body"></div></main>
   <nav class="tabbar" aria-label="画面切り替え">
+    <button class="tab-btn" data-tab="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M7 13h2M11 13h2M15 13h2M7 17h2M11 17h2"/></svg>カレンダー</button>
     <button class="tab-btn" data-tab="now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>いま<span class="dot" id="dot" hidden></span></button>
-    <button class="tab-btn" data-tab="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>記録</button>
     <button class="tab-btn" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>設定</button>
   </nav>
 </div>
@@ -206,20 +245,27 @@ const RULES = {
 
 let S = load();
 function defaults() {
-  return { v: 1, settings: { type: 'day', altMonth: 262, notify: false }, shifts: [] };
+  return { v: 2, settings: { type: 'day', monthLimit: null, defaultHours: 11, fixedOffEnabled: false, fixedOffDays: [], notify: false }, shifts: [], plans: {} };
 }
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) { const d = JSON.parse(raw); const base = defaults(); return { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } }; }
+    if (raw) return normalize(JSON.parse(raw));
   } catch (e) {}
   return defaults();
+}
+// 古い形式（v1）のデータも読めるように足りない項目を補う
+function normalize(d) {
+  const base = defaults(), st = { ...base.settings, ...(d.settings || {}) };
+  if (st.monthLimit == null && st.type === 'alt' && +st.altMonth === 270) st.monthLimit = 270;
+  delete st.altMonth;
+  return { ...base, ...d, v: 2, settings: st, shifts: Array.isArray(d.shifts) ? d.shifts : [], plans: d.plans && typeof d.plans === 'object' ? d.plans : {} };
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('保存できませんでした（ブラウザの保存領域を確認してください）'); } }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const sorted = () => S.shifts.slice().sort((a, b) => a.start - b.start);
 const active = () => S.shifts.find(s => s.end == null);
-const monthLimit = () => S.settings.type === 'alt' ? (+S.settings.altMonth || 262) : RULES.day.month;
+const monthLimit = () => +S.settings.monthLimit || RULES[S.settings.type].month;
 
 /* ============================================================
    計算
@@ -271,6 +317,67 @@ function monthStats(mk, now = Date.now()) {
   r.weekOver = Object.values(weeks).some(n => n > 3);
   return r;
 }
+/* ---------- シフトカレンダー：日ごとの状態 ----------
+   actual = 確定（実際の勤務の記録あり） / plan = 予定 / off = 公休 / ake = 隔勤の明け番 / none = 記録なし
+   予定を入れていない日は、今日以降なら「目安労働時間の出勤予定」、固定休みの曜日なら「公休」とみなす */
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const defMs = () => (+S.settings.defaultHours || 11) * H;
+// 予定の出庫・帰庫（"HH:MM"）を日時に。帰庫が出庫以前なら翌日とみなす
+function planSpan(key, p) {
+  if (!p || !p.start || !p.end) return null;
+  const s = new Date(`${key}T${p.start}`).getTime(); let e = new Date(`${key}T${p.end}`).getTime();
+  while (e <= s) e += 24 * H;
+  return { start: s, end: e };
+}
+const planMs = (key, p) => { const sp = planSpan(key, p); return sp ? sp.end - sp.start : defMs(); };
+function daysRange(from, to, now = Date.now()) {
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const all = sorted(), byDay = {};
+  for (const s of all) (byDay[dkey(new Date(s.start))] ||= []).push(s);
+  const out = [];
+  let prevAlt = false;
+  for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    const key = dkey(d), date = new Date(d), sh = byDay[key], p = S.plans[key];
+    let info;
+    if (sh) {
+      const checks = sh.flatMap(s => check(s, all, now));
+      info = { kind: 'actual', ms: sh.reduce((t, s) => t + kousoku(s, now), 0), shifts: sh, active: sh.some(s => s.end == null), checks,
+        lv: checks.some(c => c.lv === 'ng') ? 'ng' : checks.length ? 'warn' : '', alt: sh.some(s => (s.type || 'day') === 'alt') };
+    } else if (p && p.type === 'off') info = { kind: 'off' };
+    else if (p) info = { kind: 'plan', ms: planMs(key, p), plan: p, alt: (p.wtype || S.settings.type) === 'alt' };
+    else if (prevAlt) info = { kind: 'ake', virtual: true };
+    else if (S.settings.fixedOffEnabled && (S.settings.fixedOffDays || []).includes(date.getDay())) info = { kind: 'off', virtual: true };
+    else if (date >= today) info = { kind: 'plan', ms: defMs(), virtual: true, alt: S.settings.type === 'alt' };
+    else info = { kind: 'none' };
+    info.key = key; info.date = date; info.past = date < today; info.today = date.getTime() === today.getTime();
+    info.work = info.kind === 'actual' || info.kind === 'plan';
+    prevAlt = info.work && info.alt;
+    out.push(info);
+  }
+  // 連勤：出勤（確定・予定）が続いた日数
+  for (let i = 0; i < out.length;) {
+    if (!out[i].work) { out[i].streak = 0; i++; continue; }
+    let j = i; while (j < out.length && out[j].work) j++;
+    for (let k = i; k < j; k++) out[k].streak = j - i;
+    i = j;
+  }
+  return out;
+}
+// 指定の月の日ごとの状態（連勤を前後の月もまたいで数えるため、前後20日を含めて求める）
+function monthDays(mk, now = Date.now()) {
+  const y = Math.floor(mk / 100), m = mk % 100;
+  const from = new Date(y, m - 1, 1 - 20), to = new Date(y, m, 20);
+  return daysRange(from, to, now).filter(i => i.date.getMonth() === m - 1 && i.date.getFullYear() === y);
+}
+function dayInfo(key, now = Date.now()) {
+  const d = parseKey(key), from = new Date(d), to = new Date(d);
+  from.setDate(from.getDate() - 20); to.setDate(to.getDate() + 20);
+  return daysRange(from, to, now).find(i => i.key === key);
+}
+const STREAK = 13;
+const hdec = ms => (Math.round(ms / H * 10) / 10).toFixed(1);
+
 function weekKey(t) { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); }
 
 /* ============================================================
@@ -298,13 +405,13 @@ function toast(msg) {
 /* ============================================================
    画面
    ============================================================ */
-let tab = 'now', viewMonth = monthKey(Date.now());
+let tab = 'cal', viewMonth = monthKey(Date.now());
 const body = document.getElementById('body');
 
 function render() {
   document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
   document.getElementById('dot').hidden = !active();
-  body.innerHTML = tab === 'now' ? viewNow() : tab === 'log' ? viewLog() : viewSettings();
+  body.innerHTML = tab === 'cal' ? viewCal() : tab === 'now' ? viewNow() : viewSettings();
 }
 
 function viewNow(now = Date.now()) {
@@ -380,44 +487,66 @@ function viewNow(now = Date.now()) {
   return `<div class="view-head"><h2>拘束時間チェッカー</h2></div>${clock}${main}${month}`;
 }
 
-function viewLog(now = Date.now()) {
-  const st = monthStats(viewMonth, now), y = Math.floor(viewMonth / 100), m = viewMonth % 100, lim = monthLimit();
-  const items = st.list.slice().reverse().map(s => {
-    const c = check(s, st.all, now), ng = c.some(x => x.lv === 'ng');
-    return `<button class="shift${ng ? ' ng' : ''}" data-edit="${s.id}">
-      <div class="row1"><span class="date">${md(s.start)}</span><span class="tag">${TYPES[s.type || 'day']}</span><span class="time num">${hhmm(s.start)} 〜 ${s.end != null ? whenStr(s.end, s.start).replace(/^今日 /, '') : '乗務中'}</span></div>
-      <div class="row2 num"><span>拘束 <b>${hm(kousoku(s, now))}</b></span>${(() => { const p = st.all[st.all.indexOf(s) - 1]; return p && p.end != null ? `<span>前の休息 <b>${hm(s.start - p.end)}</b></span>` : ''; })()}</div>
-      ${c.length ? `<div class="warns">${c.map(x => `<span class="pill lv-${x.lv}"><i></i>${esc(x.t)}</span>`).join('')}</div>` : ''}
-      ${s.note ? `<div class="small muted" style="margin-top:6px">${esc(s.note)}</div>` : ''}
-    </button>`;
+function viewCal(now = Date.now()) {
+  const y = Math.floor(viewMonth / 100), m = viewMonth % 100, days = monthDays(viewMonth, now), lim = monthLimit() * H;
+  const act = days.filter(d => d.kind === 'actual'), plan = days.filter(d => d.kind === 'plan');
+  const actMs = act.reduce((t, d) => t + d.ms, 0), planMsSum = plan.reduce((t, d) => t + d.ms, 0), total = actMs + planMsSum;
+  const color = total > lim ? 'var(--lv-ng)' : total > lim * .9 ? 'var(--lv-warn)' : 'var(--text)';
+  const ng = act.filter(d => d.lv === 'ng').length, warn = act.filter(d => d.lv === 'warn').length;
+  const longRun = days.some(d => d.streak >= STREAK);
+  const first = new Date(y, m - 1, 1).getDay();
+  const cells = Array.from({ length: first }, () => '<div></div>').join('') + days.map(d => {
+    const wd = d.date.getDay();
+    let h = '';
+    if (d.kind === 'actual') h = d.active ? '<span style="font-size:11px">乗務中</span>' : `${hdec(d.ms)}<small>h</small>`;
+    else if (d.kind === 'plan') h = `${hdec(d.ms)}<small>h</small>`;
+    else if (d.kind === 'off') h = '休';
+    else if (d.kind === 'ake') h = '明';
+    return `<button class="cal-day ${d.kind}${d.virtual ? ' virtual' : ''}${d.today ? ' today' : ''}${d.lv ? ' lv-' + d.lv : ''}" data-day="${d.key}" aria-label="${m}月${d.date.getDate()}日">
+      <span class="n num${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}">${d.date.getDate()}</span>${d.streak >= STREAK ? '<i class="streak">!</i>' : ''}${d.active ? '<i class="run"></i>' : ''}
+      <span class="h num">${h}</span></button>`;
   }).join('');
-  return `<div class="view-head"><h2>記録</h2>
-      <div class="monthnav"><button class="icon-btn" data-act="mprev" aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><span class="m num">${y}年${m}月</span><button class="icon-btn" data-act="mnext" aria-label="次の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
+  const isNow = viewMonth === monthKey(now);
+  return `<div class="view-head"><h2>シフト</h2>
+      <div class="monthnav"><button class="icon-btn" data-act="mprev" aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><button class="m num" data-act="mnow">${y}年${m}月</button><button class="icon-btn" data-act="mnext" aria-label="次の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
     <div class="card">
-      <div class="month-head"><span class="muted small" style="font-weight:700">拘束時間 / 月${lim}時間</span><span class="num" style="font-weight:800;color:${st.k > lim * H ? 'var(--lv-ng)' : 'var(--text)'}">${hm(st.k)}</span></div>
-      <div class="bar"><span style="width:${Math.min(100, st.k / (lim * H) * 100)}%;--c:${st.k > lim * H ? 'var(--lv-ng)' : st.k > lim * H * .9 ? 'var(--lv-warn)' : 'var(--lv-ok)'}"></span></div>
-      <div class="sumgrid">
-        <div class="stat"><div class="k">勤務回数</div><div class="v num">${st.n}</div></div>
-        <div class="stat"><div class="k">月の上限まで</div><div class="v num" style="color:${st.k > lim * H ? 'var(--lv-ng)' : 'inherit'}">${hm(lim * H - st.k)}</div></div>
-        <div class="stat"><div class="k">1勤務の平均拘束</div><div class="v num">${st.n ? hm(st.k / st.n) : '-'}</div></div>
-        <div class="stat"><div class="k">最長の拘束</div><div class="v num">${st.n ? hm(st.max) : '-'}</div></div>
-        <div class="stat"><div class="k">違反</div><div class="v num" style="color:${st.ng ? 'var(--lv-ng)' : 'inherit'}">${st.ng}</div></div>
-        <div class="stat"><div class="k">注意</div><div class="v num" style="color:${st.warn ? 'var(--lv-warn)' : 'inherit'}">${st.warn}</div></div>
+      <div class="month-head"><span class="muted small" style="font-weight:700">予想労働時間（実績＋予定）</span><span class="small muted">月間上限 ${monthLimit()}h</span></div>
+      <div class="sum-big num"><b style="color:${color}">${hdec(total)}</b><span>h</span><span class="small" style="margin-left:auto;color:${total > lim ? 'var(--lv-ng)' : 'var(--muted)'}">${total > lim ? '上限を ' + hdec(total - lim) + 'h 超過' : 'のこり ' + hdec(lim - total) + 'h'}</span></div>
+      <div class="bar stack"><span style="width:${Math.min(100, actMs / lim * 100)}%;--c:${actMs > lim ? 'var(--lv-ng)' : 'var(--lv-ok)'}"></span><span style="left:${Math.min(100, actMs / lim * 100)}%;width:${Math.max(0, Math.min(100, total / lim * 100) - Math.min(100, actMs / lim * 100))}%"></span></div>
+      <div class="sum3">
+        <div class="stat"><div class="k">実績（確定）</div><div class="v num" style="color:var(--lv-ok)">${hdec(actMs)}h</div></div>
+        <div class="stat"><div class="k">予定</div><div class="v num" style="color:var(--lv-unk)">${hdec(planMsSum)}h</div></div>
+        <div class="stat"><div class="k">出勤日数</div><div class="v num">${act.length + plan.length}<small class="muted" style="font-size:12px">日</small></div></div>
       </div>
+      ${total > lim ? `<div class="alerts"><div class="alert lv-ng">このままでは月間上限（${monthLimit()}時間）を超えます。予定を減らすか、公休を入れてください。</div></div>` : ''}
+      ${longRun ? `<div class="alerts"><div class="alert lv-ng">${STREAK}日以上の連勤があります（！の日）。休日の取得を検討してください。</div></div>` : ''}
+      ${ng || warn ? `<div class="alerts"><div class="alert lv-${ng ? 'ng' : 'warn'}">改善基準告示のチェック：違反 ${ng}日・注意 ${warn}日（赤・黄の枠の日をタップすると理由が見られます）</div></div>` : ''}
     </div>
-    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center"><span>勤務一覧</span><button class="chip" data-act="add" style="border-color:var(--accent);color:var(--accent)">＋ 手入力で追加</button></div>
-    <div class="list">${items || '<div class="empty">この月の記録はありません</div>'}</div>`;
+    <div class="card cal">
+      <div class="cal-week">${[...WD].map(w => `<div>${w}</div>`).join('')}</div>
+      <div class="cal-grid">${cells}</div>
+      <div class="cal-legend"><span><b style="color:var(--lv-ok)">緑</b> 確定</span><span><b style="color:var(--lv-unk)">青</b> 予定</span><span><b>休</b> 公休</span>${S.settings.type === 'alt' || days.some(d => d.kind === 'ake') ? '<span><b>明</b> 明け番</span>' : ''}<span><b style="color:var(--lv-ng)">!</b> ${STREAK}連勤以上</span></div>
+    </div>
+    ${isNow ? '' : '<div class="actions"><button class="btn block" data-act="mnow">今月に戻る</button></div>'}
+    <p class="small faint" style="margin:14px 4px 0">日付をタップすると、出勤・公休、出庫・帰庫の時刻を入れて「予定保存」「確定して保存」ができます。予定を入れていない日は、目安労働時間（${+S.settings.defaultHours || 11}時間）の出勤予定として数えます。</p>`;
 }
 
 function viewSettings() {
   const s = S.settings;
   return `<div class="view-head"><h2>設定</h2></div>
     <div class="card">
-      <div class="field" style="margin-top:0"><span>ふだんの勤務形態（月の上限に使います）</span>
-        <div class="seg" role="group">${Object.entries(TYPES).map(([k, v]) => `<button data-act="type" data-v="${k}" aria-pressed="${k === s.type}">${v}</button>`).join('')}</div></div>
-      ${s.type === 'alt' ? `<div class="field"><span>隔勤の月の拘束時間の上限</span>
-        <div class="seg" role="group">${[262, 270].map(v => `<button data-act="altmonth" data-v="${v}" aria-pressed="${+s.altMonth === v}">${v}時間</button>`).join('')}</div>
-        <span class="small faint" style="font-weight:400">270時間は、労使協定がある場合に年6か月まで認められる延長です。</span></div>` : ''}
+      <div class="field" style="margin-top:0"><span>ふだんの勤務形態</span>
+        <div class="seg" role="group">${Object.entries(TYPES).map(([k, v]) => `<button data-act="type" data-v="${k}" aria-pressed="${k === s.type}">${v}</button>`).join('')}</div>
+        <span class="small faint" style="font-weight:400">隔勤にすると、出勤予定の翌日は明け番として数えます。</span></div>
+      <div class="tgrid">
+        <label class="field"><span>目安労働時間（h）</span><input class="input num" type="number" inputmode="decimal" step="0.5" min="1" max="24" id="set-defh" value="${+s.defaultHours || 11}"></label>
+        <label class="field"><span>月間上限（h）</span><input class="input num" type="number" inputmode="numeric" min="1" id="set-limit" value="${monthLimit()}"></label>
+      </div>
+      <span class="small faint" style="display:block;margin-top:6px">月間上限の基準：日勤288時間・隔勤262時間（労使協定により年6か月まで270時間）。勤務形態を切り替えると基準値に戻ります。</span>
+      <div class="field"><span>固定休みの自動適用</span>
+        <div class="seg" role="group"><button data-act="fixoff" data-v="1" aria-pressed="${!!s.fixedOffEnabled}">オン</button><button data-act="fixoff" data-v="0" aria-pressed="${!s.fixedOffEnabled}">オフ</button></div>
+        <div class="daychips${s.fixedOffEnabled ? '' : ' off'}" role="group" aria-label="固定休みの曜日">${[...WD].map((w, i) => `<button data-act="fixday" data-v="${i}" aria-pressed="${(s.fixedOffDays || []).includes(i)}">${w}</button>`).join('')}</div>
+        <span class="small faint" style="font-weight:400">選んだ曜日は、予定を入れていなければ公休として数えます。</span></div>
       <div class="field"><span>お知らせ（アプリを開いている間）</span>
         <div class="seg" role="group"><button data-act="notify" data-v="1" aria-pressed="${!!s.notify}">オン</button><button data-act="notify" data-v="0" aria-pressed="${!s.notify}">オフ</button></div>
         <span class="small faint" style="font-weight:400">上限の1時間前・30分前、13時間超え、上限超えのときに通知と振動でお知らせします。</span></div>
@@ -430,7 +559,8 @@ function viewSettings() {
         <button class="btn" data-act="restore">バックアップを読み込む</button>
         <button class="btn danger" data-act="wipe">すべて削除</button>
       </div>
-      <p class="small faint" style="margin-top:12px">記録はこの端末のブラウザの中だけに保存されます。機種変更の前にはバックアップを書き出してください。<br>タクシーアナライザーの「記録のCSV」も読み込めます（出庫〜入庫を1勤務として追加）。</p>
+      ${kintaiData() ? '<button class="btn block" data-act="kintai" style="margin-top:10px">勤怠管理アプリのデータを取り込む</button>' : ''}
+      <p class="small faint" style="margin-top:12px">記録はこの端末のブラウザの中だけに保存されます。機種変更の前にはバックアップを書き出してください。<br>タクシーアナライザーの「記録のCSV」、勤怠管理アプリの書き出しファイルも読み込めます。</p>
     </div>
     <div class="section-title">チェックの基準（改善基準告示・2024年4月〜）</div>
     <div class="card rules">
@@ -510,7 +640,7 @@ function updatePreview() {
   el.innerHTML = `<div class="kv"><span class="k">${s.end == null ? '乗務中' : `終業 ${nextDay ? '<b class="tag" style="color:var(--accent)">翌日</b> ' : ''}${md(s.end)} ${hhmm(s.end)}`}</span><span class="v num">拘束 ${hm(kousoku(s))}</span></div>
     ${c.length ? `<div class="warns">${c.map(x => `<span class="pill lv-${x.lv}"><i></i>${esc(x.t)}</span>`).join('')}</div>` : '<span class="pill lv-ok"><i></i>基準内です</span>'}`;
 }
-function closeEditor() { editing = null; document.getElementById('sheet-root').innerHTML = ''; }
+function closeEditor() { editing = null; dayEdit = null; document.getElementById('sheet-root').innerHTML = ''; }
 function saveEditor(next) {
   readEditor();
   const s = editing;
@@ -533,6 +663,105 @@ function saveEditor(next) {
 }
 
 /* ============================================================
+   日付のシート（予定・確定）
+   ============================================================ */
+let dayEdit = null;
+const DAYNAME = d => `${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）`;
+function openDay(key, forceEdit) {
+  const info = dayInfo(key), p = S.plans[key] || {};
+  const last = sorted().filter(s => s.end != null).pop();
+  dayEdit = {
+    key, info, locked: info.kind === 'actual' && !forceEdit,
+    type: info.kind === 'off' ? 'off' : 'work', wtype: p.wtype || (info.shifts?.[0]?.type) || S.settings.type,
+    start: p.start ?? (last ? hhmm(last.start) : ''), end: p.end ?? (last ? hhmm(last.end) : ''), note: p.note || ''
+  };
+  renderDay();
+}
+function renderDay() {
+  const e = dayEdit, info = e.info, date = parseKey(e.key), now = Date.now();
+  const x = '<button class="icon-btn" data-act="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+  const status = info.kind === 'actual' ? (info.active ? '<span class="pill lv-ok"><i></i>乗務中</span>' : '<span class="pill lv-ok"><i></i>確定（出勤）</span>')
+    : info.kind === 'off' ? `<span class="pill" style="--c:var(--muted)"><i></i>${info.past ? '公休' : '公休（予定）'}</span>`
+    : info.kind === 'plan' ? '<span class="pill lv-unk"><i></i>予定</span>' : info.kind === 'ake' ? '<span class="pill" style="--c:var(--muted)"><i></i>明け番</span>' : '<span class="pill" style="--c:var(--faint)"><i></i>記録なし</span>';
+  const streak = info.streak >= STREAK ? `<div class="alerts"><div class="alert lv-ng">前回の休みから ${info.streak}日 の連勤になります。休日の取得を検討してください。</div></div>` : '';
+  let bodyHtml;
+  if (e.locked) {
+    bodyHtml = info.shifts.map(s => {
+      const c = check(s, sorted(), now), nd = s.end != null && new Date(s.end).toDateString() !== new Date(s.start).toDateString();
+      return `<div class="calc">
+        <div class="muted small" style="font-weight:700">労働時間（${TYPES[s.type || 'day']}）</div>
+        <div class="daybig num"><b>${hdec(kousoku(s, now))}</b><span class="muted">時間</span><span class="muted small" style="margin-left:auto">${hm(kousoku(s, now))}</span></div>
+        <div class="kv"><span class="k">出庫〜帰庫</span><span class="v num">${hhmm(s.start)} 〜 ${s.end == null ? '乗務中' : (nd ? '翌' : '') + hhmm(s.end)}</span></div>
+        ${c.length ? `<div class="warns">${c.map(x => `<span class="pill lv-${x.lv}"><i></i>${esc(x.t)}</span>`).join('')}</div>` : '<span class="pill lv-ok"><i></i>基準内です</span>'}
+        ${s.note ? `<div class="small muted" style="margin-top:8px">${esc(s.note)}</div>` : ''}
+      </div>`;
+    }).join('') + `<div class="actions">${info.active ? '<button class="btn primary big block" data-act="go-now">いまの画面を開く</button>' : '<button class="btn big block" data-act="d-unlock">編集モードにする</button>'}
+      ${info.shifts.length === 1 ? `<button class="btn block" data-edit="${info.shifts[0].id}">日時・メモを細かく編集</button>` : ''}</div>`;
+  } else {
+    const work = e.type === 'work';
+    bodyHtml = `<div class="seg" role="group" aria-label="出勤・公休"><button data-act="d-type" data-v="work" aria-pressed="${work}">出勤</button><button data-act="d-type" data-v="off" aria-pressed="${!work}">公休</button></div>
+      ${work ? `<div class="seg" role="group" aria-label="勤務形態" style="margin-top:10px">${Object.entries(TYPES).map(([k, v]) => `<button data-act="d-wtype" data-v="${k}" aria-pressed="${k === e.wtype}">${v}</button>`).join('')}</div>
+      <div class="tgrid">
+        <label class="field"><span>出庫</span><input class="input num" type="time" id="d-start" value="${e.start}"></label>
+        <label class="field"><span>帰庫</span><input class="input num" type="time" id="d-end" value="${e.end}"></label>
+      </div>
+      <div class="calc" id="d-calc"></div>` : `<div class="calc"><span class="muted">この日は公休として記録します。</span></div>`}
+      <div class="actions">${work
+        ? `<div class="actions two" style="margin-top:0"><button class="btn big" data-act="d-plan">予定保存</button><button class="btn primary big" data-act="d-confirm">確定して保存</button></div>`
+        : '<button class="btn primary big block" data-act="d-off">公休で保存</button>'}
+        ${S.plans[e.key] ? '<button class="btn block" data-act="d-clear">入力した予定を消す</button>' : ''}</div>`;
+  }
+  document.getElementById('sheet-root').innerHTML = `<div class="sheet-bg" data-act="close"><div class="sheet" role="dialog" aria-label="${DAYNAME(date)}の勤務">
+    <h3><span>${DAYNAME(date)}</span>${x}</h3>
+    <div style="margin:-4px 0 12px">${status}</div>${streak}${bodyHtml}</div></div>`;
+  updateDayCalc();
+}
+// 出庫・帰庫から労働時間を自動計算し、確定したときの基準チェックも先に見せる
+function updateDayCalc() {
+  const el = document.getElementById('d-calc'); if (!el || !dayEdit) return;
+  const e = dayEdit;
+  e.start = document.getElementById('d-start').value; e.end = document.getElementById('d-end').value;
+  const sp = planSpan(e.key, e);
+  if (!sp) { el.innerHTML = `<div class="row"><span class="muted small" style="font-weight:700">自動計算</span><span class="muted">時刻が未入力のときは目安 <b class="num" style="font-size:18px;color:var(--text)">${hdec(defMs())}</b>h</span></div>`; return; }
+  const draft = { id: '_draft', type: e.wtype, start: sp.start, end: sp.end };
+  const list = sorted().filter(s => !(dayEdit.info.shifts || []).includes(s)).concat(draft).sort((a, b) => a.start - b.start);
+  const c = check(draft, list), nd = new Date(sp.end).toDateString() !== new Date(sp.start).toDateString();
+  el.innerHTML = `<div class="row"><span class="muted small" style="font-weight:700">自動計算${nd ? '<span class="tag" style="color:var(--accent);margin-left:6px">帰庫は翌日</span>' : ''}</span><span class="num"><b>${hdec(sp.end - sp.start)}</b> h</span></div>
+    <div class="warns">${c.length ? c.map(x => `<span class="pill lv-${x.lv}"><i></i>${esc(x.t)}</span>`).join('') : '<span class="pill lv-ok"><i></i>基準内です</span>'}</div>`;
+}
+function dayAction(act, v) {
+  const e = dayEdit, now = Date.now(); if (!e) return;
+  const keepTimes = () => { const a = document.getElementById('d-start'), b = document.getElementById('d-end'); if (a) e.start = a.value; if (b) e.end = b.value; };
+  switch (act) {
+    case 'd-type': keepTimes(); e.type = v; renderDay(); break;
+    case 'd-wtype': keepTimes(); e.wtype = v; renderDay(); break;
+    case 'd-off': S.plans[e.key] = { type: 'off' }; save(); closeEditor(); render(); toast('公休で保存しました'); break;
+    case 'd-clear': delete S.plans[e.key]; save(); closeEditor(); render(); toast('予定を消しました'); break;
+    case 'd-plan':
+      keepTimes();
+      if ((e.start && !e.end) || (!e.start && e.end)) return toast('出庫と帰庫の両方を入れるか、両方を空にしてください');
+      S.plans[e.key] = { type: 'work', wtype: e.wtype, start: e.start, end: e.end }; save(); closeEditor(); render(); toast('予定を保存しました'); break;
+    case 'd-confirm': {
+      keepTimes();
+      const sp = planSpan(e.key, e);
+      if (!sp) return toast('確定するには出庫と帰庫の時刻を入れてください');
+      if (sp.end > now) return toast('帰庫がまだ先の勤務は確定できません（乗務中は「いま」画面で始業・終業を押してください）');
+      if (S.shifts.some(x => x.start < sp.end && (x.end ?? now) > sp.start)) return toast('ほかの勤務と時間が重なっています');
+      S.shifts.push({ id: uid(), type: e.wtype, start: sp.start, end: sp.end, note: e.note || '' });
+      delete S.plans[e.key]; save(); closeEditor(); render(); toast(`確定しました（${hdec(sp.end - sp.start)}h）`); break;
+    }
+    case 'd-unlock': {
+      if (!confirm('確定を解除して編集しますか？（時刻は予定として残ります）')) return;
+      const s = e.info.shifts.find(x => x.end != null); if (!s) return;
+      S.plans[e.key] = { type: 'work', wtype: s.type || 'day', start: hhmm(s.start), end: hhmm(s.end), note: s.note || '' };
+      const ids = e.info.shifts.filter(x => x.end != null).map(x => x.id);
+      S.shifts = S.shifts.filter(x => !ids.includes(x.id)); save(); render(); openDay(e.key, true); break;
+    }
+    case 'go-now': closeEditor(); tab = 'now'; render(); break;
+  }
+}
+
+/* ============================================================
    操作
    ============================================================ */
 document.querySelector('.tabbar').addEventListener('click', e => {
@@ -541,10 +770,12 @@ document.querySelector('.tabbar').addEventListener('click', e => {
 });
 
 document.addEventListener('click', e => {
-  const ed = e.target.closest('[data-edit]'); if (ed) return openEditor(ed.dataset.edit);
+  const ed = e.target.closest('[data-edit]'); if (ed) { dayEdit = null; return openEditor(ed.dataset.edit); }
+  const dd = e.target.closest('[data-day]'); if (dd) return openDay(dd.dataset.day);
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act, v = el.dataset.v, now = Date.now(), a = active();
   if (act === 'close' && e.target !== el && el.classList.contains('sheet-bg')) return; // シートの中のタップは閉じない
+  if (act.startsWith('d-') || act === 'go-now') return dayAction(act, v);
   switch (act) {
     case 'start': {
       if (S.shifts.some(x => x.end != null && x.end > now)) return toast('終業が現在より後の勤務があります。記録を修正してください');
@@ -556,8 +787,14 @@ document.addEventListener('click', e => {
     case 'end':
       if (!a || !confirm('終業（帰庫）しますか？')) return;
       a.end = now; save(); render(); toast(`おつかれさまでした。拘束 ${hm(kousoku(a))}`); break;
-    case 'type': S.settings.type = v; save(); render(); break;
-    case 'altmonth': S.settings.altMonth = +v; save(); render(); break;
+    case 'type': S.settings.type = v; S.settings.monthLimit = null; save(); render(); break;
+    case 'fixoff': S.settings.fixedOffEnabled = v === '1'; save(); render(); break;
+    case 'fixday': {
+      const list = S.settings.fixedOffDays = S.settings.fixedOffDays || [], i = list.indexOf(+v);
+      if (i >= 0) list.splice(i, 1); else list.push(+v); save(); render(); break;
+    }
+    case 'mnow': viewMonth = monthKey(now); render(); break;
+    case 'kintai': importKintai(kintaiData()); break;
     case 'notify':
       S.settings.notify = v === '1'; save(); render();
       if (S.settings.notify && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
@@ -581,35 +818,72 @@ document.addEventListener('click', e => {
     case 'restore': document.getElementById('restore-file').click(); break;
     case 'wipe':
       if (!confirm('すべての記録を削除します。元に戻せません。よろしいですか？')) return;
-      S.shifts = []; save(); render(); toast('削除しました'); break;
+      S.shifts = []; S.plans = {}; save(); render(); toast('削除しました'); break;
   }
 });
 // 編集シートを、いまの editing の内容で描き直す
 function reopen() { openEditor(null, editing); }
 
-document.addEventListener('input', e => { if (e.target.closest('.sheet')) updatePreview(); });
-document.addEventListener('change', e => { if (e.target.id === 'e-active') updatePreview(); });
+document.addEventListener('input', e => { if (e.target.closest('.sheet')) { if (dayEdit) updateDayCalc(); else updatePreview(); } });
+document.addEventListener('change', e => {
+  if (e.target.id === 'e-active') updatePreview();
+  if (e.target.id === 'set-defh') { const v = +e.target.value; S.settings.defaultHours = v > 0 && v <= 24 ? v : 11; save(); render(); }
+  if (e.target.id === 'set-limit') { const v = Math.round(+e.target.value); S.settings.monthLimit = v > 0 ? v : null; save(); render(); }
+});
 document.getElementById('restore-file').addEventListener('change', e => {
   const input = e.target, f = input.files[0]; if (!f) return;
   f.text().then(t => {
     t = t.replace(/^﻿/, '');
     if (/^\s*\{/.test(t)) {
       const d = JSON.parse(t);
+      if (d && d.records && d.config) return importKintai(d);
       if (!d || !Array.isArray(d.shifts)) throw new Error('拘束時間チェッカーのバックアップではありません');
       if (!confirm(`${d.shifts.length}件の記録を読み込みます。いまの記録は置き換わります。よろしいですか？`)) return;
-      const base = defaults(); S = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } };
-      save(); tab = 'log'; viewMonth = monthKey(Date.now()); render(); toast(`${d.shifts.length}件を読み込みました`);
+      S = normalize(d);
+      save(); tab = 'cal'; viewMonth = monthKey(Date.now()); render(); toast(`${d.shifts.length}件を読み込みました`);
     } else {
       const add = shiftsFromAnalyzerCsv(t);
       if (!add.length) throw new Error('出庫・入庫の記録が見つかりませんでした');
       const fresh = add.filter(n => !S.shifts.some(x => x.start < (n.end ?? Date.now()) && (x.end ?? Date.now()) > n.start));
       if (!fresh.length) return toast('すべて読み込み済みです');
       if (!confirm(`CSVから${fresh.length}件の勤務を追加します${add.length > fresh.length ? `（すでにある${add.length - fresh.length}件は飛ばします）` : ''}。よろしいですか？`)) return;
-      S.shifts.push(...fresh); save(); tab = 'log'; viewMonth = monthKey(fresh[fresh.length - 1].start); render(); toast(`${fresh.length}件を追加しました`);
+      S.shifts.push(...fresh); save(); tab = 'cal'; viewMonth = monthKey(fresh[fresh.length - 1].start); render(); toast(`${fresh.length}件を追加しました`);
     }
   }).catch(err => toast('読み込めませんでした：' + (err && err.message && !/JSON|token/i.test(err.message) ? err.message : 'ファイルの形式が違います')))
     .finally(() => { input.value = ''; });
 });
+
+// 勤怠管理アプリ（トップページ）のデータ。同じサイトなのでこの端末の保存内容を直接読める
+function kintaiData() {
+  try { const d = JSON.parse(localStorage.getItem('taxishift_md3_v40_data') || localStorage.getItem('taxishift_md3_v39_data') || 'null'); return d && d.records && Object.keys(d.records).length ? d : null; }
+  catch (e) { return null; }
+}
+// 勤怠管理アプリの記録 → 確定した出勤は勤務の記録、それ以外は予定・公休として取り込む（すでにある日は上書きしない）
+function importKintai(d) {
+  if (!d) return;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const shifts = [], plans = {}; let skip = 0;
+  for (const [k, r] of Object.entries(d.records || {})) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !r) continue;
+    if (r.type === 'off') { if (!S.plans[k]) plans[k] = { type: 'off' }; else skip++; continue; }
+    if (r.type !== 'work') continue;
+    const sp = planSpan(k, { start: r.startTime, end: r.endTime });
+    if (r.isConfirmed && sp && sp.end <= Date.now()) {
+      if (S.shifts.some(x => x.start < sp.end && (x.end ?? Date.now()) > sp.start)) { skip++; continue; }
+      shifts.push({ id: uid(), type: S.settings.type, start: sp.start, end: sp.end, note: '' });
+    } else if (!S.plans[k]) plans[k] = { type: 'work', wtype: S.settings.type, start: r.startTime || '', end: r.endTime || '' };
+    else skip++;
+  }
+  const np = Object.keys(plans).length;
+  if (!shifts.length && !np) return toast('取り込める新しい記録はありませんでした');
+  if (!confirm(`勤怠管理アプリから、確定 ${shifts.length}日・予定と公休 ${np}日 を取り込みます${skip ? `（すでにある${skip}日は飛ばします）` : ''}。固定休み・目安労働時間・月間上限の設定も引き継ぎます。よろしいですか？`)) return;
+  S.shifts.push(...shifts); Object.assign(S.plans, plans);
+  const c = d.config || {};
+  if (Array.isArray(c.fixedOffDays)) { S.settings.fixedOffEnabled = !!c.fixedOffEnabled; S.settings.fixedOffDays = c.fixedOffDays.map(Number); }
+  if (+c.defaultHours > 0) S.settings.defaultHours = +c.defaultHours;
+  if (+c.maxHours > 0) S.settings.monthLimit = +c.maxHours;
+  save(); tab = 'cal'; viewMonth = monthKey(Date.now()); render(); toast('取り込みました');
+}
 
 // CSV を行・列に分ける（"…" で囲まれた値の中のカンマ・改行に対応）
 function parseCsv(text) {
@@ -672,7 +946,7 @@ function notify(key, msg) {
 }
 setInterval(() => {
   const now = Date.now(), a = active();
-  if (editing) return;
+  if (editing || dayEdit) return;
   const minute = Math.floor(now / M);
   if (tab === 'now' && minute !== lastMinute) { lastMinute = minute; const st = document.getElementById('view').scrollTop; render(); document.getElementById('view').scrollTop = st; }
   else if (tab === 'now') { const el = document.getElementById('tick'); if (el) { const last = sorted().filter(s => s.end != null).pop(); el.textContent = hms(a ? kousoku(a, now) : last ? now - last.end : 0); } }
@@ -688,7 +962,7 @@ setInterval(() => {
 (() => { const a = active(); if (!a) return; const now = Date.now(), type = a.type || 'day', used = type === 'day' ? dayKousoku(a, sorted(), now) : kousoku(a, now), lim = RULES[type].max, k = a.id + ':';
   if (used > lim) notified[k + 'over'] = true; if (lim - used <= 30 * M) notified[k + '30'] = true; if (lim - used <= H) notified[k + '60'] = true; if (used > RULES.day.warn) notified[k + '13'] = true; })();
 
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !editing) render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !editing && !dayEdit) render(); });
 render();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
