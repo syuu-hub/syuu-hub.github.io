@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0A0C0F"/>
+  <!-- 時計（拘束時間） -->
+  <circle cx="256" cy="268" r="150" fill="none" stroke="#343C48" stroke-width="36"/>
+  <path d="M256 118 A150 150 0 1 1 126 343" fill="none" stroke="#FFB020" stroke-width="36" stroke-linecap="round"/>
+  <rect x="226" y="70" width="60" height="30" rx="10" fill="#FFB020"/>
+  <path d="M256 268 L256 188 M256 268 L312 300" stroke="#ECEFF3" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="256" cy="268" r="18" fill="#ECEFF3"/>
+</svg>

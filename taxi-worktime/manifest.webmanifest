@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "拘束時間チェッカー",
+  "short_name": "拘束時間",
+  "description": "タクシードライバー向けの労働時間管理。始業・終業をワンタップで記録し、改善基準告示の拘束時間・休息期間をチェックします",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0A0C0F",
+  "theme_color": "#0A0C0F",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
