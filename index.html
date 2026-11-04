@@ -13,10 +13,13 @@
   <!-- PWA関連メタデータ -->
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" id="apple-touch-icon" href="">
-  <link rel="icon" id="favicon" type="image/svg+xml" href="">
-  <link rel="manifest" id="manifest-link">
+  <meta name="apple-mobile-web-app-title" content="タクシー勤怠">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
 
   <script>
     tailwind.config = {
@@ -501,48 +504,10 @@
   <script>
     const STORAGE_KEY = 'taxishift_md3_v40_data'; 
     
-    // PWA用アイコンのSVG定義
-    const appIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-      <rect width="512" height="512" fill="#000000" />
-      <g transform="translate(128, 128) scale(0.5)">
-        <rect x="70" y="140" width="372" height="300" rx="40" fill="none" stroke="#0A84FF" stroke-width="40" stroke-linejoin="round"/>
-        <rect x="140" y="70" width="40" height="70" rx="20" fill="#0A84FF" />
-        <rect x="332" y="70" width="40" height="70" rx="20" fill="#0A84FF" />
-        <path d="M 70 240 L 442 240" stroke="#0A84FF" stroke-width="40" stroke-linecap="round"/>
-        <rect x="120" y="280" width="70" height="50" rx="10" fill="#0A84FF" />
-        <rect x="221" y="280" width="70" height="50" rx="10" fill="#0A84FF" />
-        <rect x="322" y="280" width="70" height="50" rx="10" fill="#0A84FF" />
-        <rect x="120" y="350" width="70" height="50" rx="10" fill="#0A84FF" />
-        <rect x="221" y="350" width="70" height="50" rx="10" fill="#0A84FF" />
-        <rect x="322" y="350" width="70" height="50" rx="10" fill="#0A84FF" />
-      </g>
-    </svg>`;
-    const iconDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(appIconSvg);
-    document.getElementById('apple-touch-icon').setAttribute('href', iconDataUrl);
-    document.getElementById('favicon').setAttribute('href', iconDataUrl);
-    
-    const manifest = {
-      name: "タクシー勤怠管理",
-      short_name: "タクシー勤怠",
-      start_url: ".",
-      display: "standalone",
-      background_color: "#000000",
-      theme_color: "#000000",
-      icons: [
-        { src: iconDataUrl, sizes: "192x192 512x512", type: "image/svg+xml", purpose: "any maskable" }
-      ]
-    };
-    document.getElementById('manifest-link').setAttribute('href', 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest)));
-
-    if ('serviceWorker' in navigator) {
+    // PWA：サービスワーカー登録（オフライン起動・ホーム画面に追加用）
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       window.addEventListener('load', () => {
-        const swCode = `
-          self.addEventListener('install', (e) => { self.skipWaiting(); });
-          self.addEventListener('activate', (e) => { e.waitUntil(clients.claim()); });
-          self.addEventListener('fetch', (e) => { });
-        `;
-        const swUrl = URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }));
-        navigator.serviceWorker.register(swUrl).catch(err => console.log('SW登録スキップ:', err));
+        navigator.serviceWorker.register('sw.js', { scope: './' }).catch(err => console.log('SW登録スキップ:', err));
       });
     }
 
