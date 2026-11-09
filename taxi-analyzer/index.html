@@ -656,6 +656,11 @@ svg{display:block}
 .pd-list .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:6px;margin-left:6px;vertical-align:2px;background:var(--surface-2);color:var(--muted)}
 .pd-list .tag.ed{color:var(--accent)}
 .pd-list .empty{padding:14px 4px;color:var(--muted);font-size:14px}
+.mp-mode{margin:0}
+.mp-mode button{flex:1;min-width:0}
+.mp-map{height:240px;border-radius:var(--r-md);overflow:hidden;background:var(--surface-2);margin-top:8px;z-index:0}
+.mp-map .leaflet-tile{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
+.mp-pin i{display:block;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--accent);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5)}
 .link-btn{font-size:13px;font-weight:700;color:var(--accent);padding:6px 0;min-height:32px}
 .sug .hint{font-size:12px;color:var(--faint);padding:4px 2px}
 .e-foot{flex:none;display:flex;gap:10px;padding-top:12px}
@@ -1455,6 +1460,10 @@ svg{display:block}
       <input class="text-in" id="mpName" placeholder="例：〇〇ビル" maxlength="40" autocomplete="off" enterkeyhint="next">
     </div>
     <div class="group">
+      <div class="seg mp-mode" id="mpMode"><button data-mm="addr">住所入力</button><button data-mm="map">地図で選ぶ</button></div>
+      <div class="mp-map" id="mpMap" hidden></div>
+    </div>
+    <div class="group">
       <div class="glabel"><span>住所</span><button class="link-btn" id="mpHere" type="button">現在地の住所を入れる</button></div>
       <input class="text-in" id="mpAddr" placeholder="例：神戸市中央区三宮町1丁目1-1" maxlength="80" autocomplete="off" enterkeyhint="next">
     </div>
@@ -1878,7 +1887,8 @@ function placeDb(all) {
     const o = ov.get(b.name);
     if (!o) out.push({ ...b, key: b.id, builtin: b });
     else if (o.hidden) { if (all) out.push({ ...b, key: b.id, builtin: b, hidden: true }); }
-    else out.push({ ...b, name: o.name, addr: o.addr, info: o.addr === b.addr ? b.info : placeInfo(o.addr), alias: o.alias || [], note: o.note, key: b.id, builtin: b, edited: true });
+    else out.push({ ...b, name: o.name, addr: o.addr, info: o.addr === b.addr ? b.info : placeInfo(o.addr), alias: o.alias || [], note: o.note,
+      ...(o.lat != null ? { lat: o.lat, lng: o.lng } : {}), key: b.id, builtin: b, edited: true });
   }
   return out;
 }
@@ -4211,14 +4221,56 @@ function openPlaceEditor(key, w, name) {
   $('#mpDelete').hidden = !p || !!p.hidden;
   $('#mpReset').hidden = !p || !(p.edited || p.hidden);
   $('#mpReset').textContent = p && p.hidden ? '削除を取り消す' : '元に戻す';
+  // 位置：地図で選んだことがある場所は地図から始める
+  MP.pos = p && p.lat != null ? { lat: p.lat, lng: p.lng } : null;
+  MP.mode = MP.pos ? 'map' : 'addr';
   $('#placeSheet .sheet-inner').scrollTop = 0;
   openSheet($('#placeSheet'));
+  renderMpMode();
   if (!p && !$('#mpName').value) setTimeout(() => $('#mpName').focus(), 250);
 }
 function afterPlaceChange() {
   closeSheet($('#placeSheet'));
   renderPlaceViews();
 }
+// 場所の登録：住所入力か地図で選ぶか。地図は現在地にピンを置き、動かすと住所欄も書き換える（住所欄はどちらでも編集できる）
+let MPMAP = null, MPPIN = null;
+function renderMpMode() {
+  $$('#mpMode [data-mm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mm === MP.mode));
+  $('#mpMap').hidden = MP.mode !== 'map';
+  if (MP.mode === 'map') showMpMap();
+}
+async function mpFillAddr() {
+  const a = MP.pos ? await reverseGeocode(MP.pos) : undefined;
+  if (a) $('#mpAddr').value = a;
+}
+async function showMpMap() {
+  const el = $('#mpMap');
+  try { await loadLeaflet(); } catch (e) { el.innerHTML = '<div class="ana-empty">地図を読み込めません</div>'; return; }
+  let auto = false;
+  if (!MP.pos) {
+    const p = await getPos(5000);
+    MP.pos = p ? { lat: p.lat, lng: p.lng } : { lat: 34.6913, lng: 135.1955 };   // 位置が取れない時は三宮
+    auto = !!p;
+  }
+  if (!MPMAP) {
+    MPMAP = L.map(el, { attributionControl: true }).setView([MP.pos.lat, MP.pos.lng], 17);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(MPMAP);
+    MPPIN = L.marker([MP.pos.lat, MP.pos.lng], { draggable: true, icon: L.divIcon({ className: 'mp-pin', html: '<i></i>', iconSize: [28, 36], iconAnchor: [14, 34] }) }).addTo(MPMAP);
+    const moved = ll => { MP.pos = { lat: ll.lat, lng: ll.lng }; MPPIN.setLatLng(ll); haptic(); mpFillAddr(); };
+    MPPIN.on('dragend', () => moved(MPPIN.getLatLng()));
+    MPMAP.on('click', e => moved(e.latlng));
+  } else {
+    MPPIN.setLatLng([MP.pos.lat, MP.pos.lng]);
+    MPMAP.setView([MP.pos.lat, MP.pos.lng], 17);
+  }
+  setTimeout(() => MPMAP && MPMAP.invalidateSize(), 260);   // シートが開き終わってから大きさを合わせる
+  if (auto && !$('#mpAddr').value.trim()) mpFillAddr();
+}
+$('#mpMode').addEventListener('click', e => {
+  const b = e.target.closest('[data-mm]'); if (!b) return;
+  haptic(); MP.mode = b.dataset.mm; renderMpMode();
+});
 // 保存・削除は端末内（設定の places）。内蔵の施設は書き換え・候補から外すを記録し、元に戻せる
 function savePlace() {
   const name = $('#mpName').value.trim().replace(/\s+/g, ' ');
@@ -4227,18 +4279,19 @@ function savePlace() {
   const addr = withPref($('#mpAddr').value.trim().replace(/\s+/g, ''));
   const alias = [...new Set($('#mpAlias').value.split(/[、,，\/／\n]+/).map(s => s.trim()).filter(s => s && s !== name))];
   const note = $('#mpNote').value.trim();
-  const cfg = { name, addr, alias, ...(note ? { note } : {}) };
+  const ll = MP.mode === 'map' && MP.pos ? { lat: +MP.pos.lat.toFixed(6), lng: +MP.pos.lng.toFixed(6) } : null;   // 地図で選んだ時だけ位置を持つ
+  const cfg = { name, addr, alias, ...(note ? { note } : {}), ...(ll || {}) };
   const p = MP.key ? placeDb(true).find(x => x.key === MP.key) : null, isNew = !p, w = MP.w;
   let key = MP.key;
   if (p && p.builtin) {
     // 内蔵の施設：書き換えを記録（内蔵と同じ内容なら記録を消す）
     const b = p.builtin;
     S.settings.places = S.settings.places.filter(x => x.base !== b.name);
-    const same = name === b.name && addr === b.addr && note === (b.note || '') && alias.join('\n') === b.alias.join('\n');
+    const same = !ll && name === b.name && addr === b.addr && note === (b.note || '') && alias.join('\n') === b.alias.join('\n');
     if (!same) S.settings.places.push({ id: uid(), base: b.name, ...cfg });
   } else if (p) {
     const o = S.settings.places.find(x => 'l:' + x.id === p.key);
-    delete o.note; Object.assign(o, cfg);
+    delete o.note; delete o.lat; delete o.lng; Object.assign(o, cfg);
   } else { const id = uid(); S.settings.places.push({ id, ...cfg }); key = 'l:' + id; }
   save(); afterPlaceChange();
   // 乗車記録から登録した時は、その欄に登録した場所を入れる
