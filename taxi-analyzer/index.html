@@ -710,6 +710,8 @@ svg{display:block}
 .rp-rides + .rr{border-top:1px solid var(--line)}
 .rp-sec{margin-bottom:18px}
 .find-btn{margin-left:auto}
+.view-sw{margin:0 0 10px}
+.view-sw button{flex:1;min-width:0}
 .map-f{margin:0 0 6px}
 .map-f button{flex:1;min-width:0;padding:0 2px;font-size:12px}
 .map-f2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
@@ -2986,6 +2988,8 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   goSlots.sort((a, b) => HEAT_BLOCKS.indexOf(a.b) - HEAT_BLOCKS.indexOf(b.b));   // 走る順（時間順）に
   const restSlot = byRate.filter(s => s.rate < perHour * 0.9 && s.duAll >= 120 && !goSlots.some(g => g.b === s.b)).at(-1);
   const tops = new Set(goSlots.map(s => s.b));
+  // 時間割はいつもの営業時間だけを出す（全部外れた時は全部）
+  const inSlots = slots.filter(s => !s.out), shown = inSlots.length ? inSlots : slots;
   // 乗り場で待ってもよい時間（機会費用）
   const stand = A.rides.filter(r => r.kind === 'stand');
   let standLine = '';
@@ -3026,7 +3030,7 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
       </ul>
       <div class="tipgrp">
       <div class="sub-h">${wname}の時間割（千円/時）</div>
-      <div class="pstrip">${HEAT_BLOCKS.map(b => `<span class="c num">${b.head}</span>`).join('')}${slots.map(s => s.rate == null
+      <div class="pstrip" style="grid-template-columns:repeat(${shown.length},minmax(0,1fr))">${shown.map(s => `<span class="c num">${s.b.head}</span>`).join('')}${shown.map(s => s.rate == null
         ? `<button class="na${s.out ? ' out' : ''}" aria-pressed="false" data-tip="${s.b.label}時：${s.out ? 'いつもの営業時間外' : '記録が少ない時間です'}"></button>`
         : `<button class="${heatLv(s.rate / Math.max(1, perHour)).cls} ${tops.has(s.b) ? 'top' : ''} num" aria-pressed="false" data-tip="${wname} ${s.b.label}時：推定 ${yen(Math.round(s.rate))}/時（平均の${(s.rate / Math.max(1, perHour)).toFixed(1)}倍${s.du ? `・この曜日の実績 ${yen(Math.round(s.raw))}/時・${(s.du / 60).toFixed(1)}時間` : '・この曜日の記録なし。全曜日から推定'}）">${k1(s.rate)}</button>`).join('')}</div>
       <div class="ana-tip"></div>
@@ -3159,6 +3163,7 @@ function renderAnalysis() {
       <div class="af-h"><span class="t">${title}</span><span class="tk">${take}</span></div><div class="af-b">${inner}</div></div>`;
   const heatTake = bestBlock ? `最も稼げる ${WEEKDAYS[bestBlock.d]}曜 ${bestBlock.b.label}時` : '';
   const plTake = plRows.length ? `${ps.label}1位 ${esc(placeName(plRows[0]))}` : '';
+  const plView = S.settings.anaPlView === 'map' ? 'map' : 'rank', trView = S.settings.anaTrView === 'month' ? 'month' : 'day';
 
   body.innerHTML = `
     ${plan}
@@ -3189,27 +3194,25 @@ function renderAnalysis() {
         <span>平均 ${kv(Math.round(perHour))}/時</span></div>
       <div class="ana-tip"></div>
 `)}
-    ${fold('place', '乗車地ランキング', plTake, `
-      <div class="seg pl-sort" id="plSort">${Object.values(PS).map(x => `<button data-ps="${x.k}" aria-pressed="${x === ps}">${x.label}</button>`).join('')}</div>
+    ${fold('place', '乗車地', plTake, `
+      <div class="seg view-sw">${[['rank', 'ランキング'], ['map', '地図']].map(([k, l]) => `<button data-pv="${k}" aria-pressed="${plView === k}">${l}</button>`).join('')}</div>
+${plView === 'map' ? (mapPts.length ? `      <div class="seg map-f" id="mapTime">${MAP_TIMES.map((m, i) => `<button data-mt="${i}" aria-pressed="${MAPF.t === i}">${m.l}</button>`).join('')}</div>
+      <div class="map-f2"><button class="map-hi" data-mh aria-pressed="${MAPF.hi}">高額のみ</button><span class="map-leg"><i class="hi"></i>高額<i></i>その他</span></div>
+      <div class="lf-map" id="plMap"></div>
+` : '<div class="ana-empty">位置のある乗車がありません</div>') : `      <div class="seg pl-sort" id="plSort">${Object.values(PS).map(x => `<button data-ps="${x.k}" aria-pressed="${x === ps}">${x.label}</button>`).join('')}</div>
       ${plRows.length ? `<ol class="prank">${plRows.map((c, i) => `<li class="${PL_OPEN.has(c.key) ? 'open' : ''}" data-pl="${esc(c.key)}" role="button" tabindex="0" aria-expanded="${PL_OPEN.has(c.key)}">
         <span class="n num">${i + 1}</span>
         <span class="b"><span class="nm">${esc(placeName(c))}</span><span class="bar"><i style="width:${(ps.v(c) / plMax * 100).toFixed(1)}%"></i></span>
           <span class="sb num">${ps.k === 'hi' ? `高額${c.hi}/${c.n}回` : `${c.n}回`}・平均${kv(Math.round(c.avg))}${c.wait != null ? `・待ち${Math.round(c.wait)}分` : ''}</span></span>
         <span class="a num">${ps.fmt(c)}</span>${placeDetail(c, rideOf)}</li>`).join('')}</ol>`
         : `<div class="ana-empty">該当なし</div>`}
-`)}
-    ${mapPts.length ? fold('map', '乗車地マップ', `${mapPts.length}件・高額${mapPts.filter(p => p.hi).length}件`, `
-      <div class="seg map-f" id="mapTime">${MAP_TIMES.map((m, i) => `<button data-mt="${i}" aria-pressed="${MAPF.t === i}">${m.l}</button>`).join('')}</div>
-      <div class="map-f2"><button class="map-hi" data-mh aria-pressed="${MAPF.hi}">高額のみ</button><span class="map-leg"><i class="hi"></i>高額<i></i>その他</span></div>
-      <div class="lf-map" id="plMap"></div>
-`) : ''}
-    ${months.length >= 2 ? fold('month', '月ごとの売上', monthTake, `
-      <div class="mbars">${months.map(m => `<button class="mb ${m.cur ? 'cur' : ''}" aria-pressed="false" data-tip="${m.label}：売上 ${yen(m.sales)}・${m.days}日・1日あたり ${yen(Math.round(m.perDay))}・1時間あたり ${m.perHour ? yen(Math.round(m.perHour)) : '—'}${m.cur ? '（途中）' : ''}">
+`}`)}
+    ${fold('trend', '売上の推移', trView === 'month' ? monthTake : `${kv(Math.round(K.perDay))}/日 ${delta('perDay')}`, `
+      <div class="seg view-sw">${[['day', '日ごと'], ['month', '月ごと']].map(([k, l]) => `<button data-tv="${k}" aria-pressed="${trView === k}">${l}</button>`).join('')}</div>
+${trView === 'month' ? (months.length ? `      <div class="mbars">${months.map(m => `<button class="mb ${m.cur ? 'cur' : ''}" aria-pressed="false" data-tip="${m.label}：売上 ${yen(m.sales)}・${m.days}日・1日あたり ${yen(Math.round(m.perDay))}・1時間あたり ${m.perHour ? yen(Math.round(m.perHour)) : '—'}${m.cur ? '（途中）' : ''}">
         <span class="v num">${compactYen(m.sales)}</span><i style="height:${Math.max(2, m.sales / mMax * 100).toFixed(1)}%"></i><span class="l num">${m.m + 1}月</span></button>`).join('')}</div>
       <div class="ana-tip"></div>
-`) : ''}
-    ${fold('trend', '1日あたりの売上', `${kv(Math.round(K.perDay))} ${delta('perDay')}`, `
-      <svg viewBox="0 0 ${trendW} ${trendH}" preserveAspectRatio="none" role="img" aria-label="営業日ごとの売上">
+` : '<div class="ana-empty">記録がまだ少ないです</div>') : `      <svg viewBox="0 0 ${trendW} ${trendH}" preserveAspectRatio="none" role="img" aria-label="営業日ごとの売上">
         <line x1="0" y1="${trendH}" x2="${trendW}" y2="${trendH}" stroke="var(--line-2)" stroke-width="1"/>
         ${D.map((d, i) => `<rect class="tb" x="${(bx(i) - bw / 2).toFixed(1)}" y="${by(d.sales).toFixed(1)}" width="${bw.toFixed(1)}" height="${(trendH - by(d.sales)).toFixed(1)}" rx="2"
           fill="${d.sales >= avgDay ? 'var(--accent)' : '#6B7584'}" data-tip="${ymd(d.t)}（${WEEKDAYS[d.dow]}）：${yen(d.sales)}・${d.n}回・${d.ms ? kv(Math.round(d.sales / (d.ms / 3600e3))) + '/時' : ''}" aria-pressed="false"/>`).join('')}
@@ -3219,9 +3222,9 @@ function renderAnalysis() {
       <div class="taxis num"><span>${md(D[0].t)}</span><span>${md(D[Math.floor((D.length - 1) / 2)].t)}</span><span>${md(D[D.length - 1].t)}</span></div>
       <div class="legend"><span><i class="dash"></i>1日あたり</span><span><i style="background:var(--accent)"></i>それより多い日</span><span><i style="background:#6B7584"></i>少ない日</span>${D.length >= 7 ? '<span><i style="background:var(--text)"></i>直近7日の平均</span>' : ''}</div>
       <div class="ana-tip"></div>
-`, 'trend')}
+`}`, 'trend')}
     `;
-  if (mapPts.length) drawMap();
+  if (plView === 'map' && mapPts.length) drawMap();
 }
 // ── 乗車地マップ（Leaflet・OpenStreetMap）。ライブラリはアプリと同じ場所に置き、開いた時だけ読み込む
 const MAP_TIMES = [{ l: '全時間', f: () => true }, { l: '5-11時', f: h => h >= 5 && h < 11 }, { l: '11-17時', f: h => h >= 11 && h < 17 }, { l: '17-23時', f: h => h >= 17 && h < 23 }, { l: '23-5時', f: h => h >= 23 || h < 5 }];
@@ -3251,6 +3254,13 @@ function drawMapPts(fit) {
   MAP_LAYER = L.featureGroup(pts.map(p => L.circleMarker([p.lat, p.lng], { radius: p.hi ? 7 : 5, weight: 1, color: p.hi ? '#FFB020' : '#5B9BFF', fillColor: p.hi ? '#FFB020' : '#5B9BFF', fillOpacity: .55 }).bindPopup(p.tip))).addTo(MAP);
   if (fit || pts.length) pts.length ? MAP.fitBounds(MAP_LAYER.getBounds().pad(0.15), { maxZoom: 15 }) : MAP.setView([34.69, 135.19], 12);
 }
+// カードの表示切り替え（乗車地：ランキング／地図、売上の推移：日ごと／月ごと）
+$('#anaBody').addEventListener('click', e => {
+  const b = e.target.closest('[data-pv],[data-tv]'); if (!b) return;
+  haptic();
+  if (b.dataset.pv) S.settings.anaPlView = b.dataset.pv; else S.settings.anaTrView = b.dataset.tv;
+  saveSoon(); renderAnalysis();
+});
 $('#anaBody').addEventListener('click', e => {
   const b = e.target.closest('[data-mt],[data-mh]'); if (!b) return;
   haptic();
