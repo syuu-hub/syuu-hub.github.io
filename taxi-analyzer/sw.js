@@ -1,8 +1,8 @@
 // タクシーアナライザー Service Worker
 // 画面（HTML）と場所データ（places.json）はネット優先：つながる時は常に最新を取得してキャッシュを更新、圏外ではキャッシュで起動
 // アイコン等の静的ファイルはキャッシュ優先。外部サイト（住所検索・地図）は扱わない
-const CACHE = 'taxi-analyzer-v2';
-const ASSETS = ['./', './index.html', './places.json', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'taxi-analyzer-v3';
+const ASSETS = ['./', './index.html', './places.json', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
