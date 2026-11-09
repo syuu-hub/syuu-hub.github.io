@@ -1136,6 +1136,10 @@ svg{display:block}
           <div class="k">駅で乗車したら「乗り場」</div>
           <button class="switch" role="switch" aria-checked="true" data-setting="stationStand" aria-label="駅で乗車したら乗り場"></button>
         </div>
+          <div class="setting">
+          <div class="k">住所を施設名にする</div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="autoPlace" aria-label="住所を施設名にする"></button>
+        </div>
           </div>
         </div>
         <div class="fold" id="gPlaces">
@@ -1596,7 +1600,7 @@ function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } c
 function freshState() {
   return {
     v: 2,
-    settings: { sv: SETTINGS_VER, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
+    settings: { sv: SETTINGS_VER, dim: false, wake: true, addr: true, apps: DEFAULT_APPS, pays: DEFAULT_PAYS, tickets: DEFAULT_TICKETS, pickupFee: 0, longOn: true, longFrom: 9000, closingDay: 0, monthGoal: 0, hiFare: 0, hoursCap: 288, dayHours: 0, pauseLabel: 'both', stationStand: true, autoPlace: true, holidays: [], histPause: false, histOrder: 'asc', tab: 'home', anaRange: '90', anaPlace: 'eff', places: [] },
     shifts: [],   // {id,start,end,goal,status,statusSince,trip}
     rides: [],    // {id,shiftId,ts,start,fare:{meter,pickup,appFee},total,noPickup,pay,kind,app,from,to}
     events: [],   // {id,shiftId,ts,status,prev}（位置は記録しない）
@@ -1874,7 +1878,46 @@ async function loadPlaces() {
   if (PDB.state !== 'ok') PDB.state = 'error';
   renderPlaceViews();
 }
+// 記録と場所データを結びつける（場所データが変わった時・記録した時・住所が分かった時に実行）
+//   ・住所の代わりに施設名が入っている記録 → 場所データにあれば施設にして住所を付ける
+//   ・施設なのに住所が無い記録 → 場所データの住所を付ける
+//   ・住所が場所データの施設1つだけと同じ記録 → 施設名にする（設定「住所を施設名にする」。オフにすると自動で付けた分を外す）
+const KANJI_NUM = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+// 住所を比べやすくする（兵庫県・空白を除き、全角数字・漢数字の丁目・番地の書き方をそろえる）
+const normAddr = a => toHira(String(a || '')).replace(/^兵庫県/, '').replace(/\s/g, '')
+  .replace(/([一二三四五六七八九十])丁目/, (_, k) => KANJI_NUM[k] + '丁目')
+  .replace(/[‐－ー―−]/g, '-').replace(/番地?|号/g, '-').replace(/-+$/, '');
+function linkPlaces() {
+  const db = placeDb();
+  if (!db.length) return 0;
+  const byName = new Map(), byAddr = new Map();
+  for (const p of db) {
+    for (const n of [p.name, ...p.alias]) { const k = normName(n); if (k && !byName.has(k)) byName.set(k, p); }
+    if (p.addr) { const k = normAddr(p.addr); byAddr.set(k, byAddr.has(k) ? null : p); }   // 同じ住所に2つ以上ある時は置き換えない
+  }
+  const asPlace = p => ({ name: p.name, ...(p.note ? { note: p.note } : {}), ...(p.lat != null ? { lat: p.lat, lng: p.lng } : {}) });
+  const sh = curShift();
+  const locs = [...S.rides.flatMap(r => [r.from, r.to]), sh && sh.trip && sh.trip.from, ...(sh && sh.pending || []).flatMap(x => [x.from, x.to])].filter(Boolean);
+  let n = 0;
+  for (const o of locs) {
+    if (o.place) {
+      if (o.place.auto && !S.settings.autoPlace) { delete o.place; n++; continue; }
+      const p = !o.addr && byName.get(normName(o.place.name));
+      if (p && p.addr) { o.addr = p.addr; n++; }
+    } else if (o.manual && o.addr && byName.get(normName(o.addr))) {
+      const p = byName.get(normName(o.addr));
+      o.place = asPlace(p); delete o.lat; delete o.lng;
+      if (p.addr) o.addr = p.addr; else delete o.addr;
+      n++;
+    } else if (S.settings.autoPlace && o.addr) {
+      const p = byAddr.get(normAddr(o.addr));
+      if (p) { o.place = { ...asPlace(p), auto: true }; n++; }
+    }
+  }
+  return n;
+}
 function renderPlaceViews() {
+  if (linkPlaces()) save();
   renderData();
   if (!$('#placeDbSheet').hidden) renderPlaceDb();
 }
@@ -2012,6 +2055,7 @@ async function resolvePending() {
       if (!cached) await new Promise(r => setTimeout(r, 250));
     }
     changed += await resolveGeo();
+    changed += linkPlaces();
   } finally {
     addrBusy = false;
     if (changed) { save(); renderAll(); }
@@ -3724,6 +3768,7 @@ function saveEntry() {
     if (!E.pend && (sh.status === 'occupied' || PAUSE.includes(sh.status))) { logEvent(sh, 'vacant', sh.status); sh.status = 'vacant'; sh.statusSince = Date.now(); }
     toast(`${yen(total)}（${rideLabel(E.pay, E.app, ticket)}）を記録しました` + (fixed ? `・${PL()}は${hhmm(fixed)}まで` : ''));
   }
+  linkPlaces();
   save(); haptic(25); queueAddr();
   E = null;
   closeSheet($('#entry'));
@@ -4488,6 +4533,7 @@ $$('[data-export]').forEach(b => b.addEventListener('click', () => {
 $$('.switch[data-setting]').forEach(s => s.addEventListener('click', () => {
   const k = s.dataset.setting; S.settings[k] = !S.settings[k]; save(); applySettings(); renderData();
   if (k === 'addr') queueAddr();
+  if (k === 'autoPlace' && linkPlaces()) { save(); renderAll(); }
 }));
 $('#backupBtn').addEventListener('click', backup);
 // 1日1回残している控え（起動した時点のデータ）に戻す
