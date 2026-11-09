@@ -482,7 +482,6 @@ svg{display:block}
 .plist .ic.rest{background:rgba(255,107,107,.68);color:#2A0606}
 .plist .ic.pl{background:var(--accent);color:var(--accent-ink)}
 .plist .ic.st{background:var(--info);color:#04122B}
-.plist .ic.tm{background:var(--surface-3);color:var(--text)}
 .plist small{display:block;font-size:12px;color:var(--faint)}
 .heat-legend .scale i{width:18px}
 .heat-legend .avg{flex-basis:100%;color:var(--faint)}
@@ -2933,7 +2932,6 @@ const anaTip = (el, text) => { const card = el.closest('.ana-card'), box = el.cl
 //   ・時間割：曜日×3時間の1時間あたりを、全曜日の同じ時間 → 全体の平均 の順に寄せて推定（階層的な縮小推定）
 //   ・場所：稼ぎどきの時間に乗せた場所
 //   ・乗り場の待ち：機会費用。乗り場の平均運賃 ÷ 1時間あたり ＝ 待ってもよい時間（乗車時間を除く）
-//   ・働く長さ：調子の良い日に早く上がっていないか（タクシー運転手の労働供給の研究：Camerer ほか 1997, Farber 2005/2015）
 function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   if (D.length < 3) return '';
   const kv = n => n >= 100000 ? compactYen(n) : yen(n);
@@ -3000,15 +2998,6 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
     const waitAvg = timed.length >= 3 ? Math.round(mean(timed.map(r => effOf.get(r.id).wait))) : null;
     if (limit > 0) standLine = `<li><span class="ic st">待</span><div>乗り場は <b class="num">${limit}分</b> まで${waitAvg != null ? `<small>いま平均${waitAvg}分${waitAvg > limit ? '・待ちすぎ' : ''}</small>` : ''}</div></li>`;
   }
-  // 働く長さ：日ごとの1時間あたりと営業時間の相関
-  let hoursLine = '';
-  const hd = PD.filter(d => d.ms >= 2 * 3600e3).map(d => ({ x: d.sales / (d.ms / 3600e3), y: d.ms / 3600e3 }));
-  if (hd.length >= 8) {
-    const mx = mean(hd.map(d => d.x)), my = mean(hd.map(d => d.y));
-    const cov = mean(hd.map(d => (d.x - mx) * (d.y - my))), sx = Math.sqrt(mean(hd.map(d => (d.x - mx) ** 2))), sy = Math.sqrt(mean(hd.map(d => (d.y - my) ** 2)));
-    const r = sx && sy ? cov / (sx * sy) : 0;
-    if (r <= -0.25) hoursLine = `<li><span class="ic tm">時</span><div>調子の良い日は <b>長めに</b> 走る</div></li>`;
-  }
   // 稼ぎどきが隣り合う時間なら1行にまとめる（例：20-23時と23-2時 → 20-2時）
   const goIdx = goSlots.map(s => HEAT_BLOCKS.indexOf(s.b));
   const goGroups = goSlots.length === 2 && goIdx[1] - goIdx[0] === 1 ? [goSlots] : goSlots.map(s => [s]);
@@ -3026,7 +3015,7 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
       <ul class="plist">
         ${goGroups.map(goRow).join('')}
         ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に</div></li>` : ''}
-        ${standLine}${hoursLine}
+        ${standLine}
       </ul>
       <div class="tipgrp">
       <div class="sub-h">${wname}の時間割（千円/時）</div>
