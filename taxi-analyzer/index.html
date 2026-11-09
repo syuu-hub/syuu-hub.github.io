@@ -1743,7 +1743,29 @@ function muniName(arr, code) {
 
 // 住所文字列を返す（'' は住所なし＝海上など）。通信できなければ undefined
 let addrRetryAt = 0;   // 失敗後しばらくは問い合わせない
+// Android アプリ（外枠）の中では、本体の住所変換で番地まで取る（失敗したら国土地理院へ）
+const nativeGeo = () => { const c = window.Capacitor; return !!(c && c.isNativePlatform && c.isNativePlatform() && c.nativePromise); };
+// 「日本、〒650-0021 兵庫県神戸市中央区三宮町３丁目８−８」→「兵庫県神戸市中央区三宮町3丁目8-8」
+const cleanNativeAddr = s => String(s || '').normalize('NFKC').replace(/^日本[、,]\s*/, '').replace(/^〒?\d{3}-?\d{4}\s*/, '')
+  .replace(/(\d)[‐－ー―−](?=\d)/g, '$1-').replace(/\s+/g, '');   // 数字の間の横棒だけ「-」に（カタカナの「ー」はそのまま）
+async function nativeReverse(p) {
+  const k = 'n:' + p.lat.toFixed(5) + ',' + p.lng.toFixed(5);   // 約1m単位
+  if (k in addrCache) return addrCache[k];
+  try {
+    const r = await window.Capacitor.nativePromise('JpGeocoder', 'reverse', { lat: p.lat, lng: p.lng });
+    let a = cleanNativeAddr(r && r.line);
+    if (!a && r) a = cleanNativeAddr([r.admin, r.locality, r.subLocality, r.thoroughfare, r.subThoroughfare].filter(Boolean).join(''));
+    if (!/(都|道|府|県)/.test(a)) return undefined;   // 日本の住所でない・取れない時は使わない
+    addrCache[k] = a;
+    saveAddrCache();
+    return a;
+  } catch (e) { return undefined; }
+}
 async function reverseGeocode(p) {
+  if (nativeGeo() && S.settings.addr && navigator.onLine !== false) {
+    const a = await nativeReverse(p);
+    if (a) return a;
+  }
   const k = addrKey(p);
   if (k in addrCache) return addrCache[k];
   if (!S.settings.addr || navigator.onLine === false || Date.now() < addrRetryAt) return undefined;
@@ -1886,7 +1908,7 @@ const KANJI_NUM = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八:
 // 住所を比べやすくする（兵庫県・空白を除き、全角数字・漢数字の丁目・番地の書き方をそろえる）
 const normAddr = a => toHira(String(a || '')).replace(/^兵庫県/, '').replace(/\s/g, '')
   .replace(/([一二三四五六七八九十])丁目/, (_, k) => KANJI_NUM[k] + '丁目')
-  .replace(/[‐－ー―−]/g, '-').replace(/番地?|号/g, '-').replace(/-+$/, '');
+  .replace(/(\d)[‐－ー―−](?=\d)/g, '$1-').replace(/(\d)(番地?|号)/g, '$1-').replace(/-+$/, '');
 function linkPlaces() {
   const db = placeDb();
   if (!db.length) return 0;

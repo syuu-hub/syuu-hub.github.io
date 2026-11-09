@@ -1,5 +1,6 @@
 // `cap add android` で作った android/ を、このアプリ用に直す（GitHub Actions で毎回実行）
 //   ・位置情報の権限を追加（アプリ内の navigator.geolocation 用）
+//   ・Android 本体の住所変換（番地まで）を呼べるプラグイン JpGeocoder を追加
 //   ・アイコンと起動画面をタクシーアナライザーのものにする（ImageMagick を使う。7 は magick、6 は convert/identify）
 import { readFileSync, writeFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -41,4 +42,59 @@ for (const dir of readdirSync(res).filter(n => n.startsWith('drawable'))) {
   const s = Math.round(Math.min(w, h) * 0.28);
   convert(['-size', `${w}x${h}`, 'xc:#0A0C0F', '(', icon, '-resize', `${s}x${s}`, ')', '-gravity', 'center', '-composite', out]);
 }
+// Android 本体の住所変換（Geocoder）：緯度経度 → 番地までの住所。アプリ内の画面から Capacitor.nativePromise('JpGeocoder', 'reverse', {lat, lng}) で呼ぶ
+const pkgDir = join(root, 'android/app/src/main/java/io/github/syuuhub/taxianalyzer');
+writeFileSync(join(pkgDir, 'JpGeocoderPlugin.java'), `package io.github.syuuhub.taxianalyzer;
+
+import android.location.Address;
+import android.location.Geocoder;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import java.util.List;
+import java.util.Locale;
+
+@CapacitorPlugin(name = "JpGeocoder")
+public class JpGeocoderPlugin extends Plugin {
+    @PluginMethod
+    public void reverse(PluginCall call) {
+        Double lat = call.getDouble("lat"), lng = call.getDouble("lng");
+        if (lat == null || lng == null) { call.reject("lat/lng required"); return; }
+        if (!Geocoder.isPresent()) { call.reject("geocoder unavailable"); return; }
+        new Thread(() -> {
+            try {
+                List<Address> list = new Geocoder(getContext(), Locale.JAPAN).getFromLocation(lat, lng, 1);
+                JSObject r = new JSObject();
+                if (list != null && !list.isEmpty()) {
+                    Address a = list.get(0);
+                    r.put("line", a.getMaxAddressLineIndex() >= 0 ? a.getAddressLine(0) : "");
+                    r.put("admin", a.getAdminArea());
+                    r.put("locality", a.getLocality());
+                    r.put("subLocality", a.getSubLocality());
+                    r.put("thoroughfare", a.getThoroughfare());
+                    r.put("subThoroughfare", a.getSubThoroughfare());
+                }
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(String.valueOf(e.getMessage()));
+            }
+        }).start();
+    }
+}
+`);
+writeFileSync(join(pkgDir, 'MainActivity.java'), `package io.github.syuuhub.taxianalyzer;
+
+import android.os.Bundle;
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(JpGeocoderPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+}
+`);
 console.log('patched android project');
