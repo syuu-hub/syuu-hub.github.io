@@ -3163,7 +3163,7 @@ function renderAnalysis() {
       <div class="af-h"><span class="t">${title}</span><span class="tk">${take}</span></div><div class="af-b">${inner}</div></div>`;
   const heatTake = bestBlock ? `最も稼げる ${WEEKDAYS[bestBlock.d]}曜 ${bestBlock.b.label}時` : '';
   const plTake = plRows.length ? `${ps.label}1位 ${esc(placeName(plRows[0]))}` : '';
-  const plView = S.settings.anaPlView === 'map' ? 'map' : 'rank', trView = S.settings.anaTrView === 'month' ? 'month' : 'day';
+  const plView = S.settings.anaPlView === 'map' ? 'map' : 'rank', trView = S.settings.anaTrView === 'month' && months.length >= 2 ? 'month' : 'day';   // 月ごとは2か月以上ある時だけ
 
   body.innerHTML = `
     ${plan}
@@ -3208,7 +3208,7 @@ ${plView === 'map' ? (mapPts.length ? `      <div class="seg map-f" id="mapTime"
         : `<div class="ana-empty">該当なし</div>`}
 `}`)}
     ${fold('trend', '売上の推移', trView === 'month' ? monthTake : `${kv(Math.round(K.perDay))}/日 ${delta('perDay')}`, `
-      <div class="seg view-sw">${[['day', '日ごと'], ['month', '月ごと']].map(([k, l]) => `<button data-tv="${k}" aria-pressed="${trView === k}">${l}</button>`).join('')}</div>
+      ${months.length < 2 ? '' : `<div class="seg view-sw">${[['day', '日ごと'], ['month', '月ごと']].map(([k, l]) => `<button data-tv="${k}" aria-pressed="${trView === k}">${l}</button>`).join('')}</div>`}
 ${trView === 'month' ? (months.length ? `      <div class="mbars">${months.map(m => `<button class="mb ${m.cur ? 'cur' : ''}" aria-pressed="false" data-tip="${m.label}：売上 ${yen(m.sales)}・${m.days}日・1日あたり ${yen(Math.round(m.perDay))}・1時間あたり ${m.perHour ? yen(Math.round(m.perHour)) : '—'}${m.cur ? '（途中）' : ''}">
         <span class="v num">${compactYen(m.sales)}</span><i style="height:${Math.max(2, m.sales / mMax * 100).toFixed(1)}%"></i><span class="l num">${m.m + 1}月</span></button>`).join('')}</div>
       <div class="ana-tip"></div>
