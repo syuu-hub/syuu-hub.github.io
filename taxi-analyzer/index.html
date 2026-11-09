@@ -173,7 +173,6 @@ svg{display:block}
 .gps.stale i{background:var(--accent)}
 .gps.err i{background:var(--danger)}
 .icon-btn{width:40px;height:40px;margin:-8px -8px -8px 0;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
-#dimBtn{width:44px;height:44px;margin:-8px 4px -8px 0;flex:none}   /* 入庫ボタンから離す */
 .icon-btn[aria-pressed="true"]{color:var(--accent)}
 
 .hud-main{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
@@ -538,7 +537,6 @@ svg{display:block}
   transform:translateY(16px);transition:transform .22s cubic-bezier(.25,1,.5,1);
 }
 .sheet.open .sheet-inner{transform:none}
-.sheet.opening .sheet-inner{pointer-events:none}   /* 開いた直後は押せない（連打の2回目が当たらないように） */
 .sheet-inner{position:relative}
 .sheet-inner::before{content:'';position:absolute;top:max(4px,calc(env(safe-area-inset-top) - 8px));left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line-2)}   /* 下にスワイプで閉じられる目印 */
 .sheet-head{touch-action:none}
@@ -3508,9 +3506,6 @@ window.addEventListener('popstate', () => {
 
 function openSheet(el) {
   el.hidden = false;
-  el.classList.add('opening');
-  clearTimeout(el._opening);
-  el._opening = setTimeout(() => el.classList.remove('opening'), 350);
   requestAnimationFrame(() => el.classList.add('open'));
   if (!NAV.stack.includes(el)) { NAV.stack.push(el); navPush(); }
 }
@@ -3751,10 +3746,7 @@ function commitAddr(w) {
 const withPref = v => !v.startsWith('兵庫県') && hyogoCity(v) ? '兵庫県' + v : v;
 
 function saveEntry() {
-  if (!E || entryTotal() <= 0) return;
-  // 金額の打ち間違い（桁の多すぎ・少なすぎ）の時だけ確かめる
-  const amt = entryTotal(), maxPast = Math.max(0, ...S.rides.filter(r => r.id !== E.editId).map(r => r.total || 0));
-  if ((amt < 500 || (amt >= 50000 && amt >= maxPast * 3)) && !confirm(`${yen(amt)} で記録しますか？`)) return;
+  if (entryTotal() <= 0) return;
   const t = entryTimes();
   if (t.start != null && t.start > t.end) { toast('乗車時刻が降車時刻より後になっています'); return; }
   if (t.end > Date.now() + 60000) { toast('降車時刻が現在より後になっています'); return; }
@@ -4200,14 +4192,8 @@ function toast(msg, actLabel, actFn) {
 /* ============================================================
    イベント
    ============================================================ */
-// 連打は1回として扱う（直前の実行から少しの間は反応しない）
-function once(fn, ms = 600) {
-  let last = 0;
-  return (...a) => { const now = Date.now(); if (now - last < ms) return; last = now; return fn(...a); };
-}
-const setStatusOnce = once(setStatus);
-$$('.st-btn').forEach(b => b.addEventListener('click', () => setStatusOnce(b.dataset.st)));
-$('#recordBtn').addEventListener('click', once(() => { haptic(); openEntry(); }));
+$$('.st-btn').forEach(b => b.addEventListener('click', () => setStatus(b.dataset.st)));
+$('#recordBtn').addEventListener('click', () => { haptic(); openEntry(); });
 $$('[data-go]').forEach(b => b.addEventListener('click', () => { haptic(); setView(b.dataset.go); }));
 $('#hiFareBtn').addEventListener('click', () => openNumpad('高額乗車の基準', S.settings.hiFare, v => {
   S.settings.hiFare = v;
@@ -4559,7 +4545,7 @@ $('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pau
 
 $('#shiftBtn').addEventListener('click', endShift);
 $('#endBtn').addEventListener('click', endShift);
-$('#departBtn').addEventListener('click', once(depart));
+$('#departBtn').addEventListener('click', depart);
 $$('[data-export]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.export;
   if (k === 'log-all') exportLog();
@@ -4672,7 +4658,7 @@ function renderSug(w) {
     // 候補に無い名前は、その場で場所として登録できる
     (canRegister(inp.value) ? `<button type="button" class="add-pl" data-addpl>＋「${esc(inp.value.trim())}」を登録</button>` : '');
 }
-$('#eSave').addEventListener('click', once(saveEntry));
+$('#eSave').addEventListener('click', saveEntry);
 $('#eDelete').addEventListener('click', deleteEntry);
 $('#entry [data-close]').addEventListener('click', () => { E = null; closeSheet($('#entry')); });
 // シートの見出しを下にスワイプして閉じる（片手操作で左上の「閉じる」まで指を伸ばさなくてよい）
@@ -4695,7 +4681,7 @@ $$('.sheet').forEach(sh => {
 
 // 数値ダイアログ
 mountKeypad($('#npKeys'), k => { NP.val = applyKey(NP.val, k, NP.digits); renderNumpad(); });
-$('#npOk').addEventListener('click', once(() => { const fn = NP.onOk; closeSheet($('#numpad')); fn && fn(+NP.val || 0); }));
+$('#npOk').addEventListener('click', () => { const fn = NP.onOk; closeSheet($('#numpad')); fn && fn(+NP.val || 0); });
 $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad')));
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
