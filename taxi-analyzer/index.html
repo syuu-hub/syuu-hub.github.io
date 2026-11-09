@@ -327,6 +327,7 @@ svg{display:block}
 .rc-kind{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .rc-flag{flex:none;font-size:11px;font-weight:700;line-height:18px;padding:0 6px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
 .rc-kind+.rc-flag{margin-left:auto}
+.rc-memo{font-size:12px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .text-in[type="time"]{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;padding:0 10px}
 .ps-dur{text-align:center;color:var(--muted);font-size:14px;margin-top:14px}
 .ps-dur b{color:var(--st-wait);font-size:22px;margin-left:6px}
@@ -617,6 +618,7 @@ svg{display:block}
 .breakdown b.pay{color:var(--accent);font-size:1.1em}
 .breakdown.warn,#eDur.warn{color:var(--danger)}
 .text-in{width:100%;height:56px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface);padding:0 14px;font-size:18px}
+.text-in.memo-in{height:48px;font-size:16px}
 .text-in:focus{outline:none;border-color:var(--accent)}
 
 /* 場所 */
@@ -707,6 +709,42 @@ svg{display:block}
 .rp-ride .a small{font-size:10px;color:var(--faint);font-weight:500;margin-left:4px}
 .rp-rides + .rr{border-top:1px solid var(--line)}
 .rp-sec{margin-bottom:18px}
+.find-btn{margin-left:auto}
+.map-f{margin:0 0 6px}
+.map-f button{flex:1;min-width:0;padding:0 2px;font-size:12px}
+.map-f2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.map-hi{height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);font-size:12px;font-weight:700;color:var(--muted)}
+.map-hi[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.map-leg{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+.map-leg i{width:10px;height:10px;border-radius:50%;background:#5B9BFF;margin-left:6px}
+.map-leg i.hi{background:#FFB020;margin-left:0}
+.lf-map{height:300px;border-radius:var(--r-md);overflow:hidden;background:var(--surface-2);z-index:0}
+.lf-map .leaflet-tile{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
+.lf-map .leaflet-popup-content{font-size:13px;line-height:1.5;color:#111}
+.mbars{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;height:150px;align-items:end}
+.mb{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;padding:0;border-radius:6px}
+.mb i{display:block;width:70%;border-radius:4px 4px 0 0;background:#6B7584;min-height:2px}
+.mb.cur i{background:repeating-linear-gradient(135deg,var(--accent) 0 4px,rgba(255,176,32,.45) 4px 7px)}
+.mb[aria-pressed="true"] i{background:var(--accent)}
+.mb .v{font-size:10px;color:var(--muted);white-space:nowrap}
+.mb .l{font-size:11px;color:var(--muted);white-space:nowrap}
+.fd-f{display:grid;grid-template-columns:2.6em minmax(0,1fr);align-items:center;gap:8px;margin-top:10px}
+.fd-f .k{font-size:12px;color:var(--muted);font-weight:700}
+.fd-chips{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px}
+.fd-chips button{height:34px;border-radius:8px;border:1px solid var(--line-2);font-size:12px;font-weight:700;color:var(--muted);padding:0}
+.fd-chips button[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.fd-seg{margin:0}
+.fd-seg button{flex:1;min-width:0;padding:0 4px}
+.fd-sum{display:flex;justify-content:space-between;gap:8px;margin:14px 2px 6px;font-size:13px;color:var(--muted)}
+.fd-sum b{color:var(--text);font-size:15px}
+.fd-list{display:grid}
+.fd-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"d pl a" "m m m";gap:2px 10px;align-items:baseline;padding:10px 2px;border-top:1px solid var(--line);text-align:left;width:100%}
+.fd-row .d{grid-area:d;font-size:13px;color:var(--muted);white-space:nowrap}
+.fd-row .pl{grid-area:pl;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fd-row b{grid-area:a;font-size:16px;font-weight:800;white-space:nowrap}
+.fd-row small{grid-area:m;font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fd-more{font-size:12px;color:var(--faint);text-align:center;padding:10px}
+.rd-memo{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;font-size:15px;line-height:1.5;overflow-wrap:anywhere}
 .rp-sec h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin:0 0 4px;display:flex;justify-content:space-between;gap:12px;white-space:nowrap}
 .rp-sec h3 > *:last-child:not(:first-child){font-weight:500;letter-spacing:0;color:var(--faint)}
 .rp-tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;table-layout:fixed}
@@ -955,7 +993,7 @@ svg{display:block}
 
     <!-- 履歴 -->
     <section class="view pane" data-view="log" hidden><div class="view-body">
-      <header class="view-head"><h2>履歴</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
+      <header class="view-head"><h2>履歴</h2><button class="icon-btn find-btn" id="findBtn" aria-label="乗車を検索"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
       <div class="pane-sec">
         <div class="log-day">
           <button class="cal-nav" id="logPrev" aria-label="前の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
@@ -1191,6 +1229,10 @@ svg{display:block}
             <div class="opts tk" id="eTicket"></div>
           </div>
         </div>
+        <div class="group">
+          <div class="glabel">メモ</div>
+          <input class="text-in memo-in" id="eMemo" maxlength="60" autocomplete="off" enterkeyhint="done">
+        </div>
       </section>
       </div>
     </div>
@@ -1246,6 +1288,28 @@ svg{display:block}
 </div>
 
 <!-- ===== 月間カレンダー ===== -->
+<!-- ===== 乗車の検索（全記録） ===== -->
+<div class="sheet" id="findSheet" hidden role="dialog" aria-modal="true" aria-labelledby="fdTitle">
+  <div class="sheet-inner rp-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="fdTitle">乗車を検索</h2>
+      <span class="spacer"></span>
+    </header>
+    <div class="rp-body">
+      <input class="text-in" id="fdQ" type="search" placeholder="場所・メモ・決済" autocomplete="off" enterkeyhint="search">
+      <div class="fd-f"><span class="k">曜日</span><div class="fd-chips" id="fdDow"></div></div>
+      <div class="fd-f"><span class="k">時間</span><div class="fd-chips" id="fdBlk"></div></div>
+      <div class="fd-f"><span class="k">金額</span><div class="seg fd-seg" id="fdMin"><button data-min="0">すべて</button><button data-min="3000">3千〜</button><button data-min="5000">5千〜</button><button data-min="10000">1万〜</button></div></div>
+      <div class="fd-f"><span class="k">並び</span><div class="seg fd-seg" id="fdSort"><button data-sort="new">新しい順</button><button data-sort="old">古い順</button><button data-sort="amt">金額順</button></div></div>
+      <div class="fd-sum num" id="fdSum"></div>
+      <div class="fd-list" id="fdList"></div>
+    </div>
+  </div>
+</div>
+
 <div class="sheet" id="reportSheet" hidden role="dialog" aria-modal="true" aria-labelledby="rpTitle">
   <div class="sheet-inner rp-inner">
     <header class="sheet-head">
@@ -2141,6 +2205,7 @@ function openRide(id) {
       <h3><span>乗車・降車</span><span class="num">${r.start ? Math.round((r.ts - r.start) / 60000) + '分' : '乗車時刻は未記録'}</span></h3>
       <div class="rd-route">${stop('from', '乗', r.start ? hhmm(r.start) : '--:--', r.from)}${stop('to', '降', hhmm(r.ts), r.to)}</div>
     </section>
+    ${r.memo ? `<section class="rp-sec"><h3><span>メモ</span></h3><div class="rd-memo">${esc(r.memo)}</div></section>` : ''}
     <section class="rp-sec">
       <h3><span>料金</span></h3>
       <div class="rd-fare num">
@@ -2747,6 +2812,7 @@ function renderLog() {
       ${top(r.start ? hhmm(r.start) : '--:--', hhmm(r.ts), yen(r.total))}
       ${route(placeText(r.from), placeText(r.to))}
       <div class="rc-meta"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span><span class="rc-kind">${esc(kindLabel(r.kind, r.app))}</span>${[r.fare.long || r.fare.handi ? '割引' : '', r.toll ? '高速代' : ''].filter(Boolean).map(x => `<span class="rc-flag">${x}</span>`).join('')}</div>
+      ${r.memo ? `<div class="rc-memo">${esc(r.memo)}</div>` : ''}
     </button></li>`).join('');
 }
 
@@ -3070,6 +3136,23 @@ function renderAnalysis() {
   const bw = Math.max(2, Math.min(10, (trendW - 12) / D.length - 2));
   const md = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
   const plan = nextPlan(A, D, { perHour, hiFrom, effOf, shrink });
+  // 乗車地マップの点（期間内・乗車地の位置がある乗車）
+  mapPts = A.rides.map(r => { const p = r.from && ridePos(r.from); if (!p) return null;
+    const d = new Date(r.start || r.ts);
+    return { lat: p.lat, lng: p.lng, h: d.getHours(), hi: r.total >= hiFrom,
+      tip: `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]}) ${hhmm(d)} ${yen(r.total)}<br>${esc(placeText(r.from))}` }; }).filter(Boolean);
+  // 月ごと（締め期間ごと）の売上：期間の選択に関係なく全記録の直近12か月
+  const mm = new Map();
+  for (const sh of S.shifts) {
+    const p = periodOf(sh.start), k = p.y * 12 + p.m, st = shiftStats(sh), x = mm.get(k) || { y: p.y, m: p.m, sales: 0, ms: 0, days: new Set() };
+    x.sales += st.sales; x.ms += st.elapsed; x.days.add(dayKey(new Date(sh.start))); mm.set(k, x);
+  }
+  const curP = periodOf(Date.now()), curK = curP.y * 12 + curP.m;
+  const months = [...mm.entries()].sort((a, b) => a[0] - b[0]).slice(-12).map(([k, x]) => ({ ...x, cur: k === curK, label: periodName(x), days: x.days.size,
+    perDay: x.days.size ? x.sales / x.days.size : 0, perHour: x.ms ? x.sales / (x.ms / 3600e3) : 0 }));
+  const mMax = Math.max(...months.map(m => m.sales), 1);
+  const mLast = months.at(-1), mPrev = months.at(-2);
+  const monthTake = mLast ? `${mLast.cur ? '今月' : periodName(mLast)} ${compactYen(mLast.sales)}` + (mPrev && mPrev.perDay ? `・1日あたり ${mLast.perDay >= mPrev.perDay ? '▲' : '▼'}${Math.abs(Math.round((mLast.perDay / mPrev.perDay - 1) * 100))}%` : '') : '';
 
   // 「くわしく見る」：見出しの下に要点を1行、その下にグラフ（常に表示）
   const fold = (id, title, take, inner, cls = '') => `<div class="ana-card ana-fold ${cls}" data-af="${id}">
@@ -3115,6 +3198,16 @@ function renderAnalysis() {
         <span class="a num">${ps.fmt(c)}</span>${placeDetail(c, rideOf)}</li>`).join('')}</ol>`
         : `<div class="ana-empty">該当なし</div>`}
 `)}
+    ${mapPts.length ? fold('map', '乗車地マップ', `${mapPts.length}件・高額${mapPts.filter(p => p.hi).length}件`, `
+      <div class="seg map-f" id="mapTime">${MAP_TIMES.map((m, i) => `<button data-mt="${i}" aria-pressed="${MAPF.t === i}">${m.l}</button>`).join('')}</div>
+      <div class="map-f2"><button class="map-hi" data-mh aria-pressed="${MAPF.hi}">高額のみ</button><span class="map-leg"><i class="hi"></i>高額<i></i>その他</span></div>
+      <div class="lf-map" id="plMap"></div>
+`) : ''}
+    ${months.length >= 2 ? fold('month', '月ごとの売上', monthTake, `
+      <div class="mbars">${months.map(m => `<button class="mb ${m.cur ? 'cur' : ''}" aria-pressed="false" data-tip="${m.label}：売上 ${yen(m.sales)}・${m.days}日・1日あたり ${yen(Math.round(m.perDay))}・1時間あたり ${m.perHour ? yen(Math.round(m.perHour)) : '—'}${m.cur ? '（途中）' : ''}">
+        <span class="v num">${compactYen(m.sales)}</span><i style="height:${Math.max(2, m.sales / mMax * 100).toFixed(1)}%"></i><span class="l num">${m.m + 1}月</span></button>`).join('')}</div>
+      <div class="ana-tip"></div>
+`) : ''}
     ${fold('trend', '1日あたりの売上', `${kv(Math.round(K.perDay))} ${delta('perDay')}`, `
       <svg viewBox="0 0 ${trendW} ${trendH}" preserveAspectRatio="none" role="img" aria-label="営業日ごとの売上">
         <line x1="0" y1="${trendH}" x2="${trendW}" y2="${trendH}" stroke="var(--line-2)" stroke-width="1"/>
@@ -3128,7 +3221,43 @@ function renderAnalysis() {
       <div class="ana-tip"></div>
 `, 'trend')}
     `;
+  if (mapPts.length) drawMap();
 }
+// ── 乗車地マップ（Leaflet・OpenStreetMap）。ライブラリはアプリと同じ場所に置き、開いた時だけ読み込む
+const MAP_TIMES = [{ l: '全時間', f: () => true }, { l: '5-11時', f: h => h >= 5 && h < 11 }, { l: '11-17時', f: h => h >= 11 && h < 17 }, { l: '17-23時', f: h => h >= 17 && h < 23 }, { l: '23-5時', f: h => h >= 23 || h < 5 }];
+const MAPF = { t: 0, hi: false };
+let mapPts = [], MAP = null, MAP_LAYER = null, LF = null;
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  return LF || (LF = new Promise((ok, ng) => {
+    const c = document.createElement('link'); c.rel = 'stylesheet'; c.href = 'vendor/leaflet/leaflet.css'; document.head.appendChild(c);
+    const s = document.createElement('script'); s.src = 'vendor/leaflet/leaflet.js'; s.onload = ok; s.onerror = () => { LF = null; ng(); }; document.head.appendChild(s);
+  }));
+}
+async function drawMap() {
+  const el = $('#plMap'); if (!el) return;
+  try { await loadLeaflet(); } catch (e) { el.innerHTML = '<div class="ana-empty">地図を読み込めません</div>'; return; }
+  if (!el.isConnected) return;
+  if (MAP) { MAP.remove(); MAP = null; }
+  // 指1本の操作は画面のスクロールに使う（地図は＋−と2本指で拡大縮小）
+  MAP = L.map(el, { dragging: !L.Browser.mobile, tap: false, attributionControl: true });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(MAP);
+  drawMapPts(true);
+}
+function drawMapPts(fit) {
+  if (!MAP) return;
+  if (MAP_LAYER) MAP_LAYER.remove();
+  const tf = MAP_TIMES[MAPF.t].f, pts = mapPts.filter(p => tf(p.h) && (!MAPF.hi || p.hi));
+  MAP_LAYER = L.featureGroup(pts.map(p => L.circleMarker([p.lat, p.lng], { radius: p.hi ? 7 : 5, weight: 1, color: p.hi ? '#FFB020' : '#5B9BFF', fillColor: p.hi ? '#FFB020' : '#5B9BFF', fillOpacity: .55 }).bindPopup(p.tip))).addTo(MAP);
+  if (fit || pts.length) pts.length ? MAP.fitBounds(MAP_LAYER.getBounds().pad(0.15), { maxZoom: 15 }) : MAP.setView([34.69, 135.19], 12);
+}
+$('#anaBody').addEventListener('click', e => {
+  const b = e.target.closest('[data-mt],[data-mh]'); if (!b) return;
+  haptic();
+  if (b.dataset.mt != null) { MAPF.t = +b.dataset.mt; $$('#mapTime [data-mt]').forEach(x => x.setAttribute('aria-pressed', +x.dataset.mt === MAPF.t)); }
+  else { MAPF.hi = !MAPF.hi; b.setAttribute('aria-pressed', MAPF.hi); }
+  drawMapPts();
+});
 $('#anaBody').addEventListener('click', e => { const b = e.target.closest('[data-ps]'); if (!b) return; haptic(); S.settings.anaPlace = b.dataset.ps; saveSoon(); renderAnalysis(); });
 $('#anaRange').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); S.settings.anaRange = b.dataset.v; saveSoon(); renderAnalysis(); });
 $('#anaBody').addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) { haptic(); anaTip(el, el.dataset.tip); } });
@@ -3349,6 +3478,7 @@ function openEntry(rideId, shiftId) {
   $('#eDelete').hidden = !r && !E.pend;
   $('#eDelete').textContent = E.pend ? '記録しない' : '削除';
   $('#eStart').value = E.start ? toHM(E.start) : '';
+  $('#eMemo').value = r && r.memo ? r.memo : '';
   $('#eEnd').value = toHM(E.ts);
   E.pick = {};
   for (const w of ['from', 'to']) { E.dirty[w] = false; addrInput(w).value = E[w].place ? E[w].place.name : shortAddr(E[w].addr) || ''; $(sugId(w)).innerHTML = ''; }
@@ -3554,25 +3684,27 @@ function saveEntry() {
   if (bd.handi) fare.handi = bd.handi;
   const noPickup = E.kind === 'app' && !!E.noPickup;
   const ticket = E.pay === 'ticket' && E.ticket ? { id: E.ticket.id, name: E.ticket.name } : null;
+  const memo = $('#eMemo').value.trim().replace(/\s+/g, ' ').slice(0, 60);
   if (E.editId) {
     const r = S.rides.find(x => x.id === E.editId);
     Object.assign(r, { ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to });
     if (ticket) r.ticket = ticket; else delete r.ticket;
     if (E.toll) r.toll = E.toll; else delete r.toll;
+    if (memo) r.memo = memo; else delete r.memo;
     const fixed = fixPauseForRide(r);
     toast(fixed ? `修正しました（${PL()}を${hhmm(fixed)}で終了）` : '修正しました');
   } else if (E.shiftId) {
     // 入力忘れの追加：その営業の時間内であること
     const sh = S.shifts.find(x => x.id === E.shiftId), endT = sh.end || Date.now();
     if (E.ts < sh.start || E.ts > endT || (E.start != null && E.start < sh.start)) { toast(`${toHM(sh.start)}〜${toHM(endT)}（営業時間内）で入力してください`); return; }
-    const ride = { id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) };
+    const ride = { id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}), ...(memo ? { memo } : {}) };
     S.rides.push(ride);
     const fixed = fixPauseForRide(ride);
     toast(`${yen(total)} を${ymd(sh.start).slice(5)}の営業に追加しました` + (fixed ? `・${PL()}は${hhmm(fixed)}まで` : ''));
   } else {
     const sh = curShift() || startShift();
     if (sh.status === 'off') { logEvent(sh, 'vacant', 'off'); sh.status = 'vacant'; sh.statusSince = Date.now(); }
-    const ride = { id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}) };
+    const ride = { id: uid(), shiftId: sh.id, ts: E.ts, start: E.start, fare, total, noPickup, pay: E.pay, kind: E.kind, app: E.app, from: E.from, to: E.to, ...(ticket ? { ticket } : {}), ...(E.toll ? { toll: E.toll } : {}), ...(memo ? { memo } : {}) };
     S.rides.push(ride);
     if (E.pend) sh.pending = (sh.pending || []).filter(t => t !== E.pend && t.start !== E.pend.start);
     else sh.trip = null;
@@ -4220,6 +4352,47 @@ $('#calGrid').addEventListener('click', e => {
 });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
 $('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#reportSheet')));
+// 乗車の検索：日をまたいで全記録を曜日・時間帯・金額・文字で絞り込み、並べ替える
+const FD = { q: '', dows: new Set(), blks: new Set(), min: 0, sort: 'new' };
+function openFind() {
+  $('#fdDow').innerHTML = [1, 2, 3, 4, 5, 6, 0].map(d => `<button data-dow="${d}" aria-pressed="${FD.dows.has(d)}">${WEEKDAYS[d]}</button>`).join('');
+  $('#fdBlk').innerHTML = HEAT_BLOCKS.map((b, i) => `<button data-blk="${i}" aria-pressed="${FD.blks.has(i)}">${b.s}</button>`).join('');
+  $('#fdQ').value = FD.q;
+  renderFind();
+  $('#findSheet .rp-body').scrollTop = 0;
+  openSheet($('#findSheet'));
+}
+function renderFind() {
+  $$('#fdMin [data-min]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.min === FD.min));
+  $$('#fdSort [data-sort]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === FD.sort));
+  const q = normName(FD.q);
+  const rs = S.rides.filter(r => {
+    const d = new Date(r.start || r.ts);
+    if (FD.dows.size && !FD.dows.has(d.getDay())) return false;
+    if (FD.blks.size && !FD.blks.has(HEAT_BLOCKS.findIndex(b => b.hs.includes(d.getHours())))) return false;
+    if (FD.min && r.total < FD.min) return false;
+    return !q || [placeText(r.from), placeText(r.to), r.memo || '', rideLabel(r.pay, r.app, r.ticket), kindLabel(r.kind, r.app)].some(s => normName(s).includes(q));
+  }).sort(FD.sort === 'amt' ? (a, b) => b.total - a.total : FD.sort === 'old' ? (a, b) => a.ts - b.ts : (a, b) => b.ts - a.ts);
+  const sum = rs.reduce((a, r) => a + r.total, 0);
+  $('#fdSum').innerHTML = `<span><b>${rs.length}</b>件</span><span>合計 <b>${yen(sum)}</b></span><span>平均 <b>${rs.length ? yen(Math.round(sum / rs.length)) : '—'}</b></span>`;
+  const md = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]}) ${hhmm(d)}`; };
+  $('#fdList').innerHTML = rs.slice(0, 200).map(r => `<button class="fd-row" data-rd="${r.id}"><span class="d num">${md(r.start || r.ts)}</span><span class="pl">${esc(placeText(r.from))}</span><b class="num">${yen(r.total)}</b>${r.memo ? `<small>${esc(r.memo)}</small>` : ''}</button>`).join('') +
+    (rs.length > 200 ? `<div class="fd-more">ほか ${rs.length - 200}件</div>` : '');
+}
+$('#findBtn').addEventListener('click', () => { haptic(); openFind(); });
+$('#findSheet [data-close]').addEventListener('click', () => closeSheet($('#findSheet')));
+$('#fdQ').addEventListener('input', e => { FD.q = e.target.value; renderFind(); });
+$('#fdQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+$('#findSheet').addEventListener('click', e => {
+  const b = e.target.closest('[data-dow],[data-blk],[data-min],[data-sort],[data-rd]'); if (!b) return;
+  haptic();
+  if (b.dataset.rd) { openRide(b.dataset.rd); return; }
+  if (b.dataset.dow) { const d = +b.dataset.dow; FD.dows.has(d) ? FD.dows.delete(d) : FD.dows.add(d); b.setAttribute('aria-pressed', FD.dows.has(d)); }
+  else if (b.dataset.blk) { const i = +b.dataset.blk; FD.blks.has(i) ? FD.blks.delete(i) : FD.blks.add(i); b.setAttribute('aria-pressed', FD.blks.has(i)); }
+  else if (b.dataset.min) FD.min = +b.dataset.min;
+  else FD.sort = b.dataset.sort;
+  renderFind();
+});
 // 日報：支払い種別の行で乗車の一覧を開閉、乗車をタップで詳細
 $('#rpBody').addEventListener('click', e => {
   const rd = e.target.closest('[data-rd]');
@@ -4393,10 +4566,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
