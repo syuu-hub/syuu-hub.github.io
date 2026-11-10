@@ -1,6 +1,7 @@
 // `cap add android` で作った android/ を、このアプリ用に直す（GitHub Actions で毎回実行）
 //   ・位置情報の権限を追加（アプリ内の navigator.geolocation 用）
 //   ・Android 本体の住所変換（番地まで）を呼べるプラグイン JpGeocoder を追加
+//   ・端末の文字サイズ設定で文字だけが拡大されないようにする（textZoom 100%）
 //   ・アイコンと起動画面をタクシーアナライザーのものにする（ImageMagick を使う。7 は magick、6 は convert/identify）
 import { readFileSync, writeFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -117,6 +118,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(JpGeocoderPlugin.class);
         super.onCreate(savedInstanceState);
+        // 端末の文字サイズ設定で文字だけが大きくなり、ボタンの余白が無くなるのを防ぐ（ブラウザと同じ見た目にする）
+        if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().getSettings().setTextZoom(100);
     }
 }
 `);
