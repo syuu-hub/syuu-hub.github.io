@@ -622,7 +622,7 @@ svg{display:block}
 /* 場所 */
 /* 乗車・降車：1行＝時刻＋場所＋現在地。履歴のカードと同じ○→●の経路で見せる */
 .trip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:4px 10px}
-.stop{position:relative;display:grid;grid-template-columns:24px auto minmax(0,1fr);column-gap:8px;row-gap:6px;align-items:center;padding:10px 0}
+.stop{position:relative;display:grid;grid-template-columns:24px auto minmax(0,1fr) auto;column-gap:8px;row-gap:6px;align-items:center;padding:10px 0}
 .stop + .stop{border-top:1px solid var(--line)}
 .stop .sk{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;border:2px solid var(--muted);color:var(--muted);background:var(--surface);position:relative;z-index:1}
 .stop.to .sk{border-color:var(--accent);background:var(--accent);color:#1A1200}
@@ -636,6 +636,9 @@ svg{display:block}
 .stop .loc-body input:focus{outline:none;border-color:var(--accent)}
 .gps-btn{grid-column:3;justify-self:end;height:40px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:var(--text)}
 .gps-btn svg{color:var(--accent)}
+.gps-btn.map-pick{grid-column:4;width:40px;padding:0;justify-content:center}
+.pin-map{height:320px;margin-top:0}
+.pin-addr{min-height:1.5em;margin:10px 2px 0;font-size:15px;line-height:1.5;overflow-wrap:anywhere}
 .gps-btn:active{background:var(--surface-3)}
 .stop .sug{grid-column:2 / -1;margin-top:0}
 .stop .loc-gps{margin-top:4px;white-space:normal;overflow-wrap:anywhere;line-height:1.4}   /* 住所は省略せず全部見せる */
@@ -1204,6 +1207,7 @@ svg{display:block}
             <span class="sk">乗</span>
             <input class="tm num" type="time" id="eStart" aria-label="乗車時刻">
             <button class="gps-btn" data-regps="from" aria-label="乗車地を現在地にする"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>現在地</button>
+            <button class="gps-btn map-pick" data-mappick="from" aria-label="地図で選ぶ"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg></button>
             <div class="loc-body"><input id="eFromAddr" data-addr="from" placeholder="乗車地・施設名" autocomplete="off" enterkeyhint="next"><div class="loc-gps num" id="eFromGps"></div></div>
             <div class="sug" id="eFromSug"></div>
           </div>
@@ -1475,6 +1479,23 @@ svg{display:block}
     <footer class="e-foot">
       <button class="btn danger" id="mpDelete">削除</button>
       <button class="btn primary" id="mpOk">保存</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ===== 地図で乗車地を選ぶ ===== -->
+<div class="sheet center" id="pinSheet" hidden role="dialog" aria-modal="true" aria-labelledby="pinTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="pinTitle">乗車地</h2>
+    </header>
+    <div class="mp-map pin-map" id="pinMap"></div>
+    <div class="pin-addr" id="pinAddr"></div>
+    <footer class="e-foot">
+      <button class="btn primary" id="pinOk">決定</button>
     </footer>
   </div>
 </div>
@@ -3668,6 +3689,7 @@ function locLine(o, w) {
   if (E.dirty[w]) return '手入力';
   if (o.manual) return '手入力';
   if (o.lat == null) return w === 'from' && E.noFrom ? '乗車地なし' : E.editId ? '位置情報なし' : 'GPS取得中…';
+  if (o.pin) return '地図で選択';
   if (o.addr) return 'GPSから自動入力';
   if (o.addr === undefined && S.settings.addr && navigator.onLine !== false && !addrFailed.has(o)) {
     fillAddr(o).then(ok => { if (!ok) addrFailed.add(o); if (E && (E.from === o || E.to === o)) renderEntryLoc(); });
@@ -3722,7 +3744,7 @@ function commitAddr(w) {
     // 施設：名前と住所（と施設の位置）だけ残す。種類（カテゴリ）とGPSの位置は記録しない
     o.place = { name: pk.name, ...(pk.note ? { note: pk.note } : {}),
       ...(pk.lat != null ? { lat: +pk.lat.toFixed(6), lng: +pk.lng.toFixed(6) } : {}) };
-    delete o.lat; delete o.lng; delete o.acc;
+    delete o.lat; delete o.lng; delete o.acc; delete o.pin;
     if (pk.addr) o.addr = pk.addr;
     o.manual = true;
     return;
@@ -3732,7 +3754,7 @@ function commitAddr(w) {
   if (!o.manual && (v === o.addr || v === shortAddr(o.addr))) return;   // GPSの住所のまま
   o.addr = withPref(v);
   o.manual = true;
-  delete o.lat; delete o.lng; delete o.acc;   // 手入力の住所にはGPSの位置を残さない
+  delete o.lat; delete o.lng; delete o.acc; delete o.pin;   // 手入力の住所にはGPSの位置を残さない
 }
 // 兵庫県の市区町名から始まる住所に「兵庫県」を補う
 const withPref = v => !v.startsWith('兵庫県') && hyogoCity(v) ? '兵庫県' + v : v;
@@ -4290,8 +4312,7 @@ function afterPlaceChange() {
   closeSheet($('#placeSheet'));
   renderPlaceViews();
 }
-// 場所の登録：住所入力か地図で選ぶか。地図は現在地にピンを置き、動かすと住所欄も書き換える（住所欄はどちらでも編集できる）
-let MPMAP = null, MPPIN = null;
+// 場所の登録：住所入力か地図で選ぶか。地図は住所の位置（無ければ現在地）にピンを置き、動かすと住所欄も書き換える（住所欄はどちらでも編集できる）
 function renderMpMode() {
   $$('#mpMode [data-mm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mm === MP.mode));
   $('#mpMap').hidden = MP.mode !== 'map';
@@ -4301,29 +4322,84 @@ async function mpFillAddr() {
   const a = MP.pos ? await reverseGeocode(MP.pos) : undefined;
   if (a) $('#mpAddr').value = a;
 }
+// ピンを置ける地図（ピンのドラッグ・地図のタップで移動 → onMove）
+const KOBE = { lat: 34.6913, lng: 135.1955 };   // 位置が取れない時は三宮
+function pinMap(el, pos, onMove) {
+  const map = L.map(el, { attributionControl: true }).setView([pos.lat, pos.lng], 17);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+  const pin = L.marker([pos.lat, pos.lng], { draggable: true, icon: L.divIcon({ className: 'mp-pin', html: '<i></i>', iconSize: [28, 36], iconAnchor: [14, 34] }) }).addTo(map);
+  const moved = ll => { pin.setLatLng(ll); haptic(); onMove({ lat: ll.lat, lng: ll.lng }); };
+  pin.on('dragend', () => moved(pin.getLatLng()));
+  map.on('click', e => moved(e.latlng));
+  const set = p => { pin.setLatLng([p.lat, p.lng]); map.setView([p.lat, p.lng], 17); };
+  return { map, pin, set, fit: () => setTimeout(() => map.invalidateSize(), 260) };   // シートが開き終わってから大きさを合わせる
+}
+const herePos = async () => { const p = await getPos(5000); return p ? { lat: p.lat, lng: p.lng } : null; };
+// 住所欄の住所の位置（見つからなければ null）
+async function addrPos(a) {
+  a = withPref(String(a || '').trim().replace(/\s+/g, ''));
+  const v = a ? await geocodeAddr(a) : null;
+  return v || null;
+}
+let MPM = null;
 async function showMpMap() {
   const el = $('#mpMap');
   try { await loadLeaflet(); } catch (e) { el.innerHTML = '<div class="ana-empty">地図を読み込めません</div>'; return; }
   let auto = false;
   if (!MP.pos) {
-    const p = await getPos(5000);
-    MP.pos = p ? { lat: p.lat, lng: p.lng } : { lat: 34.6913, lng: 135.1955 };   // 位置が取れない時は三宮
-    auto = !!p;
+    // 住所が入っていればその位置、無ければ現在地
+    const a = await addrPos($('#mpAddr').value);
+    if (a) MP.pos = a;
+    else { const p = await herePos(); MP.pos = p || KOBE; auto = !!p; }
   }
-  if (!MPMAP) {
-    MPMAP = L.map(el, { attributionControl: true }).setView([MP.pos.lat, MP.pos.lng], 17);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(MPMAP);
-    MPPIN = L.marker([MP.pos.lat, MP.pos.lng], { draggable: true, icon: L.divIcon({ className: 'mp-pin', html: '<i></i>', iconSize: [28, 36], iconAnchor: [14, 34] }) }).addTo(MPMAP);
-    const moved = ll => { MP.pos = { lat: ll.lat, lng: ll.lng }; MPPIN.setLatLng(ll); haptic(); mpFillAddr(); };
-    MPPIN.on('dragend', () => moved(MPPIN.getLatLng()));
-    MPMAP.on('click', e => moved(e.latlng));
-  } else {
-    MPPIN.setLatLng([MP.pos.lat, MP.pos.lng]);
-    MPMAP.setView([MP.pos.lat, MP.pos.lng], 17);
-  }
-  setTimeout(() => MPMAP && MPMAP.invalidateSize(), 260);   // シートが開き終わってから大きさを合わせる
+  if (!MPM) MPM = pinMap(el, MP.pos, p => { MP.pos = p; mpFillAddr(); });
+  else MPM.set(MP.pos);
+  MPM.fit();
   if (auto && !$('#mpAddr').value.trim()) mpFillAddr();
 }
+// 地図表示中に住所を書き換えたら、その住所へピンを動かす
+$('#mpAddr').addEventListener('change', async () => {
+  if (MP.mode !== 'map' || !MPM) return;
+  const a = await addrPos($('#mpAddr').value);
+  if (a) { MP.pos = a; MPM.set(a); }
+});
+// 乗車地を地図で選ぶ（ピンは現在地から）
+const PIN = { pos: null, addr: undefined, seq: 0 };
+let PINM = null;
+async function pinFillAddr() {
+  const s = ++PIN.seq, pos = PIN.pos;
+  PIN.addr = undefined;
+  $('#pinAddr').textContent = '住所を取得中…';
+  const a = await reverseGeocode(pos);
+  if (s !== PIN.seq) return;
+  PIN.addr = a;
+  $('#pinAddr').textContent = a ? shortAddr(a) || a : '住所を取得できません';
+}
+async function openPinPicker() {
+  if (!E) return;
+  const el = $('#pinMap');
+  $('#pinAddr').textContent = '';
+  openSheet($('#pinSheet'));
+  try { await loadLeaflet(); } catch (e) { el.innerHTML = '<div class="ana-empty">地図を読み込めません</div>'; return; }
+  PIN.pos = (await herePos()) || KOBE;
+  if (!PINM) PINM = pinMap(el, PIN.pos, p => { PIN.pos = p; pinFillAddr(); });
+  else PINM.set(PIN.pos);
+  PINM.fit();
+  pinFillAddr();
+}
+$$('[data-mappick]').forEach(b => b.addEventListener('click', () => { haptic(); openPinPicker(); }));
+$('#pinOk').addEventListener('click', () => {
+  if (!E || !PIN.pos) return;
+  const o = E.from;
+  setLL(o, PIN.pos);
+  delete o.manual; delete o.place; delete o.alat; delete o.alng;
+  o.pin = true;
+  if (PIN.addr) o.addr = PIN.addr;
+  E.dirty.from = false; E.pick.from = null; $(sugId('from')).innerHTML = '';
+  haptic();
+  closeSheet($('#pinSheet'));
+  renderEntryLoc();
+});
 $('#mpMode').addEventListener('click', e => {
   const b = e.target.closest('[data-mm]'); if (!b) return;
   haptic(); MP.mode = b.dataset.mm; renderMpMode();
@@ -4389,6 +4465,7 @@ $('#mpOk').addEventListener('click', savePlace);
 $('#mpDelete').addEventListener('click', deletePlace);
 $('#mpReset').addEventListener('click', resetPlace);
 $('#placeSheet [data-close]').addEventListener('click', () => closeSheet($('#placeSheet')));
+$('#pinSheet [data-close]').addEventListener('click', () => closeSheet($('#pinSheet')));
 $('#mpHere').addEventListener('click', async () => {
   haptic();
   const b = $('#mpHere'); b.textContent = '取得中…';
@@ -4587,7 +4664,7 @@ $$('[data-regps]').forEach(b => b.addEventListener('click', async () => {
   $(which === 'from' ? '#eFromGps' : '#eToGps').textContent = '取得中…';
   const p = await getPos(3000);
   if (!E) return;
-  if (p) { setLL(E[which], p); delete E[which].manual; delete E[which].place; E.dirty[which] = false; E.pick[which] = null; $(sugId(which)).innerHTML = ''; }
+  if (p) { setLL(E[which], p); delete E[which].manual; delete E[which].place; delete E[which].pin; E.dirty[which] = false; E.pick[which] = null; $(sugId(which)).innerHTML = ''; }
   else toast('位置情報を取得できませんでした');
   renderEntryLoc();
 }));
