@@ -1932,6 +1932,25 @@ const KANJI_NUM = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八:
 const normAddr = a => toHira(String(a || '')).replace(/^兵庫県/, '').replace(/\s/g, '')
   .replace(/([一二三四五六七八九十])丁目/, (_, k) => KANJI_NUM[k] + '丁目')
   .replace(/(\d)[‐－ー―−](?=\d)/g, '$1-').replace(/(\d)(番地?|号)/g, '$1-').replace(/-+$/, '');
+// 記録の中の乗車地・降車地（履歴・実車中・未記録の乗車）
+function recordLocs() {
+  const sh = curShift();
+  return [...S.rides.flatMap(r => [r.from, r.to]), sh && sh.trip && sh.trip.from, ...(sh && sh.pending || []).flatMap(x => [x.from, x.to])].filter(Boolean);
+}
+// 場所データを編集した時：その場所が付いた記録の名称・住所・位置を新しい内容にする。戻り値は変えた件数
+function applyPlaceEdit(old, now) {
+  if (!old || !now) return 0;
+  const names = new Set([old.name, ...(old.alias || [])].map(normName));
+  let n = 0;
+  for (const o of recordLocs()) {
+    if (!o.place || !names.has(normName(o.place.name))) continue;
+    const auto = o.place.auto;
+    o.place = { name: now.name, ...(now.note ? { note: now.note } : {}), ...(now.lat != null ? { lat: +now.lat, lng: +now.lng } : {}), ...(auto ? { auto } : {}) };
+    if (now.addr && o.addr !== now.addr) { o.addr = now.addr; delete o.alat; delete o.alng; }   // 住所が変わったので位置は求め直す
+    n++;
+  }
+  return n;
+}
 function linkPlaces() {
   const db = placeDb();
   if (!db.length) return 0;
@@ -1941,8 +1960,7 @@ function linkPlaces() {
     if (p.addr) { const k = normAddr(p.addr); byAddr.set(k, byAddr.has(k) ? null : p); }   // 同じ住所に2つ以上ある時は置き換えない
   }
   const asPlace = p => ({ name: p.name, ...(p.note ? { note: p.note } : {}), ...(p.lat != null ? { lat: p.lat, lng: p.lng } : {}) });
-  const sh = curShift();
-  const locs = [...S.rides.flatMap(r => [r.from, r.to]), sh && sh.trip && sh.trip.from, ...(sh && sh.pending || []).flatMap(x => [x.from, x.to])].filter(Boolean);
+  const locs = recordLocs();
   let n = 0;
   for (const o of locs) {
     if (o.place) {
@@ -4522,13 +4540,14 @@ function savePlace() {
     const o = S.settings.places.find(x => 'l:' + x.id === p.key);
     delete o.note; delete o.lat; delete o.lng; Object.assign(o, cfg);
   } else { const id = uid(); S.settings.places.push({ id, ...cfg }); key = 'l:' + id; }
-  save(); afterPlaceChange();
+  const moved = applyPlaceEdit(p, placeDb().find(x => x.key === key));   // 履歴の記録にも反映
+  save(); afterPlaceChange(); if (moved) renderAll();
   // 乗車記録から登録した時は、その欄に登録した場所を入れる
   if (w && E) {
     const pl = placeDb().find(x => x.key === key);
     if (pl) { addrInput(w).value = pl.name; E.dirty[w] = true; E.pick[w] = pl; $(sugId(w)).innerHTML = ''; renderEntryLoc(); }
   }
-  toast(`${name} を${isNew ? '登録' : '保存'}しました`);
+  toast(`${name} を${isNew ? '登録' : '保存'}しました` + (moved ? `（履歴${moved}件に反映）` : ''));
 }
 function deletePlace() {
   const p = placeDb(true).find(x => x.key === MP.key);
@@ -4544,8 +4563,9 @@ function resetPlace() {
   const p = placeDb(true).find(x => x.key === MP.key);
   if (!p || !p.builtin) return;
   S.settings.places = S.settings.places.filter(x => x.base !== p.builtin.name);
-  save(); afterPlaceChange();
-  toast(`${p.builtin.name} を元に戻しました`);
+  const moved = applyPlaceEdit(p, placeDb().find(x => x.key === p.key));
+  save(); afterPlaceChange(); if (moved) renderAll();
+  toast(`${p.builtin.name} を元に戻しました` + (moved ? `（履歴${moved}件に反映）` : ''));
 }
 $('#placeDbBtn').addEventListener('click', openPlaceDb);
 $('#pdQ').addEventListener('input', renderPlaceDb);
