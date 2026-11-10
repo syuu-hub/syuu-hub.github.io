@@ -42,7 +42,8 @@ for (const dir of readdirSync(res).filter(n => n.startsWith('drawable'))) {
   const s = Math.round(Math.min(w, h) * 0.28);
   convert(['-size', `${w}x${h}`, 'xc:#0A0C0F', '(', icon, '-resize', `${s}x${s}`, ')', '-gravity', 'center', '-composite', out]);
 }
-// Android 本体の住所変換（Geocoder）：緯度経度 → 番地までの住所。アプリ内の画面から Capacitor.nativePromise('JpGeocoder', 'reverse', {lat, lng}) で呼ぶ
+// Android 本体の住所変換（Geocoder）：緯度経度 → 番地までの住所（reverse）、住所 → 番地の位置（forward）。
+// アプリ内の画面から Capacitor.nativePromise('JpGeocoder', 'reverse', {lat, lng}) / ('JpGeocoder', 'forward', {addr}) で呼ぶ
 const pkgDir = join(root, 'android/app/src/main/java/io/github/syuuhub/taxianalyzer');
 writeFileSync(join(pkgDir, 'JpGeocoderPlugin.java'), `package io.github.syuuhub.taxianalyzer;
 
@@ -75,6 +76,28 @@ public class JpGeocoderPlugin extends Plugin {
                     r.put("subLocality", a.getSubLocality());
                     r.put("thoroughfare", a.getThoroughfare());
                     r.put("subThoroughfare", a.getSubThoroughfare());
+                }
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(String.valueOf(e.getMessage()));
+            }
+        }).start();
+    }
+
+    @PluginMethod
+    public void forward(PluginCall call) {
+        String addr = call.getString("addr");
+        if (addr == null || addr.isEmpty()) { call.reject("addr required"); return; }
+        if (!Geocoder.isPresent()) { call.reject("geocoder unavailable"); return; }
+        new Thread(() -> {
+            try {
+                List<Address> list = new Geocoder(getContext(), Locale.JAPAN).getFromLocationName(addr, 1);
+                JSObject r = new JSObject();
+                if (list != null && !list.isEmpty() && list.get(0).hasLatitude()) {
+                    Address a = list.get(0);
+                    r.put("lat", a.getLatitude());
+                    r.put("lng", a.getLongitude());
+                    r.put("line", a.getMaxAddressLineIndex() >= 0 ? a.getAddressLine(0) : "");
                 }
                 call.resolve(r);
             } catch (Exception e) {
