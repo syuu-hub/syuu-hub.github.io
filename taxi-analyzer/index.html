@@ -712,6 +712,8 @@ svg{display:block}
 .rp-ride{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:9px 0 9px 4px;text-align:left;width:100%;font-size:14px;border-top:1px solid var(--line)}
 .rp-ride .i{font-size:11px;color:var(--faint);text-align:center}
 .rp-ride .t{color:var(--muted);white-space:nowrap}
+.rp-ride .t i{font-style:normal;color:var(--faint)}
+.rp-ride .t .to{margin:0 8px}   /* 乗車〜降車の間をあける */
 .rp-ride .a{font-weight:700;text-align:right;white-space:nowrap;font-size:15px}
 .rp-ride .a small{font-size:10px;color:var(--faint);font-weight:500;margin-left:4px}
 .rp-rides + .rr{border-top:1px solid var(--line)}
@@ -2434,7 +2436,7 @@ function openReport(id) {
           // 行をタップすると、その支払い種別の乗車（時刻・金額）が開く（乗車をタップで詳細）
           return row(tk ? 'チケット' : p.label, p.n, p.amt, 'pay-fold', [tk, p.toll && `うち高速代 ${yen(p.toll)}`].filter(Boolean).join(' ・ ')).replace('<div class="rr pay-fold', '<div data-pf role="button" tabindex="0" aria-expanded="false" class="rr pay-fold') +
             `<div class="rp-rides" hidden>${p.rides.map((r, i) => `<button class="rp-ride" data-rd="${r.id}">
-              <span class="i num">${i + 1}</span><span class="t num">${r.start ? hhmm(r.start) : '--:--'}–${hhmm(r.ts)}</span>
+              <span class="i num">${i + 1}</span><span class="t num">${r.start ? hhmm(r.start) : '<i class="nil">--:--</i>'}<i class="to">–</i>${hhmm(r.ts)}</span>
               <span class="a num">${yen(r.total)}${r.toll ? `<small>＋高速${yen(r.toll)}</small>` : ''}</span></button>`).join('')}</div>`; }).join('') || '<div class="rr zero"><span class="l">乗車記録なし</span></div>'}
         ${st.toll && pays.length ? row('計', pn, pa, 'sum', '高速代込み') : ''}
       </div>
