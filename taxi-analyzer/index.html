@@ -4379,7 +4379,14 @@ $('#mpAddr').addEventListener('change', async () => {
   const a = await addrPos($('#mpAddr').value);
   if (a) { MP.pos = a; MPM.set(a); }
 });
-// 乗車地・降車地を地図で選ぶ（ピンは現在地から）
+// 乗車地・降車地の今の位置：入力中の住所（選んだ施設）→ 記録の位置 → 施設の位置 → 住所の位置。分からなければ null
+async function entryPos(w) {
+  const o = E[w], pk = E.pick[w], typed = addrInput(w).value.trim();
+  if (E.dirty[w] && typed) return pk && pk.lat != null ? { lat: pk.lat, lng: pk.lng } : await addrPos(typed);
+  return o.lat != null ? { lat: o.lat, lng: o.lng } : o.place && o.place.lat != null ? { lat: o.place.lat, lng: o.place.lng }
+    : o.alat != null ? { lat: o.alat, lng: o.alng } : o.addr ? await addrPos(o.addr) : null;
+}
+// 乗車地・降車地を地図で選ぶ（ピンは入力された住所の位置から。無ければ現在地）
 const PIN = { w: 'from', pos: null, addr: undefined, seq: 0 };
 let PINM = null;
 async function pinFillAddr() {
@@ -4399,7 +4406,8 @@ async function openPinPicker(w) {
   $('#pinAddr').textContent = '';
   openSheet($('#pinSheet'));
   try { await loadLeaflet(); } catch (e) { el.innerHTML = '<div class="ana-empty">地図を読み込めません</div>'; return; }
-  PIN.pos = (await herePos()) || KOBE;
+  PIN.pos = (await entryPos(w)) || (await herePos()) || KOBE;
+  if (!E || PIN.w !== w) return;
   if (!PINM) PINM = pinMap(el, PIN.pos, p => { PIN.pos = p; pinFillAddr(); });
   else PINM.set(PIN.pos);
   PINM.fit();
@@ -4441,11 +4449,9 @@ async function syncEntryMap(w, byAddr) {
   if (el.hidden || !E) return;
   const s = ++emSeq[w];
   try { await loadLeaflet(); } catch (e) { el.innerHTML = '<div class="ana-empty">地図を読み込めません</div>'; return; }
-  const o = E[w], pk = E.pick[w];
-  let pos = null;
-  if (byAddr) pos = pk && pk.lat != null ? { lat: pk.lat, lng: pk.lng } : await addrPos(addrInput(w).value);
-  else pos = o.lat != null ? { lat: o.lat, lng: o.lng } : o.place && o.place.lat != null ? { lat: o.place.lat, lng: o.place.lng }
-    : o.alat != null ? { lat: o.alat, lng: o.alng } : o.addr ? await addrPos(o.addr) : null;
+  const pk = E.pick[w];
+  const pos0 = byAddr ? (pk && pk.lat != null ? { lat: pk.lat, lng: pk.lng } : await addrPos(addrInput(w).value)) : await entryPos(w);
+  let pos = pos0;
   if (!pos && byAddr) return;   // 住所が見つからない時はピンを動かさない
   if (!pos) pos = (await herePos()) || KOBE;
   if (s !== emSeq[w] || !E) return;
