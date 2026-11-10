@@ -2108,23 +2108,48 @@ window.addEventListener('online', () => { addrRetryAt = 0; geoRetryAt = 0; queue
 
 // 住所 → 位置（国土地理院の住所検索）。手入力した住所や位置の無い施設を需要マップの正しい場所に置く
 const GSI_SEARCH = 'https://msearch.gsi.go.jp/address-search/AddressSearch';
-const GEO_KEY = 'taxiboard.geo.v1';
+const GEO_KEY = 'taxiboard.geo.v2';   // v2：番地まで合わせる（以前の丁目までの結果は使わない）
 let geoCache = {};
 try { geoCache = JSON.parse(localStorage.getItem(GEO_KEY)) || {}; } catch (e) {}
 let geoRetryAt = 0;
 const stripPref = a => toHira(a).replace(/^(東京都|北海道|京都府|大阪府|.{2,3}県)/, '').replace(/\s/g, '');
+// 住所の比べ方をそろえる：「三宮町一丁目8番1号」「三宮町1-8-1」→「さんのみやちょう1-8-1」相当
+const KAN = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+const kanNum = k => k.split('十').length > 1 ? (KAN[k.split('十')[0]] || (k.startsWith('十') ? 1 : 0)) * 10 + (KAN[k.split('十')[1]] || 0) : KAN[k] || 0;
+const addrCmp = a => stripPref(String(a || '').normalize('NFKC')).replace(/([一二三四五六七八九十]+)丁目/g, (_, k) => kanNum(k) + '-')
+  .replace(/丁目/g, '-').replace(/番地?|号/g, '-').replace(/(\d)[‐－ー―−](?=\d)/g, '$1-').replace(/-+/g, '-').replace(/-$/, '');
+// 先頭から何文字同じか
+const samePrefix = (a, b) => { let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++; return i; };
+// Android アプリ（外枠）では本体の住所変換で番地の位置まで求める（日本の範囲外は使わない）
+async function nativeForward(addr) {
+  try {
+    const r = await window.Capacitor.nativePromise('JpGeocoder', 'forward', { addr });
+    const lat = r && +r.lat, lng = r && +r.lng;
+    return lat > 20 && lat < 46 && lng > 122 && lng < 154 ? { lat: +lat.toFixed(6), lng: +lng.toFixed(6) } : null;
+  } catch (e) { return null; }
+}
 // {lat,lng}、見つからなければ null、通信できなければ undefined
 async function geocodeAddr(addr) {
   if (addr in geoCache) return geoCache[addr];
   if (navigator.onLine === false || Date.now() < geoRetryAt) return undefined;
+  if (nativeGeo()) {
+    const v = await nativeForward(addr);
+    if (v) { geoCache[addr] = v; try { localStorage.setItem(GEO_KEY, JSON.stringify(geoCache)); } catch (e) {} return v; }
+  }
   try {
     const res = await getJson(`${GSI_SEARCH}?q=${encodeURIComponent(addr)}`);
-    const q = stripPref(addr);
-    // 市区町村名まで一致する結果だけを採用（別の地域の同名の町を避ける）
-    const hit = (Array.isArray(res) ? res : []).find(f => {
+    const q = stripPref(addr), qc = addrCmp(addr);
+    // 市区町村名まで一致する結果のうち、番地まで一番長く一致するものを採用（別の地域の同名の町を避ける）
+    let hit = null, best = -1;
+    for (const f of Array.isArray(res) ? res : []) {
       const t = stripPref((f.properties || {}).title || '');
-      return t && (q.startsWith(t.slice(0, 3)) || t.startsWith(q.slice(0, 3)));
-    });
+      if (!t || !(q.startsWith(t.slice(0, 3)) || t.startsWith(q.slice(0, 3)))) continue;
+      const tc = addrCmp((f.properties || {}).title);
+      let n = samePrefix(tc, qc);
+      while (n > 0 && /\d/.test(tc[n - 1]) && (/\d/.test(tc[n] || '') || /\d/.test(qc[n] || ''))) n--;   // 番号の途中（1 と 18 など）では一致とみなさない
+      if (n < tc.length) n -= 2;   // 入力と違う番地まである結果は下げる
+      if (n > best) { best = n; hit = f; }
+    }
     const c = hit && hit.geometry && hit.geometry.coordinates;
     const v = c ? { lat: +(+c[1]).toFixed(6), lng: +(+c[0]).toFixed(6) } : null;
     geoCache[addr] = v;
