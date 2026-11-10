@@ -2406,9 +2406,14 @@ function saveShiftEdit() {
 }
 
 // 日報：紙の日報に書き写す項目だけ（支払い種別ごとの件数・金額、合計、高速代、遠距離割、障害者割）
-function openReport(id) {
+// keep：修正後の描き直し（開いている支払い種別とスクロール位置をそのままにする）
+let RP_ID = null;
+function openReport(id, keep) {
   const sh = S.shifts.find(s => s.id === id);
   if (!sh) return;
+  RP_ID = id;
+  const body = $('#reportSheet .rp-body'), top = keep ? body.scrollTop : 0;
+  const openPf = keep ? [...$$('#rpBody [data-pf][aria-expanded="true"]')].map(b => b.dataset.pf) : [];
   const st = shiftStats(sh), rides = st.rides;
   const pays = reportPays(rides, true).filter(p => p.n);
   // 1行：項目（下に注記）・件数・金額。紙の日報へ書き写しやすいよう件数と金額の列をそろえる
@@ -2434,8 +2439,8 @@ function openReport(id) {
       <div class="rp-card num">
         ${pays.map(p => { const tk = p.k.startsWith('ticket:') ? p.k.slice(7) : '';   // チケットは種類を注記に
           // 行をタップすると、その支払い種別の乗車（時刻・金額）が開く（乗車をタップで詳細）
-          return row(tk ? 'チケット' : p.label, p.n, p.amt, 'pay-fold', [tk, p.toll && `うち高速代 ${yen(p.toll)}`].filter(Boolean).join(' ・ ')).replace('<div class="rr pay-fold', '<div data-pf role="button" tabindex="0" aria-expanded="false" class="rr pay-fold') +
-            `<div class="rp-rides" hidden>${p.rides.map((r, i) => `<button class="rp-ride" data-rd="${r.id}">
+          return row(tk ? 'チケット' : p.label, p.n, p.amt, 'pay-fold', [tk, p.toll && `うち高速代 ${yen(p.toll)}`].filter(Boolean).join(' ・ ')).replace('<div class="rr pay-fold', `<div data-pf="${esc(p.k)}" role="button" tabindex="0" aria-expanded="${openPf.includes(p.k)}" class="rr pay-fold`) +
+            `<div class="rp-rides"${openPf.includes(p.k) ? '' : ' hidden'}>${p.rides.map((r, i) => `<button class="rp-ride" data-rd="${r.id}">
               <span class="i num">${i + 1}</span><span class="t num">${r.start ? hhmm(r.start) : '<i class="nil">--:--</i>'}<i class="to">–</i>${hhmm(r.ts)}</span>
               <span class="a num">${yen(r.total)}${r.toll ? `<small>＋高速${yen(r.toll)}</small>` : ''}</span></button>`).join('')}</div>`; }).join('') || '<div class="rr zero"><span class="l">乗車記録なし</span></div>'}
         ${st.toll && pays.length ? row('計', pn, pa, 'sum', '高速代込み') : ''}
@@ -2445,8 +2450,8 @@ function openReport(id) {
       <h3><span>高速代・割引</span><span>件数・金額</span></h3>
       <div class="rp-card num">${extras.join('')}</div>
     </section>` : ''}`;
-  $('#reportSheet .rp-body').scrollTop = 0;
-  openSheet($('#reportSheet'));
+  body.scrollTop = top;
+  if (!keep) openSheet($('#reportSheet'));
 }
 
 /* ============================================================
@@ -3477,6 +3482,7 @@ function depart() {
 
 function renderAll() {
   renderHome(); renderMini(); renderGps(); renderClock();
+  if (RP_ID && NAV.stack.includes($('#reportSheet'))) openReport(RP_ID, true);   // 日報を開いたまま乗車を修正・削除した時
   const t = S.settings.tab;
   if (t === 'home') return;
   if (t === 'log') renderLog();
@@ -3556,6 +3562,8 @@ function openSheet(el) {
   el.hidden = false;
   requestAnimationFrame(() => el.classList.add('open'));
   if (!NAV.stack.includes(el)) { NAV.stack.push(el); navPush(); }
+  // 後から開いた画面を手前に出す（日報 → 乗車の詳細 → 編集 のように重ねて開く時）
+  el.style.zIndex = Math.min(39, 20 + NAV.stack.indexOf(el));
 }
 function closeSheet(el) {
   const i = NAV.stack.indexOf(el);
