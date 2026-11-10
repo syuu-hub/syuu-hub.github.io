@@ -510,7 +510,7 @@ svg{display:block}
 /* BI モック */
 
 /* 設定 */
-.setting{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:var(--tap);border-bottom:1px solid var(--line)}
+.setting{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:var(--tap);padding:10px 0;border-bottom:1px solid var(--line)}
 .setting:last-child{border-bottom:0}
 .setting .k{font-size:15px}
 .setting .btn{white-space:nowrap;flex:none}
@@ -854,8 +854,8 @@ svg{display:block}
 .cal-cell .p{font-size:clamp(9px,2.5vw,12px);color:var(--accent);opacity:.85;white-space:nowrap;line-height:1.25;font-weight:700}
 .cal-cap.over .bar i{background:var(--danger)}
 .cal-cap.over b.used{color:var(--danger)}
-.hol-setting{flex-wrap:wrap}
-.seg.hol{flex:1 1 100%;margin:8px 0 0}
+.hol-setting{flex-wrap:wrap;row-gap:10px;padding:14px 0}
+.seg.hol{flex:1 1 100%;margin:0}
 .seg.hol button{flex:1;min-width:0;padding:0}
 .cal-day{margin-top:12px}
 .cal-hint{font-size:13px;color:var(--faint);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
