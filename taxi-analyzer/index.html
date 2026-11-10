@@ -518,10 +518,10 @@ svg{display:block}
 .switch::after{content:"";position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
 .switch[aria-checked="true"]{background:var(--accent)}
 .switch[aria-checked="true"]::after{transform:translateX(22px);background:var(--accent-ink)}
-.btn-col{display:grid;gap:10px}
-.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-col{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.btn-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .btn .hint{font-size:12px;font-weight:500;color:var(--muted)}
-.btn.stack{flex-direction:column;gap:2px;padding:10px 12px;line-height:1.3}
+.btn.stack{flex-direction:column;gap:2px;padding:10px 12px;line-height:1.3;white-space:normal;min-width:0;text-align:center;word-break:keep-all;overflow-wrap:anywhere}   /* 文字が大きい端末では2行に */
 
 /* ============================================================
    Sheets（入力モーダル）
@@ -1040,9 +1040,9 @@ svg{display:block}
       <div class="pane-sec">
         <div class="sec-h"><h3>CSV出力</h3></div>
         <div class="btn-col">
-          <button class="btn stack" data-export="log-all">営業ログ（全期間）</button>
+          <button class="btn stack" data-export="log-all">営業ログ<wbr>（全期間）</button>
           <div class="btn-grid">
-            <button class="btn stack" data-export="log-shift">営業ログ（今回）</button>
+            <button class="btn stack" data-export="log-shift">営業ログ<wbr>（今回）</button>
             <button class="btn stack" data-export="summary">日報サマリー</button>
           </div>
         </div>
