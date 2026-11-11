@@ -29,7 +29,7 @@ writeFileSync(manifest, m);
 
 // アイコン
 //   Android 8 以降はアダプティブアイコン（背景色＋前景）。定義が無いと端末が白い台座に小さく載せるので、
-//   背景は黒、前景は余白のある版（中身が切り抜きの安全範囲に収まる）にする
+//   背景は濃いグレー（黒い壁紙でも輪郭が分かる）、前景は余白のある版（中身が切り抜きの安全範囲に収まる）にする
 const sizes = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
 for (const [d, px] of Object.entries(sizes)) {
   const dir = join(res, `mipmap-${d}`);
@@ -50,16 +50,16 @@ writeFileSync(join(anydpi, 'ic_launcher_round.xml'), adaptive);
 mkdirSync(join(res, 'values'), { recursive: true });
 writeFileSync(join(res, 'values/ic_launcher_background.xml'), `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#000000</color>
+    <color name="ic_launcher_background">#282C34</color>
 </resources>
 `);
-// 起動画面：アイコンと同じ黒の背景にアイコンを中央に置く
+// 起動画面：アプリの背景色にアイコンを中央に置く
 for (const dir of readdirSync(res).filter(n => n.startsWith('drawable'))) {
   const out = join(res, dir, 'splash.png');
   if (!existsSync(out)) continue;
   const [w, h] = identify(['-format', '%w %h', out]).toString().trim().split(' ').map(Number);
   const s = Math.round(Math.min(w, h) * 0.28);
-  convert(['-size', `${w}x${h}`, 'xc:#000000', '(', icon, '-resize', `${s}x${s}`, ')', '-gravity', 'center', '-composite', out]);
+  convert(['-size', `${w}x${h}`, 'xc:#0A0C0F', '(', icon, '-resize', `${s}x${s}`, ')', '-gravity', 'center', '-composite', out]);
 }
 // Android 本体の住所変換（Geocoder）：緯度経度 → 番地までの住所（reverse）、住所 → 番地の位置（forward）。
 // アプリ内の画面から Capacitor.nativePromise('JpGeocoder', 'reverse', {lat, lng}) / ('JpGeocoder', 'forward', {addr}) で呼ぶ
