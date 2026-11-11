@@ -3335,7 +3335,6 @@ function renderAnalysis() {
       <div class="kpi"><div class="k">実車率</div><div class="v num">${Math.round(K.occ * 100)}<small>%</small></div>${delta('occ', true)}</div>
       <div class="kpi"><div class="k">1回あたり</div><div class="v num">${kv(Math.round(K.perRide))}</div>${delta('perRide')}</div>
     </div>
-    <div class="ana-note" style="margin:-4px 2px 8px">${D.length}日・${A.rides.length}回</div>
 
     <div class="ana-sh">くわしく見る</div>
     ${fold('heat', '曜日×時間帯（千円/時）', heatTake, `
