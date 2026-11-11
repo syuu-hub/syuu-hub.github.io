@@ -29,7 +29,7 @@ writeFileSync(manifest, m);
 
 // アイコン
 //   Android 8 以降はアダプティブアイコン（背景色＋前景）。定義が無いと端末が白い台座に小さく載せるので、
-//   背景は濃いグレー（黒い壁紙でも輪郭が分かる）、前景は余白のある版（中身が切り抜きの安全範囲に収まる）にする
+//   背景は白、前景は余白のある版（中身が切り抜きの安全範囲に収まる）にする
 const sizes = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
 for (const [d, px] of Object.entries(sizes)) {
   const dir = join(res, `mipmap-${d}`);
@@ -50,7 +50,7 @@ writeFileSync(join(anydpi, 'ic_launcher_round.xml'), adaptive);
 mkdirSync(join(res, 'values'), { recursive: true });
 writeFileSync(join(res, 'values/ic_launcher_background.xml'), `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#282C34</color>
+    <color name="ic_launcher_background">#FFFFFF</color>
 </resources>
 `);
 // 起動画面：アプリの背景色にアイコンを中央に置く
