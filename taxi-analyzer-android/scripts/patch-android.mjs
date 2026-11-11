@@ -3,7 +3,7 @@
 //   ・Android 本体の住所変換（番地まで）を呼べるプラグイン JpGeocoder を追加
 //   ・端末の文字サイズ設定で文字だけが拡大されないようにする（textZoom 100%）
 //   ・アイコンと起動画面をタクシーアナライザーのものにする（ImageMagick を使う。7 は magick、6 は convert/identify）
-import { readFileSync, writeFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, rmSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const res = join(root, 'android/app/src/main/res');
 const icon = join(root, '../taxi-analyzer/icons/icon-512.png');
+const iconFg = join(root, '../taxi-analyzer/icons/icon-maskable-512.png');   // 周りに余白のある版（アダプティブアイコンの前景用）
 const has = cmd => { try { execFileSync(cmd, ['-version'], { stdio: 'ignore' }); return true; } catch (e) { return false; } };
 const IM7 = has('magick');
 if (!IM7 && !has('convert')) throw new Error('ImageMagick が見つかりません');
@@ -26,15 +27,32 @@ for (const p of ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION']) {
 }
 writeFileSync(manifest, m);
 
-// アイコン：アダプティブアイコンの定義を消し、各解像度の PNG を差し替える
-rmSync(join(res, 'mipmap-anydpi-v26'), { recursive: true, force: true });
+// アイコン
+//   Android 8 以降はアダプティブアイコン（背景色＋前景）。定義が無いと端末が白い台座に小さく載せるので、
+//   背景は黒、前景は余白のある版（中身が切り抜きの安全範囲に収まる）にする
 const sizes = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
 for (const [d, px] of Object.entries(sizes)) {
-  for (const name of ['ic_launcher.png', 'ic_launcher_round.png', 'ic_launcher_foreground.png']) {
-    const out = join(res, `mipmap-${d}`, name);
-    if (existsSync(out)) convert([icon, '-resize', `${px}x${px}`, out]);
-  }
+  const dir = join(res, `mipmap-${d}`);
+  for (const name of ['ic_launcher.png', 'ic_launcher_round.png']) convert([icon, '-resize', `${px}x${px}`, join(dir, name)]);   // Android 7 以前
+  const fg = Math.round(px * 108 / 48);   // 前景は 108dp
+  convert([iconFg, '-resize', `${fg}x${fg}`, join(dir, 'ic_launcher_foreground.png')]);
 }
+const adaptive = `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
+`;
+const anydpi = join(res, 'mipmap-anydpi-v26');
+mkdirSync(anydpi, { recursive: true });
+writeFileSync(join(anydpi, 'ic_launcher.xml'), adaptive);
+writeFileSync(join(anydpi, 'ic_launcher_round.xml'), adaptive);
+mkdirSync(join(res, 'values'), { recursive: true });
+writeFileSync(join(res, 'values/ic_launcher_background.xml'), `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#000000</color>
+</resources>
+`);
 // 起動画面：アイコンと同じ黒の背景にアイコンを中央に置く
 for (const dir of readdirSync(res).filter(n => n.startsWith('drawable'))) {
   const out = join(res, dir, 'splash.png');
