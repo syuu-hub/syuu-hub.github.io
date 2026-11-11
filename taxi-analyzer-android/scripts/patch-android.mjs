@@ -35,13 +35,13 @@ for (const [d, px] of Object.entries(sizes)) {
     if (existsSync(out)) convert([icon, '-resize', `${px}x${px}`, out]);
   }
 }
-// 起動画面：アプリの背景色にアイコンを中央に置く
+// 起動画面：アイコンと同じ黒の背景にアイコンを中央に置く
 for (const dir of readdirSync(res).filter(n => n.startsWith('drawable'))) {
   const out = join(res, dir, 'splash.png');
   if (!existsSync(out)) continue;
   const [w, h] = identify(['-format', '%w %h', out]).toString().trim().split(' ').map(Number);
   const s = Math.round(Math.min(w, h) * 0.28);
-  convert(['-size', `${w}x${h}`, 'xc:#0A0C0F', '(', icon, '-resize', `${s}x${s}`, ')', '-gravity', 'center', '-composite', out]);
+  convert(['-size', `${w}x${h}`, 'xc:#000000', '(', icon, '-resize', `${s}x${s}`, ')', '-gravity', 'center', '-composite', out]);
 }
 // Android 本体の住所変換（Geocoder）：緯度経度 → 番地までの住所（reverse）、住所 → 番地の位置（forward）。
 // アプリ内の画面から Capacitor.nativePromise('JpGeocoder', 'reverse', {lat, lng}) / ('JpGeocoder', 'forward', {addr}) で呼ぶ
