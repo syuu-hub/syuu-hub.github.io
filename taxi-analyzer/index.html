@@ -101,6 +101,12 @@ svg{display:block}
 /* 余白があれば：上に出庫・GPS、下に指標、真ん中に売上（大きく） */
 .cockpit .hud-meta{margin-bottom:auto}
 @media (max-width:359px){ .hud-meta{gap:8px} .gps{font-size:0;gap:0} .end-btn{padding:0 12px} }   /* 狭い画面：GPSは点だけ */
+@media (max-width:359px){
+  .gps-btn:not(.map-pick){font-size:0;gap:0;width:40px;padding:0;justify-content:center}   /* 「現在地」は印だけ */
+  .e-foot .primary{font-size:16px;padding:0 8px;gap:4px}
+  .e-foot .danger{padding:0 10px;font-size:15px}
+  .seg.hol button{font-size:12px}
+}
 .cockpit .stats{margin-top:auto}
 .cockpit .hud-main{margin-top:clamp(8px,2vh,24px)}
 .cockpit .sales{font-size:clamp(38px,min(9.5vh,17vw),104px)}
@@ -295,6 +301,7 @@ svg{display:block}
 .list{list-style:none}
 .row{display:flex;align-items:center;gap:14px;min-height:var(--tap);padding:10px 4px;border-bottom:1px solid var(--line);width:100%;text-align:left}
 .row:last-child{border-bottom:0}
+.list > li:not(:last-child) > .row{border-bottom:1px solid var(--line)}   /* 設定の一覧（決済方法・チケット・アプリ）にも区切り線 */
 .row .time{font-size:15px;font-weight:600;width:3.2em;flex:none;color:var(--muted)}
 .row .body{flex:1;min-width:0}
 .row .main{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -356,6 +363,7 @@ svg{display:block}
 .fold-b{padding:2px 14px 14px;border-top:1px solid var(--line)}
 .fold-b > .group:first-child,.fold-b > .setting:first-child{margin-top:6px}
 .fold-b .sub-h{font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 2px}
+.fold-b .sub-h + .btn-grid,.fold-b .sub-h + .btn{margin-top:10px}
 .fold-b .sub-h:first-child{margin-top:12px}
 /* ===== 分析 ===== */
 .ana-range{margin:0 0 14px}
@@ -399,7 +407,8 @@ svg{display:block}
 .prank .bar{display:block;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
 .prank .bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
 .prank li:not(:first-child) .bar i{background:#6B7584}
-.prank .sb{font-size:12px;color:var(--faint);line-height:1.4;overflow-wrap:anywhere}
+.prank .sb{font-size:12px;color:var(--faint);line-height:1.4}
+.prank .sb span{white-space:nowrap}   /* 「待ち22分」などの途中で折り返さない */
 .prank .a{font-size:18px;font-weight:800;white-space:nowrap;text-align:right}
 .prank li{cursor:pointer;border-radius:6px}
 .prank li.open{background:var(--surface-2);margin:0 -8px;padding:10px 8px}
@@ -671,7 +680,8 @@ svg{display:block}
 .link-btn{font-size:13px;font-weight:700;color:var(--accent);padding:6px 0;min-height:32px}
 .sug .hint{font-size:12px;color:var(--faint);padding:4px 2px}
 .e-foot{flex:none;display:flex;gap:10px;padding-top:12px}
-.e-foot .primary{flex:1;height:60px;font-size:20px}
+.e-foot .primary{flex:1;min-width:0;height:60px;font-size:20px}
+.e-foot .danger{flex:none}
 .e-foot .danger{height:72px}
 
 /* 数値入力ダイアログ */
@@ -3355,7 +3365,7 @@ ${plView === 'map' ? (mapPts.length ? `      <div class="seg map-f" id="mapTime"
       ${plRows.length ? `<ol class="prank">${plRows.map((c, i) => `<li class="${PL_OPEN.has(c.key) ? 'open' : ''}" data-pl="${esc(c.key)}" role="button" tabindex="0" aria-expanded="${PL_OPEN.has(c.key)}">
         <span class="n num">${i + 1}</span>
         <span class="b"><span class="nm">${esc(placeName(c))}</span><span class="bar"><i style="width:${(ps.v(c) / plMax * 100).toFixed(1)}%"></i></span>
-          <span class="sb num">${ps.k === 'hi' ? `高額${c.hi}/${c.n}回` : `${c.n}回`}・平均${kv(Math.round(c.avg))}${c.wait != null ? `・待ち${Math.round(c.wait)}分` : ''}</span></span>
+          <span class="sb num">${[ps.k === 'hi' ? `高額${c.hi}/${c.n}回` : `${c.n}回`, `平均${kv(Math.round(c.avg))}`, c.wait != null ? `待ち${Math.round(c.wait)}分` : ''].filter(Boolean).map(x => `<span>${x}</span>`).join('・')}</span></span>
         <span class="a num">${ps.fmt(c)}</span>${placeDetail(c, rideOf)}</li>`).join('')}</ol>`
         : `<div class="ana-empty">該当なし</div>`}
 `}`)}
