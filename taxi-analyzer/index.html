@@ -468,7 +468,9 @@ svg{display:block}
 .pgoal{font-size:13px;margin-top:6px}
 .plan .sub-h span{display:block;font-weight:500;color:var(--faint);font-size:11px;margin-top:2px}
 .pgoal b{font-size:16px}
-.pstrip{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px}
+.pstrip-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:3px}   /* 列が多い時は横にスクロール（押した時の枠が切れないよう少し余白） */
+.pstrip-wrap::-webkit-scrollbar{display:none}
+.pstrip{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
 .pstrip .c{font-size:10px;color:var(--faint);text-align:center;font-weight:600}
 .pstrip button{height:38px;border-radius:6px;padding:0;font-size:13px;font-weight:700;color:var(--text);background:var(--surface-3)}
 .pstrip button.na.out{border-color:transparent;background:var(--surface-2);opacity:.5}
@@ -3177,9 +3179,9 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
       </ul>
       <div class="tipgrp">
       <div class="sub-h">${wname}の時間割（千円/時）</div>
-      <div class="pstrip" style="grid-template-columns:repeat(${shown.length},minmax(0,1fr))">${shown.map(s => `<span class="c num">${s.b.head}</span>`).join('')}${shown.map(s => s.rate == null
+      <div class="pstrip-wrap"><div class="pstrip" style="grid-template-columns:repeat(${shown.length},minmax(44px,1fr))">${shown.map(s => `<span class="c num">${s.b.head}</span>`).join('')}${shown.map(s => s.rate == null
         ? `<button class="na${s.out ? ' out' : ''}" aria-pressed="false" data-tip="${s.b.label}時：${s.out ? 'いつもの営業時間外' : '記録が少ない時間です'}"></button>`
-        : `<button class="${heatLv(s.rate / Math.max(1, perHour)).cls} ${tops.has(s.b) ? 'top' : ''} num" aria-pressed="false" data-tip="${wname} ${s.b.label}時：推定 ${yen(Math.round(s.rate))}/時（平均の${(s.rate / Math.max(1, perHour)).toFixed(1)}倍${s.du ? `・この曜日の実績 ${yen(Math.round(s.raw))}/時・${(s.du / 60).toFixed(1)}時間` : '・この曜日の記録なし。全曜日から推定'}）">${k1(s.rate)}</button>`).join('')}</div>
+        : `<button class="${heatLv(s.rate / Math.max(1, perHour)).cls} ${tops.has(s.b) ? 'top' : ''} num" aria-pressed="false" data-tip="${wname} ${s.b.label}時：推定 ${yen(Math.round(s.rate))}/時（平均の${(s.rate / Math.max(1, perHour)).toFixed(1)}倍${s.du ? `・この曜日の実績 ${yen(Math.round(s.raw))}/時・${(s.du / 60).toFixed(1)}時間` : '・この曜日の記録なし。全曜日から推定'}）">${k1(s.rate)}</button>`).join('')}</div></div>
       <div class="ana-tip"></div>
       </div>
     </div>`;
@@ -3375,6 +3377,9 @@ ${trView === 'month' ? (months.length ? `      <div class="mbars">${months.map(m
 `}`, 'trend')}
     `;
   if (plView === 'map' && mapPts.length) drawMap();
+  // 時間割がスクロールする時は「走る」時間が見える位置へ
+  const pw = body.querySelector('.pstrip-wrap'), top = pw && pw.querySelector('.top');
+  if (top && pw.scrollWidth > pw.clientWidth) pw.scrollLeft += top.getBoundingClientRect().left - pw.getBoundingClientRect().left - (pw.clientWidth - top.offsetWidth) / 2;
 }
 // ── 乗車地マップ（Leaflet・OpenStreetMap）。ライブラリはアプリと同じ場所に置き、開いた時だけ読み込む
 const MAP_TIMES = [{ l: '全時間', f: () => true }, { l: '5-11時', f: h => h >= 5 && h < 11 }, { l: '11-17時', f: h => h >= 11 && h < 17 }, { l: '17-23時', f: h => h >= 17 && h < 23 }, { l: '23-5時', f: h => h >= 23 || h < 5 }];
