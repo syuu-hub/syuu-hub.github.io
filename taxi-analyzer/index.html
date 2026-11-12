@@ -441,6 +441,8 @@ svg{display:block}
 .heat .c{font-size:10px;color:var(--faint);text-align:center;font-weight:600;letter-spacing:-.02em;white-space:nowrap;padding-bottom:2px}
 .heat button{height:34px;border-radius:6px;padding:0;font-size:13px;font-weight:700;color:var(--text);background:var(--surface-3)}
 .heat .all{margin-bottom:6px}
+.heat button.low{opacity:.5}   /* 記録が少ないマス：色は同じで薄く */
+.heat-legend .lowk{display:inline-block;width:14px;height:10px;border-radius:3px;background:var(--surface-3);opacity:.5;border:1px solid var(--line-2)}
 .heat button.na{background:transparent;border:1px dashed var(--line-2);color:var(--faint);font-weight:400}
 .heat button[aria-pressed="true"]{outline:2px solid var(--text);outline-offset:1px}
 .heat .up2,.heat-legend .up2,.pstrip .up2{background:#2FBF71;color:#06210F}
@@ -470,6 +472,14 @@ svg{display:block}
 .plan .pday{font-size:15px;font-weight:800}
 .plan .pg{margin-left:auto;align-self:center;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--accent);color:var(--accent-ink)}
 .plan .pr{font-size:12px;color:var(--faint);margin-top:2px}
+.prange{margin-top:8px}
+.prange .trk{position:relative;height:10px;border-radius:5px;background:var(--surface-3)}
+.prange .band{position:absolute;top:0;bottom:0;border-radius:5px;background:rgba(255,176,32,.45)}
+.prange .est{position:absolute;top:-3px;bottom:-3px;width:4px;margin-left:-2px;border-radius:2px;background:var(--text)}
+.prange .goal{position:absolute;top:-5px;bottom:-5px;width:0;margin-left:-1px;border-left:2px dashed var(--accent)}
+.prange .lbl{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--faint);margin-top:6px}
+.prange .lbl .g{color:var(--accent)}
+.plist .why{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;color:#3DD68C;border:1px solid currentColor;vertical-align:1px;white-space:nowrap}
 .plan .sub-h{font-size:12px;color:var(--muted);font-weight:700;margin:14px 0 6px}
 .pexp{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .pexp .v{font-size:26px;font-weight:800}
@@ -3080,19 +3090,26 @@ function analyze(range, back = 0) {   // back：何日前までの期間か（�
   const duty = Array.from({ length: 7 }, () => new Array(24).fill(0));
   const sales = Array.from({ length: 7 }, () => new Array(24).fill(0));
   const cnt = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  // 推定用：新しい営業ほど重くする（季節や街の変化に追いつくため。60日前の記録は半分の重み）。重みの平均は1にそろえる
+  const wOf = new Map(shifts.map(sh => [sh.id, Math.pow(0.5, (now - sh.start) / (60 * 86400e3))]));
+  const wMean = shifts.length ? [...wOf.values()].reduce((a, b) => a + b, 0) / shifts.length : 1;
+  for (const [k, v] of wOf) wOf.set(k, v / wMean);
+  const wduty = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const wsales = Array.from({ length: 7 }, () => new Array(24).fill(0));
   for (const sh of shifts) {
-    const dow = new Date(sh.start).getDay(), end = sh.end || now;
+    const dow = new Date(sh.start).getDay(), end = sh.end || now, w = wOf.get(sh.id);
     for (let t = sh.start; t < end;) {
       const d = new Date(t), next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime();
-      duty[dow][d.getHours()] += (Math.min(next, end) - t) / 60000;
+      const m = (Math.min(next, end) - t) / 60000;
+      duty[dow][d.getHours()] += m; wduty[dow][d.getHours()] += m * w;
       t = next;
     }
   }
   for (const r of rides) {
     const sh = byId.get(r.shiftId), dow = new Date(sh.start).getDay(), h = new Date(r.start || r.ts).getHours();
-    sales[dow][h] += r.total; cnt[dow][h]++;
+    sales[dow][h] += r.total; cnt[dow][h]++; wsales[dow][h] += r.total * wOf.get(sh.id);
   }
-  return { shifts, rides, dayList, duty, sales, cnt };
+  return { shifts, rides, dayList, duty, sales, cnt, wduty, wsales };
 }
 // グラフの値の表示：同じカード（.tipgrp があればその中）の .ana-tip に出す
 const anaTip = (el, text) => { const card = el.closest('.ana-card'), box = el.closest('.tipgrp') || card; card.querySelectorAll('[aria-pressed]').forEach(x => x.setAttribute('aria-pressed', x === el)); card.querySelectorAll('.ana-tip').forEach(x => { x.textContent = box.contains(x) ? text : ''; }); };
@@ -3141,12 +3158,15 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   // 時間割（その曜日の3時間ごと）。いつもの営業時間の外は出さない
   const sumH = (rows, hs) => hs.reduce((a, h) => a + rows.reduce((x, r) => x + r[h], 0), 0);
   const slots = HEAT_BLOCKS.map(b => {
-    const duAll = sumH(A.duty, b.hs), saAll = sumH(A.sales, b.hs);
+    const duAll = sumH(A.duty, b.hs), saAll = sumH(A.sales, b.hs), cAll = sumH(A.cnt, b.hs);
     const du = b.hs.reduce((a, h) => a + A.duty[dow][h], 0), sa = b.hs.reduce((a, h) => a + A.sales[dow][h], 0);
     if (!inRange(b)) return { b, rate: null, out: true };
     if (duAll < 60) return { b, rate: null };
-    const base = shrink(saAll, duAll / 60, perHour, 2);
-    return { b, du, duAll, base, rate: shrink(sa, du / 60, base, 3), raw: du ? sa / (du / 60) : null };
+    // 推定は新しい記録を重くした値で（表示する実績は元のまま）
+    const base = shrink(sumH(A.wsales, b.hs), sumH(A.wduty, b.hs) / 60, perHour, 2);
+    const wdu = b.hs.reduce((a, h) => a + A.wduty[dow][h], 0), wsa = b.hs.reduce((a, h) => a + A.wsales[dow][h], 0);
+    return { b, du, duAll, base, rate: shrink(wsa, wdu / 60, base, 3), raw: du ? sa / (du / 60) : null,
+      freq: cAll / (duAll / 60), fare: cAll ? saAll / cAll : 0 };
   });
   const known = slots.filter(s => s.rate != null);
   // 稼ぎどき：平均の1.1倍以上の上位2つ。無ければその曜日でいちばん良い時間
@@ -3171,17 +3191,26 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   // 稼ぎどきが隣り合う時間なら1行にまとめる（例：20-23時と23-2時 → 20-2時）
   const goIdx = goSlots.map(s => HEAT_BLOCKS.indexOf(s.b));
   const goGroups = goSlots.length === 2 && goIdx[1] - goIdx[0] === 1 ? [goSlots] : goSlots.map(s => [s]);
+  const dutyH = A.duty.flat().reduce((a, b) => a + b, 0) / 60;
+  const freq0 = dutyH ? A.rides.length / dutyH : 0, fare0 = A.rides.length ? A.rides.reduce((a, r) => a + r.total, 0) / A.rides.length : 0;
   const goRow = g => {
     const hs = new Set(g.flatMap(s => s.b.hs)), pl = demandPlaces(A.rides.filter(r => hs.has(new Date(r.start || r.ts).getHours())), hiFrom).filter(c => c.name && c.n >= 2).slice(0, 2);
     const label = `${g[0].b.s}-${(g.at(-1).b.s + g.at(-1).b.n) % 24}`, lo = Math.min(...g.map(s => s.rate)), hi = Math.max(...g.map(s => s.rate));
     const kb = kindEff(A.rides.filter(r => hs.has(new Date(r.start || r.ts).getHours())), effOf, perHour, 5)[0];   // その時間に効率が良い乗せ方
     const how = [kb ? kb.l : '', ...pl.map(c => esc(placeName(c)))].filter(Boolean);
-    return `<li><span class="ic go">▲</span><div><b>${label}時</b> ${g[0].weak ? 'がいちばん良い' : 'に走る'} <span class="num">${g.length > 1 ? k1(lo) + '〜' + k1(hi) : k1(hi)}千円/時</span>${how.length ? `<small>${how.join('・')}</small>` : ''}</div></li>`;
+    // 稼げる理由：1時間あたり＝回数 × 単価。全体と比べて大きい方を出す
+    const fq = mean(g.map(s => s.freq)) / Math.max(1e-9, freq0), fa = mean(g.map(s => s.fare)) / Math.max(1, fare0);
+    const why = Math.max(fq, fa) >= 1.1 ? (fq >= fa ? '回数が多い' : '単価が高い') : '';
+    return `<li><span class="ic go">▲</span><div><b>${label}時</b> ${g[0].weak ? 'がいちばん良い' : 'に走る'} <span class="num">${g.length > 1 ? k1(lo) + '〜' + k1(hi) : k1(hi)}千円/時</span>${why ? `<span class="why">${why}</span>` : ''}${how.length ? `<small>${how.join('・')}</small>` : ''}</div></li>`;
   };
   const html = `<div class="ana-card plan">
       <div class="phead"><span class="pk">次の営業</span><span class="pday">${dayLbl ? dayLbl + ' ' : ''}${nd.getMonth() + 1}/${nd.getDate()}（${WEEKDAYS[dow]}）</span></div>
       <div class="pexp"><span class="v num">${r100(est)}</span><span class="r">見込み</span>${pGoal != null ? `<span class="pg num">目標達成 ${Math.round(pGoal * 100)}%</span>` : ''}</div>
-      <div class="pr num">${r100(q1)}〜${r100(q3)}</div>
+      ${(() => { // 帯：ふだんの幅（真ん中の半分の日）と見込み、今日の必要額の位置
+        const lo = Math.min(q1, goal || q1, ...useV) , hi = Math.max(q3, goal || q3, ...useV), sp = Math.max(1, hi - lo), x = v => ((v - lo) / sp * 100).toFixed(1);
+        return `<div class="prange" role="img" aria-label="ふだんは ${r100(q1)}〜${r100(q3)}${goal ? `、必要額 ${r100(goal)}` : ''}">
+        <div class="trk"><i class="band" style="left:${x(q1)}%;width:${(x(q3) - x(q1)).toFixed(1)}%"></i><i class="est" style="left:${x(est)}%"></i>${goal ? `<i class="goal" style="left:${x(goal)}%"></i>` : ''}</div>
+        <div class="lbl num"><span>${r100(q1)}〜${r100(q3)}</span>${goal ? `<span class="g">必要 ${r100(goal)}</span>` : ''}</div></div>`; })()}
       <ul class="plist">
         ${goGroups.map(goRow).join('')}
         ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に</div></li>` : ''}
@@ -3261,13 +3290,17 @@ function renderAnalysis() {
   //   次の営業プランの時間割と同じ計算（同じ数字になる）
   const sum3 = (rows, hs) => hs.reduce((a, h) => a + rows.reduce((x, r) => x + r[h], 0), 0);
   const allBlocks = HEAT_BLOCKS.map(b => { const du = sum3(A.duty, b.hs), sa = sum3(A.sales, b.hs), c = sum3(A.cnt, b.hs);
-    return { b, du, c, raw: du ? sa / (du / 60) : 0, rate: du >= 60 ? shrink(sa, du / 60, perHour, 2) : null }; });
+    return { b, du, c, raw: du ? sa / (du / 60) : 0, rate: du >= 60 ? shrink(sum3(A.wsales, b.hs), sum3(A.wduty, b.hs) / 60, perHour, 2) : null }; });
+  // 1時間あたり ＝ 回数 × 単価（タップした時に出す）
+  const fx = c => c.c ? `・${(c.c / (c.du / 60)).toFixed(1)}回/時 × ${yen(Math.round(c.raw * (c.du / 60) / c.c))}` : '';
+  const LOW_H = 3;   // 営業が3時間に満たないマスは「記録が少ない」として薄く見せる
   const blocks = [];
   for (let d = 0; d < 7; d++) HEAT_BLOCKS.forEach((b, i) => {
     const du = b.hs.reduce((a, h) => a + A.duty[d][h], 0), sa = b.hs.reduce((a, h) => a + A.sales[d][h], 0), c = b.hs.reduce((a, h) => a + A.cnt[d][h], 0);
-    if (du >= 60 && allBlocks[i].rate != null) blocks.push({ d, b, du, c, raw: sa / (du / 60), rate: shrink(sa, du / 60, allBlocks[i].rate, 3) });
+    const wdu = b.hs.reduce((a, h) => a + A.wduty[d][h], 0), wsa = b.hs.reduce((a, h) => a + A.wsales[d][h], 0);
+    if (du >= 60 && allBlocks[i].rate != null) blocks.push({ d, b, du, c, raw: sa / (du / 60), rate: shrink(wsa, wdu / 60, allBlocks[i].rate, 3) });
   });
-  const bestBlock = blocks.slice().sort((a, b) => b.rate - a.rate)[0];
+  const bestBlock = (blocks.filter(c => c.du >= 180).length ? blocks.filter(c => c.du >= 180) : blocks).slice().sort((a, b) => b.rate - a.rate)[0];   // 記録が十分あるマスから選ぶ
   const heatCols = allBlocks.filter(c => c.du > 0).map(c => c.b);   // 記録のない時間は出さない
 
   // ── 乗車地：回数・待ち時間込みの時間効率・高額の出やすさを1つの表に（並べ替えで切り替え）
@@ -3342,17 +3375,17 @@ function renderAnalysis() {
         <span></span>${heatCols.map(b => `<span class="c num">${b.head}</span>`).join('')}
         <span class="r all">全</span>${allBlocks.filter(c => heatCols.includes(c.b)).map(c => c.rate == null
           ? `<button class="na" aria-pressed="false" data-tip="全曜日 ${c.b.label}時：記録が少ない時間です"></button>`
-          : `<button class="${heatLv(c.rate / Math.max(1, perHour)).cls} all num" aria-pressed="false" data-tip="全曜日 ${c.b.label}時：推定 ${yen(Math.round(c.rate))}/時（平均の${(c.rate / Math.max(1, perHour)).toFixed(1)}倍・実績 ${yen(Math.round(c.raw))}/時・${(c.du / 60).toFixed(1)}時間・${c.c}回）">${(c.rate / 1000).toFixed(c.rate >= 10000 ? 0 : 1)}</button>`).join('')}
+          : `<button class="${heatLv(c.rate / Math.max(1, perHour)).cls} all num" aria-pressed="false" data-tip="全曜日 ${c.b.label}時：推定 ${yen(Math.round(c.rate))}/時（平均の${(c.rate / Math.max(1, perHour)).toFixed(1)}倍・実績 ${yen(Math.round(c.raw))}/時・${(c.du / 60).toFixed(1)}時間${fx(c)}）">${(c.rate / 1000).toFixed(c.rate >= 10000 ? 0 : 1)}</button>`).join('')}
         ${WEEKDAYS.split('').map((w, d) => !A.duty[d].some(x => x > 0) ? '' : `<span class="r">${w}</span>` + heatCols.map(b => {
           const c = blocks.find(x => x.d === d && x.b === b);
           if (!c) return `<button class="na" aria-pressed="false" aria-label="${w}曜${b.label}時 記録なし" data-tip="${w}曜 ${b.label}時：記録が少ない時間です"></button>`;
           const ratio = c.rate / Math.max(1, perHour), lv = heatLv(ratio);
-          return `<button class="${lv.cls} ${c === bestBlock ? 'best' : ''} num" aria-pressed="false" aria-label="${w}曜${b.label}時 ${yen(Math.round(c.rate))}/時"
-            data-tip="${w}曜 ${b.label}時：推定 ${yen(Math.round(c.rate))}/時（平均の${ratio.toFixed(1)}倍・実績 ${yen(Math.round(c.raw))}/時・${(c.du / 60).toFixed(1)}時間・${c.c}回）">${(c.rate / 1000).toFixed(c.rate >= 10000 ? 0 : 1)}</button>`;
+          return `<button class="${lv.cls} ${c === bestBlock ? 'best' : ''} ${c.du < LOW_H * 60 ? 'low' : ''} num" aria-pressed="false" aria-label="${w}曜${b.label}時 ${yen(Math.round(c.rate))}/時"
+            data-tip="${w}曜 ${b.label}時：推定 ${yen(Math.round(c.rate))}/時（平均の${ratio.toFixed(1)}倍・実績 ${yen(Math.round(c.raw))}/時・${(c.du / 60).toFixed(1)}時間${fx(c)}${c.du < LOW_H * 60 ? '・記録が少ない' : ''}）">${(c.rate / 1000).toFixed(c.rate >= 10000 ? 0 : 1)}</button>`;
         }).join('')).join('')}
       </div></div>
       <div class="heat-legend"><span>稼げない</span><span class="scale">${HEAT_LV.slice().reverse().map(l => `<i class="${l.cls}" title="${l.label}"></i>`).join('')}</span><span>稼げる</span>
-        <span>平均 ${kv(Math.round(perHour))}/時</span></div>
+        <span>平均 ${kv(Math.round(perHour))}/時</span>${blocks.some(c => c.du < LOW_H * 60) ? '<span><i class="lowk"></i>記録が少ない</span>' : ''}</div>
       <div class="ana-tip"></div>
 `)}
     ${fold('place', '乗車地', plTake, `
