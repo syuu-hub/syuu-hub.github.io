@@ -138,6 +138,26 @@ svg{display:block}
 .d-row .chev{font-size:13px;color:var(--accent);font-weight:700}
 .depart-btn{width:100%;height:clamp(64px,9vh,80px);font-size:clamp(22px,3vh,28px);letter-spacing:.2em;border-radius:var(--r-lg)}
 .d-gps{display:flex;justify-content:center;gap:16px;color:var(--muted);font-size:13px}
+/* 出庫画面のステップ目標：出庫からの時間ごとの累計（だんだん高くなる段） */
+.d-steps{padding:12px 14px 10px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);text-align:left}
+.d-steps .h{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);margin-bottom:8px;white-space:nowrap}
+.d-steps .h small{font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
+.steps{display:grid;gap:4px;align-items:end}
+.steps .s{display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0;text-align:center}
+.steps .s i{display:block;border-radius:4px 4px 2px 2px;background:var(--surface-3)}
+.steps .s.last i{background:var(--accent)}
+.steps .s .v{font-size:12px;font-weight:700;white-space:nowrap}
+.steps .s .t{font-size:10px;color:var(--faint);white-space:nowrap}
+/* 目標の見直し・安定度 */
+.review .rv-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
+.review .rv-h .t{font-size:14px;font-weight:700}
+.review .rv-h small{font-size:11px;color:var(--faint);white-space:nowrap}
+.review .verdict{font-size:14px;line-height:1.5;margin:4px 0 10px;word-break:auto-phrase}
+.review .verdict b{color:var(--accent)}
+.review .verdict small{display:block;font-size:12px;color:var(--faint)}
+.review .btn{width:100%;margin-bottom:12px}
+.review .kpis{margin-bottom:0}
+.review .kpi .s{font-size:11px;color:var(--faint);white-space:nowrap}
 
 /* 下部タブバー */
 .tabbar{
@@ -196,6 +216,13 @@ svg{display:block}
 .goal-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;min-height:1.4em}
 .goal-row .goal-line{margin-top:0}
 .hud.done .remain{color:var(--ok)}
+/* ステップ目標：次の時刻までの累計の目標（1日の必要の下に1行） */
+.step-row{margin-top:2px}
+.step-row .goal-line{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.step-row .remain{flex:none;white-space:nowrap}
+.step-row .goal-line small{font-size:11px;color:var(--faint);margin-left:4px}
+.step-row .remain b{color:var(--accent);font-weight:700}
+.step-row .remain.clear,.step-row .remain.clear b{color:var(--ok)}
 
 .stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:clamp(10px,1.8vh,18px);padding-top:clamp(10px,1.8vh,16px);border-top:1px solid var(--line)}
 .stat{padding:0 4px;border-left:1px solid var(--line)}
@@ -393,7 +420,7 @@ svg{display:block}
 .kpis.k3 .kpi.main .v{color:var(--text)}
 .kpi .dl{font-size:11px;font-weight:700;margin-top:2px;color:var(--faint);white-space:nowrap}
 .kpi .dl.up{color:var(--ok)}
-.kpi .dl.down{color:var(--danger)}
+.kpi .dl.down{color:var(--muted)}   /* 下がった数字に赤は使わない（赤は安全・労働時間の警告だけ） */
 .kpi.main{background:var(--accent-soft);border:1px solid rgba(255,176,32,.35)}
 .kpi.main .v{color:var(--accent)}
 .pl-sort{margin:0 0 6px}
@@ -460,7 +487,7 @@ svg{display:block}
 .ana-fold .tk{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-fold .tk .dl{margin-left:4px;font-weight:700}
 .ana-fold .tk .dl.up{color:var(--ok)}
-.ana-fold .tk .dl.down{color:var(--danger)}
+.ana-fold .tk .dl.down{color:var(--muted)}
 .ana-fold .af-b{padding:0 16px 14px}
 .af-note{font-size:11px;color:var(--faint);margin:-4px 0 8px}
 .af-note b{color:var(--accent)}
@@ -966,6 +993,7 @@ svg{display:block}
     </div>
     <div class="d-info">
       <div class="d-row" id="dGoal"><span class="k">本日の必要額</span><span class="v num" id="dGoalVal">¥0</span></div>
+      <div class="d-steps" id="dSteps" hidden></div>
     </div>
     <div>
       <button class="btn primary depart-btn" id="departBtn">出庫</button>
@@ -993,6 +1021,7 @@ svg{display:block}
     </div>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="barWrap"><div class="bar-fill" id="bar"></div></div>
     <div class="goal-row"><span class="goal-line"><span id="goalLbl">1日の必要</span> <b class="num" id="goal">¥0</b></span><span class="remain num" id="remain"></span></div>
+    <div class="goal-row step-row" id="stepRow" hidden></div>
     <div class="stats">
       <div class="stat"><div class="k">乗車</div><div class="v num" id="stCount">0<small>回</small></div></div>
       <div class="stat"><div class="k">平均単価</div><div class="v num" id="stAvg">—</div></div>
@@ -2553,6 +2582,15 @@ function renderHud() {
   $('#barWrap').setAttribute('aria-valuenow', Math.round(clamp(ratio * 100, 0, 100)));
   $('#hud').classList.toggle('done', goal > 0 && sales >= goal);
   $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `達成 ＋${yen(sales - goal)}` : `あと ${yen(goal - sales)}`;
+  // ステップ目標：次の段（時刻までの累計）と、そこまであといくら。全部の段を過ぎたら出さない
+  const sp = sh && goal ? stepPlan(sh) : null, sr = $('#stepRow');
+  sr.hidden = !(sp && sp.next);
+  if (sp && sp.next) {
+    const n = sp.next, left = n.target - sales;
+    const html = `<span class="goal-line">次は <b class="num">${hhmm(n.t)}</b>までに <b class="num">${yen(n.target)}</b>${sp.short ? '<small>上乗せ込み</small>' : ''}</span>`
+      + `<span class="remain num ${left <= 0 ? 'clear' : ''}">${left > 0 ? `あと <b>${yen(left)}</b>` : `クリア ＋${yen(-left)}`}</span>`;
+    if (sr.dataset.h !== html) { sr.dataset.h = html; sr.innerHTML = html; }
+  }
   // 桁が増えても右の％と重ならないよう、枠に収まるまで売上の文字を小さくする（金額・％・画面幅が変わった時だけ）
   const fk = [sales, $('#pct').textContent, $('#pct').style.display, innerWidth, innerHeight].join('|');
   if (se.dataset.fit !== fk && se.clientWidth) {
@@ -2697,6 +2735,132 @@ function calcNeed(t, g) {
   let days = 0;
   for (const d = new Date(day); d <= to; d.setDate(d.getDate() + 1)) if (!isHoliday(d) || (workedToday && d.getTime() === day.getTime())) days++;
   return Math.ceil(Math.max(0, g - sales) / Math.max(1, days));
+}
+
+/* ============================================================
+   ステップ目標：1日の必要額を「出庫から何時間までにいくら（累計）」の段に分ける
+   ・配分は自分の記録から：直近90日の営業で、出庫から h 時間までに1日の売上の何割を稼いでいたか
+     （同じ曜日が5日以上あればその曜日、無ければ全曜日。いつもの営業時間の8割以上走った日だけ）
+   ・記録が5日に満たないうちは時間に比例
+   ・過ぎた段に届かなかった分は、半分だけ残りの段へ少しずつ上乗せ（最後の段で半分）。
+     残りの半分は翌日以降の1日の必要額で取り返す（その日のうちに全部取り返そうと焦らない）
+   ・段は2時間ごと。最後の段＝いつもの営業時間（設定の1日の予定、無ければ記録から推定、それも無ければ10時間）
+   ============================================================ */
+const STEP_H = 2;
+const stepLen = () => dayHoursEff() || 10;
+let STEPC = { k: '', v: null };
+function stepCurve(dow, L) {
+  const now = Date.now(), tk = dayKey(new Date());
+  const k = [S.shifts.length, S.rides.length, S.rides.reduce((a, r) => a + r.total, 0), dow, L, tk].join('|');
+  if (STEPC.k === k) return STEPC.v;
+  const Lc = Math.ceil(L);
+  const past = S.shifts.filter(sh => sh.end && sh.start >= now - 90 * 86400e3 && dayKey(new Date(sh.start)) !== tk && sh.end - sh.start >= L * 3600e3 * 0.8);
+  const same = past.filter(sh => new Date(sh.start).getDay() === dow), use = same.length >= 5 ? same : past;
+  let v = null;
+  if (use.length >= 5) {
+    const byId = new Map(use.map(sh => [sh.id, sh])), cum = new Array(Lc + 1).fill(0);
+    for (const r of S.rides) {
+      const sh = byId.get(r.shiftId); if (!sh) continue;
+      const h = Math.max(0, Math.ceil((r.ts - sh.start) / 3600e3));   // 降車の時刻で数える
+      for (let i = h; i <= Lc; i++) cum[i] += r.total;
+    }
+    if (cum[Lc] > 0) v = cum.map(c => Math.min(1, c / cum[Lc]));
+  }
+  STEPC = { k, v };
+  return v;
+}
+// 段の土台（上乗せ前）：[{h, t, base}]。goal は1日の必要額
+function stepBases(start, goal, dow = new Date(start).getDay()) {
+  if (!goal) return [];
+  const L = stepLen(), Lc = Math.ceil(L), curve = stepCurve(dow, L);
+  const frac = h => curve ? curve[Math.min(Math.ceil(h), Lc)] : Math.min(1, h / L);
+  const hs = [];
+  for (let h = STEP_H; h < L - 0.5; h += STEP_H) hs.push(h);
+  hs.push(L);
+  let prev = 0;
+  return hs.map(h => {
+    const base = h >= L ? goal : Math.max(prev, Math.round(goal * frac(h) / 100) * 100);
+    prev = base;
+    return { h, t: start + h * 3600e3, base };
+  });
+}
+// 営業中の段：過ぎた段の達成と、次の段の目標（不足の半分を上乗せ済み）
+//   goal を渡さなければ、その日の1日の必要額（出庫時に決まるので営業中は変わらない）
+function stepPlan(sh, now = Date.now(), goal = dailyNeed(sh.start)) {
+  const cps = stepBases(sh.start, goal);
+  if (!cps.length) return null;
+  const rides = S.rides.filter(r => r.shiftId === sh.id);
+  const salesAt = t => rides.reduce((a, r) => a + (r.ts <= t ? r.total : 0), 0);
+  const passed = cps.filter(c => c.t <= now), rest = cps.filter(c => c.t > now);
+  for (const c of passed) { c.sales = salesAt(c.t); c.hit = c.sales >= c.base; c.target = c.base; }
+  const last = passed.at(-1), short = last ? Math.max(0, last.base - last.sales) : 0;
+  rest.forEach((c, i) => { c.target = c.base + Math.round(short / 2 * (i + 1) / rest.length / 100) * 100; });
+  return { goal, cps, passed, next: rest[0] || null, short, hits: passed.filter(c => c.hit).length };
+}
+// 段の小さな階段グラフ（出庫画面・次の営業）。label：各段の下の文字
+function stepsHtml(cps, label) {
+  if (!cps.length) return '';
+  const top = cps.at(-1).base || 1;
+  return `<div class="steps num" style="grid-template-columns:repeat(${cps.length},minmax(0,1fr))" role="img" aria-label="${cps.map(c => label(c) + ' ' + yen(c.base)).join('、')}">${cps.map((c, i) =>
+    `<div class="s ${i === cps.length - 1 ? 'last' : ''}"><span class="v">${compactYen(c.base)}</span><i style="height:${Math.max(4, Math.round(c.base / top * 56))}px"></i><span class="t">${label(c)}</span></div>`).join('')}</div>`;
+}
+
+/* ============================================================
+   目標の見直し（2週間ごと）と安定度
+   ・直近14日（今日は除く）の営業日で、その日の必要額に届いた日の割合と、下から4分の1の日の売上を見る
+   ・たまたまの高額（直近90日の上位5%）は、ふつうの1回（中央値）に置き換えて判定する
+   ・届いた日が7割以上で、下から4分の1の日も必要額の85%以上 → 1日 ¥1,500 上げる
+     届いた日が5割未満が2回（28日）続いた → 1日 ¥1,500 下げて型を見直す。それ以外はそのまま
+   ・1日の上げ幅 × 締め期間の出勤予定日数 だけ月の目標を動かす（1,000円単位）
+   ・一度見直したら14日は次の見直しをしない
+   ============================================================ */
+const REVIEW_STEP = 1500, REVIEW_DAYS = 14;
+function goalReview() {
+  const g = S.settings.monthGoal;
+  if (!g) return null;
+  const now = Date.now(), tk = dayKey(new Date());
+  const recent = S.rides.filter(r => r.ts >= now - 90 * 86400e3).map(r => r.total);
+  const bonus = recent.length >= 20 ? quant(recent, .95) : Infinity, usual = quant(recent, .5);
+  const days = (a, b) => {   // a 日前〜b 日前の営業日（入庫済み・必要額のある日）
+    const m = new Map();
+    for (const sh of S.shifts) {
+      if (!sh.end || !(sh.goal > 0) || sh.start < now - a * 86400e3 || sh.start >= now - b * 86400e3 || dayKey(new Date(sh.start)) === tk) continue;
+      const k = dayKey(new Date(sh.start)), st = shiftStats(sh), x = m.get(k) || { sales: 0, judged: 0, goal: 0, cpN: 0, cpHit: 0 };
+      x.sales += st.sales;
+      x.judged += st.rides.reduce((s, r) => s + (r.total > bonus ? usual : r.total), 0);
+      x.goal = Math.max(x.goal, sh.goal);
+      const sp = stepPlan(sh, sh.end, sh.goal);
+      if (sp) { x.cpN += sp.passed.length; x.cpHit += sp.hits; }
+      m.set(k, x);
+    }
+    return [...m.values()];
+  };
+  const cur = days(REVIEW_DAYS, 0), prev = days(REVIEW_DAYS * 2, REVIEW_DAYS);
+  const rateOf = D => D.length ? D.filter(d => d.judged >= d.goal).length / D.length : 0;
+  const rate = rateOf(cur), low = quant(cur.map(d => d.judged), .25), gm = quant(cur.map(d => d.goal), .5);
+  const cpN = cur.reduce((a, d) => a + d.cpN, 0), cpRate = cpN ? cur.reduce((a, d) => a + d.cpHit, 0) / cpN : null;
+  // 週ごとの売上のぶれ（月曜始まり・終わった週だけ・直近8週）：標準偏差 ÷ 平均
+  const wk = new Map(), monday = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); };
+  const thisWeek = monday(now);
+  for (const sh of S.shifts) {
+    const w = monday(sh.start);
+    if (w >= thisWeek || w < thisWeek - 8 * 7 * 86400e3) continue;
+    wk.set(w, (wk.get(w) || 0) + shiftStats(sh).sales);
+  }
+  const ws = [...wk.values()], wMean = mean(ws);
+  const wcv = ws.length >= 3 && wMean ? Math.sqrt(mean(ws.map(x => (x - wMean) ** 2))) / wMean : null;
+  // 締め期間の出勤予定日数（固定休を除く）
+  const p = periodOf(now), [pf, pt] = periodRange(p.y, p.m);
+  let wd = 0;
+  for (const d = new Date(pf); d <= pt; d.setDate(d.getDate() + 1)) if (!isHoliday(d)) wd++;
+  const at = S.settings.goalReviewAt || 0, nextAt = at + REVIEW_DAYS * 86400e3;
+  let dir = 0;
+  if (cur.length >= 5) {
+    if (rate >= 0.7 && low >= gm * 0.85) dir = 1;
+    else if (rate < 0.5 && prev.length >= 5 && rateOf(prev) < 0.5) dir = -1;
+  }
+  const newGoal = dir ? Math.max(0, Math.round((g + dir * REVIEW_STEP * wd) / 1000) * 1000) : g;
+  return { n: cur.length, need: Math.max(0, 5 - cur.length), rate, low, gm, cpRate, wcv, weeks: ws.length, dir, newGoal, wait: now < nextAt ? nextAt : 0, wd };
 }
 // 暦月（1日〜末日）の労働時間。出庫日の月で数える
 const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.start); return d.getFullYear() === y && d.getMonth() === m; })
@@ -3181,6 +3345,8 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
     const waitAvg = timed.length >= 3 ? Math.round(mean(timed.map(r => effOf.get(r.id).wait))) : null;
     if (limit > 0) standLine = `<li><span class="ic st">待</span><div>乗り場は <b class="num">${limit}分</b> まで${waitAvg != null ? `<small>いま平均${waitAvg}分${waitAvg > limit ? '・待ちすぎ' : ''}</small>` : ''}</div></li>`;
   }
+  // 空車1分の値段（機会費用）：目標があれば必要額 ÷ いつもの営業時間、無ければ実績の1時間あたり
+  const minCost = Math.round((goal ? goal / stepLen() : perHour) / 60);
   // 稼ぎどきが隣り合う時間なら1行にまとめる（例：20-23時と23-2時 → 20-2時）
   const goIdx = goSlots.map(s => HEAT_BLOCKS.indexOf(s.b));
   const goGroups = goSlots.length === 2 && goIdx[1] - goIdx[0] === 1 ? [goSlots] : goSlots.map(s => [s]);
@@ -3195,11 +3361,14 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
       <div class="phead"><span class="pk">次の営業</span><span class="pday">${dayLbl ? dayLbl + ' ' : ''}${nd.getMonth() + 1}/${nd.getDate()}（${WEEKDAYS[dow]}）</span></div>
       <div class="pexp"><span class="v num">${r100(est)}</span><span class="r">見込み</span>${goal ? `<span class="pp num">${Math.round(est / goal * 100)}<small>%</small></span>` : ''}</div>
 ${goal ? `<div class="pbar"><i style="width:${Math.min(100, est / goal * 100).toFixed(1)}%"></i></div>
-      <div class="plbl num"><span>必要 <b>${r100(goal)}</b></span><span>${est >= goal ? `＋${r100(est - goal)}` : `あと ${r100(goal - est)}`}</span></div>` : ''}
+      <div class="plbl num"><span>必要 <b>${r100(goal)}</b></span><span>${est >= goal ? `＋${r100(est - goal)}` : `あと ${r100(goal - est)}`}</span></div>
+      <div class="sub-h">ステップ目標<span>出庫から何時間までにいくら（累計）</span></div>
+      ${stepsHtml(cur ? stepBases(cur.start, goal) : stepBases(nd.getTime(), goal, dow), c => '+' + (Math.round(c.h * 2) / 2) + 'h')}` : ''}
       <ul class="plist">
         ${goGroups.map(goRow).join('')}
         ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に</div></li>` : ''}
         ${standLine}
+        ${minCost ? `<li><span class="ic pl">¥</span><div>空車の1分 ＝ <b class="num">${yen(minCost)}</b><small>待つか動くかは、この金額で比べる</small></div></li>` : ''}
       </ul>
       <div class="tipgrp">
       <div class="sub-h">${wname}の時間割（千円/時）</div>
@@ -3210,6 +3379,33 @@ ${goal ? `<div class="pbar"><i style="width:${Math.min(100, est / goal * 100).to
       </div>
     </div>`;
   return html;
+}
+
+// 目標の見直しと安定度のカード（分析の「次の営業」の下）
+function reviewHtml() {
+  const R = goalReview();
+  if (!R) return '';
+  const md = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
+  const pct = v => v == null ? '—' : Math.round(v * 100) + '<small>%</small>';
+  let verdict;
+  if (R.need) verdict = `判定まで あと <b class="num">${R.need}日</b> の営業<small>直近14日の営業が5日以上で判定します</small>`;
+  else if (R.dir > 0) verdict = `目標に届く日が続いています。1日 <b class="num">＋${yen(REVIEW_STEP)}</b> 上げましょう<small>月の目標 ${yen(S.settings.monthGoal)} → ${yen(R.newGoal)}（出勤予定${R.wd}日）</small>`;
+  else if (R.dir < 0) verdict = `届かない日が4週続いています。1日 <b class="num">${yen(REVIEW_STEP)}</b> 下げて、型を見直しましょう<small>月の目標 ${yen(S.settings.monthGoal)} → ${yen(R.newGoal)}</small>`;
+  else verdict = `いまの目標のままで続けましょう<small>届いた日が7割以上、悪い日も必要額の85%以上で引き上げ</small>`;
+  const btn = R.dir && !R.need ? (R.wait
+    ? `<div class="ana-note">次の見直しは ${md(R.wait)} から</div>`
+    : `<button class="btn sm ${R.dir > 0 ? 'primary' : ''}" data-goalset="${R.newGoal}">月の目標を ${yen(R.newGoal)} にする</button>`) : '';
+  return `<div class="ana-card review">
+      <div class="rv-h"><span class="t">目標の見直し</span><small>2週間ごと・直近14日</small></div>
+      <div class="verdict">${verdict}</div>
+      ${btn}
+      <div class="kpis k3">
+        <div class="kpi"><div class="k">届いた日</div><div class="v num">${R.n ? pct(R.rate) : '—'}</div><div class="s">目標 70%</div></div>
+        <div class="kpi"><div class="k">悪い日の売上</div><div class="v num">${R.n >= 4 ? compactYen(Math.round(R.low)) : '—'}</div><div class="s">下から4分の1</div></div>
+        <div class="kpi"><div class="k">週のぶれ</div><div class="v num">${R.wcv != null ? '±' + Math.round(R.wcv * 100) + '<small>%</small>' : '—'}</div><div class="s">${R.weeks >= 3 ? `直近${R.weeks}週` : '3週から'}</div></div>
+      </div>
+      ${R.cpRate != null ? `<div class="ana-note">ステップの段に届いた割合 ${Math.round(R.cpRate * 100)}%（直近14日）</div>` : ''}
+    </div>`;
 }
 
 // 乗車の種類ごとの時間効率：乗せた売上 ÷（前の降車からの空き時間＋乗車時間）。少ない記録は全体の平均へ寄せる
@@ -3345,6 +3541,7 @@ function renderAnalysis() {
 
   body.innerHTML = `
     ${plan}
+    ${reviewHtml()}
     <div class="ana-sh">${range === 'all' ? '全期間' : '直近' + range + '日'}の成績</div>
     <div class="kpis k3">
       <div class="kpi main"><div class="k">1時間あたり</div><div class="v num">${kv(Math.round(K.perHour))}</div>${delta('perHour')}</div>
@@ -3447,6 +3644,14 @@ $('#anaBody').addEventListener('click', e => {
   else { MAPF.hi = !MAPF.hi; b.setAttribute('aria-pressed', MAPF.hi); }
   drawMapPts();
 });
+// 目標の見直し：提案どおりに月の目標を変える
+$('#anaBody').addEventListener('click', e => {
+  const b = e.target.closest('[data-goalset]'); if (!b) return;
+  const v = +b.dataset.goalset;
+  if (!(v > 0) || !confirm(`月の目標を ${yen(S.settings.monthGoal)} → ${yen(v)} にしますか？`)) return;
+  S.settings.monthGoal = v; S.settings.goalReviewAt = Date.now();
+  save(); haptic(20); renderAll(); toast(`月の目標を ${yen(v)} にしました`);
+});
 $('#anaBody').addEventListener('click', e => { const b = e.target.closest('[data-ps]'); if (!b) return; haptic(); S.settings.anaPlace = b.dataset.ps; saveSoon(); renderAnalysis(); });
 $('#anaRange').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); S.settings.anaRange = b.dataset.v; saveSoon(); renderAnalysis(); });
 $('#anaBody').addEventListener('click', e => { const el = e.target.closest('[data-tip]'); if (el) { haptic(); anaTip(el, el.dataset.tip); } });
@@ -3517,6 +3722,13 @@ function renderDepart() {
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
   $('#dGoalVal').textContent = S.settings.monthGoal ? (dailyNeed() ? yen(dailyNeed()) : '達成') : '未設定';
+  // ステップ目標：いま出庫したら、出庫から何時間までにいくら（累計）
+  const ds = $('#dSteps'), cps = stepBases(Date.now(), dailyNeed());
+  ds.hidden = !cps.length;
+  if (cps.length) {
+    const html = `<div class="h"><span>ステップ目標</span><small>出庫からの累計${stepCurve(d.getDay(), stepLen()) ? '・自分の記録から' : ''}</small></div>${stepsHtml(cps, c => '+' + (Math.round(c.h * 2) / 2) + 'h')}`;
+    if (ds.dataset.h !== html) { ds.dataset.h = html; ds.innerHTML = html; }
+  }
 }
 
 // 各画面右上のステータス表示（タップでホームへ）
