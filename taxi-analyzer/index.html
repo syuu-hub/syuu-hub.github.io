@@ -932,6 +932,7 @@ svg{display:block}
 .set-note{flex:1 1 100%;font-size:12px;color:var(--faint);line-height:1.55;word-break:auto-phrase}
 .set-note b{color:var(--text);font-weight:600}
 .set-note .nw{white-space:nowrap}
+.setting .k .k-sub{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:1px}
 #monthGoalBtn.auto{border-style:dashed;color:var(--muted)}
 /* アドバイス */
 .adv-top{background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%);border-color:var(--accent)}
@@ -1204,11 +1205,11 @@ svg{display:block}
           <div class="k">遠距離割の基準</div>
           <button class="btn sm num" id="longFromBtn">¥9,000</button>
         </div>
-          <div class="sub-h">配車アプリ</div>
           <div class="setting">
-          <div class="k">迎車料金</div>
+          <div class="k">迎車料金<small class="k-sub">配車アプリ・無線</small></div>
           <button class="btn sm num" id="pickupFeeBtn">¥0</button>
         </div>
+          <div class="sub-h">配車アプリ</div>
         <ul class="list" id="appList"></ul>
         <button class="btn sm" style="width:100%;margin-top:10px" id="appAddBtn">＋ アプリを追加</button>
           </div>
@@ -1691,7 +1692,7 @@ const KIND = [
 ];
 // defaultPay = そのアプリを選んだ時の決済方法（'app' はそのアプリの決済）
 // fee = アプリ決済時の手数料、feeOther = それ以外の決済時の手数料（GOはGO Pay以外で¥100）
-// 迎車料金は会社共通の settings.pickupFee。いずれも入力した総額から差し引いて内訳を出す
+// 迎車料金は会社共通の settings.pickupFee（配車アプリ・無線で付く）。いずれも入力した総額から差し引いて内訳を出す
 // payKey = そのアプリ内の決済にあたる支払い方法（GOなら GO Pay）
 const DEFAULT_APPS = [['GO', 'cash', 100, 'gopay'], ['DiDi', 'app', 0, 'app'], ['S.RIDE', 'app', 0, 'app'], ['Uber', 'app', 0, 'app']]
   .map(([name, defaultPay, feeOther, payKey], i) => ({ id: 'app' + i, name, defaultPay, fee: 0, feeOther, payKey }));
@@ -4262,7 +4263,8 @@ function openEntry(rideId, shiftId) {
 
 function entryTotal() { return +E.amount || 0; }   // メーター総額（手数料・迎車料金込み）
 
-// 配車アプリの乗車は、総額から迎車料金・アプリ手数料（決済方法で変わる）を差し引いて運賃を出す
+// 迎車料金が付く乗車（配車アプリ・無線）は、総額から迎車料金を差し引いて運賃を出す。配車アプリはさらにアプリ手数料（決済方法で変わる）も
+const hasPickup = kind => kind === 'app' || kind === 'radio';
 // 「迎車なし」はメーターの迎車を押し忘れた時用：迎車料金を差し引かず内訳にも含めない
 // 割引（いずれも10円単位で四捨五入）
 // 遠距離割：運賃メーターが設定の金額（既定9,000円）を超えた部分の1割（設定でオフ可）。障害者割：遠距離割後の運賃の1割
@@ -4272,7 +4274,7 @@ const handiDisc = fare => tenth(fare);
 function entryBreakdown() {
   const gross = entryTotal();
   const cfg = E.kind === 'app' && E.app && S.settings.apps.find(a => a.id === E.app.id);
-  const pickup = cfg && !E.noPickup ? S.settings.pickupFee : 0;
+  const pickup = (cfg || E.kind === 'radio') && !E.noPickup ? S.settings.pickupFee : 0;
   const appFee = cfg ? appFeeFor(cfg, E.pay) : 0;
   const fare = gross - pickup - appFee;
   const long = longDisc(fare);   // 遠距離割は自動適用（設定の金額を超えた時だけ効く）
@@ -4318,7 +4320,7 @@ function renderEntry() {
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
   $('#eDiscHandiSub').textContent = E.handi ? '−' + yen(bd.handi) : '';
   const noPick = $('#eNoPick');
-  noPick.hidden = E.kind !== 'app';
+  noPick.hidden = !hasPickup(E.kind);
   noPick.setAttribute('aria-pressed', !!E.noPickup);
   renderEntryTimes();
   // 配車アプリ選択中は「現金」「そのアプリの決済（GO Pay・◯◯決済）」を先頭に並べる
@@ -4456,7 +4458,7 @@ function saveEntry() {
   const fare = { meter: bd.meter, pickup: bd.pickup, appFee: bd.appFee };
   if (bd.long) fare.long = bd.long;
   if (bd.handi) fare.handi = bd.handi;
-  const noPickup = E.kind === 'app' && !!E.noPickup;
+  const noPickup = hasPickup(E.kind) && !!E.noPickup;
   const ticket = E.pay === 'ticket' && E.ticket ? { id: E.ticket.id, name: E.ticket.name } : null;
   const memo = $('#eMemo').value.trim().replace(/\s+/g, ' ').slice(0, 60);
   if (E.editId) {
@@ -4966,7 +4968,7 @@ $('#appAddBtn').addEventListener('click', () => openAppEditor(null));
 $('#appOk').addEventListener('click', saveApp);
 $('#appOwnPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.payKey = b.dataset.pay; renderAppSheet(); } });
 $('#longFromBtn').addEventListener('click', () => openNumpad('遠距離割を適用する金額', S.settings.longFrom, v => { S.settings.longFrom = v; save(); renderData(); }, { label: 'この金額を超えた分の1割' }));
-$('#pickupFeeBtn').addEventListener('click', () => openNumpad('迎車料金', S.settings.pickupFee, v => { S.settings.pickupFee = v; save(); renderData(); }, { label: '会社共通' }));
+$('#pickupFeeBtn').addEventListener('click', () => openNumpad('迎車料金', S.settings.pickupFee, v => { S.settings.pickupFee = v; save(); renderData(); }, { label: '会社共通・配車アプリと無線' }));
 $('#appFee').addEventListener('click', () => openNumpad('アプリ決済の手数料', AE.fee, v => { AE.fee = v; renderAppSheet(); }));
 $('#appFeeOther').addEventListener('click', () => openNumpad('他の決済の手数料', AE.feeOther, v => { AE.feeOther = v; renderAppSheet(); }));
 $('#appPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.defaultPay = b.dataset.pay; renderAppSheet(); } });
