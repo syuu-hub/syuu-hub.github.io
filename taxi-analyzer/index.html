@@ -3542,8 +3542,6 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
     const waitAvg = timed.length >= 3 ? Math.round(mean(timed.map(r => effOf.get(r.id).wait))) : null;
     if (limit > 0) standLine = `<li><span class="ic st">待</span><div>乗り場は <b class="num">${limit}分</b> まで${waitAvg != null ? `<small>いま平均${waitAvg}分${waitAvg > limit ? '・待ちすぎ' : ''}</small>` : ''}</div></li>`;
   }
-  // 空車1分の値段（機会費用）：目標があれば必要額 ÷ いつもの営業時間、無ければ実績の1時間あたり
-  const minCost = Math.round((goal ? goal / stepLen() : perHour) / 60);
   // 稼ぎどきが隣り合う時間なら1行にまとめる（例：20-23時と23-2時 → 20-2時）
   const goIdx = goSlots.map(s => HEAT_BLOCKS.indexOf(s.b));
   const goGroups = goSlots.length === 2 && goIdx[1] - goIdx[0] === 1 ? [goSlots] : goSlots.map(s => [s]);
@@ -3565,7 +3563,6 @@ ${goal ? `<div class="pbar"><i style="width:${Math.min(100, est / goal * 100).to
         ${goGroups.map(goRow).join('')}
         ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に</div></li>` : ''}
         ${standLine}
-        ${minCost ? `<li><span class="ic pl">¥</span><div>空車の1分 ＝ <b class="num">${yen(minCost)}</b><small>待つか動くかは、この金額で比べる</small></div></li>` : ''}
       </ul>
       <div class="tipgrp">
       <div class="sub-h">${wname}の時間割（千円/時）</div>
@@ -3808,7 +3805,7 @@ function adviceList() {
   const A = analyze('90'), D = A.dayList;
   if (D.length < 3 || A.rides.length < 10) return { need: true, D: D.length, n: A.rides.length, items: [] };
   const sumOf = (a, f) => a.reduce((x, y) => x + f(y), 0);
-  const kv = n => n >= 100000 ? compactYen(n) : yen(n);
+  const kv = n => n >= 100000 ? compactYen(n) : yen(Math.round(n / 100) * 100);   // 平均・見込みは100円単位（メーターと同じ刻み）
   const sales = sumOf(A.rides, r => r.total), ms = sumOf(D, d => d.ms), perHour = ms ? sales / (ms / 3600e3) : 0;
   const perDay = sales / D.length, items = [];
   // 待ち時間・乗車時間（分析と同じ：前の降車からこの乗車まで。2時間を超える空きは休憩とみなす）
@@ -3885,7 +3882,7 @@ function adviceList() {
   const occ = sumOf(D, d => d.occ) / Math.max(1, sumOf(D, d => d.work));
   if (occ > 0 && occ < 0.4) items.push({ cat: '判断', gain: perHour * 0.05 * L,
     t: `実車率 ${Math.round(occ * 100)}% を上げる`,
-    why: `営業時間のうちお客さんを乗せているのは ${Math.round(occ * 100)}%。空車の1分は ${yen(Math.round(perHour / 60))} の損`,
+    why: `営業時間のうちお客さんを乗せているのは ${Math.round(occ * 100)}%。空車が10分続くと、約 ${yen(Math.round(perHour / 6 / 100) * 100)} 分の遅れ`,
     act: `空車が長くなりやすい時間は、<b>アプリをオンにして先回り</b>するか、回転の速い乗り場へ` });
   // 7) 高額の出やすい場所
   const hiFrom = S.settings.hiFare || Math.max(3000, Math.ceil(quant(A.rides.map(r => r.total), .8) / 1000) * 1000);
@@ -3915,7 +3912,6 @@ function adviceList() {
 
 function renderAdvice() {
   const R = adviceList(), body = $('#advBody');
-  const g = dailyNeed(), minCost = Math.round((g ? g / stepLen() : (R.perHour || 0)) / 60);
   const cards = R.need
     ? `<div class="ana-card"><div class="ana-empty">記録が増えると、あなた専用のアドバイスが出ます<br><span class="num">いま ${R.D}日・${R.n}件（3日・10件から）</span></div></div>`
     : !R.items.length ? `<div class="ana-card"><div class="ana-empty">いまの記録では、大きな改善点は見つかりませんでした。<br>この調子で続けましょう</div></div>`
@@ -3947,7 +3943,7 @@ function renderAdvice() {
       '10〜15分で乗せられれば良い場所、5分以内ならとても良い場所',
       '新幹線・飛行機の到着時刻に合わせて、混む便の少し前に入る',
       '帰る方向や次の狙いに合わせて車の向きを考えて並ぶ',
-      minCost ? `待つか動くかは「空車1分 ＝ ${yen(minCost)}」で比べる` : '待つか動くかは、空車1分の値段で比べる'])}
+      '待つか動くかは、分析「次の営業」の「乗り場は ◯分まで」で決める<small>並ぶ前に「前の台数 × 1台が出る間隔」で待ち時間を見積もり、超えそうなら並ばない</small>'])}
     ${tip('安全と労働時間', [
       '近距離のお客さんも断らない（乗車拒否は道路運送法で禁止）',
       '走行中はアプリを操作しない。止まってから記録する',
