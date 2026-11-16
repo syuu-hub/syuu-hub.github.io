@@ -931,6 +931,7 @@ svg{display:block}
 .seg.hol button{flex:1;min-width:0;padding:0}
 .set-note{flex:1 1 100%;font-size:12px;color:var(--faint);line-height:1.55;word-break:auto-phrase}
 .set-note b{color:var(--text);font-weight:600}
+.set-note .nw{white-space:nowrap}
 #monthGoalBtn.auto{border-style:dashed;color:var(--muted)}
 /* アドバイス */
 .adv-top{background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%);border-color:var(--accent)}
@@ -1157,8 +1158,9 @@ svg{display:block}
           <button class="fold-h" aria-expanded="false" aria-controls="gWorkB"><span class="t">営業・勤務</span><span class="s num" id="gWorkSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gWorkB" hidden>
           <div class="setting hol-setting">
-          <div class="k">月の目標金額</div>
+          <div class="k" id="goalK">月の目標金額</div>
           <button class="btn sm num" id="monthGoalBtn">未設定</button>
+          <div class="seg hol" id="goalUnitSeg"><button data-gu="month">月単位</button><button data-gu="day">日単位</button></div>
           <div class="seg hol" id="goalModeSeg"><button data-gm="manual">任意の金額</button><button data-gm="auto">自動（ステップアップ）</button></div>
           <div class="set-note" id="goalNote" hidden></div>
         </div>
@@ -2631,15 +2633,15 @@ function shiftStats(sh) {
 function renderHud() {
   const sh = curShift();
   const st = sh ? shiftStats(sh) : null;
-  const mg = S.settings.monthGoal, goal = dailyNeed(sh ? sh.start : Date.now());
+  const mg = hasGoal(), goal = dailyNeed(sh ? sh.start : Date.now());
   const sales = st ? st.sales : 0;
   const ratio = goal > 0 ? sales / goal : 0;
 
   const se = $('#sales');
   if (se.dataset.v !== String(sales)) { se.dataset.v = sales; se.innerHTML = yenHtml(sales); }
   // 1日の必要額＝月の目標の残り ÷ 残りの出勤日（月の目標が未設定・達成済みの時はその表示）
-  $('#goalLbl').textContent = !mg ? '' : goal ? '1日の必要' : '';
-  $('#goal').textContent = !mg ? '月の目標を設定' : goal ? yen(goal) : '月の目標達成';
+  $('#goalLbl').textContent = !mg ? '' : goal ? (dayUnit() ? '1日の目標' : '1日の必要') : '';
+  $('#goal').textContent = !mg ? '目標を設定' : goal ? yen(goal) : '月の目標達成';
   $('#pct').style.display = goal ? '' : 'none';
   $('#barWrap').style.visibility = goal ? '' : 'hidden';
   $('#pct').innerHTML = Math.floor(ratio * 100) + '<small>%</small>';
@@ -2778,8 +2780,21 @@ function planDays(y, m, from = new Date(y, m, 1), to = new Date(y, m + 1, 0)) { 
 }
 // 1日の必要額：（月の目標 − 締め期間のうち t の日より前の売上）÷ t の日から締め日までの出勤日（固定休を除く）
 //   その日の売上は入れないので、営業中に必要額は変わらない。t の日に営業していれば固定休でも数える
+// 目標の単位（月単位／日単位）。日単位の自動は自動で決めた1日の目標、まだ無ければ自分で入れた1日の目標
+const dayUnit = () => S.settings.goalUnit === 'day';
+const dayGoalNow = () => (goalAuto() && (S.settings.autoGoal || {}).daily) || S.settings.dayGoal || 0;
+const hasGoal = () => dayUnit() ? dayGoalNow() > 0 : S.settings.monthGoal > 0;
+const goalChange = v => dayUnit() ? `1日の目標 ${yen(dayGoalNow())} → ${yen(v)}` : `月の目標 ${yen(S.settings.monthGoal)} → ${yen(v)}`;
+// t の属する締め期間の出勤予定日数（固定休を除く）
+function periodWorkdays(t) {
+  const p = periodOf(t), [pf, pt] = periodRange(p.y, p.m);
+  let n = 0;
+  for (const d = new Date(pf); d <= pt; d.setDate(d.getDate() + 1)) if (!isHoliday(d)) n++;
+  return n;
+}
 let NEED = { k: '', v: 0 };   // 毎秒の描画で計算し直さないよう、条件が同じなら前の結果を使う
 function dailyNeed(t = Date.now()) {
+  if (dayUnit()) return dayGoalNow();   // 日単位：1日の目標そのもの（前の日の過不足は持ち越さない）
   const g = S.settings.monthGoal;
   if (!g) return 0;
   const dk = dayKey(new Date(t)), ck = [dk, g, S.settings.closingDay, holidayList().join(), S.shifts.length, S.rides.length, S.rides.reduce((a, r) => a + r.total, 0)].join('|');
@@ -2926,8 +2941,8 @@ function usualStart(day, dow) {
    ============================================================ */
 const REVIEW_STEP = 1500, REVIEW_DAYS = 14;
 function goalReview() {
+  if (!hasGoal()) return null;
   const g = S.settings.monthGoal;
-  if (!g) return null;
   const now = Date.now(), tk = dayKey(new Date());
   const recent = S.rides.filter(r => r.ts >= now - 90 * 86400e3).map(r => r.total);
   const bonus = recent.length >= 20 ? quant(recent, .95) : Infinity, usual = quant(recent, .5);
@@ -2969,7 +2984,8 @@ function goalReview() {
     if (rate >= 0.7 && low >= gm * 0.85) dir = 1;
     else if (rate < 0.5 && prev.length >= 5 && rateOf(prev) < 0.5) dir = -1;
   }
-  const newGoal = dir ? Math.max(0, Math.round((g + dir * REVIEW_STEP * wd) / 1000) * 1000) : g;
+  // 日単位は1日の目標を ±¥1,500、月単位は月の目標を ±¥1,500 × 出勤予定日数
+  const newGoal = dayUnit() ? Math.max(0, dayGoalNow() + dir * REVIEW_STEP) : dir ? Math.max(0, Math.round((g + dir * REVIEW_STEP * wd) / 1000) * 1000) : g;
   return { n: cur.length, need: Math.max(0, 5 - cur.length), rate, low, gm, cpRate, wcv, weeks: ws.length, dir, newGoal, wait: now < nextAt ? nextAt : 0, wd };
 }
 
@@ -3021,16 +3037,16 @@ function autoGoalTick() {
       const R = A.daily ? goalReview() : null, keep = A.daily && !(R && !R.need && R.dir < 0);
       const daily = keep ? Math.max(c.daily, A.daily) : c.daily;
       Object.assign(A, { period: pk, daily, med: c.med });
-      S.settings.monthGoal = Math.round(daily * c.wd / 1000) * 1000;
+      if (!dayUnit()) S.settings.monthGoal = Math.round(daily * c.wd / 1000) * 1000;   // 日単位は1日の目標だけ
       S.settings.goalReviewAt = now;
-      msg = `今月の目標を自動で ${yen(S.settings.monthGoal)}（1日 ${yen(daily)}）にしました`;
+      msg = dayUnit() ? `1日の目標を自動で ${yen(daily)} にしました` : `今月の目標を自動で ${yen(S.settings.monthGoal)}（1日 ${yen(daily)}）にしました`;
     }
   } else if (now - (S.settings.goalReviewAt || 0) >= REVIEW_DAYS * 86400e3) {
     const R = goalReview();
     if (R && !R.need) {
       if (R.dir) {
         A.daily += R.dir * REVIEW_STEP;
-        S.settings.monthGoal = Math.max(0, Math.round((S.settings.monthGoal + R.dir * REVIEW_STEP * workdaysLeft(now)) / 1000) * 1000);
+        if (!dayUnit()) S.settings.monthGoal = Math.max(0, Math.round((S.settings.monthGoal + R.dir * REVIEW_STEP * workdaysLeft(now)) / 1000) * 1000);
         msg = R.dir > 0 ? `目標に届く日が続いたので、1日 ＋${yen(REVIEW_STEP)} 上げました` : `届かない日が続いたので、1日 ${yen(REVIEW_STEP)} 下げました`;
       }
       S.settings.goalReviewAt = now;
@@ -3047,11 +3063,12 @@ const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.star
 const planMs = () => dayHoursEff() * 3600000;
 // 月の目標金額のカード：締め期間の売上と目標、締め日までの残り出勤日（固定休を除く）で1日いくら必要か
 function goalHtml(sales, pdays, to) {
-  const g = S.settings.monthGoal;
+  // 日単位の時は「1日の目標 × 締め期間の出勤予定日数」を月の目安として出す
+  const g = dayUnit() ? dayGoalNow() * periodWorkdays(to) : S.settings.monthGoal;
   if (!g) return '';
   const r = sales / g, left = g - sales, days = pdays.length;
   return `<div class="cal-cap num ${r >= 1 ? 'done' : ''}">
-    <div class="top"><span>月の目標</span><span class="v">${Math.floor(r * 100)}<small>% / ${yen(g)}</small></span></div>
+    <div class="top"><span>${dayUnit() ? '月の目安' : '月の目標'}</span><span class="v">${Math.floor(r * 100)}<small>% / ${yen(g)}</small></span></div>
     <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div>
     <div class="cr">${left > 0 ? `<span>あと <b>${yen(left)}</b></span>${days ? `<span>1日 <b>${yen(Math.ceil(left / days))}</b> ×${days}日</span>` : ''}` : `<span><b class="ok">達成</b>（＋${yen(-left)}）</span>`}</div>
     ${left > 0 ? `<div class="cap-note">〜${to.getMonth() + 1}/${to.getDate()}${days ? '' : '・残りの出勤日なし'}</div>` : ''}
@@ -3568,12 +3585,12 @@ function reviewHtml() {
   const pct = v => v == null ? '—' : Math.round(v * 100) + '<small>%</small>';
   let verdict;
   if (R.need) verdict = `判定まで あと <b class="num">${R.need}日</b> の営業<small>直近14日の営業が5日以上で判定します</small>`;
-  else if (R.dir > 0) verdict = `目標に届く日が続いています。1日 <b class="num">＋${yen(REVIEW_STEP)}</b> 上げましょう<small>月の目標 ${yen(S.settings.monthGoal)} → ${yen(R.newGoal)}（出勤予定${R.wd}日）</small>`;
-  else if (R.dir < 0) verdict = `届かない日が4週続いています。1日 <b class="num">${yen(REVIEW_STEP)}</b> 下げて、型を見直しましょう<small>月の目標 ${yen(S.settings.monthGoal)} → ${yen(R.newGoal)}</small>`;
+  else if (R.dir > 0) verdict = `目標に届く日が続いています。1日 <b class="num">＋${yen(REVIEW_STEP)}</b> 上げましょう<small>${goalChange(R.newGoal)}${dayUnit() ? '' : `（出勤予定${R.wd}日）`}</small>`;
+  else if (R.dir < 0) verdict = `届かない日が4週続いています。1日 <b class="num">${yen(REVIEW_STEP)}</b> 下げて、型を見直しましょう<small>${goalChange(R.newGoal)}</small>`;
   else verdict = `いまの目標のままで続けましょう<small>届いた日が7割以上、悪い日も必要額の85%以上で引き上げ</small>`;
-  const btn = goalAuto() ? `<div class="ana-note">月の目標は自動：${R.wait ? `次の見直し ${md(R.wait)}・` : ''}入庫後に自動で反映します</div>` : R.dir && !R.need ? (R.wait
+  const btn = goalAuto() ? `<div class="ana-note">目標は自動：${R.wait ? `次の見直し ${md(R.wait)}・` : ''}入庫後に自動で反映します</div>` : R.dir && !R.need ? (R.wait
     ? `<div class="ana-note">次の見直しは ${md(R.wait)} から</div>`
-    : `<button class="btn sm ${R.dir > 0 ? 'primary' : ''}" data-goalset="${R.newGoal}">月の目標を ${yen(R.newGoal)} にする</button>`) : '';
+    : `<button class="btn sm ${R.dir > 0 ? 'primary' : ''}" data-goalset="${R.newGoal}">${dayUnit() ? '1日' : '月'}の目標を ${yen(R.newGoal)} にする</button>`) : '';
   return `<div class="ana-card review">
       <div class="rv-h"><span class="t">目標の見直し</span><small>2週間ごと・直近14日</small></div>
       <div class="verdict">${verdict}</div>
@@ -3983,9 +4000,10 @@ $('#anaBody').addEventListener('click', e => {
 $('#anaBody').addEventListener('click', e => {
   const b = e.target.closest('[data-goalset]'); if (!b) return;
   const v = +b.dataset.goalset;
-  if (!(v > 0) || !confirm(`月の目標を ${yen(S.settings.monthGoal)} → ${yen(v)} にしますか？`)) return;
-  S.settings.monthGoal = v; S.settings.goalReviewAt = Date.now();
-  save(); haptic(20); renderAll(); toast(`月の目標を ${yen(v)} にしました`);
+  if (!(v > 0) || !confirm(`${goalChange(v)} にしますか？`)) return;
+  if (dayUnit()) S.settings.dayGoal = v; else S.settings.monthGoal = v;
+  S.settings.goalReviewAt = Date.now();
+  save(); haptic(20); renderAll(); toast(`${dayUnit() ? '1日' : '月'}の目標を ${yen(v)} にしました`);
 });
 $('#anaBody').addEventListener('click', e => { const b = e.target.closest('[data-ps]'); if (!b) return; haptic(); S.settings.anaPlace = b.dataset.ps; saveSoon(); renderAnalysis(); });
 $('#anaRange').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); S.settings.anaRange = b.dataset.v; saveSoon(); renderAnalysis(); });
@@ -4005,14 +4023,17 @@ function renderData() {
   const sh = curShift();
   $('#shiftSec').hidden = !sh;
   $('#shiftInfo').textContent = sh ? ymd(sh.start) + ' ' + hhmm(sh.start) + ' 出庫' : '';
-  $('#monthGoalBtn').textContent = S.settings.monthGoal ? yen(S.settings.monthGoal) : '未設定';
+  const gv = dayUnit() ? dayGoalNow() : S.settings.monthGoal;
+  $('#goalK').textContent = dayUnit() ? '1日の目標金額' : '月の目標金額';
+  $('#monthGoalBtn').textContent = gv ? yen(gv) : '未設定';
+  $$('#goalUnitSeg [data-gu]').forEach(b => b.setAttribute('aria-pressed', b.dataset.gu === (dayUnit() ? 'day' : 'month')));
   $('#monthGoalBtn').classList.toggle('auto', goalAuto());
   $$('#goalModeSeg [data-gm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.gm === (goalAuto() ? 'auto' : 'manual')));
   { const gn = $('#goalNote'), A = S.settings.autoGoal || {};
     gn.hidden = !goalAuto();
     if (goalAuto()) { const c = autoGoalCalc();
       gn.innerHTML = c.need ? `記録が<b>あと${c.need}日分</b>たまると自動で決まります（それまでは今の金額）`
-        : `1日の目標 <b>${yen(A.daily || c.daily)}</b>（直近28日の中央値 ${yen(Math.round(A.med || c.med))} ＋ ${yen(REVIEW_STEP)}）× 出勤予定${c.wd}日。期間の始めに決め、2週間ごとに届き具合で ±${yen(REVIEW_STEP)}。前の期間より下げません`; } }
+        : `1日の目標 <b>${yen(A.daily || c.daily)}</b>（直近28日の中央値 <span class="nw">${yen(Math.round(A.med || c.med))}</span> <span class="nw">＋${yen(REVIEW_STEP)}</span>）${dayUnit() ? '' : `× 出勤予定${c.wd}日`}。期間の始めに決め、2週間ごとに届き具合で <span class="nw">±${yen(REVIEW_STEP)}</span>。前の期間より下げません`; } }
   $('#hiFareBtn').textContent = S.settings.hiFare ? yen(S.settings.hiFare) + '以上' : '自動';
   $('#closingBtn').textContent = closingLabel();
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
@@ -4043,7 +4064,7 @@ function renderData() {
   $('#storageInfo').textContent = (bytes / 1024).toFixed(0) + ' KB';
   renderPrevBtn();
   // 折りたたみの見出しに今の設定を1行で
-  setFoldSum('gWork', [S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '目標なし', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', dayHoursEff() ? '1日' + dayHoursEff() + 'h' : '',
+  setFoldSum('gWork', [dayUnit() ? (dayGoalNow() ? '1日' + compactYen(dayGoalNow()) : '目標なし') : S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '目標なし', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', dayHoursEff() ? '1日' + dayHoursEff() + 'h' : '',
     hl.length ? hl.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
   setFoldSum('gPay', `決済${PAYS().length}・チケット${TICKETS().length}・アプリ${S.settings.apps.length}`);
   setFoldSum('gInput', [S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : '', S.settings.stationStand ? '駅→乗り場' : '', S.settings.histOrder === 'desc' ? '履歴は新しい順' : '履歴は古い順'].filter(Boolean).join(' ・ '));
@@ -4063,7 +4084,8 @@ function renderDepart() {
   const d = new Date();
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
-  $('#dGoalVal').textContent = S.settings.monthGoal ? (dailyNeed() ? yen(dailyNeed()) : '達成') : '未設定';
+  $('#dGoal .k').textContent = dayUnit() ? '本日の目標' : '本日の必要額';
+  $('#dGoalVal').textContent = hasGoal() ? (dailyNeed() ? yen(dailyNeed()) : '達成') : '未設定';
   // ステップ目標：いま出庫したら、何時までにいくら（累計）を1時間ごとに
   const ds = $('#dSteps'), sp = stepPlan(null, Date.now(), dailyNeed());
   ds.hidden = !sp;
@@ -4589,8 +4611,9 @@ function deleteApp() {
 // 月の目標金額（設定から変更。1日の必要額はここから自動で出す）。営業中の記録の目標も入れ直す
 function editGoal() {
   if (goalAuto()) return toast('自動で決めています。自分で決めるには「任意の金額」に切り替えてください');
-  openNumpad('月の目標金額', S.settings.monthGoal, v => {
-    S.settings.monthGoal = v;
+  const day = dayUnit();
+  openNumpad(day ? '1日の目標金額' : '月の目標金額', day ? S.settings.dayGoal || 0 : S.settings.monthGoal, v => {
+    if (day) S.settings.dayGoal = v; else S.settings.monthGoal = v;
     const sh = curShift(); if (sh) sh.goal = dailyNeed(sh.start);
     save(); renderAll(); renderData();
   }, { label: '0で目標なし', digits: 8 });
@@ -4879,6 +4902,18 @@ $('#hiFareBtn').addEventListener('click', () => openNumpad('高額乗車の基�
   save(); renderAll(); renderData();
 }, { label: 'この金額以上・0で自動（上位2割）', digits: 6 }));
 $('#monthGoalBtn').addEventListener('click', editGoal);
+// 目標の単位：月単位 ↔ 日単位。切り替えた時、もう片方が未設定なら今の目標から換算して入れる
+$('#goalUnitSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-gu]'); if (!b || b.dataset.gu === (dayUnit() ? 'day' : 'month')) return;
+  haptic();
+  const wd = periodWorkdays(Date.now()), need = dailyNeed();
+  if (b.dataset.gu === 'day' && !S.settings.dayGoal && need) S.settings.dayGoal = Math.round(need / 500) * 500;
+  if (b.dataset.gu === 'month' && !S.settings.monthGoal && dayGoalNow()) S.settings.monthGoal = Math.round(dayGoalNow() * wd / 1000) * 1000;
+  S.settings.goalUnit = b.dataset.gu;
+  NEED = { k: '', v: 0 };
+  const sh = curShift(); if (sh) sh.goal = dailyNeed(sh.start);
+  save(); renderAll(); renderData();
+});
 $('#goalModeSeg').addEventListener('click', e => {
   const b = e.target.closest('[data-gm]'); if (!b) return;
   haptic();
