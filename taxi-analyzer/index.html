@@ -130,7 +130,7 @@ svg{display:block}
 .depart > *{width:100%;max-width:480px}
 .d-date{font-size:16px;color:var(--muted);font-weight:600}
 .d-clock{font-size:clamp(56px,min(11vh,24vw),96px);font-weight:800;letter-spacing:-.02em;line-height:1}
-.d-info{display:grid;gap:10px}
+.d-info{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}   /* 中身が広くても画面からはみ出さない */
 .d-row{display:flex;align-items:center;gap:12px;min-height:var(--tap);padding:10px 18px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);text-align:left;width:100%}
 .d-row .k{font-size:14px;color:var(--muted);flex:1}
 .d-row .v{font-size:22px;font-weight:700}
@@ -139,9 +139,11 @@ svg{display:block}
 .depart-btn{width:100%;height:clamp(64px,9vh,80px);font-size:clamp(22px,3vh,28px);letter-spacing:.2em;border-radius:var(--r-lg)}
 .d-gps{display:flex;justify-content:center;gap:16px;color:var(--muted);font-size:13px}
 /* 出庫画面のステップ目標：出庫からの時間ごとの累計（だんだん高くなる段） */
-.d-steps{padding:12px 14px 10px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);text-align:left}
+.d-steps{min-width:0;padding:12px 14px 10px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);text-align:left}
 .d-steps .h{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);margin-bottom:8px;white-space:nowrap}
 .d-steps .h small{font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
+.steps-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.steps-wrap::-webkit-scrollbar{display:none}
 .steps{display:grid;gap:4px;align-items:end}
 .steps .s{display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0;text-align:center}
 .steps .s i{display:block;border-radius:4px 4px 2px 2px;background:var(--surface-3)}
@@ -217,7 +219,27 @@ svg{display:block}
 .goal-row .goal-line{margin-top:0}
 .hud.done .remain{color:var(--ok)}
 /* ステップ目標：次の時刻までの累計の目標（1日の必要の下に1行） */
-.step-row{margin-top:2px}
+.step-row{margin-top:2px;width:100%;text-align:left;min-height:32px;border-radius:var(--r-sm)}
+.step-row:active{background:var(--surface-2)}
+.step-row .chev{font-style:normal;color:var(--faint);margin-left:6px;font-size:16px}
+/* 1時間ごとの一覧 */
+.sl-sum{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);white-space:nowrap}
+.sl-sum b{color:var(--text);font-size:15px}
+.sl-sum b.ac{color:var(--accent)}
+.sl-note{font-size:12px;color:var(--faint);margin:6px 0 10px;word-break:auto-phrase}
+.sl{list-style:none;display:grid}
+.sl li{display:grid;grid-template-columns:3.4em minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr);gap:8px;align-items:center;padding:9px 6px;border-top:1px solid var(--line);font-size:14px;white-space:nowrap}
+.sl li > span{overflow:hidden;text-overflow:ellipsis;text-align:right}
+.sl li > span:first-child{text-align:left;font-weight:700}
+.sl li.hd{font-size:11px;color:var(--faint);border-top:0;padding-bottom:4px}
+.sl li.hd > span{font-weight:600}
+.sl li.hit{color:var(--muted)}
+.sl li.hit .r{color:var(--ok);font-weight:700}
+.sl li.miss{color:var(--muted)}
+.sl li.miss .r{color:var(--muted)}
+.sl li.next{background:var(--accent-soft);border-radius:var(--r-sm);border-top-color:transparent}
+.sl li.next .r{color:var(--accent);font-weight:700}
+.sl li.next + li{border-top-color:transparent}
 .step-row .goal-line{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .step-row .remain{flex:none;white-space:nowrap}
 .step-row .goal-line small{font-size:11px;color:var(--faint);margin-left:4px}
@@ -503,6 +525,7 @@ svg{display:block}
 .pbar i{display:block;height:100%;border-radius:999px;background:var(--accent)}
 .plbl{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-top:5px}
 .plbl b{color:var(--text);font-weight:700}
+.plan{min-width:0}
 .plan .sub-h{font-size:12px;color:var(--muted);font-weight:700;margin:14px 0 6px}
 .pexp{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .pexp .v{font-size:26px;font-weight:800}
@@ -1021,7 +1044,7 @@ svg{display:block}
     </div>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="barWrap"><div class="bar-fill" id="bar"></div></div>
     <div class="goal-row"><span class="goal-line"><span id="goalLbl">1日の必要</span> <b class="num" id="goal">¥0</b></span><span class="remain num" id="remain"></span></div>
-    <div class="goal-row step-row" id="stepRow" hidden></div>
+    <button class="goal-row step-row" id="stepRow" hidden aria-label="1時間ごとのステップ目標を開く"></button>
     <div class="stats">
       <div class="stat"><div class="k">乗車</div><div class="v num" id="stCount">0<small>回</small></div></div>
       <div class="stat"><div class="k">平均単価</div><div class="v num" id="stAvg">—</div></div>
@@ -1332,6 +1355,19 @@ svg{display:block}
       <button class="btn danger" id="psDelete">削除</button>
       <button class="btn primary" id="psSave">保存</button>
     </footer>
+  </div>
+</div>
+
+<!-- ===== ステップ目標（1時間ごと） ===== -->
+<div class="sheet center" id="stepSheet" hidden role="dialog" aria-modal="true" aria-labelledby="stTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="stTitle">ステップ目標</h2>
+    </header>
+    <div id="stepList"></div>
   </div>
 </div>
 
@@ -2582,14 +2618,15 @@ function renderHud() {
   $('#barWrap').setAttribute('aria-valuenow', Math.round(clamp(ratio * 100, 0, 100)));
   $('#hud').classList.toggle('done', goal > 0 && sales >= goal);
   $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `達成 ＋${yen(sales - goal)}` : `あと ${yen(goal - sales)}`;
-  // ステップ目標：次の段（時刻までの累計）と、そこまであといくら。全部の段を過ぎたら出さない
-  const sp = sh && goal ? stepPlan(sh) : null, sr = $('#stepRow');
+  // ステップ目標：次の正時までに必要な累計（いまの売上から逆算）と、この1時間であといくら。タップで1時間ごとの一覧
+  const sp = sh && goal && sales < goal ? stepPlan(sh) : null, sr = $('#stepRow');
   sr.hidden = !(sp && sp.next);
   if (sp && sp.next) {
     const n = sp.next, left = n.target - sales;
-    const html = `<span class="goal-line">次は <b class="num">${hhmm(n.t)}</b>までに <b class="num">${yen(n.target)}</b>${sp.short ? '<small>上乗せ込み</small>' : ''}</span>`
-      + `<span class="remain num ${left <= 0 ? 'clear' : ''}">${left > 0 ? `あと <b>${yen(left)}</b>` : `クリア ＋${yen(-left)}`}</span>`;
+    const html = `<span class="goal-line">次は <b class="num">${hhmm(n.t)}</b>までに <b class="num">${yen(n.target)}</b></span>`
+      + `<span class="remain num ${left <= 0 ? 'clear' : ''}">${left > 0 ? `あと <b>${yen(left)}</b>` : 'クリア'}<i class="chev" aria-hidden="true">›</i></span>`;
     if (sr.dataset.h !== html) { sr.dataset.h = html; sr.innerHTML = html; }
+    if (!$('#stepSheet').hidden) { const lh = stepListHtml(sp), el = $('#stepList'); if (el.dataset.h !== lh) { el.dataset.h = lh; el.innerHTML = lh; } }
   }
   // 桁が増えても右の％と重ならないよう、枠に収まるまで売上の文字を小さくする（金額・％・画面幅が変わった時だけ）
   const fk = [sales, $('#pct').textContent, $('#pct').style.display, innerWidth, innerHeight].join('|');
@@ -2738,15 +2775,16 @@ function calcNeed(t, g) {
 }
 
 /* ============================================================
-   ステップ目標：1日の必要額を「出庫から何時間までにいくら（累計）」の段に分ける
-   ・配分は自分の記録から：直近90日の営業で、出庫から h 時間までに1日の売上の何割を稼いでいたか
-     （同じ曜日が5日以上あればその曜日、無ければ全曜日。いつもの営業時間の8割以上走った日だけ）
-   ・記録が5日に満たないうちは時間に比例
-   ・過ぎた段に届かなかった分は、半分だけ残りの段へ少しずつ上乗せ（最後の段で半分）。
-     残りの半分は翌日以降の1日の必要額で取り返す（その日のうちに全部取り返そうと焦らない）
-   ・段は2時間ごと。最後の段＝いつもの営業時間（設定の1日の予定、無ければ記録から推定、それも無ければ10時間）
+   ステップ目標：1日の必要額に届くために「何時までにいくら（累計）」を1時間ごとに逆算する
+   ・段は時計の毎正時（出庫から30分未満の正時は飛ばす）と、最後に営業終了の予定時刻
+     （出庫＋いつもの営業時間：設定の1日の予定 → 記録から推定 → 10時間）
+   ・逆算：いまの売上 s から必要額までの残り（必要額 − s）を、残りの時間へ「自分の稼ぎ方の配分」で割り振る
+       段の目標 ＝ s ＋（必要額 − s）×（F(段) − F(いま)）÷（1 − F(いま)）
+     F(t)：出庫から t 時間までに1日の売上の何割を稼いでいたか（直近90日。同じ曜日が5日以上ならその曜日。
+     いつもの営業時間の8割以上走った日だけ）。記録が5日未満なら時間に比例
+   ・売上が入るたびに、遅れも先行も残りの時間へ配り直す（最後の段はいつも必要額）
+   ・過ぎた段は、1つ前の段の時点で逆算した目標に届いたかで判定する
    ============================================================ */
-const STEP_H = 2;
 const stepLen = () => dayHoursEff() || 10;
 let STEPC = { k: '', v: null };
 function stepCurve(dow, L) {
@@ -2769,40 +2807,83 @@ function stepCurve(dow, L) {
   STEPC = { k, v };
   return v;
 }
-// 段の土台（上乗せ前）：[{h, t, base}]。goal は1日の必要額
-function stepBases(start, goal, dow = new Date(start).getDay()) {
-  if (!goal) return [];
-  const L = stepLen(), Lc = Math.ceil(L), curve = stepCurve(dow, L);
-  const frac = h => curve ? curve[Math.min(Math.ceil(h), Lc)] : Math.min(1, h / L);
-  const hs = [];
-  for (let h = STEP_H; h < L - 0.5; h += STEP_H) hs.push(h);
-  hs.push(L);
-  let prev = 0;
-  return hs.map(h => {
-    const base = h >= L ? goal : Math.max(prev, Math.round(goal * frac(h) / 100) * 100);
-    prev = base;
-    return { h, t: start + h * 3600e3, base };
-  });
+// 出庫から e 時間までの割合（1時間ごとの値の間は直線で補う）
+function stepFrac(curve, L, e) {
+  if (e <= 0) return 0;
+  if (e >= L) return 1;
+  if (!curve) return e / L;
+  const Lc = Math.ceil(L), i = Math.floor(e), a = curve[Math.min(i, Lc)], b = curve[Math.min(i + 1, Lc)];
+  return Math.min(1, a + (b - a) * (e - i));
 }
-// 営業中の段：過ぎた段の達成と、次の段の目標（不足の半分を上乗せ済み）
-//   goal を渡さなければ、その日の1日の必要額（出庫時に決まるので営業中は変わらない）
-function stepPlan(sh, now = Date.now(), goal = dailyNeed(sh.start)) {
-  const cps = stepBases(sh.start, goal);
-  if (!cps.length) return null;
-  const rides = S.rides.filter(r => r.shiftId === sh.id);
+// 段の時刻：出庫から30分以上あとの毎正時と、営業終了の予定時刻
+function stepTimes(start, L) {
+  const end = start + L * 3600e3, d = new Date(start + 30 * 60000), out = [];
+  d.setMinutes(0, 0, 0);
+  let t = d.getTime();
+  if (t < start + 30 * 60000) t += 3600e3;
+  for (; t < end - 20 * 60000; t += 3600e3) out.push(t);
+  out.push(end);
+  return out;
+}
+// 段の一覧：[{t, target（累計）, need（その1時間で稼ぐ額）, passed, hit, sales}]
+//   sh があれば営業中（過ぎた段の判定と、いまからの逆算）。無ければ start に出庫した場合の予定
+function stepPlan(sh, now = Date.now(), goal = sh ? dailyNeed(sh.start) : 0, start = sh ? sh.start : now) {
+  if (!goal) return null;
+  const L = stepLen(), curve = stepCurve(new Date(start).getDay(), L), F = t => stepFrac(curve, L, (t - start) / 3600e3);
+  const rides = sh ? S.rides.filter(r => r.shiftId === sh.id) : [];
   const salesAt = t => rides.reduce((a, r) => a + (r.ts <= t ? r.total : 0), 0);
-  const passed = cps.filter(c => c.t <= now), rest = cps.filter(c => c.t > now);
-  for (const c of passed) { c.sales = salesAt(c.t); c.hit = c.sales >= c.base; c.target = c.base; }
-  const last = passed.at(-1), short = last ? Math.max(0, last.base - last.sales) : 0;
-  rest.forEach((c, i) => { c.target = c.base + Math.round(short / 2 * (i + 1) / rest.length / 100) * 100; });
-  return { goal, cps, passed, next: rest[0] || null, short, hits: passed.filter(c => c.hit).length };
+  // t0 の時点の売上 s0 から、t までに必要な累計
+  const back = (t0, s0, t) => { const f0 = F(t0); return f0 >= 1 ? Math.max(s0, goal) : s0 + Math.max(0, goal - s0) * (F(t) - f0) / (1 - f0); };
+  const up100 = v => Math.ceil(v / 100) * 100;
+  const times = stepTimes(start, L), cps = [];
+  let at = start, sAt = 0;
+  for (const t of times) {
+    if (sh && t <= now) {
+      const target = Math.min(goal, up100(back(at, sAt, t))), sales = salesAt(t);
+      cps.push({ t, target, need: Math.max(0, target - sAt), sales, passed: true, hit: sales >= target });
+      at = t; sAt = sales;
+    } else cps.push({ t, passed: false });
+  }
+  const sNow = sh ? salesAt(now) : 0, tNow = sh ? now : start;
+  let prev = sNow;
+  for (const c of cps) if (!c.passed) {
+    c.target = c.t === times.at(-1) ? Math.max(sNow, goal) : Math.max(prev, Math.min(goal, up100(back(tNow, sNow, c.t))));
+    c.need = c.target - prev; prev = c.target;
+  }
+  const passed = cps.filter(c => c.passed);
+  return { goal, start, sales: sNow, cps, passed, next: cps.find(c => !c.passed) || null, hits: passed.filter(c => c.hit).length };
 }
-// 段の小さな階段グラフ（出庫画面・次の営業）。label：各段の下の文字
-function stepsHtml(cps, label) {
+// 段の小さな階段グラフ（出庫画面・次の営業）。多い時は横にスクロール
+function stepsHtml(sp) {
+  const cps = sp ? sp.cps.filter(c => !c.passed) : [];   // これからの段だけ（過ぎた段は一覧で見る）
   if (!cps.length) return '';
-  const top = cps.at(-1).base || 1;
-  return `<div class="steps num" style="grid-template-columns:repeat(${cps.length},minmax(0,1fr))" role="img" aria-label="${cps.map(c => label(c) + ' ' + yen(c.base)).join('、')}">${cps.map((c, i) =>
-    `<div class="s ${i === cps.length - 1 ? 'last' : ''}"><span class="v">${compactYen(c.base)}</span><i style="height:${Math.max(4, Math.round(c.base / top * 56))}px"></i><span class="t">${label(c)}</span></div>`).join('')}</div>`;
+  const top = cps.at(-1).target || 1, man = v => (v / 10000).toFixed(v >= 100000 ? 0 : 1) + '万';
+  const lbl = c => new Date(c.t).getMinutes() ? hhmm(c.t) : new Date(c.t).getHours() + '時';
+  return `<div class="steps-wrap"><div class="steps num" style="grid-template-columns:repeat(${cps.length},minmax(38px,1fr))" role="img" aria-label="${cps.map(c => lbl(c) + 'までに ' + yen(c.target)).join('、')}">${cps.map((c, i) =>
+    `<div class="s ${i === cps.length - 1 ? 'last' : ''}"><span class="v">${man(c.target)}</span><i style="height:${Math.max(4, Math.round(c.target / top * 56))}px"></i><span class="t">${lbl(c)}</span></div>`).join('')}</div></div>`;
+}
+// 1時間ごとの一覧（ホームの「次は…」をタップ）：時刻・その1時間で稼ぐ額・累計の目標・結果
+function stepListHtml(sp) {
+  const left = Math.max(0, sp.goal - sp.sales);
+  return `<div class="sl-sum num"><span>1日の必要 <b>${yen(sp.goal)}</b></span><span>いま <b>${yen(sp.sales)}</b></span><span>あと <b class="ac">${yen(left)}</b></span></div>
+    <div class="sl-note">これからの段は、必要額の残りを残りの時間へ、あなたの稼ぎ方の配分で逆算した累計です。過ぎた段は実績の累計です。</div>
+    <ol class="sl">
+      <li class="hd"><span>時刻</span><span>その1時間</span><span>累計</span><span>結果</span></li>
+      ${sp.cps.map(c => {
+        const cls = c.passed ? (c.hit ? 'hit' : 'miss') : c === sp.next ? 'next' : '';
+        // 過ぎた段は実績の累計と、その1時間の目標に対する結果。これからの段は逆算した累計の目標
+        const res = c.passed ? (c.hit ? '達成' : `−${yen(c.target - c.sales)}`) : c === sp.next ? `あと ${yen(Math.max(0, c.target - sp.sales))}` : '';
+        return `<li class="${cls}"><span class="num">${hhmm(c.t)}</span><span class="num">${yen(c.need)}</span><span class="num">${yen(c.passed ? c.sales : c.target)}</span><span class="r num">${res}</span></li>`;
+      }).join('')}
+    </ol>`;
+}
+
+// いつもの出庫時刻：その日 day の、過去の出庫時刻（時:分）の中央値（同じ曜日が3日以上ならその曜日）。記録が無ければ6時
+function usualStart(day, dow) {
+  const all = S.shifts.filter(sh => sh.end), same = all.filter(sh => new Date(sh.start).getDay() === dow), use = same.length >= 3 ? same : all;
+  const d = new Date(day); d.setHours(0, 0, 0, 0);
+  const m = use.length ? Math.round(quant(use.map(sh => { const x = new Date(sh.start); return x.getHours() * 60 + x.getMinutes(); }), .5) / 5) * 5 : 360;
+  return d.getTime() + m * 60000;
 }
 
 /* ============================================================
@@ -3362,8 +3443,8 @@ function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
       <div class="pexp"><span class="v num">${r100(est)}</span><span class="r">見込み</span>${goal ? `<span class="pp num">${Math.round(est / goal * 100)}<small>%</small></span>` : ''}</div>
 ${goal ? `<div class="pbar"><i style="width:${Math.min(100, est / goal * 100).toFixed(1)}%"></i></div>
       <div class="plbl num"><span>必要 <b>${r100(goal)}</b></span><span>${est >= goal ? `＋${r100(est - goal)}` : `あと ${r100(goal - est)}`}</span></div>
-      <div class="sub-h">ステップ目標<span>出庫から何時間までにいくら（累計）</span></div>
-      ${stepsHtml(cur ? stepBases(cur.start, goal) : stepBases(nd.getTime(), goal, dow), c => '+' + (Math.round(c.h * 2) / 2) + 'h')}` : ''}
+      <div class="sub-h">ステップ目標<span>${cur ? 'いまの売上から逆算した、これからの累計' : `いつもの出庫 ${hhmm(usualStart(nd, dow))} の場合・何時までにいくら`}</span></div>
+      ${stepsHtml(cur ? stepPlan(cur) : stepPlan(null, 0, goal, usualStart(nd, dow)))}` : ''}
       <ul class="plist">
         ${goGroups.map(goRow).join('')}
         ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に</div></li>` : ''}
@@ -3722,11 +3803,11 @@ function renderDepart() {
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
   $('#dGoalVal').textContent = S.settings.monthGoal ? (dailyNeed() ? yen(dailyNeed()) : '達成') : '未設定';
-  // ステップ目標：いま出庫したら、出庫から何時間までにいくら（累計）
-  const ds = $('#dSteps'), cps = stepBases(Date.now(), dailyNeed());
-  ds.hidden = !cps.length;
-  if (cps.length) {
-    const html = `<div class="h"><span>ステップ目標</span><small>出庫からの累計${stepCurve(d.getDay(), stepLen()) ? '・自分の記録から' : ''}</small></div>${stepsHtml(cps, c => '+' + (Math.round(c.h * 2) / 2) + 'h')}`;
+  // ステップ目標：いま出庫したら、何時までにいくら（累計）を1時間ごとに
+  const ds = $('#dSteps'), sp = stepPlan(null, Date.now(), dailyNeed());
+  ds.hidden = !sp;
+  if (sp) {
+    const html = `<div class="h"><span>ステップ目標</span><small>いま出庫したら${stepCurve(d.getDay(), stepLen()) ? '・記録から' : ''}</small></div>${stepsHtml(sp)}`;
     if (ds.dataset.h !== html) { ds.dataset.h = html; ds.innerHTML = html; }
   }
 }
@@ -4983,6 +5064,15 @@ $('#logShiftEdit').addEventListener('click', () => { const sh = logShift(); if (
 $('#ssSave').addEventListener('click', saveShiftEdit);
 $('#shiftSheet [data-close]').addEventListener('click', () => closeSheet($('#shiftSheet')));
 $('#pauseSheet [data-close]').addEventListener('click', () => closeSheet($('#pauseSheet')));
+// ステップ目標の一覧（ホームの「次は…」をタップ）
+$('#stepRow').addEventListener('click', () => {
+  const sh = curShift(), sp = sh && stepPlan(sh); if (!sp) return;
+  haptic(); const el = $('#stepList'), h = stepListHtml(sp); el.dataset.h = h; el.innerHTML = h;
+  openSheet($('#stepSheet'));
+  const nx = el.querySelector('li.next'); if (nx) nx.scrollIntoView({ block: 'center' });
+});
+$('#stepSheet [data-close]').addEventListener('click', () => closeSheet($('#stepSheet')));
+$('#stepSheet').addEventListener('click', e => { if (e.target.id === 'stepSheet') closeSheet($('#stepSheet')); });
 
 
 $('#shiftBtn').addEventListener('click', endShift);
@@ -5130,10 +5220,10 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#stepSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet' || open.id === 'stepSheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
