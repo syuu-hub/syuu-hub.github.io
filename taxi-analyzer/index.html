@@ -3041,12 +3041,12 @@ function goalReview() {
 /* ============================================================
    月の目標：任意の金額 ／ 自動（ステップアップ）
    自動のとき
-   ・締め期間の始めに決める：直近28日（今日を除く）の1日の売上の中央値（たまたまの高額はふつうの1回に置き換え）
-     ＋ ¥1,500 を「1日の目標」に。前の期間の1日の目標より下げない（届かない日が4週続いている時だけ下げる）
-     月の目標 ＝ 1日の目標 × 締め期間の出勤予定日数（固定休を除く・1,000円単位）
-   ・期間の途中は、目標の見直し（2週間ごと）の判定を自動で反映：1日 ±¥1,500 × 残りの出勤予定日数
+   ・毎週（月曜）決め直す：直近7日（今日を除く）の1日の売上の中央値（たまたまの高額はふつうの1回に置き換え）
+     ＋ ¥1,500 を「1日の目標」に。上げる時はすぐ、下げる時は1週間に ¥1,500 まで
+     直近7日の営業が3日未満の時は直近28日の中央値＋¥1,500（5日以上ある時）
+   ・月単位は、月の目標 ＝ 締め期間の今日より前の売上 ＋ 1日の目標 × 残りの出勤予定日数（1,000円単位）
    ・営業中は変えない（その日の必要額が営業の途中で動かないように）。判定は1日1回
-   ・記録が5日分に満たないうちは決めない（任意の金額のまま）
+   ・記録が足りないうちは決めない（今の金額のまま）
    ============================================================ */
 const goalAuto = () => S.settings.goalMode !== 'manual';   // 既定は自動。「任意の金額」を選んだ時だけ自分で決める
 function autoGoalCalc(now = Date.now()) {
@@ -3078,32 +3078,47 @@ function autoGoalTick() {
   if (!goalAuto() || curShift()) return;
   const now = Date.now(), dk = dayKey(new Date(now)), A = S.settings.autoGoal || (S.settings.autoGoal = {});
   if (A.checked === dk) return;
-  const p = periodOf(now), pk = p.y + '-' + p.m;
+  const p = periodOf(now), pk = p.y + '-' + p.m, wk = weekKey(now);
   let msg = '';
-  if (A.period !== pk || !A.daily) {
-    const c = autoGoalCalc(now);
+  // 週の始め（月曜）か締め期間が変わった時に決め直す
+  if (A.week !== wk || A.period !== pk || !A.daily) {
+    const w = weekGoalCalc(now), c = w.daily ? w : autoGoalCalc(now);
     if (c.daily) {
-      const R = A.daily ? goalReview() : null, keep = A.daily && !(R && !R.need && R.dir < 0);
-      const daily = keep ? Math.max(c.daily, A.daily) : c.daily;
-      Object.assign(A, { period: pk, daily, med: c.med });
-      if (!dayUnit()) S.settings.monthGoal = Math.round(daily * c.wd / 1000) * 1000;   // 日単位は1日の目標だけ
+      // 上げる時はすぐ。下げる時は1週間に ¥1,500 まで（悪い週が1回あっただけで大きく下げない）
+      const daily = A.daily && c.daily < A.daily ? Math.max(c.daily, A.daily - REVIEW_STEP) : c.daily;
+      const was = A.daily;
+      Object.assign(A, { week: wk, period: pk, daily, med: c.med, days: c.n, src: w.daily ? 'week' : 'month' });
+      if (!dayUnit()) S.settings.monthGoal = monthGoalFor(daily, now);   // 月単位：これまでの売上 ＋ 1日の目標 × 残りの出勤予定日
       S.settings.goalReviewAt = now;
-      msg = dayUnit() ? `1日の目標を自動で ${yen(daily)} にしました` : `今月の目標を自動で ${yen(S.settings.monthGoal)}（1日 ${yen(daily)}）にしました`;
-    }
-  } else if (now - (S.settings.goalReviewAt || 0) >= REVIEW_DAYS * 86400e3) {
-    const R = goalReview();
-    if (R && !R.need) {
-      if (R.dir) {
-        A.daily += R.delta;
-        if (!dayUnit()) S.settings.monthGoal = Math.max(0, Math.round((S.settings.monthGoal + R.delta * workdaysLeft(now)) / 1000) * 1000);
-        msg = R.dir > 0 ? `目標に届く日が続いたので、1日 ＋${yen(R.delta)} 上げました` : `届かない日が続いたので、1日 ${yen(REVIEW_STEP)} 下げました`;
-      }
-      S.settings.goalReviewAt = now;
+      if (daily !== was) msg = `今週の1日の目標を ${yen(daily)} にしました${was ? `（先週 ${yen(was)}）` : ''}`;
     }
   }
   A.checked = dk;
   save();
   if (msg) setTimeout(() => toast(msg), 600);
+}
+// 週の始め（月曜）の日付キー
+function weekKey(t) { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return dayKey(d); }
+// 直近7日（今日を除く）の1日の売上の中央値＋¥1,500。たまたまの高額はふつうの1回に置き換え。営業日が3日未満なら決めない
+function weekGoalCalc(now = Date.now()) {
+  const tk = dayKey(new Date(now));
+  const recent = S.rides.filter(r => r.ts >= now - 90 * 86400e3).map(r => r.total);
+  const bonus = recent.length >= 20 ? quant(recent, .95) : Infinity, usual = quant(recent, .5);
+  const days = new Map();
+  for (const sh of S.shifts) {
+    if (!sh.end || sh.start < now - 7 * 86400e3 || dayKey(new Date(sh.start)) === tk) continue;
+    const k = dayKey(new Date(sh.start));
+    days.set(k, (days.get(k) || 0) + shiftStats(sh).rides.reduce((a, r) => a + (r.total > bonus ? usual : r.total), 0));
+  }
+  if (days.size < 3) return {};
+  const med = quant([...days.values()], .5);
+  return { med, daily: Math.round((med + REVIEW_STEP) / 500) * 500, n: days.size };
+}
+// 月単位の自動：締め期間の今日より前の売上 ＋ 1日の目標 × 今日からの出勤予定日数（1,000円単位）
+function monthGoalFor(daily, now = Date.now()) {
+  const p = periodOf(now), [pf] = periodRange(p.y, p.m), t0 = new Date(now); t0.setHours(0, 0, 0, 0);
+  const before = S.shifts.filter(sh => sh.start >= pf.getTime() && sh.start < t0.getTime()).reduce((a, sh) => a + shiftStats(sh).sales, 0);
+  return Math.round((before + daily * workdaysLeft(now)) / 1000) * 1000;
 }
 
 // 暦月（1日〜末日）の労働時間。出庫日の月で数える
@@ -3630,15 +3645,17 @@ function reviewHtml() {
   const md = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
   const pct = v => v == null ? '—' : Math.round(v * 100) + '<small>%</small>';
   let verdict;
-  if (R.need) verdict = `判定まで あと <b class="num">${R.need}日</b> の営業<small>直近14日の営業が5日以上で判定します</small>`;
+  const A = S.settings.autoGoal || {}, nextMon = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 7 - (d.getDay() + 6) % 7); return d; };
+  if (goalAuto() && A.daily) verdict = `今週の1日の目標 <b class="num">${yen(A.daily)}</b><small>${A.src === 'week' ? `直近7日（${A.days}日営業）の中央値 ${yen(Math.round(A.med / 100) * 100)} ＋${yen(REVIEW_STEP)}` : `直近28日の中央値 ${yen(Math.round(A.med / 100) * 100)} ＋${yen(REVIEW_STEP)}`}。次は ${md(nextMon())}（月）に決め直します</small>`;
+  else if (R.need) verdict = `判定まで あと <b class="num">${R.need}日</b> の営業<small>直近14日の営業が5日以上で判定します</small>`;
   else if (R.dir > 0) verdict = `目標に届く日が続いています。1日 <b class="num">＋${yen(R.delta)}</b> 上げましょう<small>${R.delta > REVIEW_STEP ? `直近14日の中央値 ${yen(Math.round(R.med14 / 100) * 100)} に追いつく分。` : ''}${goalChange(R.newGoal)}${dayUnit() ? '' : `（出勤予定${R.wd}日）`}</small>`;
   else if (R.dir < 0) verdict = `届かない日が4週続いています。1日 <b class="num">${yen(REVIEW_STEP)}</b> 下げて、型を見直しましょう<small>${goalChange(R.newGoal)}</small>`;
   else verdict = `いまの目標のままで続けましょう<small>届いた日が7割以上、悪い日も必要額の85%以上で引き上げ</small>`;
-  const btn = goalAuto() ? `<div class="ana-note">目標は自動：${R.wait ? `次の見直し ${md(R.wait)}・` : ''}入庫後に自動で反映します</div>` : R.dir && !R.need ? (R.wait
+  const btn = goalAuto() ? '' : R.dir && !R.need ? (R.wait
     ? `<div class="ana-note">次の見直しは ${md(R.wait)} から</div>`
     : `<button class="btn sm ${R.dir > 0 ? 'primary' : ''}" data-goalset="${R.newGoal}">${dayUnit() ? '1日' : '月'}の目標を ${yen(R.newGoal)} にする</button>`) : '';
   return `<div class="ana-card review">
-      <div class="rv-h"><span class="t">目標の見直し</span><small>2週間ごと・直近14日</small></div>
+      <div class="rv-h"><span class="t">目標の見直し</span><small>${goalAuto() ? '自動・毎週' : '2週間ごと・直近14日'}</small></div>
       <div class="verdict">${verdict}</div>
       ${btn}
       <div class="kpis k3">
@@ -4077,8 +4094,8 @@ function renderData() {
   { const gn = $('#goalNote'), A = S.settings.autoGoal || {};
     gn.hidden = !goalAuto();
     if (goalAuto()) { const c = autoGoalCalc();
-      gn.innerHTML = c.need ? `記録が<b>あと${c.need}日分</b>たまると自動で決まります（それまでは今の金額）`
-        : `1日の目標 <b>${yen(A.daily || c.daily)}</b>（直近28日の中央値 <span class="nw">${yen(Math.round(A.med || c.med))}</span> <span class="nw">＋${yen(REVIEW_STEP)}</span>）${dayUnit() ? '' : `× 出勤予定${c.wd}日`}。期間の始めに決め、2週間ごとに見直し：届く日が続けば<span class="nw">直近14日の中央値＋${yen(REVIEW_STEP)}</span>まで上げ、届かない日が続けば <span class="nw">−${yen(REVIEW_STEP)}</span>。前の期間より下げません`; } }
+      gn.innerHTML = c.need && !A.daily ? `記録が<b>あと${c.need}日分</b>たまると自動で決まります（それまでは今の金額）`
+        : `今週の1日の目標 <b>${yen(A.daily || c.daily)}</b>（${A.src === 'month' ? '直近28日' : '直近7日'}の中央値 <span class="nw">${yen(Math.round((A.med || c.med) / 100) * 100)}</span> <span class="nw">＋${yen(REVIEW_STEP)}</span>）。毎週月曜に決め直し、上げる時はすぐ、下げる時は1週間に <span class="nw">${yen(REVIEW_STEP)}</span> まで${dayUnit() ? '' : '。月の目標＝これまでの売上＋1日の目標×残りの出勤予定日'}`; } }
   $('#hiFareBtn').textContent = S.settings.hiFare ? yen(S.settings.hiFare) + '以上' : '自動';
   $('#closingBtn').textContent = closingLabel();
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
