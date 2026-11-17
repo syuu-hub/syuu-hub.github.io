@@ -68,47 +68,64 @@ main{padding:0 16px;max-width:1100px;margin:0 auto}
 .card + .card{margin-top:12px}
 .card h2{font-size:14px;margin:0 0 8px;color:var(--text-2);font-weight:600}
 
-/* 走行画面 */
-.drive{display:grid;gap:12px}
-@media (orientation:landscape) and (min-width:640px){
-  .drive{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+/* 走行画面：開いたままにする前提で1画面に収める */
+.drive{display:grid;gap:10px;grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"ball" "ro" "log";
+  height:calc(100dvh - 54px - 72px - var(--safe-b) - var(--safe-t));min-height:560px}
+@media (orientation:landscape) and (min-width:600px){
+  .drive{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"ball ro" "ball log";min-height:300px}
+  .drive .gball-wrap{height:100%}
 }
-.gball-wrap{position:relative;background:var(--surface);border-radius:var(--radius);padding:8px;aspect-ratio:1/1;max-height:min(62vh,560px);margin:0 auto;width:100%}
-@media (orientation:landscape){.gball-wrap{max-height:calc(100dvh - 120px);width:auto}}
+.gball-wrap{grid-area:ball;position:relative;background:var(--surface);border-radius:var(--radius);padding:6px;height:clamp(170px,28dvh,400px);width:100%}
 #gball{width:100%;height:100%;display:block}
 .gball-label{position:absolute;left:14px;top:10px;font-size:11px;color:var(--text-3)}
 .gball-total{position:absolute;right:14px;top:8px;text-align:right}
 .gball-total b{font-size:28px;font-weight:800;line-height:1}
 .gball-total small{display:block;font-size:11px;color:var(--text-3)}
-.banner{position:absolute;left:12px;right:12px;bottom:12px;padding:10px 12px;border-radius:12px;font-weight:700;font-size:15px;text-align:center;background:rgba(208,59,59,.92);color:#fff;transition:opacity .3s}
+#glass{position:absolute;left:8px;bottom:8px;width:64px;height:64px}
+.banner{position:absolute;left:12px;right:12px;bottom:12px;padding:10px 12px;border-radius:12px;font-weight:700;font-size:15px;text-align:center;background:rgba(208,59,59,.92);color:#fff;transition:opacity .3s;z-index:2}
 .banner.warn{background:rgba(250,178,25,.95);color:#2B1D00}
 .banner.info{background:rgba(42,47,54,.95);color:var(--text)}
 
-.readouts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.ro{background:var(--surface);border-radius:14px;padding:10px 10px 8px}
+.readouts{grid-area:ro;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ro{background:var(--surface);border-radius:14px;padding:6px 10px 4px}
+.ro .sub{min-height:0}
 .ro .k{font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:5px}
 .ro .k i{width:10px;height:3px;border-radius:2px;display:inline-block}
-.ro .v{font-size:22px;font-weight:700;line-height:1.2}
-.ro .u{font-size:11px;color:var(--text-3);margin-left:2px;font-weight:500}
+.ro .v{font-size:19px;font-weight:700;line-height:1.2}
 .ro .sub{font-size:11px;color:var(--text-2);min-height:16px}
 
+/* Gログ（ラップ） */
+.lap-panel{grid-area:log;display:flex;flex-direction:column;gap:8px;background:var(--surface);border-radius:var(--radius);padding:10px;min-height:0}
+.lap-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lap-head b{font-size:15px}
+.lap-head .stats{flex:1;font-size:12px;color:var(--text-2);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lap-head .btn.small{min-height:34px;padding:0 12px}
+.laps{flex:1;min-height:0;overflow-y:auto;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;overscroll-behavior:contain}
+.lap{display:grid;grid-template-columns:2.4em 30px minmax(0,1fr) auto;gap:8px;align-items:center;background:var(--surface-2);border-radius:12px;padding:7px 10px;border-left:4px solid transparent}
+.lap.active{border-left-color:var(--primary);background:#1C2A3A}
+.lap.new{animation:lapIn .5s ease-out}
+@keyframes lapIn{from{background:#2C4766;transform:translateY(-6px)}to{transform:none}}
+.lap .no{font-size:12px;color:var(--text-3);font-weight:700}
+.lap .arr{width:30px;height:30px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center}
+.lap .arr svg{width:18px;height:18px}
+.lap .mid{min-width:0}
+.lap .ty{font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.lap .meta{font-size:12px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lap .meta .gap{color:var(--text);font-weight:700}
+.lap .pk{font-size:22px;font-weight:800;text-align:right;line-height:1.1}
+.lap .pk small{display:block;font-size:10px;font-weight:600;color:var(--text-3)}
+.tag{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--text);border:1px solid var(--c)}
+.lap-empty{color:var(--text-3);font-size:13px;text-align:center;padding:18px 8px}
+.score-strip{font-size:12.5px;color:var(--text-2);display:flex;gap:10px;align-items:center;white-space:nowrap;overflow:hidden}
+.score-strip b{color:var(--text)}
+.score-strip .sc{font-size:16px;font-weight:800}
+.lap-panel .actions .btn{min-height:44px}
+
+.empty{color:var(--text-3);font-size:13px;text-align:center;padding:10px}
 .score-row{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
 .score-big{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--good) calc(var(--p)*1%),var(--surface-3) 0);position:relative}
 .score-big::after{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--surface)}
 .score-big span{position:relative;z-index:1;font-size:28px;font-weight:800}
-.score-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;font-size:13px;color:var(--text-2)}
-.score-meta b{color:var(--text);font-weight:700}
-
-.feed{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.feed li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--surface-2);border-radius:12px;padding:8px 10px;font-size:13px}
-.feed .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:15px;font-weight:800;color:#fff}
-.feed .t{color:var(--text-3);font-size:11px}
-.feed .pk{font-weight:700}
-.empty{color:var(--text-3);font-size:13px;text-align:center;padding:10px}
-
-.glass-row{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:center}
-#glass{width:110px;height:110px}
-.glass-row p{margin:0;font-size:13px;color:var(--text-2)}
 
 /* 大きいボタン */
 .actions{display:flex;gap:10px}
@@ -215,61 +232,37 @@ dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
   <section class="view active" id="view-drive">
     <div class="onboard card" id="onboard">
       <h2>Gを見える化して、乗り心地を上げる</h2>
-      <p>スマホをホルダーにしっかり固定してから始めてください。<br>ブレーキ・発進・カーブで体にかかる力（G）をリアルタイムに表示し、急な操作を知らせます。</p>
+      <p>スマホをホルダーにしっかり固定してから始めてください。<br>ブレーキ・発進・カーブで体にかかる力（G）をリアルタイムに表示し、一定以上のGがかかるたびにストップウォッチのラップのように1件ずつログに残します。</p>
       <button class="btn primary" id="btnEnable">センサーを有効にする</button>
       <button class="btn small" id="btnDemo">デモで試す（車に乗らずに確認）</button>
       <p style="font-size:12px;color:var(--text-3)">記録はこの端末の中だけに保存されます。運転中は画面を注視せず、音声のお知らせを使ってください。</p>
     </div>
 
     <div class="drive hidden" id="driveUi">
-      <div>
-        <div class="gball-wrap">
-          <canvas id="gball" aria-label="Gボール：体に感じる力の向きと大きさ"></canvas>
-          <div class="gball-label">体に感じる力</div>
-          <div class="gball-total"><b class="num" id="gTotal">0.00</b><small>G 合計</small></div>
-          <div class="banner hidden" id="banner"></div>
-        </div>
+      <div class="gball-wrap">
+        <canvas id="gball" aria-label="Gボール：体に感じる力の向きと大きさ"></canvas>
+        <div class="gball-label">体に感じる力</div>
+        <div class="gball-total"><b class="num" id="gTotal">0.00</b><small>G 合計</small></div>
+        <canvas id="glass" width="160" height="160" aria-label="後部座席のコップの水"></canvas>
+        <div class="banner hidden" id="banner"></div>
       </div>
-      <div style="display:grid;gap:12px">
-        <div class="readouts">
-          <div class="ro"><div class="k"><i style="background:var(--s-long)"></i>前後</div><div class="v num" id="roLong">0.00</div><div class="sub" id="roLongSub">—</div></div>
-          <div class="ro"><div class="k"><i style="background:var(--s-lat)"></i>左右</div><div class="v num" id="roLat">0.00</div><div class="sub" id="roLatSub">—</div></div>
-          <div class="ro"><div class="k">変化の急さ</div><div class="v num" id="roJerk">0.0</div><div class="sub">G/秒</div></div>
-          <div class="ro"><div class="k">速度</div><div class="v num" id="roSpeed">—</div><div class="sub">km/h</div></div>
+      <div class="readouts">
+        <div class="ro"><div class="k"><i style="background:var(--s-long)"></i>前後</div><div class="v num" id="roLong">0.00</div><div class="sub" id="roLongSub">—</div></div>
+        <div class="ro"><div class="k"><i style="background:var(--s-lat)"></i>左右</div><div class="v num" id="roLat">0.00</div><div class="sub" id="roLatSub">—</div></div>
+        <div class="ro"><div class="k">変化の急さ</div><div class="v num" id="roJerk">0.0</div><div class="sub">G/秒</div></div>
+        <div class="ro"><div class="k">速度</div><div class="v num" id="roSpeed">—</div><div class="sub">km/h</div></div>
+      </div>
+      <div class="lap-panel">
+        <div class="lap-head">
+          <b>Gログ</b><span class="chip num" id="lapThrChip" style="padding:2px 8px">0.15G以上</span>
+          <span class="stats num" id="lapStats"></span>
+          <button class="btn small" id="btnLapReset">リセット</button>
         </div>
-
-        <div class="card">
-          <div class="score-row">
-            <div class="score-big" id="scoreRing" style="--p:100"><span class="num" id="scoreVal">—</span></div>
-            <div>
-              <div style="font-weight:700;margin-bottom:4px" id="scoreTitle">乗り心地スコア</div>
-              <div class="score-meta">
-                <span>快適ゾーン <b class="num" id="mComfort">—</b></span>
-                <span>距離 <b class="num" id="mDist">—</b></span>
-                <span>急ブレーキ <b class="num" id="mBrake">0</b></span>
-                <span>急発進 <b class="num" id="mAccel">0</b></span>
-                <span>急ハンドル <b class="num" id="mLat">0</b></span>
-                <span>カックン <b class="num" id="mJerk">0</b></span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="glass-row">
-            <canvas id="glass" width="220" height="220" aria-label="コップの水"></canvas>
-            <p><b style="color:var(--text)">後部座席のコップの水</b><br>前後・左右に揺れるほど水面が傾きます。こぼさない運転が、お客様にとって心地よい運転です。</p>
-          </div>
-        </div>
-
+        <ol class="laps" id="laps"></ol>
+        <div class="score-strip num" id="scoreStrip"></div>
         <div class="actions">
           <button class="btn primary block" id="btnRec">走行記録を開始</button>
           <button class="btn" id="btnCalib" title="停車中に姿勢を合わせる">姿勢合わせ</button>
-        </div>
-
-        <div class="card">
-          <h2>最近の検知</h2>
-          <ul class="feed" id="feed"><li class="empty" style="display:block;background:none">まだありません</li></ul>
         </div>
       </div>
     </div>
@@ -296,6 +289,14 @@ dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
         <tr><td class="num">0.2〜0.3G</td><td>強め。荷物やつり革が動く、会話が止まる</td></tr>
         <tr><td class="num">0.3G以上</td><td>急ブレーキ・急ハンドル。体を支える必要がある</td></tr>
       </table>
+      <h3>Gログの見方</h3>
+      <p>前後・左右を合わせたGが設定値（標準0.15G）を超えるたびに、ストップウォッチのラップのように1件ずつ上に追加されます。</p>
+      <ul>
+        <li><b>矢印</b>：体が振られた向き（上＝前へ＝ブレーキ、下＝後ろへ＝加速、左右＝カーブの外側）。</li>
+        <li><b>＋0:48</b>：前のログからの間隔。間隔が短いほど、揺れが続いています。</li>
+        <li><b>数字</b>：その間の最大G。赤は急ブレーキなどのしきい値を超えたもの。</li>
+        <li>計測中の行は青く光り、最大値が更新されます。停車中にさっと見返して、どこで強く揺らしたかを確かめましょう。</li>
+      </ul>
       <h3>大きさより「変化の急さ」</h3>
       <p>乗り心地を一番左右するのは、Gの大きさより<b>Gが変わる速さ（ジャーク）</b>です。同じ0.2Gのブレーキでも、ジワッとかけてジワッと抜けば快適、カツンとかけてパッと離すと不快に感じます。</p>
       <h3>ブレーキ</h3>
@@ -350,6 +351,21 @@ dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
     </div>
 
     <div class="card">
+      <h2>Gログ</h2>
+      <div class="setting">
+        <div class="lbl">ログに残すGの大きさ</div>
+        <div class="desc">前後・左右を合わせたGがこれを超えるたびに1件記録します</div>
+        <div class="seg" id="logSeg">
+          <button data-g="0.1">0.10G</button><button data-g="0.15">0.15G</button><button data-g="0.2">0.20G</button><button data-g="0.25">0.25G</button><button data-g="0.3">0.30G</button>
+        </div>
+      </div>
+      <div class="setting">
+        <div class="switch-row"><div><div class="lbl">ログが増えたら短い音</div><div class="desc">「ピッ」と鳴らします（警告の音声とは別）</div></div>
+          <label class="switch"><input type="checkbox" id="optLapBeep"><span></span></label></div>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>お知らせ</h2>
       <div class="setting">
         <div class="switch-row"><div><div class="lbl">音声で知らせる</div><div class="desc">「ブレーキが強めです」などを読み上げます</div></div>
@@ -360,7 +376,7 @@ dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
           <label class="switch"><input type="checkbox" id="optBeep"><span></span></label></div>
       </div>
       <div class="setting">
-        <div class="switch-row"><div><div class="lbl">画面を点けたままにする</div><div class="desc">記録中に自動で消灯しないようにします</div></div>
+        <div class="switch-row"><div><div class="lbl">画面を点けたままにする</div><div class="desc">センサーを使っている間、自動で消灯しないようにします</div></div>
           <label class="switch"><input type="checkbox" id="optWake"><span></span></label></div>
       </div>
     </div>
@@ -427,6 +443,7 @@ const LS_KEY = 'gmeter-settings-v1';
 const defaultSettings = () => ({
   preset:'standard', thr:{...PRESETS.standard},
   voice:true, beep:false, wake:true,
+  logThr:0.15, lapBeep:false,
   up:null,            // 端末座標での上向き（重力の反対）
   fwd:null,           // 端末座標での前向き
   fwdSource:'auto',   // auto | gps | launch | manual
@@ -471,7 +488,7 @@ const st = {
   learnLaunch:false, launchAcc:{sum:[0,0,0], n:0},
   calibrating:null,
   ch:{},               // 検知チャンネル
-  recentEvents:[],
+  laps:[], lapCur:null, lapPend:0, lastLapEnd:0,
   trail:[],
   rec:null,            // 記録中の走行
   lastSampleT:0,
@@ -503,6 +520,7 @@ async function enableSensors(demo=false){
   $('#onboard').classList.add('hidden');
   $('#driveUi').classList.remove('hidden');
   setChip('#chipSensor', true, demo ? 'デモ' : 'センサー');
+  if (S.wake) requestWake();
   resizeCanvases();
   requestAnimationFrame(draw);
   unlockAudio();
@@ -593,6 +611,7 @@ function processSample(t, ag, lin){
   }
 
   detect(t);
+  lapStep(t);
   record(t);
 }
 
@@ -753,9 +772,7 @@ function addEvent(type, peak, dur, extra={}){
     if (st.rec.lastFix){ ev.lat = st.rec.lastFix[1]; ev.lon = st.rec.lastFix[2]; }
     st.rec.events.push(ev);
   }
-  st.recentEvents.unshift(ev);
-  if (st.recentEvents.length > 8) st.recentEvents.pop();
-  renderFeed();
+  attachEventToLap(ev);
   alertEvent(ev);
 }
 
@@ -801,12 +818,11 @@ function alertEvent(ev){
    記録
    ===================================================================== */
 function startRecording(){
-  st.rec = { id: 't' + Date.now(), start: Date.now(), events:[], s:{t:[],lo:[],la:[],sp:[]}, path:[], dist:0, lastFix:null, movingN:0, comfortN:0, maxBrake:0, maxAccel:0, maxLat:0 };
+  st.rec = { id: 't' + Date.now(), start: Date.now(), events:[], laps:[], s:{t:[],lo:[],la:[],sp:[]}, path:[], dist:0, lastFix:null, movingN:0, comfortN:0, maxBrake:0, maxAccel:0, maxLat:0 };
   st.lastSampleT = 0;
   $('#btnRec').textContent = '走行記録を終了';
   $('#btnRec').classList.replace('primary','danger');
   $('#chipRec').classList.remove('hidden');
-  if (S.wake) requestWake();
   updateLive();
 }
 async function stopRecording(){
@@ -814,7 +830,6 @@ async function stopRecording(){
   $('#btnRec').textContent = '走行記録を開始';
   $('#btnRec').classList.replace('danger','primary');
   $('#chipRec').classList.add('hidden');
-  releaseWake();
   if (!r) return;
   const sum = summarize(r);
   if (sum.durationSec < 20){ toast('20秒未満の記録は保存しません'); updateLive(); return; }
@@ -863,6 +878,7 @@ function summarize(r){
     comfortPct: r.movingN ? Math.round(r.comfortN / r.movingN * 100) : null,
     maxBrake:+r.maxBrake.toFixed(3), maxAccel:+r.maxAccel.toFixed(3), maxLat:+r.maxLat.toFixed(3),
     score: scoreOf(r.events, movingSec, S.thr), thr:{...S.thr},
+    logThr:S.logThr, laps: r.laps.map(l => ({...cleanLap(l), t: Math.round((l.at - r.start)/100)/10})),
   };
 }
 
@@ -873,7 +889,7 @@ async function requestWake(){
 }
 function releaseWake(){ try{ wakeLock && wakeLock.release(); }catch(e){} wakeLock = null; }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && st.rec && S.wake) requestWake();
+  if (document.visibilityState === 'visible' && st.sensorOn && S.wake) requestWake();
 });
 
 /* =====================================================================
@@ -1036,6 +1052,7 @@ function updateReadouts(){
   $('#roJerk').textContent = st.jerk.toFixed(1);
   const gm = Math.hypot(lo, la);
   const tEl = $('#gTotal'); tEl.textContent = gm.toFixed(2);
+  refreshActiveLap();
   tEl.style.color = gm < COMFORT_G ? 'var(--good-text)' : gm < Math.min(S.thr.brake, S.thr.lat) ? 'var(--warn)' : 'var(--bad-text)';
   const fresh = st.speed != null && now/1000 - st.speedAt < 5;
   $('#roSpeed').textContent = fresh ? Math.round(st.speed*3.6) : '—';
@@ -1047,36 +1064,136 @@ function updateReadouts(){
 }
 
 function updateLive(){
-  const r = st.rec;
-  if (!r){
-    $('#scoreTitle').textContent = '乗り心地スコア（記録中に表示）';
-    $('#scoreVal').textContent = '—'; $('#scoreRing').style.setProperty('--p', 0);
-    ['#mComfort','#mDist'].forEach(s=>$(s).textContent='—');
-    ['#mBrake','#mAccel','#mLat','#mJerk'].forEach(s=>$(s).textContent='0');
-    return;
-  }
+  const r = st.rec, el = $('#scoreStrip');
+  if (!r){ el.innerHTML = '<span>ログは常に残ります。記録を開始するとスコアとルートも保存</span>'; return; }
   const sc = scoreOf(r.events, r.movingN/SAMPLE_HZ, S.thr);
-  $('#scoreTitle').textContent = '乗り心地スコア（この走行）';
-  $('#scoreVal').textContent = sc;
-  $('#scoreRing').style.setProperty('--p', sc);
-  $('#scoreRing').style.background = `conic-gradient(${scoreColor(sc)} calc(var(--p)*1%), var(--surface-3) 0)`;
-  $('#mComfort').textContent = r.movingN ? Math.round(r.comfortN/r.movingN*100) + '%' : '—';
-  $('#mDist').textContent = r.dist ? (r.dist/1000).toFixed(1) + 'km' : '—';
   const c = t => r.events.filter(e => e.type === t).length;
-  $('#mBrake').textContent = c('brake'); $('#mAccel').textContent = c('accel'); $('#mLat').textContent = c('lat'); $('#mJerk').textContent = c('stop') + c('jerk');
+  el.innerHTML = `<span>スコア <b class="sc" style="color:${scoreText(sc)}">${sc}</b></span>
+    <span>快適 <b>${r.movingN ? Math.round(r.comfortN/r.movingN*100) + '%' : '—'}</b></span>
+    <span>距離 <b>${r.dist ? (r.dist/1000).toFixed(1) + 'km' : '—'}</b></span>
+    <span>急ブ<b>${c('brake')}</b> 発<b>${c('accel')}</b> 曲<b>${c('lat')}</b> カ<b>${c('stop')}</b></span>`;
 }
 
-function renderFeed(){
-  const ul = $('#feed');
-  if (!st.recentEvents.length){ ul.innerHTML = '<li class="empty" style="display:block;background:none">まだありません</li>'; return; }
-  ul.innerHTML = st.recentEvents.map(ev => {
-    const d = EV[ev.type];
-    const unit = (ev.type === 'stop' || ev.type === 'jerk') ? 'G/秒' : 'G';
-    const side = ev.type === 'lat' ? (ev.side > 0 ? '（右へ）' : '（左へ）') : '';
-    return `<li><span class="ic" style="background:${d.color}">${d.short}</span>
-      <span><b>${d.name}${side}</b><br><span class="t">${fmtClock(ev.at)}${ev.kmh != null ? ' ・ ' + ev.kmh + 'km/h' : ''}</span></span>
-      <span class="pk num">${ev.peak.toFixed(2)}<small style="color:var(--text-3)"> ${unit}</small></span></li>`;
-  }).join('');
+/* =====================================================================
+   Gログ（ストップウォッチのラップのように、一定以上のGを逐次記録）
+   ===================================================================== */
+const LAP_KEY = 'gmeter-laps-v1', LAP_MAX = 500;
+function speedNow(){ return st.speed != null && performance.now()/1000 - st.speedAt < 5 ? Math.round(st.speed*3.6) : null; }
+function cleanLap(l){ return { n:l.n, at:l.at, gap:l.gap, peak:l.peak, jerk:l.jerk, pLo:l.pLo, pLa:l.pLa, dur:l.dur, kmh:l.kmh, tags:l.tags.slice() }; }
+function loadLaps(){ try{ const a = JSON.parse(localStorage.getItem(LAP_KEY)); if (Array.isArray(a)) return a; }catch(e){} return []; }
+function saveLaps(){ try{ localStorage.setItem(LAP_KEY, JSON.stringify(st.laps.filter(l => !l.active).slice(-LAP_MAX).map(cleanLap))); }catch(e){} }
+
+function lapStep(t){
+  const g = Math.hypot(st.lo, st.la), thr = S.logThr;
+  if (t < st.handling || st.calibrating){ st.lapPend = 0; if (st.lapCur) endLap(t); return; }
+  const cur = st.lapCur;
+  if (!cur){
+    if (g > thr){ if (!st.lapPend) st.lapPend = t; if (t - st.lapPend >= 0.15) beginLap(st.lapPend); }
+    else st.lapPend = 0;
+    return;
+  }
+  if (g > cur.peak){ cur.peak = g; cur.pLo = st.lo; cur.pLa = st.la; cur.dirty = true; }
+  if (g < thr * 0.8){ if (!cur.below) cur.below = t; if (t - cur.below > 0.3) endLap(t); }
+  else cur.below = 0;
+}
+function beginLap(t0){
+  const at = Date.now() - Math.round((st.lastT - t0)*1000);
+  const prev = st.laps[st.laps.length-1];
+  const lap = { n:(prev ? prev.n : 0) + 1, at, gap: prev ? Math.round((at - prev.at)/100)/10 : null,
+    peak:Math.hypot(st.lo, st.la), pLo:st.lo, pLa:st.la, dur:0, kmh:speedNow(), tags:[], active:true, t0, isNew:true };
+  st.lapPend = 0; st.lapCur = lap; st.laps.push(lap);
+  if (st.laps.length > LAP_MAX) st.laps.splice(0, st.laps.length - LAP_MAX);
+  if (st.rec) st.rec.laps.push(lap);
+  if (S.lapBeep) beep(1320, 50, 1);
+  renderLaps();
+}
+function endLap(t){
+  const l = st.lapCur; st.lapCur = null;
+  l.active = false; l.dur = Math.round(((l.below || t) - l.t0)*10)/10;
+  l.peak = +l.peak.toFixed(3); l.pLo = +l.pLo.toFixed(3); l.pLa = +l.pLa.toFixed(3);
+  delete l.below; delete l.t0; delete l.dirty;
+  st.lastLapEnd = t;
+  saveLaps(); renderLaps();
+}
+// 急ブレーキ等の検知を、その時のログに印として付ける（Gが小さいカックンは単独の行にする）
+function attachEventToLap(ev){
+  const t = performance.now()/1000;
+  const last = st.laps[st.laps.length-1];
+  const target = st.lapCur || (last && st.lastLapEnd && t - st.lastLapEnd < 2 ? last : null);
+  if (target){
+    if (!target.tags.includes(ev.type)) target.tags.push(ev.type);
+    if (!target.active) saveLaps();
+    renderLaps(); return;
+  }
+  if (ev.type !== 'stop' && ev.type !== 'jerk') return;
+  const at = Date.now();
+  const lap = { n:(last ? last.n : 0) + 1, at, gap: last ? Math.round((at - last.at)/100)/10 : null,
+    peak:null, jerk:ev.peak, pLo:0, pLa:0, dur:ev.dur, kmh:ev.kmh, tags:[ev.type], isNew:true };
+  st.laps.push(lap);
+  if (st.rec) st.rec.laps.push(lap);
+  st.lastLapEnd = t;
+  saveLaps(); renderLaps();
+}
+function lapDir(l){
+  if (l.peak == null) return EV[l.tags[0]] ? EV[l.tags[0]].name : '急な操作';
+  const lo = l.pLo, la = l.pLa, alo = Math.abs(lo), ala = Math.abs(la);
+  if (alo >= ala*2) return lo < 0 ? 'ブレーキ' : '加速';
+  if (ala >= alo*2) return la > 0 ? '右カーブ' : '左カーブ';
+  return (lo < 0 ? '減速' : '加速') + '＋' + (la > 0 ? '右' : '左');
+}
+function lapBad(l, T=S.thr){
+  if (l.tags.some(t => t === 'brake' || t === 'accel' || t === 'lat' || t === 'stop')) return true;
+  return l.peak != null && (-l.pLo > T.brake || l.pLo > T.accel || Math.abs(l.pLa) > T.lat);
+}
+function lapArrow(l){
+  if (l.peak == null) return `<span style="font-weight:800;color:${EV[l.tags[0]]?.color || '#fab219'}">!</span>`;
+  // 体に感じる力の向き（Gボールの点の向き）：画面座標 x=-左右, y=前後（下向き正）
+  const ang = Math.atan2(l.pLo, -l.pLa) * 180/Math.PI;
+  const col = lapBad(l) ? '#FF7B7B' : '#fab219';
+  return `<svg viewBox="0 0 24 24" style="transform:rotate(${ang.toFixed(0)}deg)"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function lapHtml(l){
+  const bad = lapBad(l);
+  const val = l.peak != null ? l.peak.toFixed(2) : (l.jerk||0).toFixed(2);
+  const unit = l.peak != null ? 'G' : 'G/秒';
+  const tags = l.tags.map(t => `<span class="tag" style="--c:${EV[t].color}">${EV[t].name}</span>`).join('');
+  const meta = [fmtClockS(l.at),
+    l.gap != null ? `<span class="gap">+${fmtDur(Math.round(l.gap))}</span>` : '最初',
+    l.active ? '計測中…' : (l.dur ? l.dur.toFixed(1) + '秒' : ''),
+    l.kmh != null ? l.kmh + 'km/h' : ''].filter(Boolean).join(' ・ ');
+  return `<li class="lap${l.active ? ' active' : ''}${l.isNew ? ' new' : ''}" id="lap-${l.n}">
+    <span class="no num">#${l.n}</span>
+    <span class="arr">${lapArrow(l)}</span>
+    <span class="mid"><span class="ty">${lapDir(l)}${tags}</span><span class="meta num" style="display:block">${meta}</span></span>
+    <span class="pk num" style="color:${bad ? 'var(--bad-text)' : 'var(--warn)'}">${val}<small>${unit}</small></span></li>`;
+}
+function renderLaps(){
+  const ol = $('#laps'); if (!ol) return;
+  $('#lapThrChip').textContent = S.logThr.toFixed(2) + 'G以上';
+  const L = st.laps;
+  if (!L.length){
+    ol.innerHTML = `<li class="lap-empty">${S.logThr.toFixed(2)}Gを超える力がかかるたびに、ここへ1件ずつ追加されます</li>`;
+    $('#lapStats').textContent = ''; return;
+  }
+  ol.innerHTML = L.slice(-200).reverse().map(lapHtml).join('');
+  L.forEach(l => { l.isNew = false; });
+  const peaks = L.filter(l => l.peak != null).map(l => l.peak);
+  const gaps = L.map(l => l.gap).filter(g => g != null && g < 1800);
+  const avgGap = gaps.length ? gaps.reduce((a,b)=>a+b,0)/gaps.length : null;
+  const bad = L.filter(l => !l.active && lapBad(l)).length;
+  $('#lapStats').textContent = `${L.length}件` + (bad ? `・赤${bad}` : '') + (peaks.length ? `・最大${Math.max(...peaks).toFixed(2)}G` : '') + (avgGap ? `・間隔${fmtDur(Math.round(avgGap))}` : '');
+}
+function refreshActiveLap(){
+  const l = st.lapCur; if (!l || !l.dirty) return;
+  l.dirty = false;
+  const el = document.getElementById('lap-' + l.n);
+  if (el) el.outerHTML = lapHtml(l);
+}
+async function resetLaps(){
+  if (!st.laps.length) return;
+  if (!(await confirmDlg('Gログをリセットしますか？', '画面のログを消して #1 から数え直します。保存済みの走行記録は消えません。'))) return;
+  st.laps = []; st.lapCur = null; st.lapPend = 0; st.lastLapEnd = 0;
+  saveLaps(); renderLaps();
 }
 
 let bannerTimer = 0;
@@ -1186,6 +1303,10 @@ async function showTrip(id){
       <div class="chart-box" style="max-width:340px;margin:0 auto"><canvas id="scatterChart" height="300"></canvas></div>
       <div class="kv" style="font-size:12px;text-align:center">上＝ブレーキで体が前へ、下＝加速、左右＝カーブ。中心の緑の円に収まるほど快適</div>
     </div>
+    ${t.laps && t.laps.length ? `<div class="card"><h2>Gログ（${(t.logThr||0.15).toFixed(2)}G以上 ${t.laps.length}件）</h2>
+      <table class="data"><tr><th>経過</th><th>向き</th><th class="r">前から</th><th class="r">最大</th><th class="r">秒</th></tr>
+      ${t.laps.map(l => `<tr><td class="num">${fmtDur(Math.round(l.t||0))}</td><td>${lapDir(l)}${l.tags.length ? ' <span style="color:var(--bad-text)">●</span>' : ''}</td><td class="r num">${l.gap != null ? '+' + fmtDur(Math.round(l.gap)) : '—'}</td><td class="r num" style="color:${lapBad(l, t.thr) ? 'var(--bad-text)' : 'var(--text)'}">${l.peak != null ? l.peak.toFixed(2) + 'G' : (l.jerk||0).toFixed(2) + 'G/秒'}</td><td class="r num">${l.dur ?? ''}</td></tr>`).join('')}</table>
+      <div class="kv" style="font-size:12px;margin-top:6px">● は急ブレーキ・カックンなどの検知が重なったもの</div></div>` : ''}
     <div class="card"><h2>検知の一覧（${t.events.length}回）</h2>
       ${t.events.length ? `<table class="data"><tr><th>経過</th><th>種類</th><th class="r">強さ</th><th class="r">速度</th></tr>
       ${t.events.map(e => `<tr><td class="num">${fmtDur(Math.round(e.t||0))}</td><td><span style="color:${EV[e.type].color}">●</span> ${EV[e.type].name}${e.type==='lat' ? (e.side>0?'（右）':'（左）') : ''}</td><td class="r num">${e.peak.toFixed(2)} ${(e.type==='stop'||e.type==='jerk')?'G/秒':'G'}</td><td class="r num">${e.kmh ?? '—'}</td></tr>`).join('')}</table>` : '<div class="empty">急な操作はありませんでした。すばらしい運転です。</div>'}
@@ -1354,6 +1475,10 @@ function exportTripCsv(t, data){
   if (data) for (let i=0;i<data.s.t.length;i++) rows.push([data.s.t[i], data.s.lo[i], data.s.la[i], data.s.sp[i] ?? ''].join(','));
   rows.push('', '経過秒,種類,強さ,単位,速度km/h,緯度,経度');
   t.events.forEach(e => rows.push([e.t, EV[e.type].name, e.peak, (e.type==='stop'||e.type==='jerk')?'G/秒':'G', e.kmh ?? '', e.lat ?? '', e.lon ?? ''].join(',')));
+  if (t.laps && t.laps.length){
+    rows.push('', 'Gログ番号,経過秒,時刻,向き,前回から秒,最大G,前後G,左右G,秒,速度km/h,検知');
+    t.laps.forEach(l => rows.push([l.n, l.t, new Date(l.at).toLocaleTimeString('ja-JP'), lapDir(l), l.gap ?? '', l.peak ?? '', l.pLo, l.pLa, l.dur, l.kmh ?? '', l.tags.map(x => EV[x].name).join('・')].join(',')));
+  }
   download(`gmeter_${fileStamp(t.start)}.csv`, rows.join('\n'));
 }
 async function exportAllCsv(){
@@ -1422,6 +1547,8 @@ function renderSettings(){
   document.querySelectorAll('#presetSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === S.preset));
   $('#thrBrake').value = S.thr.brake; $('#thrAccel').value = S.thr.accel; $('#thrLat').value = S.thr.lat; $('#thrJerk').value = S.thr.jerk;
   $('#optVoice').checked = S.voice; $('#optBeep').checked = S.beep; $('#optWake').checked = S.wake;
+  document.querySelectorAll('#logSeg button').forEach(b => b.classList.toggle('on', Math.abs(+b.dataset.g - S.logThr) < 1e-6));
+  $('#optLapBeep').checked = S.lapBeep;
   renderCalibInfo();
   db.all('trips').then(ts => { $('#dataInfo').innerHTML = `保存されている走行：<b>${ts.length}件</b>（この端末の中だけ）`; }).catch(()=>{});
 }
@@ -1441,8 +1568,11 @@ document.querySelectorAll('#presetSeg button').forEach(b => b.onclick = () => {
 });
 $('#optVoice').onchange = e => { S.voice = e.target.checked; saveSettings(); if (S.voice){ unlockAudio(); speak('音声のお知らせをオンにしました'); } };
 $('#optBeep').onchange = e => { S.beep = e.target.checked; saveSettings(); if (S.beep){ unlockAudio(); beep(); } };
-$('#optWake').onchange = e => { S.wake = e.target.checked; saveSettings(); if (!S.wake) releaseWake(); else if (st.rec) requestWake(); };
+$('#optWake').onchange = e => { S.wake = e.target.checked; saveSettings(); if (!S.wake) releaseWake(); else if (st.sensorOn) requestWake(); };
 $('#btnCalib').onclick = startCalibration;
+$('#btnLapReset').onclick = resetLaps;
+document.querySelectorAll('#logSeg button').forEach(b => b.onclick = () => { S.logThr = +b.dataset.g; saveSettings(); renderSettings(); renderLaps(); });
+$('#optLapBeep').onchange = e => { S.lapBeep = e.target.checked; saveSettings(); if (S.lapBeep){ unlockAudio(); beep(1320, 50, 1); } };
 $('#btnCalib2').onclick = () => { goView('drive'); startCalibration(); };
 $('#btnLearnFwd').onclick = startLaunchLearn;
 $('#btnFlip').onclick = () => {
@@ -1484,6 +1614,7 @@ function haversine(la1, lo1, la2, lo2){
 }
 const pad2 = n => String(n).padStart(2,'0');
 function fmtDur(s){ s = Math.max(0, s|0); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60; return h ? `${h}:${pad2(m)}:${pad2(x)}` : `${m}:${pad2(x)}`; }
+function fmtClockS(ms){ const d = new Date(ms); return `${d.getHours()}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; }
 function fmtClock(ms){ const d = new Date(ms); return `${d.getHours()}:${pad2(d.getMinutes())}`; }
 function fmtDate(ms){ const d = new Date(ms); const w = '日月火水木金土'[d.getDay()]; return `${d.getMonth()+1}/${d.getDate()}（${w}）${fmtClock(ms)}`; }
 function fileStamp(ms){ const d = new Date(ms); return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}`; }
@@ -1492,7 +1623,9 @@ function scoreColor(s){ return s >= 85 ? '#0ca30c' : s >= 70 ? '#fab219' : '#d03
 function scoreText(s){ return s >= 85 ? 'var(--good-text)' : s >= 70 ? 'var(--warn)' : 'var(--bad-text)'; }
 function scoreWord(s){ return s >= 95 ? 'とても滑らか。お客様が眠れる運転です' : s >= 85 ? '滑らか。快適な運転です' : s >= 70 ? 'ふつう。急な操作を減らすともっと良くなります' : '急な操作が多め。次は早めのブレーキを意識しましょう'; }
 
+st.laps = loadLaps();
 renderCalibInfo();
+renderLaps();
 updateLive();
 
 if ('serviceWorker' in navigator){
