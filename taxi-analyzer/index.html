@@ -2872,11 +2872,55 @@ function stepTimes(start, L) {
 }
 // 段の一覧：[{t, target（累計）, need（その1時間で稼ぐ額）, passed, hit, sales}]
 //   sh があれば営業中（過ぎた段の判定と、いまからの逆算）。無ければ start に出庫した場合の予定
+// 過去の累計：同じ条件の過去の営業で、出庫から h 時間までの売上の累計（日ごと）の中央値 [0..Lc]
+//   たまたまの高額（直近90日の上位5%）はふつうの1回（中央値）に置き換える。記録が5日未満なら null
+let STEPH = { k: '', v: null };
+function stepHistCum(dow, L) {
+  const now = Date.now(), tk = dayKey(new Date());
+  const k = [S.shifts.length, S.rides.length, S.rides.reduce((a, r) => a + r.total, 0), dow, L, tk].join('|');
+  if (STEPH.k === k) return STEPH.v;
+  const Lc = Math.ceil(L);
+  const past = S.shifts.filter(sh => sh.end && sh.start >= now - 90 * 86400e3 && dayKey(new Date(sh.start)) !== tk && sh.end - sh.start >= L * 3600e3 * 0.8);
+  const same = past.filter(sh => new Date(sh.start).getDay() === dow), use = same.length >= 5 ? same : past;
+  let v = null;
+  if (use.length >= 5) {
+    const recent = S.rides.filter(r => r.ts >= now - 90 * 86400e3).map(r => r.total);
+    const bonus = recent.length >= 20 ? quant(recent, .95) : Infinity, usual = quant(recent, .5);
+    const ids = new Map(use.map((sh, i) => [sh.id, i])), rows = use.map(() => new Array(Lc + 1).fill(0));
+    for (const r of S.rides) {
+      const i = ids.get(r.shiftId); if (i == null) continue;
+      const h = Math.max(0, Math.ceil((r.ts - use[i].start) / 3600e3)), amt = r.total > bonus ? usual : r.total;
+      for (let j = h; j <= Lc; j++) rows[i][j] += amt;
+    }
+    // 時間ごとの中央値（日ごとの累計は増える一方なので、中央値も増える一方）
+    v = Array.from({ length: Lc + 1 }, (_, j) => quant(rows.map(row => row[j]), .5));
+    if (!(v[Lc] > 0)) v = null;
+  }
+  STEPH = { k, v };
+  return v;
+}
 function stepPlan(sh, now = Date.now(), goal = sh ? dailyNeed(sh.start) : 0, start = sh ? sh.start : now) {
   if (!goal) return null;
   const L = stepLen(), curve = stepCurve(new Date(start).getDay(), L), F = t => stepFrac(curve, L, (t - start) / 3600e3);
   const rides = sh ? S.rides.filter(r => r.shiftId === sh.id) : [];
   const salesAt = t => rides.reduce((a, r) => a + (r.ts <= t ? r.total : 0), 0);
+  // 自動の目標：段は過去の累計（中央値）を1日の目標の高さまで引き上げた金額で固定。
+  //   いまの売上で配り直さないので、先行しても先の段は下がらない（遅れても上がらない）
+  const hist = goalAuto() ? stepHistCum(new Date(start).getDay(), L) : null;
+  if (hist) {
+    const Lc = L, at = e => { e = Math.max(0, Math.min(L, e)); const i = Math.floor(e), a = hist[Math.min(i, hist.length - 1)], b = hist[Math.min(i + 1, hist.length - 1)]; return a + (b - a) * (e - i); };
+    const top = at(Lc), sNow = sh ? salesAt(now) : 0;
+    let prev = 0;
+    const cps = stepTimes(start, L).map((t, i, all) => {
+      const target = i === all.length - 1 ? goal : Math.min(goal, Math.ceil(goal * at((t - start) / 3600e3) / top / 100) * 100);
+      const c = { t, target: Math.max(prev, target), need: Math.max(prev, target) - prev };
+      prev = c.target;
+      if (sh && t <= now) { c.passed = true; c.sales = salesAt(t); c.hit = c.sales >= c.target; } else c.passed = false;
+      return c;
+    });
+    const passed = cps.filter(c => c.passed);
+    return { goal, start, sales: sNow, cps, passed, next: cps.find(c => !c.passed) || null, hits: passed.filter(c => c.hit).length, hist: true };
+  }
   // t0 の時点の売上 s0 から、t までに必要な累計
   const back = (t0, s0, t) => { const f0 = F(t0); return f0 >= 1 ? Math.max(s0, goal) : s0 + Math.max(0, goal - s0) * (F(t) - f0) / (1 - f0); };
   const up100 = v => Math.ceil(v / 100) * 100;
@@ -2910,14 +2954,14 @@ function stepsHtml(sp) {
 // 1時間ごとの一覧（ホームの「次は…」をタップ）：時刻・その1時間で稼ぐ額・累計の目標・結果
 function stepListHtml(sp) {
   const left = Math.max(0, sp.goal - sp.sales);
-  return `<div class="sl-sum num"><span>1日の必要 <b>${yen(sp.goal)}</b></span><span>いま <b>${yen(sp.sales)}</b></span><span>あと <b class="ac">${yen(left)}</b></span></div>
-    <div class="sl-note">これからの段は、必要額の残りを残りの時間へ、あなたの稼ぎ方の配分で逆算した累計です。過ぎた段は実績の累計です。</div>
+  return `<div class="sl-sum num"><span>${dayUnit() ? '1日の目標' : '1日の必要'} <b>${yen(sp.goal)}</b></span><span>いま <b>${yen(sp.sales)}</b></span><span>あと <b class="ac">${yen(left)}</b></span></div>
+    <div class="sl-note">${sp.hist ? '各時刻の目標は、過去の同じ条件の日に「その時刻までに稼いでいた累計」（中央値）を、1日の目標まで引き上げた金額です。営業中は変わりません。' : 'これからの段は、必要額の残りを残りの時間へ、あなたの稼ぎ方の配分で逆算した累計です。'}過ぎた段は実績の累計です。</div>
     <ol class="sl">
       <li class="hd"><span>時刻</span><span>その1時間</span><span>累計</span><span>結果</span></li>
       ${sp.cps.map(c => {
         const cls = c.passed ? (c.hit ? 'hit' : 'miss') : c === sp.next ? 'next' : '';
         // 過ぎた段は実績の累計と、その1時間の目標に対する結果。これからの段は逆算した累計の目標
-        const res = c.passed ? (c.hit ? '達成' : `−${yen(c.target - c.sales)}`) : c === sp.next ? `あと ${yen(Math.max(0, c.target - sp.sales))}` : '';
+        const res = c.passed ? (c.hit ? '達成' : `−${yen(c.target - c.sales)}`) : c === sp.next ? (c.target > sp.sales ? `あと ${yen(c.target - sp.sales)}` : 'クリア') : '';
         return `<li class="${cls}"><span class="num">${hhmm(c.t)}</span><span class="num">${yen(c.need)}</span><span class="num">${yen(c.passed ? c.sales : c.target)}</span><span class="r num">${res}</span></li>`;
       }).join('')}
     </ol>`;
