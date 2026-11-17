@@ -3042,7 +3042,8 @@ function goalReview() {
    月の目標：任意の金額 ／ 自動（ステップアップ）
    自動のとき
    ・毎週（月曜）決め直す：直近7日（今日を除く）の1日の売上の中央値（たまたまの高額はふつうの1回に置き換え）
-     ＋ ¥1,500 を「1日の目標」に。上げる時はすぐ、下げる時は1週間に ¥1,500 まで
+     ＋ ¥1,500 を「1日の目標」に。直近7日の中央値が直近28日の中央値より低い週は、前の週の目標のまま
+     それ以外は、上げる時はすぐ、下げる時は1週間に ¥1,500 まで
      直近7日の営業が3日未満の時は直近28日の中央値＋¥1,500（5日以上ある時）
    ・月単位は、月の目標 ＝ 締め期間の今日より前の売上 ＋ 1日の目標 × 残りの出勤予定日数（1,000円単位）
    ・営業中は変えない（その日の必要額が営業の途中で動かないように）。判定は1日1回
@@ -3082,12 +3083,14 @@ function autoGoalTick() {
   let msg = '';
   // 週の始め（月曜）か締め期間が変わった時に決め直す
   if (A.week !== wk || A.period !== pk || !A.daily) {
-    const w = weekGoalCalc(now), c = w.daily ? w : autoGoalCalc(now);
+    const w = weekGoalCalc(now), m = autoGoalCalc(now), c = w.daily ? w : m;
     if (c.daily) {
-      // 上げる時はすぐ。下げる時は1週間に ¥1,500 まで（悪い週が1回あっただけで大きく下げない）
-      const daily = A.daily && c.daily < A.daily ? Math.max(c.daily, A.daily - REVIEW_STEP) : c.daily;
+      // 直近7日の中央値が直近28日（月あたり）の中央値より低い週は、前の週の目標を基準にする（下げない）
+      const keep = !!(A.daily && w.daily && m.med && w.med < m.med);
+      // それ以外：上げる時はすぐ。下げる時は1週間に ¥1,500 まで（悪い週が1回あっただけで大きく下げない）
+      const daily = keep ? A.daily : A.daily && c.daily < A.daily ? Math.max(c.daily, A.daily - REVIEW_STEP) : c.daily;
       const was = A.daily;
-      Object.assign(A, { week: wk, period: pk, daily, med: c.med, days: c.n, src: w.daily ? 'week' : 'month' });
+      Object.assign(A, { week: wk, period: pk, daily, med: c.med, med28: m.med || null, days: c.n, src: keep ? 'keep' : w.daily ? 'week' : 'month' });
       if (!dayUnit()) S.settings.monthGoal = monthGoalFor(daily, now);   // 月単位：これまでの売上 ＋ 1日の目標 × 残りの出勤予定日
       S.settings.goalReviewAt = now;
       if (daily !== was) msg = `今週の1日の目標を ${yen(daily)} にしました${was ? `（先週 ${yen(was)}）` : ''}`;
@@ -3646,7 +3649,7 @@ function reviewHtml() {
   const pct = v => v == null ? '—' : Math.round(v * 100) + '<small>%</small>';
   let verdict;
   const A = S.settings.autoGoal || {}, nextMon = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 7 - (d.getDay() + 6) % 7); return d; };
-  if (goalAuto() && A.daily) verdict = `今週の1日の目標 <b class="num">${yen(A.daily)}</b><small>${A.src === 'week' ? `直近7日（${A.days}日営業）の中央値 ${yen(Math.round(A.med / 100) * 100)} ＋${yen(REVIEW_STEP)}` : `直近28日の中央値 ${yen(Math.round(A.med / 100) * 100)} ＋${yen(REVIEW_STEP)}`}。次は ${md(nextMon())}（月）に決め直します</small>`;
+  if (goalAuto() && A.daily) verdict = `今週の1日の目標 <b class="num">${yen(A.daily)}</b><small>${A.src === 'keep' ? `直近7日の中央値 ${yen(Math.round(A.med / 100) * 100)} が直近28日の中央値 ${yen(Math.round(A.med28 / 100) * 100)} より低いので、先週の目標のまま` : A.src === 'week' ? `直近7日（${A.days}日営業）の中央値 ${yen(Math.round(A.med / 100) * 100)} ＋${yen(REVIEW_STEP)}` : `直近28日の中央値 ${yen(Math.round(A.med / 100) * 100)} ＋${yen(REVIEW_STEP)}`}。次は ${md(nextMon())}（月）に決め直します</small>`;
   else if (R.need) verdict = `判定まで あと <b class="num">${R.need}日</b> の営業<small>直近14日の営業が5日以上で判定します</small>`;
   else if (R.dir > 0) verdict = `目標に届く日が続いています。1日 <b class="num">＋${yen(R.delta)}</b> 上げましょう<small>${R.delta > REVIEW_STEP ? `直近14日の中央値 ${yen(Math.round(R.med14 / 100) * 100)} に追いつく分。` : ''}${goalChange(R.newGoal)}${dayUnit() ? '' : `（出勤予定${R.wd}日）`}</small>`;
   else if (R.dir < 0) verdict = `届かない日が4週続いています。1日 <b class="num">${yen(REVIEW_STEP)}</b> 下げて、型を見直しましょう<small>${goalChange(R.newGoal)}</small>`;
@@ -4095,6 +4098,7 @@ function renderData() {
     gn.hidden = !goalAuto();
     if (goalAuto()) { const c = autoGoalCalc();
       gn.innerHTML = c.need && !A.daily ? `記録が<b>あと${c.need}日分</b>たまると自動で決まります（それまでは今の金額）`
+        : A.src === 'keep' ? `今週の1日の目標 <b>${yen(A.daily)}</b>（直近7日の中央値が月あたり（直近28日）の中央値より低いので、先週の目標のまま）。毎週月曜に決め直します`
         : `今週の1日の目標 <b>${yen(A.daily || c.daily)}</b>（${A.src === 'month' ? '直近28日' : '直近7日'}の中央値 <span class="nw">${yen(Math.round((A.med || c.med) / 100) * 100)}</span> <span class="nw">＋${yen(REVIEW_STEP)}</span>）。毎週月曜に決め直し、上げる時はすぐ、下げる時は1週間に <span class="nw">${yen(REVIEW_STEP)}</span> まで${dayUnit() ? '' : '。月の目標＝これまでの売上＋1日の目標×残りの出勤予定日'}`; } }
   $('#hiFareBtn').textContent = S.settings.hiFare ? yen(S.settings.hiFare) + '以上' : '自動';
   $('#closingBtn').textContent = closingLabel();
