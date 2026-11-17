@@ -2642,7 +2642,7 @@ function renderHud() {
   if (se.dataset.v !== String(sales)) { se.dataset.v = sales; se.innerHTML = yenHtml(sales); }
   // 1日の必要額＝月の目標の残り ÷ 残りの出勤日（月の目標が未設定・達成済みの時はその表示）
   $('#goalLbl').textContent = !mg ? '' : goal ? (dayUnit() ? '1日の目標' : '1日の必要') : '';
-  $('#goal').textContent = !mg ? '目標を設定' : goal ? yen(goal) : '月の目標達成';
+  $('#goal').textContent = !mg ? (goalAuto() ? '記録がたまると自動で設定' : '目標を設定') : goal ? yen(goal) : '月の目標達成';
   $('#pct').style.display = goal ? '' : 'none';
   $('#barWrap').style.visibility = goal ? '' : 'hidden';
   $('#pct').innerHTML = Math.floor(ratio * 100) + '<small>%</small>';
@@ -3029,9 +3029,13 @@ function goalReview() {
     if (rate >= 0.7 && low >= gm * 0.85) dir = 1;
     else if (rate < 0.5 && prev.length >= 5 && rateOf(prev) < 0.5) dir = -1;
   }
-  // 日単位は1日の目標を ±¥1,500、月単位は月の目標を ±¥1,500 × 出勤予定日数
-  const newGoal = dayUnit() ? Math.max(0, dayGoalNow() + dir * REVIEW_STEP) : dir ? Math.max(0, Math.round((g + dir * REVIEW_STEP * wd) / 1000) * 1000) : g;
-  return { n: cur.length, need: Math.max(0, 5 - cur.length), rate, low, gm, cpRate, wcv, weeks: ws.length, dir, newGoal, wait: now < nextAt ? nextAt : 0, wd };
+  // 1日あたりの上げ幅：上げる時は「直近14日の中央値＋¥1,500」まで追いつく（最低 ¥1,500）。下げる時は ¥1,500 ずつ
+  //   例：1日 ¥20,000 の目標でずっと ¥30,000 稼いでいれば、次の見直しで ¥31,500 に（¥1,500 ずつだと14週かかる）
+  const base = dayUnit() ? dayGoalNow() : gm, med14 = quant(cur.map(d => d.judged), .5);
+  const delta = dir > 0 ? Math.max(REVIEW_STEP, Math.round((med14 + REVIEW_STEP) / 500) * 500 - base) : dir * REVIEW_STEP;
+  // 日単位は1日の目標を ＋delta、月単位は月の目標を ＋delta × 出勤予定日数
+  const newGoal = dayUnit() ? Math.max(0, dayGoalNow() + delta) : dir ? Math.max(0, Math.round((g + delta * wd) / 1000) * 1000) : g;
+  return { n: cur.length, need: Math.max(0, 5 - cur.length), rate, low, gm, med14, cpRate, wcv, weeks: ws.length, dir, delta, newGoal, wait: now < nextAt ? nextAt : 0, wd };
 }
 
 /* ============================================================
@@ -3044,7 +3048,7 @@ function goalReview() {
    ・営業中は変えない（その日の必要額が営業の途中で動かないように）。判定は1日1回
    ・記録が5日分に満たないうちは決めない（任意の金額のまま）
    ============================================================ */
-const goalAuto = () => S.settings.goalMode === 'auto';
+const goalAuto = () => S.settings.goalMode !== 'manual';   // 既定は自動。「任意の金額」を選んだ時だけ自分で決める
 function autoGoalCalc(now = Date.now()) {
   const tk = dayKey(new Date(now));
   const recent = S.rides.filter(r => r.ts >= now - 90 * 86400e3).map(r => r.total);
@@ -3090,9 +3094,9 @@ function autoGoalTick() {
     const R = goalReview();
     if (R && !R.need) {
       if (R.dir) {
-        A.daily += R.dir * REVIEW_STEP;
-        if (!dayUnit()) S.settings.monthGoal = Math.max(0, Math.round((S.settings.monthGoal + R.dir * REVIEW_STEP * workdaysLeft(now)) / 1000) * 1000);
-        msg = R.dir > 0 ? `目標に届く日が続いたので、1日 ＋${yen(REVIEW_STEP)} 上げました` : `届かない日が続いたので、1日 ${yen(REVIEW_STEP)} 下げました`;
+        A.daily += R.delta;
+        if (!dayUnit()) S.settings.monthGoal = Math.max(0, Math.round((S.settings.monthGoal + R.delta * workdaysLeft(now)) / 1000) * 1000);
+        msg = R.dir > 0 ? `目標に届く日が続いたので、1日 ＋${yen(R.delta)} 上げました` : `届かない日が続いたので、1日 ${yen(REVIEW_STEP)} 下げました`;
       }
       S.settings.goalReviewAt = now;
     }
@@ -3627,7 +3631,7 @@ function reviewHtml() {
   const pct = v => v == null ? '—' : Math.round(v * 100) + '<small>%</small>';
   let verdict;
   if (R.need) verdict = `判定まで あと <b class="num">${R.need}日</b> の営業<small>直近14日の営業が5日以上で判定します</small>`;
-  else if (R.dir > 0) verdict = `目標に届く日が続いています。1日 <b class="num">＋${yen(REVIEW_STEP)}</b> 上げましょう<small>${goalChange(R.newGoal)}${dayUnit() ? '' : `（出勤予定${R.wd}日）`}</small>`;
+  else if (R.dir > 0) verdict = `目標に届く日が続いています。1日 <b class="num">＋${yen(R.delta)}</b> 上げましょう<small>${R.delta > REVIEW_STEP ? `直近14日の中央値 ${yen(Math.round(R.med14 / 100) * 100)} に追いつく分。` : ''}${goalChange(R.newGoal)}${dayUnit() ? '' : `（出勤予定${R.wd}日）`}</small>`;
   else if (R.dir < 0) verdict = `届かない日が4週続いています。1日 <b class="num">${yen(REVIEW_STEP)}</b> 下げて、型を見直しましょう<small>${goalChange(R.newGoal)}</small>`;
   else verdict = `いまの目標のままで続けましょう<small>届いた日が7割以上、悪い日も必要額の85%以上で引き上げ</small>`;
   const btn = goalAuto() ? `<div class="ana-note">目標は自動：${R.wait ? `次の見直し ${md(R.wait)}・` : ''}入庫後に自動で反映します</div>` : R.dir && !R.need ? (R.wait
@@ -4074,7 +4078,7 @@ function renderData() {
     gn.hidden = !goalAuto();
     if (goalAuto()) { const c = autoGoalCalc();
       gn.innerHTML = c.need ? `記録が<b>あと${c.need}日分</b>たまると自動で決まります（それまでは今の金額）`
-        : `1日の目標 <b>${yen(A.daily || c.daily)}</b>（直近28日の中央値 <span class="nw">${yen(Math.round(A.med || c.med))}</span> <span class="nw">＋${yen(REVIEW_STEP)}</span>）${dayUnit() ? '' : `× 出勤予定${c.wd}日`}。期間の始めに決め、2週間ごとに届き具合で <span class="nw">±${yen(REVIEW_STEP)}</span>。前の期間より下げません`; } }
+        : `1日の目標 <b>${yen(A.daily || c.daily)}</b>（直近28日の中央値 <span class="nw">${yen(Math.round(A.med || c.med))}</span> <span class="nw">＋${yen(REVIEW_STEP)}</span>）${dayUnit() ? '' : `× 出勤予定${c.wd}日`}。期間の始めに決め、2週間ごとに見直し：届く日が続けば<span class="nw">直近14日の中央値＋${yen(REVIEW_STEP)}</span>まで上げ、届かない日が続けば <span class="nw">−${yen(REVIEW_STEP)}</span>。前の期間より下げません`; } }
   $('#hiFareBtn').textContent = S.settings.hiFare ? yen(S.settings.hiFare) + '以上' : '自動';
   $('#closingBtn').textContent = closingLabel();
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
@@ -4126,7 +4130,7 @@ function renderDepart() {
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
   $('#dGoal .k').textContent = dayUnit() ? '本日の目標' : '本日の必要額';
-  $('#dGoalVal').textContent = hasGoal() ? (dailyNeed() ? yen(dailyNeed()) : '達成') : '未設定';
+  $('#dGoalVal').textContent = hasGoal() ? (dailyNeed() ? yen(dailyNeed()) : '達成') : goalAuto() ? `記録あと${autoGoalCalc().need || 0}日で自動` : '未設定';
   // ステップ目標：いま出庫したら、何時までにいくら（累計）を1時間ごとに
   const ds = $('#dSteps'), sp = stepPlan(null, Date.now(), dailyNeed());
   ds.hidden = !sp;
