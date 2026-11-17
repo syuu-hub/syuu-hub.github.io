@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1014">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="スマホの加速度センサーで前後・左右のGを見える化し、急ブレーキ・急発進・急ハンドル・停止時のカックンを検知して、乗り心地のよい運転を身につけるアプリ。データは端末の外に送られません。">
+<title>Gメーター</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Gメーター">
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#0E1014;
+  --surface:#171A1F;
+  --surface-2:#1F2329;
+  --surface-3:#2A2F36;
+  --line:#353B44;
+  --text:#ECEDEF;
+  --text-2:#B4B8C0;
+  --text-3:#80858F;
+  --primary:#5FB2FF;
+  --on-primary:#00213D;
+
+  /* 系列（前後・左右） */
+  --s-long:#3987e5;
+  --s-lat:#d95926;
+  /* 状態 */
+  --good:#0ca30c;
+  --good-text:#4CD86A;
+  --warn:#fab219;
+  --serious:#ec835a;
+  --bad:#d03b3b;
+  --bad-text:#FF7B7B;
+
+  --radius:18px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;font-size:15px;line-height:1.5}
+body{min-height:100dvh;padding-top:var(--safe-t);padding-bottom:calc(72px + var(--safe-b));overflow-x:hidden}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.hidden{display:none!important}
+
+/* ヘッダー */
+header{display:flex;align-items:center;gap:10px;padding:10px 16px 6px}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em;flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--text-2);font-size:12px;white-space:nowrap}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--text-3)}
+.chip.on .dot{background:var(--good)}
+.chip.rec{background:#3A1414;color:#FFB3B3}
+.chip.rec .dot{background:var(--bad);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+main{padding:0 16px;max-width:1100px;margin:0 auto}
+.view{display:none}
+.view.active{display:block}
+
+.card{background:var(--surface);border-radius:var(--radius);padding:14px}
+.card + .card{margin-top:12px}
+.card h2{font-size:14px;margin:0 0 8px;color:var(--text-2);font-weight:600}
+
+/* 走行画面 */
+.drive{display:grid;gap:12px}
+@media (orientation:landscape) and (min-width:640px){
+  .drive{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+}
+.gball-wrap{position:relative;background:var(--surface);border-radius:var(--radius);padding:8px;aspect-ratio:1/1;max-height:min(62vh,560px);margin:0 auto;width:100%}
+@media (orientation:landscape){.gball-wrap{max-height:calc(100dvh - 120px);width:auto}}
+#gball{width:100%;height:100%;display:block}
+.gball-label{position:absolute;left:14px;top:10px;font-size:11px;color:var(--text-3)}
+.gball-total{position:absolute;right:14px;top:8px;text-align:right}
+.gball-total b{font-size:28px;font-weight:800;line-height:1}
+.gball-total small{display:block;font-size:11px;color:var(--text-3)}
+.banner{position:absolute;left:12px;right:12px;bottom:12px;padding:10px 12px;border-radius:12px;font-weight:700;font-size:15px;text-align:center;background:rgba(208,59,59,.92);color:#fff;transition:opacity .3s}
+.banner.warn{background:rgba(250,178,25,.95);color:#2B1D00}
+.banner.info{background:rgba(42,47,54,.95);color:var(--text)}
+
+.readouts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ro{background:var(--surface);border-radius:14px;padding:10px 10px 8px}
+.ro .k{font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:5px}
+.ro .k i{width:10px;height:3px;border-radius:2px;display:inline-block}
+.ro .v{font-size:22px;font-weight:700;line-height:1.2}
+.ro .u{font-size:11px;color:var(--text-3);margin-left:2px;font-weight:500}
+.ro .sub{font-size:11px;color:var(--text-2);min-height:16px}
+
+.score-row{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.score-big{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--good) calc(var(--p)*1%),var(--surface-3) 0);position:relative}
+.score-big::after{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--surface)}
+.score-big span{position:relative;z-index:1;font-size:28px;font-weight:800}
+.score-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;font-size:13px;color:var(--text-2)}
+.score-meta b{color:var(--text);font-weight:700}
+
+.feed{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.feed li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--surface-2);border-radius:12px;padding:8px 10px;font-size:13px}
+.feed .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:15px;font-weight:800;color:#fff}
+.feed .t{color:var(--text-3);font-size:11px}
+.feed .pk{font-weight:700}
+.empty{color:var(--text-3);font-size:13px;text-align:center;padding:10px}
+
+.glass-row{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:center}
+#glass{width:110px;height:110px}
+.glass-row p{margin:0;font-size:13px;color:var(--text-2)}
+
+/* 大きいボタン */
+.actions{display:flex;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 18px;border-radius:16px;font-weight:700;font-size:16px;background:var(--surface-2);color:var(--text)}
+.btn.primary{background:var(--primary);color:var(--on-primary)}
+.btn.danger{background:var(--bad);color:#fff}
+.btn.block{flex:1}
+.btn.small{min-height:40px;font-size:14px;border-radius:12px;padding:0 14px}
+.btn:disabled{opacity:.45}
+
+/* 下部タブ */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:rgba(23,26,31,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:var(--safe-b);z-index:20}
+nav.tabs button{padding:8px 0 10px;display:grid;justify-items:center;gap:2px;font-size:11px;color:var(--text-3)}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button.active{color:var(--primary)}
+
+/* 履歴 */
+.trip-list{display:grid;gap:8px}
+.trip{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;background:var(--surface);border-radius:14px;padding:10px 12px;text-align:left;width:100%}
+.trip .sc{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;font-size:22px;font-weight:800;background:var(--surface-2)}
+.trip .ti{font-weight:700}
+.trip .meta{font-size:12px;color:var(--text-2)}
+.trip .chev{color:var(--text-3)}
+
+.stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (min-width:640px){.stat-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.stat{background:var(--surface-2);border-radius:12px;padding:8px 10px}
+.stat .k{font-size:11px;color:var(--text-3)}
+.stat .v{font-size:18px;font-weight:700}
+
+.chart-box{position:relative}
+.chart-box canvas{width:100%;display:block;touch-action:pan-y}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin-bottom:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.tip{position:absolute;pointer-events:none;background:var(--surface-3);border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;white-space:nowrap;transform:translate(-50%,-100%);top:0;z-index:5}
+.advice{margin:0;padding-left:1.2em;color:var(--text-2);font-size:14px}
+.advice li + li{margin-top:6px}
+.advice b{color:var(--text)}
+
+.bar-list{display:grid;gap:8px}
+.bar-item{display:grid;grid-template-columns:7.5em 1fr 2.5em;gap:8px;align-items:center;font-size:13px}
+.bar-track{height:10px;background:var(--surface-3);border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:5px}
+
+table.data{width:100%;border-collapse:collapse;font-size:13px}
+table.data th,table.data td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}
+table.data th{color:var(--text-3);font-weight:600;font-size:12px}
+table.data td.r,table.data th.r{text-align:right}
+
+/* 設定 */
+.setting{display:grid;gap:6px;padding:12px 0;border-bottom:1px solid var(--line)}
+.setting:last-child{border-bottom:0}
+.setting .lbl{font-weight:600}
+.setting .desc{font-size:12px;color:var(--text-3)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface-2);border-radius:12px;padding:3px;gap:3px}
+.seg button{padding:8px 4px;border-radius:9px;font-size:13px;color:var(--text-2)}
+.seg button.on{background:var(--primary);color:var(--on-primary);font-weight:700}
+.switch-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.switch{position:relative;width:50px;height:30px;flex:none}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.switch span{position:absolute;inset:0;background:var(--surface-3);border-radius:999px;transition:.2s}
+.switch span::before{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}
+.switch input:checked + span{background:var(--primary)}
+.switch input:checked + span::before{transform:translateX(20px)}
+.thr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.thr-grid label{font-size:12px;color:var(--text-2);display:grid;gap:4px}
+.thr-grid input{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:8px;font:inherit}
+.kv{font-size:13px;color:var(--text-2)}
+.kv b{color:var(--text)}
+
+/* ヒント */
+.guide h3{font-size:16px;margin:18px 0 6px}
+.guide h3:first-child{margin-top:0}
+.guide p,.guide li{color:var(--text-2);font-size:14px}
+.guide ul{padding-left:1.2em;margin:6px 0}
+.guide b{color:var(--text)}
+.ref-table td:first-child{white-space:nowrap}
+
+/* はじめての画面 */
+.onboard{display:grid;gap:12px;text-align:center;padding:24px 8px}
+.onboard h2{font-size:22px;margin:0;color:var(--text)}
+.onboard p{margin:0;color:var(--text-2)}
+.onboard .btn{margin:6px auto 0;min-width:240px}
+
+.toast{position:fixed;left:50%;bottom:calc(84px + var(--safe-b));transform:translateX(-50%);background:var(--surface-3);color:var(--text);padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;box-shadow:0 6px 20px rgba(0,0,0,.4);max-width:calc(100% - 32px)}
+
+dialog{background:var(--surface);color:var(--text);border:0;border-radius:20px;padding:20px;max-width:min(420px,calc(100% - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h3{margin:0 0 8px}
+dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Gメーター</h1>
+  <span class="chip" id="chipSensor"><span class="dot"></span><span>センサー</span></span>
+  <span class="chip" id="chipGps"><span class="dot"></span><span>GPS</span></span>
+  <span class="chip rec hidden" id="chipRec"><span class="dot"></span><span class="num" id="recTime">0:00</span></span>
+</header>
+
+<main>
+  <!-- ===================== 走行 ===================== -->
+  <section class="view active" id="view-drive">
+    <div class="onboard card" id="onboard">
+      <h2>Gを見える化して、乗り心地を上げる</h2>
+      <p>スマホをホルダーにしっかり固定してから始めてください。<br>ブレーキ・発進・カーブで体にかかる力（G）をリアルタイムに表示し、急な操作を知らせます。</p>
+      <button class="btn primary" id="btnEnable">センサーを有効にする</button>
+      <button class="btn small" id="btnDemo">デモで試す（車に乗らずに確認）</button>
+      <p style="font-size:12px;color:var(--text-3)">記録はこの端末の中だけに保存されます。運転中は画面を注視せず、音声のお知らせを使ってください。</p>
+    </div>
+
+    <div class="drive hidden" id="driveUi">
+      <div>
+        <div class="gball-wrap">
+          <canvas id="gball" aria-label="Gボール：体に感じる力の向きと大きさ"></canvas>
+          <div class="gball-label">体に感じる力</div>
+          <div class="gball-total"><b class="num" id="gTotal">0.00</b><small>G 合計</small></div>
+          <div class="banner hidden" id="banner"></div>
+        </div>
+      </div>
+      <div style="display:grid;gap:12px">
+        <div class="readouts">
+          <div class="ro"><div class="k"><i style="background:var(--s-long)"></i>前後</div><div class="v num" id="roLong">0.00</div><div class="sub" id="roLongSub">—</div></div>
+          <div class="ro"><div class="k"><i style="background:var(--s-lat)"></i>左右</div><div class="v num" id="roLat">0.00</div><div class="sub" id="roLatSub">—</div></div>
+          <div class="ro"><div class="k">変化の急さ</div><div class="v num" id="roJerk">0.0</div><div class="sub">G/秒</div></div>
+          <div class="ro"><div class="k">速度</div><div class="v num" id="roSpeed">—</div><div class="sub">km/h</div></div>
+        </div>
+
+        <div class="card">
+          <div class="score-row">
+            <div class="score-big" id="scoreRing" style="--p:100"><span class="num" id="scoreVal">—</span></div>
+            <div>
+              <div style="font-weight:700;margin-bottom:4px" id="scoreTitle">乗り心地スコア</div>
+              <div class="score-meta">
+                <span>快適ゾーン <b class="num" id="mComfort">—</b></span>
+                <span>距離 <b class="num" id="mDist">—</b></span>
+                <span>急ブレーキ <b class="num" id="mBrake">0</b></span>
+                <span>急発進 <b class="num" id="mAccel">0</b></span>
+                <span>急ハンドル <b class="num" id="mLat">0</b></span>
+                <span>カックン <b class="num" id="mJerk">0</b></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="glass-row">
+            <canvas id="glass" width="220" height="220" aria-label="コップの水"></canvas>
+            <p><b style="color:var(--text)">後部座席のコップの水</b><br>前後・左右に揺れるほど水面が傾きます。こぼさない運転が、お客様にとって心地よい運転です。</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary block" id="btnRec">走行記録を開始</button>
+          <button class="btn" id="btnCalib" title="停車中に姿勢を合わせる">姿勢合わせ</button>
+        </div>
+
+        <div class="card">
+          <h2>最近の検知</h2>
+          <ul class="feed" id="feed"><li class="empty" style="display:block;background:none">まだありません</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 履歴 ===================== -->
+  <section class="view" id="view-history">
+    <div id="historyList">
+      <div class="card" style="margin-bottom:12px" id="historySummary"></div>
+      <div class="trip-list" id="tripList"></div>
+    </div>
+    <div id="tripDetail" class="hidden"></div>
+  </section>
+
+  <!-- ===================== ヒント ===================== -->
+  <section class="view" id="view-guide">
+    <div class="card guide">
+      <h3>Gとは</h3>
+      <p>Gは体にかかる力の大きさです。1Gは重力と同じ大きさ。ブレーキで体が前に引っ張られる、カーブで外側に押される力をスマホで測ります。</p>
+      <table class="data ref-table">
+        <tr><th>大きさ</th><th>お客様の感じ方（目安）</th></tr>
+        <tr><td class="num">0.1G未満</td><td>ほとんど気にならない。コップの水もこぼれない</td></tr>
+        <tr><td class="num">0.1〜0.2G</td><td>普通の運転。少し体が揺れる</td></tr>
+        <tr><td class="num">0.2〜0.3G</td><td>強め。荷物やつり革が動く、会話が止まる</td></tr>
+        <tr><td class="num">0.3G以上</td><td>急ブレーキ・急ハンドル。体を支える必要がある</td></tr>
+      </table>
+      <h3>大きさより「変化の急さ」</h3>
+      <p>乗り心地を一番左右するのは、Gの大きさより<b>Gが変わる速さ（ジャーク）</b>です。同じ0.2Gのブレーキでも、ジワッとかけてジワッと抜けば快適、カツンとかけてパッと離すと不快に感じます。</p>
+      <h3>ブレーキ</h3>
+      <ul>
+        <li><b>早めに、軽く踏み始める</b>：最初の1秒で強く踏まない。Gボールの点がスーッと上に動くのが理想。</li>
+        <li><b>止まる直前に抜く</b>：停止の1〜2秒前からペダルを少しずつ戻し、0.05G前後まで落としてから止まると「カックン」がなくなります。</li>
+        <li>停止後は前の車と少し余裕を空けて、最後の数メートルをゆっくり転がす。</li>
+      </ul>
+      <h3>発進</h3>
+      <ul>
+        <li>クリープで動き出してからアクセル。0.1G前後で十分な加速です。</li>
+        <li>変速のショックや踏み増しのたびに点が跳ねないか、Gボールで確認。</li>
+      </ul>
+      <h3>カーブ・右左折</h3>
+      <ul>
+        <li><b>曲がる前に減速を終える</b>：ブレーキとハンドルを同時に大きく使わない。点が斜めに大きく振れるのは「減速しながら曲がっている」サイン。</li>
+        <li>ハンドルはゆっくり切って、ゆっくり戻す。点が左右に「スッと出て、スッと戻る」のが理想。</li>
+        <li>車線変更も同じ。左右のGを0.1G以内に。</li>
+      </ul>
+      <h3>スマホの付け方</h3>
+      <ul>
+        <li>ダッシュボードやエアコン吹き出し口のホルダーで<b>しっかり固定</b>（向きは縦・横・寝かせても可）。</li>
+        <li>付けたら停車中に「姿勢合わせ」を押します。前方向はGPSの速度変化から自動で学習します（数回の発進・停止で確定）。</li>
+        <li>GPSが使えない場合は設定の「発進で前方向を学習」を使ってください。</li>
+        <li>スマホを手に取ると誤検知を防ぐため検知を一時停止します。</li>
+        <li>画面を消すとセンサーが止まるため、記録中は画面を点けたままにします（自動で消灯を防ぎます）。</li>
+      </ul>
+      <h3>スコアの決め方</h3>
+      <p>運転時間あたりの急な操作の回数と強さから計算します（100点満点）。<b>快適ゾーン</b>は走行中にGが0.1G未満だった時間の割合です。</p>
+      <p style="font-size:12px;color:var(--text-3)">※ スマホのセンサーによる目安です。安全運転を最優先に、運転中の画面操作はしないでください。</p>
+    </div>
+  </section>
+
+  <!-- ===================== 設定 ===================== -->
+  <section class="view" id="view-settings">
+    <div class="card">
+      <h2>検知の厳しさ</h2>
+      <div class="setting">
+        <div class="seg" id="presetSeg">
+          <button data-p="premium">乗客重視</button>
+          <button data-p="standard">標準</button>
+          <button data-p="relaxed">ゆるめ</button>
+          <button data-p="custom">カスタム</button>
+        </div>
+        <div class="thr-grid">
+          <label>ブレーキ（G）<input type="number" step="0.01" min="0.05" max="1" id="thrBrake" inputmode="decimal"></label>
+          <label>発進・加速（G）<input type="number" step="0.01" min="0.05" max="1" id="thrAccel" inputmode="decimal"></label>
+          <label>カーブ・左右（G）<input type="number" step="0.01" min="0.05" max="1" id="thrLat" inputmode="decimal"></label>
+          <label>変化の急さ（G/秒）<input type="number" step="0.05" min="0.1" max="5" id="thrJerk" inputmode="decimal"></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>お知らせ</h2>
+      <div class="setting">
+        <div class="switch-row"><div><div class="lbl">音声で知らせる</div><div class="desc">「ブレーキが強めです」などを読み上げます</div></div>
+          <label class="switch"><input type="checkbox" id="optVoice"><span></span></label></div>
+      </div>
+      <div class="setting">
+        <div class="switch-row"><div><div class="lbl">効果音で知らせる</div><div class="desc">短いビープ音。音声と同時には鳴りません</div></div>
+          <label class="switch"><input type="checkbox" id="optBeep"><span></span></label></div>
+      </div>
+      <div class="setting">
+        <div class="switch-row"><div><div class="lbl">画面を点けたままにする</div><div class="desc">記録中に自動で消灯しないようにします</div></div>
+          <label class="switch"><input type="checkbox" id="optWake"><span></span></label></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>スマホの向き</h2>
+      <div class="setting">
+        <div class="kv" id="calibInfo"></div>
+        <div class="actions" style="flex-wrap:wrap">
+          <button class="btn small" id="btnCalib2">姿勢合わせ（停車中）</button>
+          <button class="btn small" id="btnLearnFwd">発進で前方向を学習</button>
+          <button class="btn small" id="btnFlip">前後を反転</button>
+          <button class="btn small" id="btnResetFwd">前方向をリセット</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>データ</h2>
+      <div class="setting">
+        <div class="kv" id="dataInfo"></div>
+        <div class="actions" style="flex-wrap:wrap">
+          <button class="btn small" id="btnExportAll">すべてCSVで保存</button>
+          <button class="btn small" id="btnDeleteAll" style="color:var(--bad-text)">すべての記録を削除</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button class="active" data-v="drive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="14" cy="9" r="1.8" fill="currentColor"/></svg>走行</button>
+  <button data-v="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg>記録</button>
+  <button data-v="guide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>コツ</button>
+  <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
+</nav>
+
+<dialog id="dlg"><h3 id="dlgTitle"></h3><p id="dlgText"></p><div class="actions"><button class="btn block" id="dlgCancel">やめる</button><button class="btn danger block" id="dlgOk">OK</button></div></dialog>
+
+<script>
+'use strict';
+/* =====================================================================
+   定数・設定
+   ===================================================================== */
+const G0 = 9.80665;
+const COMFORT_G = 0.10;              // 快適ゾーンの上限
+const GBALL_MAX = 0.5;               // Gボールの外周
+const SAMPLE_HZ = 10;                // 記録の間隔
+const PRESETS = {
+  premium:  { brake:0.20, accel:0.15, lat:0.20, jerk:0.35 },
+  standard: { brake:0.25, accel:0.20, lat:0.25, jerk:0.50 },
+  relaxed:  { brake:0.35, accel:0.28, lat:0.35, jerk:0.75 },
+};
+const EV = {
+  brake: { name:'急ブレーキ', short:'ブ', color:'#d03b3b', say:'ブレーキが強めです', tip:'早めに軽く踏み始め、じわっと強めましょう。' },
+  accel: { name:'急発進・急加速', short:'発', color:'#ec835a', say:'加速が強めです', tip:'クリープで動き出してから、アクセルはゆっくり。' },
+  lat:   { name:'急ハンドル', short:'曲', color:'#b07de8', say:'カーブが強めです', tip:'曲がる前に減速を終え、ハンドルはゆっくり切ってゆっくり戻す。' },
+  stop:  { name:'停止時のカックン', short:'停', color:'#fab219', say:'停止のショックがありました', tip:'止まる1〜2秒前からブレーキを少しずつ緩めましょう。' },
+  jerk:  { name:'急な操作', short:'急', color:'#e87ba4', say:'操作が急です', tip:'ペダルもハンドルも、踏み始め・戻し始めをゆっくり。' },
+};
+const PENALTY_BASE = { brake:3, accel:2, lat:3, stop:2, jerk:1.5 };
+
+const LS_KEY = 'gmeter-settings-v1';
+const defaultSettings = () => ({
+  preset:'standard', thr:{...PRESETS.standard},
+  voice:true, beep:false, wake:true,
+  up:null,            // 端末座標での上向き（重力の反対）
+  fwd:null,           // 端末座標での前向き
+  fwdSource:'auto',   // auto | gps | launch | manual
+  fwdCount:0,
+});
+let S = loadSettings();
+function loadSettings(){
+  try{ const s = JSON.parse(localStorage.getItem(LS_KEY)); if (s && s.thr) return {...defaultSettings(), ...s}; }catch(e){}
+  return defaultSettings();
+}
+function saveSettings(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
+
+/* =====================================================================
+   ベクトル
+   ===================================================================== */
+const v3 = {
+  dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  len:a=>Math.hypot(a[0],a[1],a[2]),
+  scale:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+  add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+  norm:a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];},
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+  horiz:(a,up)=>v3.sub(a, v3.scale(up, v3.dot(a,up))),
+};
+
+/* =====================================================================
+   状態
+   ===================================================================== */
+const st = {
+  sensorOn:false, demo:false,
+  lastT:0,
+  gSlow:null,          // 重力の推定（端末座標, m/s²）
+  gFast:null,          // 姿勢変化の検出用
+  fwd:[0,1,0], right:[1,0,0], up:[0,0,1],
+  lo:0, la:0, vert:0,  // フィルタ後のG
+  hist:[],             // ジャーク計算用 [t, lo, la]
+  jerkLo:0, jerkLa:0, jerk:0,
+  handling:0,          // スマホを手に取った判定（解除時刻）
+  speed:null, speedAt:0, gpsOk:false, lastFix:null,
+  gpsAcc:{sum:[0,0,0], n:0}, // GPS 前方向学習のための水平加速度の積算
+  learnLaunch:false, launchAcc:{sum:[0,0,0], n:0},
+  calibrating:null,
+  ch:{},               // 検知チャンネル
+  recentEvents:[],
+  trail:[],
+  rec:null,            // 記録中の走行
+  lastSampleT:0,
+  lastAlert:0,
+};
+
+/* =====================================================================
+   センサー開始
+   ===================================================================== */
+async function enableSensors(demo=false){
+  st.demo = demo;
+  if (!demo){
+    try{
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function'){
+        const r = await DeviceMotionEvent.requestPermission();
+        if (r !== 'granted'){ toast('モーションセンサーの許可が必要です'); return; }
+      }
+    }catch(e){ toast('センサーの許可を求められませんでした: ' + e.message); return; }
+    if (typeof DeviceMotionEvent === 'undefined'){ toast('この端末・ブラウザではセンサーが使えません。デモをお試しください'); return; }
+    window.addEventListener('devicemotion', onMotion);
+    startGps();
+    // 一定時間内にイベントが来なければ案内
+    setTimeout(()=>{ if (!st.lastT) toast('センサーの値が届きません。スマホのブラウザで開いてください（デモも使えます）'); }, 2500);
+  } else {
+    startDemo();
+  }
+  if (S.up && !demo) st.gSlow = v3.scale(S.up, G0);
+  st.sensorOn = true;
+  $('#onboard').classList.add('hidden');
+  $('#driveUi').classList.remove('hidden');
+  setChip('#chipSensor', true, demo ? 'デモ' : 'センサー');
+  resizeCanvases();
+  requestAnimationFrame(draw);
+  unlockAudio();
+}
+
+function startGps(){
+  if (!('geolocation' in navigator)) return;
+  navigator.geolocation.watchPosition(onPosition, err => {
+    setChip('#chipGps', false, 'GPSなし');
+  }, { enableHighAccuracy:true, maximumAge:0, timeout:20000 });
+}
+
+/* =====================================================================
+   加速度の処理
+   ===================================================================== */
+function onMotion(e){
+  const ag = e.accelerationIncludingGravity;
+  if (!ag || ag.x == null) return;
+  const lin = e.acceleration && e.acceleration.x != null ? [e.acceleration.x, e.acceleration.y, e.acceleration.z] : null;
+  processSample(performance.now()/1000, [ag.x, ag.y, ag.z], lin);
+}
+
+function processSample(t, ag, lin){
+  const dt = st.lastT ? Math.min(Math.max(t - st.lastT, 0.001), 0.25) : 0.016;
+  st.lastT = t;
+  if (!st.gSlow) st.gSlow = ag.slice();
+  if (!st.gFast) st.gFast = ag.slice();
+
+  // 姿勢合わせ中：平均を取る
+  if (st.calibrating){
+    const c = st.calibrating; c.sum = v3.add(c.sum, ag); c.n++;
+    if (t - c.t0 > 2){ finishCalibration(); }
+  }
+
+  // 姿勢変化（スマホを手に取った等）の検出
+  const aF = 1 - Math.exp(-dt / 0.4);
+  st.gFast = v3.add(st.gFast, v3.scale(v3.sub(ag, st.gFast), aF));
+  const ang = Math.acos(Math.min(1, Math.max(-1, v3.dot(v3.norm(st.gFast), v3.norm(st.gSlow))))) * 180/Math.PI;
+  if (ang > 25 && !st.calibrating){
+    if (t > st.handling) showBanner('スマホが動きました。固定したら「姿勢合わせ」を', 'info', 3000);
+    st.handling = t + 2;
+    // 長く続くなら新しい姿勢を受け入れる
+    st.handleSince = st.handleSince || t;
+    if (t - st.handleSince > 4){ st.gSlow = st.gFast.slice(); st.handleSince = 0; }
+  } else st.handleSince = 0;
+
+  // 線形加速度
+  let a = lin ? lin : v3.sub(ag, st.gSlow);
+  // 重力推定の更新：落ち着いている時だけゆっくり追従（坂道・ホルダーのずれに対応）
+  const aMag = v3.len(lin ? lin : v3.sub(ag, st.gSlow)) / G0;
+  if (aMag < 0.05){
+    const aS = 1 - Math.exp(-dt / 5);
+    st.gSlow = v3.add(st.gSlow, v3.scale(v3.sub(ag, st.gSlow), aS));
+  }
+
+  // 軸を作る
+  const up = v3.norm(st.gSlow);
+  let f = v3.horiz(fwdRaw(up), up);
+  if (v3.len(f) < 0.2) f = v3.horiz([0,1,0], up);
+  if (v3.len(f) < 0.2) f = v3.horiz([0,0,-1], up);
+  f = v3.norm(f);
+  st.up = up; st.fwd = f; st.right = v3.cross(f, up);
+
+  const loRaw = v3.dot(a, f)/G0, laRaw = v3.dot(a, st.right)/G0, vRaw = v3.dot(a, up)/G0;
+
+  // GPS・発進による前方向学習用の水平加速度
+  const h = v3.horiz(a, up);
+  st.gpsAcc.sum = v3.add(st.gpsAcc.sum, h); st.gpsAcc.n++;
+  if (st.learnLaunch) learnLaunchStep(h, t);
+
+  // ローパス（約2Hz）で振動を落とす
+  const aL = 1 - Math.exp(-dt * 2*Math.PI*2.0);
+  st.lo += (loRaw - st.lo) * aL;
+  st.la += (laRaw - st.la) * aL;
+  const aV = 1 - Math.exp(-dt * 2*Math.PI*5.0);
+  st.vert += (vRaw - st.vert) * aV;
+
+  // ジャーク（0.25秒前との差）
+  st.hist.push([t, st.lo, st.la]);
+  while (st.hist.length > 2 && t - st.hist[0][0] > 0.25) st.hist.shift();
+  const h0 = st.hist[0], span = t - h0[0];
+  if (span > 0.15){
+    const jl = (st.lo - h0[1]) / span, ja = (st.la - h0[2]) / span;
+    const aJ = 1 - Math.exp(-dt * 2*Math.PI*1.5);
+    st.jerkLo += (jl - st.jerkLo) * aJ;
+    st.jerkLa += (ja - st.jerkLa) * aJ;
+    st.jerk = Math.hypot(st.jerkLo, st.jerkLa);
+  }
+
+  detect(t);
+  record(t);
+}
+
+function fwdRaw(up){
+  if (st.demo) return [0,0,-1];
+  if (S.fwd) return S.fwd;
+  // 既定：寝かせて置いたらスマホの上端が前、立てて置いたら画面の裏側が前
+  return Math.abs(up[2]) > 0.75 ? [0,1,0] : [0,0,-1];
+}
+
+/* =====================================================================
+   姿勢合わせ・前方向の学習
+   ===================================================================== */
+function startCalibration(){
+  if (!st.sensorOn){ toast('先にセンサーを有効にしてください'); return; }
+  if (st.speed != null && st.speed > 1.5){ toast('停車中に行ってください'); return; }
+  st.calibrating = { t0: st.lastT, sum:[0,0,0], n:0 };
+  showBanner('姿勢合わせ中…動かさないでください', 'info', 2500);
+}
+function finishCalibration(){
+  const c = st.calibrating; st.calibrating = null;
+  if (!c.n) return;
+  const g = v3.scale(c.sum, 1/c.n);
+  const prevUp = S.up;
+  st.gSlow = g; st.gFast = g.slice();
+  S.up = v3.norm(g);
+  // ホルダーの向きが大きく変わったら学習済みの前方向は捨てる
+  if (prevUp && S.fwd){
+    const d = Math.acos(Math.min(1, v3.dot(prevUp, S.up))) * 180/Math.PI;
+    if (d > 20){ S.fwd = null; S.fwdSource = 'auto'; S.fwdCount = 0; st.gpsLearn = null; }
+  }
+  saveSettings(); renderCalibInfo();
+  showBanner('姿勢を合わせました', 'info', 1500);
+}
+
+// GPS の速度変化と水平加速度の向きの対応から前方向を学ぶ
+function onPosition(p){
+  const c = p.coords, now = performance.now()/1000;
+  setChip('#chipGps', c.accuracy < 50, c.accuracy < 50 ? 'GPS' : 'GPS弱');
+  st.gpsOk = c.accuracy < 50;
+  const spd = (c.speed != null && !isNaN(c.speed)) ? c.speed : null;
+  if (spd != null){
+    if (st.speed != null && st.speedAt){
+      const dt = now - st.speedAt;
+      if (dt > 0.5 && dt < 3 && st.gpsAcc.n > 5 && st.gpsOk){
+        const dv = (spd - st.speed) / dt;            // m/s²
+        const hAvg = v3.scale(st.gpsAcc.sum, 1/st.gpsAcc.n);
+        if (Math.abs(dv) > 0.7 && v3.len(hAvg)/G0 > 0.04 && S.fwdSource !== 'manual'){
+          const w = Math.sign(dv) * Math.min(Math.abs(dv), 3);
+          const unit = v3.norm(hAvg);
+          st.gpsLearn = st.gpsLearn || { sum:[0,0,0], n:0 };
+          st.gpsLearn.sum = v3.add(st.gpsLearn.sum, v3.scale(unit, w));
+          st.gpsLearn.n++;
+          if (st.gpsLearn.n >= 4 && S.fwdSource !== 'launch'){
+            const cand = v3.norm(v3.horiz(st.gpsLearn.sum, st.up));
+            S.fwd = cand; S.fwdSource = 'gps'; S.fwdCount = st.gpsLearn.n;
+            if (st.gpsLearn.n % 4 === 0){ saveSettings(); renderCalibInfo(); }
+          }
+        }
+      }
+    }
+    st.speed = spd; st.speedAt = now;
+  }
+  st.gpsAcc = { sum:[0,0,0], n:0 };
+  if (st.rec && st.gpsOk){
+    const pt = [Math.round((Date.now()-st.rec.start)/100)/10, +c.latitude.toFixed(6), +c.longitude.toFixed(6), spd != null ? +(spd*3.6).toFixed(1) : null];
+    const last = st.rec.lastFix;
+    if (last){
+      const d = haversine(last[1], last[2], pt[1], pt[2]);
+      if (d < 200) st.rec.dist += d;
+    }
+    st.rec.lastFix = pt;
+    st.rec.path.push(pt);
+  }
+}
+
+function startLaunchLearn(){
+  if (!st.sensorOn){ toast('先にセンサーを有効にしてください'); return; }
+  st.learnLaunch = true; st.launchAcc = { sum:[0,0,0], n:0, t0:0 };
+  showBanner('停車状態から、まっすぐ前へ発進してください', 'info', 6000);
+  goView('drive');
+}
+function learnLaunchStep(h, t){
+  const m = v3.len(h)/G0, L = st.launchAcc;
+  if (m > 0.07){
+    if (!L.t0) L.t0 = t;
+    L.sum = v3.add(L.sum, h); L.n++;
+    if (t - L.t0 > 0.8 && L.n > 10){
+      S.fwd = v3.norm(L.sum); S.fwdSource = 'launch'; S.fwdCount = 1;
+      st.learnLaunch = false; saveSettings(); renderCalibInfo();
+      showBanner('前方向を学習しました', 'info', 2000);
+    }
+  } else if (L.t0 && t - L.t0 < 0.8){ L.t0 = 0; L.sum=[0,0,0]; L.n=0; }
+}
+
+/* =====================================================================
+   検知
+   ===================================================================== */
+function chState(k){ return st.ch[k] || (st.ch[k] = { on:false, t0:0, peak:0, below:0, sign:0, ctx:null }); }
+
+function detect(t){
+  if (t < st.handling || st.calibrating) { for (const k in st.ch) st.ch[k].on = false; return; }
+  const T = S.thr;
+  const kmh = st.speed != null ? st.speed*3.6 : null;
+  const moving = kmh == null || kmh > 3 || Math.hypot(st.lo, st.la) > 0.05;
+
+  run('brake', -st.lo, T.brake, 0.25, t);
+  run('accel',  st.lo, T.accel, 0.25, t);
+  run('lat', Math.abs(st.la), T.lat, 0.25, t, Math.sign(st.la));
+  // 変化の急さ：ブレーキを抜く方向（前後Gが負→0）で低速ならカックン
+  const jVal = st.jerk;
+  const c = chState('jerk');
+  if (!c.on && jVal > T.jerk && moving){
+    c.on = true; c.t0 = t; c.peak = jVal; c.below = 0;
+    c.ctx = { lo: st.lo, jl: st.jerkLo, kmh };
+  }
+  if (c.on){
+    if (jVal > c.peak){ c.peak = jVal; c.ctx.jl = st.jerkLo; c.ctx.loMin = Math.min(c.ctx.loMin ?? 0, st.lo); }
+    c.ctx.loMin = Math.min(c.ctx.loMin ?? 0, st.lo);
+    if (jVal < T.jerk * 0.7){ if (!c.below) c.below = t; if (t - c.below > 0.2) endJerk(c, t); }
+    else c.below = 0;
+  }
+
+  function run(k, val, thr, minDur, t, sign){
+    const c = chState(k);
+    if (!c.on && val > thr && moving){ c.on = true; c.t0 = t; c.peak = val; c.below = 0; c.sign = sign||0; c.kmh = kmh; }
+    if (!c.on) return;
+    if (val > c.peak){ c.peak = val; if (sign) c.sign = sign; }
+    if (val < thr * 0.75){
+      if (!c.below) c.below = t;
+      if (t - c.below > 0.3){
+        c.on = false;
+        const dur = c.below - c.t0;
+        if (dur >= minDur) addEvent(k, c.peak, dur, { side: c.sign, kmh: c.kmh });
+      }
+    } else c.below = 0;
+  }
+}
+function endJerk(c, t){
+  c.on = false;
+  const dur = c.below - c.t0;
+  if (dur < 0.1) return;
+  const kmh = st.speed != null ? st.speed*3.6 : null;
+  // 減速が抜けた（前後ジャーク正 & 直前は減速）＋低速 → 停止時のカックン
+  let type = 'jerk';
+  if (c.ctx.jl > 0 && (c.ctx.loMin ?? 0) < -0.06 && (kmh == null || kmh < 12)) type = 'stop';
+  // ブレーキ・発進・カーブの検知と同時の急な操作は二重に数えない（カックンは別）
+  if (type === 'jerk' && (st.ch.brake?.on || st.ch.accel?.on || st.ch.lat?.on || st.lastEventT && t - st.lastEventT < 1)) return;
+  addEvent(type, c.peak, dur, { kmh });
+}
+
+function addEvent(type, peak, dur, extra={}){
+  const now = Date.now();
+  st.lastEventT = performance.now()/1000;
+  const ev = { type, peak:+peak.toFixed(3), dur:+dur.toFixed(2), at: now, kmh: extra.kmh != null ? Math.round(extra.kmh) : null, side: extra.side || 0 };
+  if (st.rec){
+    ev.t = Math.round((now - st.rec.start)/100)/10;
+    if (st.rec.lastFix){ ev.lat = st.rec.lastFix[1]; ev.lon = st.rec.lastFix[2]; }
+    st.rec.events.push(ev);
+  }
+  st.recentEvents.unshift(ev);
+  if (st.recentEvents.length > 8) st.recentEvents.pop();
+  renderFeed();
+  alertEvent(ev);
+}
+
+/* =====================================================================
+   お知らせ（画面・音声・音）
+   ===================================================================== */
+let audioCtx = null;
+function unlockAudio(){
+  try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); }catch(e){}
+  if ('speechSynthesis' in window){ try{ const u = new SpeechSynthesisUtterance(''); speechSynthesis.speak(u); }catch(e){} }
+}
+function beep(freq=880, ms=140, n=2){
+  if (!audioCtx) return;
+  for (let i=0;i<n;i++){
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    const t0 = audioCtx.currentTime + i*(ms/1000+0.06);
+    o.frequency.value = freq; o.type = 'sine';
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.3, t0+0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0+ms/1000);
+    o.connect(g).connect(audioCtx.destination); o.start(t0); o.stop(t0+ms/1000+0.02);
+  }
+}
+function speak(text){
+  if (!('speechSynthesis' in window)) return false;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.rate = 1.15;
+    speechSynthesis.speak(u); return true;
+  }catch(e){ return false; }
+}
+function alertEvent(ev){
+  const d = EV[ev.type];
+  const unit = (ev.type === 'stop' || ev.type === 'jerk') ? ' G/秒' : ' G';
+  showBanner(`${d.name}  ${ev.peak.toFixed(2)}${unit}`, ev.type === 'stop' || ev.type === 'accel' ? 'warn' : '', 2500);
+  if (navigator.vibrate) try{ navigator.vibrate(120); }catch(e){}
+  const now = Date.now();
+  if (now - st.lastAlert < 3500) return;
+  st.lastAlert = now;
+  if (S.voice && speak(d.say)) return;
+  if (S.beep) beep(ev.type === 'stop' ? 660 : 880);
+}
+
+/* =====================================================================
+   記録
+   ===================================================================== */
+function startRecording(){
+  st.rec = { id: 't' + Date.now(), start: Date.now(), events:[], s:{t:[],lo:[],la:[],sp:[]}, path:[], dist:0, lastFix:null, movingN:0, comfortN:0, maxBrake:0, maxAccel:0, maxLat:0 };
+  st.lastSampleT = 0;
+  $('#btnRec').textContent = '走行記録を終了';
+  $('#btnRec').classList.replace('primary','danger');
+  $('#chipRec').classList.remove('hidden');
+  if (S.wake) requestWake();
+  updateLive();
+}
+async function stopRecording(){
+  const r = st.rec; st.rec = null;
+  $('#btnRec').textContent = '走行記録を開始';
+  $('#btnRec').classList.replace('danger','primary');
+  $('#chipRec').classList.add('hidden');
+  releaseWake();
+  if (!r) return;
+  const sum = summarize(r);
+  if (sum.durationSec < 20){ toast('20秒未満の記録は保存しません'); updateLive(); return; }
+  try{
+    await db.put('trips', sum);
+    await db.put('tripdata', { id:r.id, s:r.s, path:r.path });
+    toast(`保存しました（スコア ${sum.score}）`);
+  }catch(e){ toast('保存に失敗しました: ' + e.message); }
+  updateLive();
+}
+function record(t){
+  const r = st.rec; if (!r) return;
+  if (t - st.lastSampleT < 1/SAMPLE_HZ) return;
+  st.lastSampleT = t;
+  const el = Math.round((Date.now() - r.start)/100)/10;
+  const kmh = st.speed != null && performance.now()/1000 - st.speedAt < 5 ? st.speed*3.6 : null;
+  r.s.t.push(el); r.s.lo.push(+st.lo.toFixed(3)); r.s.la.push(+st.la.toFixed(3)); r.s.sp.push(kmh == null ? null : +kmh.toFixed(1));
+  const handling = t < st.handling;
+  const moving = !handling && (kmh == null ? Math.hypot(st.lo, st.la) > 0.015 : kmh > 5);
+  if (moving){
+    r.movingN++;
+    if (Math.hypot(st.lo, st.la) < COMFORT_G) r.comfortN++;
+    r.maxBrake = Math.max(r.maxBrake, -st.lo);
+    r.maxAccel = Math.max(r.maxAccel, st.lo);
+    r.maxLat = Math.max(r.maxLat, Math.abs(st.la));
+  }
+}
+function penaltyOf(ev, thr){
+  const base = PENALTY_BASE[ev.type] || 1;
+  const ref = ev.type === 'brake' ? thr.brake : ev.type === 'accel' ? thr.accel : ev.type === 'lat' ? thr.lat : thr.jerk;
+  return base * Math.min(3, Math.max(1, ev.peak / ref));
+}
+function scoreOf(events, movingSec, thr){
+  const pen = events.reduce((s,e)=>s + penaltyOf(e, thr), 0);
+  const minutes = Math.max(movingSec/60, 10);
+  return Math.max(0, Math.round(100 - pen * 10 / minutes));
+}
+function summarize(r){
+  const end = Date.now();
+  const movingSec = r.movingN / SAMPLE_HZ;
+  const counts = {}; for (const k in EV) counts[k] = 0;
+  r.events.forEach(e => counts[e.type]++);
+  return {
+    id:r.id, start:r.start, end, durationSec: Math.round((end - r.start)/1000), movingSec: Math.round(movingSec),
+    distanceM: Math.round(r.dist), events:r.events, counts,
+    comfortPct: r.movingN ? Math.round(r.comfortN / r.movingN * 100) : null,
+    maxBrake:+r.maxBrake.toFixed(3), maxAccel:+r.maxAccel.toFixed(3), maxLat:+r.maxLat.toFixed(3),
+    score: scoreOf(r.events, movingSec, S.thr), thr:{...S.thr},
+  };
+}
+
+/* Wake Lock */
+let wakeLock = null;
+async function requestWake(){
+  try{ if ('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); } }catch(e){}
+}
+function releaseWake(){ try{ wakeLock && wakeLock.release(); }catch(e){} wakeLock = null; }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && st.rec && S.wake) requestWake();
+});
+
+/* =====================================================================
+   IndexedDB
+   ===================================================================== */
+const db = (() => {
+  let p = null;
+  function open(){
+    if (p) return p;
+    p = new Promise((res, rej) => {
+      const r = indexedDB.open('gmeter', 1);
+      r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('trips', {keyPath:'id'}); d.createObjectStore('tripdata', {keyPath:'id'}); };
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return p;
+  }
+  const tx = (store, mode, fn) => open().then(d => new Promise((res, rej) => {
+    const t = d.transaction(store, mode), s = t.objectStore(store); const q = fn(s);
+    t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error);
+  }));
+  return {
+    put:(s,v)=>tx(s,'readwrite',o=>o.put(v)),
+    get:(s,k)=>tx(s,'readonly',o=>o.get(k)),
+    all:(s)=>tx(s,'readonly',o=>o.getAll()),
+    del:(s,k)=>tx(s,'readwrite',o=>o.delete(k)),
+    clear:(s)=>tx(s,'readwrite',o=>o.clear()),
+  };
+})();
+
+/* =====================================================================
+   描画（走行画面）
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const gball = $('#gball'), gctx = gball.getContext('2d');
+const glass = $('#glass'), glctx = glass.getContext('2d');
+let dpr = 1;
+function resizeCanvases(){
+  dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const r = gball.getBoundingClientRect();
+  gball.width = Math.max(1, Math.round(r.width * dpr)); gball.height = Math.max(1, Math.round(r.height * dpr));
+}
+window.addEventListener('resize', () => { resizeCanvases(); });
+
+function levelColor(g, thr){
+  if (g < COMFORT_G) return '#0ca30c';
+  if (g < thr) return '#fab219';
+  return '#d03b3b';
+}
+
+function draw(){
+  if (!st.sensorOn) return;
+  const W = gball.width, H = gball.height, cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 24*dpr;
+  const ctx = gctx;
+  if (R < 20){ resizeCanvases(); requestAnimationFrame(draw); return; }
+  ctx.clearRect(0,0,W,H);
+  const toPx = g => g / GBALL_MAX * R;
+
+  // 快適ゾーン
+  ctx.fillStyle = 'rgba(12,163,12,.10)';
+  ctx.beginPath(); ctx.arc(cx, cy, toPx(COMFORT_G), 0, Math.PI*2); ctx.fill();
+  // 目盛り
+  ctx.lineWidth = 1*dpr;
+  [0.1,0.2,0.3,0.4,0.5].forEach(g => {
+    ctx.strokeStyle = g === 0.5 ? '#4A515B' : '#30353D';
+    ctx.beginPath(); ctx.arc(cx, cy, toPx(g), 0, Math.PI*2); ctx.stroke();
+  });
+  ctx.beginPath(); ctx.moveTo(cx-R, cy); ctx.lineTo(cx+R, cy); ctx.moveTo(cx, cy-R); ctx.lineTo(cx, cy+R); ctx.stroke();
+  // しきい値（楕円風に：前＝ブレーキ、後＝加速、左右＝カーブ）
+  const T = S.thr;
+  ctx.strokeStyle = 'rgba(208,59,59,.75)'; ctx.setLineDash([6*dpr, 6*dpr]); ctx.lineWidth = 1.5*dpr;
+  ctx.beginPath();
+  for (let i=0;i<=64;i++){
+    const a = i/64*Math.PI*2, sx = Math.cos(a), sy = Math.sin(a);
+    const ry = sy < 0 ? T.brake : T.accel;  // 上（画面座標で負）＝ブレーキ
+    const px = cx + sx * toPx(T.lat), py = cy + sy * toPx(ry);
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+  // ラベル
+  ctx.fillStyle = '#80858F'; ctx.font = `${11*dpr}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  [0.1,0.2,0.3,0.4].forEach(g => ctx.fillText(g.toFixed(1), cx + 4*dpr, cy - toPx(g) + 8*dpr));
+  ctx.textAlign = 'center';
+  ctx.fillText('前', cx, cy - R - 12*dpr); ctx.fillText('後', cx, cy + R + 12*dpr);
+  ctx.textAlign = 'right'; ctx.fillText('左', cx - R - 4*dpr, cy);
+  ctx.textAlign = 'left'; ctx.fillText('右', cx + R + 4*dpr, cy);
+
+  // 体に感じる力 = 加速度の反対。ブレーキ(前後G負)で点は上(前)へ、右カーブ(左右G正)で点は左へ
+  const px = -st.la, py = st.lo; // 画面座標：x右, y下
+  const clampR = (x,y) => { const d = Math.hypot(x,y), m = GBALL_MAX*1.05; return d > m ? [x/d*m, y/d*m] : [x,y]; };
+  const [bx, by] = clampR(px, py);
+  st.trail.push([bx, by]); if (st.trail.length > 90) st.trail.shift();
+  ctx.lineCap = 'round';
+  for (let i=1;i<st.trail.length;i++){
+    const [x0,y0] = st.trail[i-1], [x1,y1] = st.trail[i];
+    ctx.strokeStyle = `rgba(95,178,255,${(i/st.trail.length*0.6).toFixed(3)})`;
+    ctx.lineWidth = 3*dpr;
+    ctx.beginPath(); ctx.moveTo(cx + toPx(x0), cy + toPx(y0)); ctx.lineTo(cx + toPx(x1), cy + toPx(y1)); ctx.stroke();
+  }
+  // 現在のトリップの最大値の点
+  const gm = Math.hypot(st.lo, st.la);
+  const over = (-st.lo > T.brake) || (st.lo > T.accel) || (Math.abs(st.la) > T.lat);
+  const col = gm < COMFORT_G ? '#0ca30c' : over ? '#d03b3b' : '#fab219';
+  ctx.fillStyle = col; ctx.strokeStyle = '#0E1014'; ctx.lineWidth = 3*dpr;
+  ctx.beginPath(); ctx.arc(cx + toPx(bx), cy + toPx(by), 13*dpr, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+  drawGlass();
+  updateReadouts();
+  requestAnimationFrame(draw);
+}
+
+function drawGlass(){
+  const ctx = glctx, W = glass.width, H = glass.height;
+  ctx.clearRect(0,0,W,H);
+  // 側面から見たコップ。前後Gで水面が傾き、左右Gは揺れの強さとして奥行き方向に表す
+  const tilt = Math.atan(st.lo) * 2.2;     // 見やすく強調
+  const lateral = Math.min(1, Math.abs(st.la) / 0.3);
+  const gx = W*0.24, gw = W*0.52, gy = H*0.12, gh = H*0.78;
+  const level = gy + gh*0.38;
+  const spill = Math.abs(Math.tan(tilt))*gw/2 > (level - gy) * 0.9 || lateral > 0.95;
+  // 水
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(gx, gy); ctx.lineTo(gx+gw, gy); ctx.lineTo(gx+gw*0.9, gy+gh); ctx.lineTo(gx+gw*0.1, gy+gh); ctx.closePath();
+  ctx.clip();
+  const dy = Math.tan(tilt) * gw/2;
+  // 加速(lo>0)で水は後ろ(右側＝後ろとする)に寄る。画面の左を前とする
+  ctx.fillStyle = spill ? 'rgba(208,59,59,.55)' : 'rgba(57,135,229,.55)';
+  ctx.beginPath();
+  ctx.moveTo(gx-10, level + dy); ctx.lineTo(gx+gw+10, level - dy); ctx.lineTo(gx+gw+10, gy+gh+10); ctx.lineTo(gx-10, gy+gh+10); ctx.closePath(); ctx.fill();
+  // 左右の揺れ：波
+  if (lateral > 0.05){
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    const tt = performance.now()/180;
+    for (let x=0;x<=gw;x+=4){
+      const yy = level + dy - (2*dy)*(x/gw) + Math.sin(x/9 + tt) * lateral * 7;
+      x ? ctx.lineTo(gx+x, yy) : ctx.moveTo(gx+x, yy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  // コップの枠
+  ctx.strokeStyle = '#B4B8C0'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx+gw*0.1, gy+gh); ctx.lineTo(gx+gw*0.9, gy+gh); ctx.lineTo(gx+gw, gy); ctx.stroke();
+  ctx.fillStyle = '#80858F'; ctx.font = '20px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('← 前', W*0.22, H*0.07 + 6);
+  if (spill){ ctx.fillStyle = '#FF7B7B'; ctx.font = 'bold 22px sans-serif'; ctx.fillText('こぼれる！', W/2, H*0.62); }
+}
+
+let lastRO = 0;
+function updateReadouts(){
+  const now = performance.now();
+  if (now - lastRO < 100) return;
+  lastRO = now;
+  const lo = st.lo, la = st.la;
+  $('#roLong').textContent = Math.abs(lo).toFixed(2);
+  $('#roLongSub').textContent = Math.abs(lo) < 0.03 ? '—' : lo < 0 ? '減速' : '加速';
+  $('#roLat').textContent = Math.abs(la).toFixed(2);
+  $('#roLatSub').textContent = Math.abs(la) < 0.03 ? '—' : la > 0 ? '右へ曲がる' : '左へ曲がる';
+  $('#roJerk').textContent = st.jerk.toFixed(1);
+  const gm = Math.hypot(lo, la);
+  const tEl = $('#gTotal'); tEl.textContent = gm.toFixed(2);
+  tEl.style.color = gm < COMFORT_G ? 'var(--good-text)' : gm < Math.min(S.thr.brake, S.thr.lat) ? 'var(--warn)' : 'var(--bad-text)';
+  const fresh = st.speed != null && now/1000 - st.speedAt < 5;
+  $('#roSpeed').textContent = fresh ? Math.round(st.speed*3.6) : '—';
+  if (st.rec){
+    const s = Math.floor((Date.now() - st.rec.start)/1000);
+    $('#recTime').textContent = fmtDur(s);
+    if (now - (st.lastLive||0) > 1000){ st.lastLive = now; updateLive(); }
+  }
+}
+
+function updateLive(){
+  const r = st.rec;
+  if (!r){
+    $('#scoreTitle').textContent = '乗り心地スコア（記録中に表示）';
+    $('#scoreVal').textContent = '—'; $('#scoreRing').style.setProperty('--p', 0);
+    ['#mComfort','#mDist'].forEach(s=>$(s).textContent='—');
+    ['#mBrake','#mAccel','#mLat','#mJerk'].forEach(s=>$(s).textContent='0');
+    return;
+  }
+  const sc = scoreOf(r.events, r.movingN/SAMPLE_HZ, S.thr);
+  $('#scoreTitle').textContent = '乗り心地スコア（この走行）';
+  $('#scoreVal').textContent = sc;
+  $('#scoreRing').style.setProperty('--p', sc);
+  $('#scoreRing').style.background = `conic-gradient(${scoreColor(sc)} calc(var(--p)*1%), var(--surface-3) 0)`;
+  $('#mComfort').textContent = r.movingN ? Math.round(r.comfortN/r.movingN*100) + '%' : '—';
+  $('#mDist').textContent = r.dist ? (r.dist/1000).toFixed(1) + 'km' : '—';
+  const c = t => r.events.filter(e => e.type === t).length;
+  $('#mBrake').textContent = c('brake'); $('#mAccel').textContent = c('accel'); $('#mLat').textContent = c('lat'); $('#mJerk').textContent = c('stop') + c('jerk');
+}
+
+function renderFeed(){
+  const ul = $('#feed');
+  if (!st.recentEvents.length){ ul.innerHTML = '<li class="empty" style="display:block;background:none">まだありません</li>'; return; }
+  ul.innerHTML = st.recentEvents.map(ev => {
+    const d = EV[ev.type];
+    const unit = (ev.type === 'stop' || ev.type === 'jerk') ? 'G/秒' : 'G';
+    const side = ev.type === 'lat' ? (ev.side > 0 ? '（右へ）' : '（左へ）') : '';
+    return `<li><span class="ic" style="background:${d.color}">${d.short}</span>
+      <span><b>${d.name}${side}</b><br><span class="t">${fmtClock(ev.at)}${ev.kmh != null ? ' ・ ' + ev.kmh + 'km/h' : ''}</span></span>
+      <span class="pk num">${ev.peak.toFixed(2)}<small style="color:var(--text-3)"> ${unit}</small></span></li>`;
+  }).join('');
+}
+
+let bannerTimer = 0;
+function showBanner(text, kind='', ms=2500){
+  const b = $('#banner'); b.textContent = text; b.className = 'banner ' + kind;
+  clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.add('hidden'), ms);
+}
+
+/* =====================================================================
+   履歴
+   ===================================================================== */
+async function renderHistory(){
+  $('#tripDetail').classList.add('hidden'); $('#historyList').classList.remove('hidden');
+  let trips = [];
+  try{ trips = await db.all('trips'); }catch(e){}
+  trips.sort((a,b)=>b.start - a.start);
+  const list = $('#tripList'), sumEl = $('#historySummary');
+  if (!trips.length){
+    sumEl.innerHTML = '<div class="empty">まだ記録がありません。走行画面で「走行記録を開始」を押してください。</div>';
+    list.innerHTML = ''; return;
+  }
+  // 直近の推移
+  const recent = trips.slice(0, 20).reverse();
+  const avg = Math.round(recent.reduce((s,t)=>s+t.score,0)/recent.length);
+  const totalKm = trips.reduce((s,t)=>s+(t.distanceM||0),0)/1000;
+  const totalMin = trips.reduce((s,t)=>s+t.movingSec,0)/60;
+  const per100 = k => totalMin ? (trips.reduce((s,t)=>s+(t.counts[k]||0),0) / totalMin * 60) : 0;
+  sumEl.innerHTML = `
+    <h2>これまでの傾向</h2>
+    <div class="stat-grid" style="margin-bottom:10px">
+      <div class="stat"><div class="k">平均スコア（直近${recent.length}回）</div><div class="v num" style="color:${scoreText(avg)}">${avg}</div></div>
+      <div class="stat"><div class="k">走行回数</div><div class="v num">${trips.length}</div></div>
+      <div class="stat"><div class="k">走行時間</div><div class="v num">${fmtDur(Math.round(totalMin*60))}</div></div>
+    </div>
+    <div class="legend"><span><i style="background:var(--primary)"></i>スコアの推移（古い→新しい）</span></div>
+    <div class="chart-box"><canvas id="trendChart" height="120"></canvas></div>
+    <h2 style="margin-top:12px">1時間あたりの回数</h2>
+    <div class="bar-list">${['brake','accel','lat','stop','jerk'].map(k => {
+      const v = per100(k); return `<div class="bar-item"><span>${EV[k].name}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, v/10*100)}%;background:${EV[k].color}"></div></div><span class="num" style="text-align:right">${v.toFixed(1)}</span></div>`;
+    }).join('')}</div>
+    <div class="kv" style="margin-top:8px">合計距離 <b class="num">${totalKm.toFixed(1)} km</b></div>`;
+  drawTrend($('#trendChart'), recent);
+
+  list.innerHTML = trips.map(t => `
+    <button class="trip" data-id="${t.id}">
+      <div class="sc num" style="color:${scoreText(t.score)}">${t.score}</div>
+      <div><div class="ti">${fmtDate(t.start)}</div>
+        <div class="meta num">${fmtDur(t.durationSec)}${t.distanceM ? ' ・ ' + (t.distanceM/1000).toFixed(1) + 'km' : ''} ・ 快適 ${t.comfortPct ?? '—'}% ・ 検知 ${t.events.length}回</div></div>
+      <span class="chev">›</span>
+    </button>`).join('');
+  list.querySelectorAll('.trip').forEach(b => b.onclick = () => showTrip(b.dataset.id));
+}
+
+function drawTrend(cv, trips){
+  setupCanvas(cv);
+  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, d = dpr;
+  const pl = 30*d, pr = 10*d, pt = 10*d, pb = 18*d;
+  ctx.clearRect(0,0,W,H);
+  const x = i => pl + (trips.length < 2 ? (W-pl-pr)/2 : i/(trips.length-1)*(W-pl-pr));
+  const y = v => pt + (1 - v/100)*(H-pt-pb);
+  ctx.strokeStyle = '#2A2F36'; ctx.lineWidth = 1*d; ctx.fillStyle = '#80858F'; ctx.font = `${10*d}px sans-serif`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  [0,50,100].forEach(v => { ctx.beginPath(); ctx.moveTo(pl, y(v)); ctx.lineTo(W-pr, y(v)); ctx.stroke(); ctx.fillText(v, pl-6*d, y(v)); });
+  ctx.strokeStyle = '#5FB2FF'; ctx.lineWidth = 2*d; ctx.lineJoin = 'round';
+  ctx.beginPath(); trips.forEach((t,i) => i ? ctx.lineTo(x(i), y(t.score)) : ctx.moveTo(x(i), y(t.score))); ctx.stroke();
+  trips.forEach((t,i) => { ctx.fillStyle = '#5FB2FF'; ctx.strokeStyle = '#171A1F'; ctx.lineWidth = 2*d; ctx.beginPath(); ctx.arc(x(i), y(t.score), 4*d, 0, Math.PI*2); ctx.fill(); ctx.stroke(); });
+  attachHover(cv, (mx) => {
+    let best = 0, bd = 1e9; trips.forEach((t,i) => { const dd = Math.abs(x(i)/d - mx); if (dd < bd){ bd = dd; best = i; } });
+    const t = trips[best]; return { x: x(best)/d, y: y(t.score)/d, html: `${fmtDate(t.start)}<br>スコア <b>${t.score}</b>` };
+  });
+}
+
+async function showTrip(id){
+  const t = await db.get('trips', id);
+  const data = await db.get('tripdata', id);
+  if (!t) return;
+  $('#historyList').classList.add('hidden');
+  const el = $('#tripDetail'); el.classList.remove('hidden');
+  const advice = buildAdvice(t);
+  el.innerHTML = `
+    <div class="actions" style="margin-bottom:12px"><button class="btn small" id="backBtn">‹ 一覧へ</button><span style="flex:1"></span>
+      <button class="btn small" id="csvBtn">CSV</button><button class="btn small" id="delBtn" style="color:var(--bad-text)">削除</button></div>
+    <div class="card">
+      <div class="score-row">
+        <div class="score-big" style="--p:${t.score};background:conic-gradient(${scoreColor(t.score)} calc(var(--p)*1%),var(--surface-3) 0)"><span class="num">${t.score}</span></div>
+        <div><div style="font-weight:700">${fmtDate(t.start)}〜${fmtClock(t.end)}</div>
+          <div class="kv">${scoreWord(t.score)}</div></div>
+      </div>
+      <div class="stat-grid" style="margin-top:12px">
+        <div class="stat"><div class="k">走行時間</div><div class="v num">${fmtDur(t.durationSec)}</div></div>
+        <div class="stat"><div class="k">距離</div><div class="v num">${t.distanceM ? (t.distanceM/1000).toFixed(1)+'km' : '—'}</div></div>
+        <div class="stat"><div class="k">快適ゾーン</div><div class="v num">${t.comfortPct ?? '—'}%</div></div>
+        <div class="stat"><div class="k">最大ブレーキ</div><div class="v num">${t.maxBrake.toFixed(2)}G</div></div>
+        <div class="stat"><div class="k">最大加速</div><div class="v num">${t.maxAccel.toFixed(2)}G</div></div>
+        <div class="stat"><div class="k">最大左右</div><div class="v num">${t.maxLat.toFixed(2)}G</div></div>
+      </div>
+    </div>
+    <div class="card"><h2>次に意識すること</h2><ul class="advice">${advice}</ul></div>
+    <div class="card"><h2>Gの推移</h2>
+      <div class="legend"><span><i style="background:var(--s-long)"></i>前後（＋加速／−減速）</span><span><i style="background:var(--s-lat)"></i>左右（＋右／−左）</span><span><i style="background:rgba(208,59,59,.8);height:0;border-top:2px dashed rgba(208,59,59,.8)"></i>しきい値</span></div>
+      <div class="chart-box"><canvas id="tsChart" height="220"></canvas></div>
+      <div class="kv" style="margin-top:4px;font-size:12px">点は検知した場所。グラフをなぞると値を表示します。</div>
+    </div>
+    ${data && data.path && data.path.length > 2 ? `<div class="card"><h2>走行ルート</h2>
+      <div class="legend"><span>● 検知した地点（色は種類）</span></div>
+      <div class="chart-box"><canvas id="routeChart" height="300"></canvas></div></div>` : ''}
+    <div class="card"><h2>G円（全区間の分布）</h2>
+      <div class="chart-box" style="max-width:340px;margin:0 auto"><canvas id="scatterChart" height="300"></canvas></div>
+      <div class="kv" style="font-size:12px;text-align:center">上＝ブレーキで体が前へ、下＝加速、左右＝カーブ。中心の緑の円に収まるほど快適</div>
+    </div>
+    <div class="card"><h2>検知の一覧（${t.events.length}回）</h2>
+      ${t.events.length ? `<table class="data"><tr><th>経過</th><th>種類</th><th class="r">強さ</th><th class="r">速度</th></tr>
+      ${t.events.map(e => `<tr><td class="num">${fmtDur(Math.round(e.t||0))}</td><td><span style="color:${EV[e.type].color}">●</span> ${EV[e.type].name}${e.type==='lat' ? (e.side>0?'（右）':'（左）') : ''}</td><td class="r num">${e.peak.toFixed(2)} ${(e.type==='stop'||e.type==='jerk')?'G/秒':'G'}</td><td class="r num">${e.kmh ?? '—'}</td></tr>`).join('')}</table>` : '<div class="empty">急な操作はありませんでした。すばらしい運転です。</div>'}
+    </div>`;
+  $('#backBtn').onclick = renderHistory;
+  $('#delBtn').onclick = async () => { if (await confirmDlg('この記録を削除しますか？', '元に戻せません。')){ await db.del('trips', id); await db.del('tripdata', id); renderHistory(); } };
+  $('#csvBtn').onclick = () => exportTripCsv(t, data);
+  window.scrollTo(0,0);
+  if (data){
+    drawTimeSeries($('#tsChart'), t, data);
+    if ($('#routeChart')) drawRoute($('#routeChart'), t, data);
+    drawScatter($('#scatterChart'), t, data);
+  }
+}
+
+function buildAdvice(t){
+  const c = t.counts || {};
+  const min = Math.max(t.movingSec/60, 1);
+  const items = [];
+  const order = Object.keys(EV).map(k => [k, (c[k]||0) * (PENALTY_BASE[k]||1)]).sort((a,b)=>b[1]-a[1]).filter(x => x[1] > 0);
+  order.slice(0,2).forEach(([k]) => items.push(`<b>${EV[k].name}が${c[k]}回</b>：${EV[k].tip}`));
+  if (t.comfortPct != null && t.comfortPct < 85) items.push(`<b>快適ゾーンは${t.comfortPct}%</b>：Gボールの点を中心の緑の円（0.1G）に収める時間を増やしましょう。目標は90%以上。`);
+  if (t.maxLat > 0.2 && !(c.lat)) items.push(`<b>最大の左右Gが${t.maxLat.toFixed(2)}G</b>：検知まではいきませんが、右左折前にもう少し速度を落とすとお客様が体を支えずに済みます。`);
+  if (!items.length) items.push('<b>急な操作はありませんでした。</b>このまま、ブレーキの踏み始めと停止直前の抜きを丁寧に続けましょう。');
+  if (min < 5) items.push('短い記録はスコアの振れが大きくなります。1回の乗務を通して記録すると傾向がつかめます。');
+  return items.map(i => `<li>${i}</li>`).join('');
+}
+
+function setupCanvas(cv){
+  const r = cv.getBoundingClientRect();
+  const h = +cv.getAttribute('height') / (cv.dataset.dpr || 1);
+  cv.style.height = h + 'px';
+  cv.dataset.dpr = dpr;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(h * dpr);
+}
+
+function attachHover(cv, pick){
+  const box = cv.parentElement;
+  let tip = box.querySelector('.tip');
+  if (!tip){ tip = document.createElement('div'); tip.className = 'tip hidden'; box.appendChild(tip); }
+  const move = ev => {
+    const r = cv.getBoundingClientRect();
+    const p = ev.touches ? ev.touches[0] : ev;
+    const res = pick(p.clientX - r.left, p.clientY - r.top);
+    if (!res){ tip.classList.add('hidden'); return; }
+    tip.innerHTML = res.html; tip.classList.remove('hidden');
+    const x = Math.min(Math.max(res.x, 70), r.width - 70);
+    tip.style.left = x + 'px'; tip.style.top = (res.y - 8) + 'px';
+    if (res.cross) res.cross();
+  };
+  cv.onmousemove = move; cv.ontouchstart = move; cv.ontouchmove = move;
+  cv.onmouseleave = () => { tip.classList.add('hidden'); if (cv._redraw) cv._redraw(); };
+}
+
+function drawTimeSeries(cv, t, data){
+  setupCanvas(cv);
+  const s = data.s, n = s.t.length; if (!n) return;
+  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, d = dpr;
+  const pl = 36*d, pr = 8*d, pt = 8*d, pb = 20*d;
+  const T = t.thr || S.thr;
+  let lim = 0.4; for (let i=0;i<n;i++) lim = Math.max(lim, Math.abs(s.lo[i]), Math.abs(s.la[i]));
+  lim = Math.min(1, Math.ceil(lim*10)/10);
+  const tMax = s.t[n-1] || 1;
+  const x = tt => pl + tt/tMax*(W-pl-pr);
+  const y = g => pt + (1 - (g + lim)/(2*lim))*(H-pt-pb);
+  // 間引き（ピクセルあたり最小・最大）
+  const cols = Math.max(1, Math.floor((W-pl-pr)/d));
+  function series(arr){
+    const mn = new Array(cols).fill(Infinity), mx = new Array(cols).fill(-Infinity);
+    for (let i=0;i<n;i++){ const c = Math.min(cols-1, Math.floor(s.t[i]/tMax*(cols-1))); const v = arr[i]; if (v < mn[c]) mn[c] = v; if (v > mx[c]) mx[c] = v; }
+    return [mn, mx];
+  }
+  const L = series(s.lo), A = series(s.la);
+  function base(){
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle = '#2A2F36'; ctx.lineWidth = 1*d; ctx.fillStyle = '#80858F'; ctx.font = `${10*d}px sans-serif`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let g = -lim; g <= lim + 1e-9; g += lim/2){ ctx.beginPath(); ctx.moveTo(pl, y(g)); ctx.lineTo(W-pr, y(g)); ctx.stroke(); ctx.fillText(g.toFixed(2), pl-5*d, y(g)); }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const step = niceStep(tMax/5);
+    for (let tt = 0; tt <= tMax; tt += step) ctx.fillText(fmtDur(Math.round(tt)), x(tt), H-pb+5*d);
+    ctx.strokeStyle = 'rgba(208,59,59,.6)'; ctx.setLineDash([5*d,5*d]);
+    [-T.brake, T.accel].forEach(g => { if (Math.abs(g) <= lim){ ctx.beginPath(); ctx.moveTo(pl, y(g)); ctx.lineTo(W-pr, y(g)); ctx.stroke(); } });
+    ctx.setLineDash([]);
+    const plot = ([mn,mx], col) => {
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5*d; ctx.lineJoin = 'round'; ctx.beginPath();
+      let started = false;
+      for (let c=0;c<cols;c++){ if (mn[c] === Infinity) continue; const px = pl + c*d; if (!started){ ctx.moveTo(px, y(mn[c])); started = true; } else ctx.lineTo(px, y(mn[c])); ctx.lineTo(px, y(mx[c])); }
+      ctx.stroke();
+    };
+    plot(A, '#d95926'); plot(L, '#3987e5');
+    // 検知点
+    t.events.forEach(e => {
+      const g = e.type === 'brake' ? -e.peak : e.type === 'accel' ? e.peak : e.type === 'lat' ? e.side*e.peak : 0;
+      ctx.fillStyle = EV[e.type].color; ctx.strokeStyle = '#171A1F'; ctx.lineWidth = 2*d;
+      ctx.beginPath(); ctx.arc(x(e.t||0), y(Math.max(-lim, Math.min(lim, g))), 5*d, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    });
+  }
+  base(); cv._redraw = base;
+  attachHover(cv, (mx) => {
+    const tt = Math.max(0, Math.min(tMax, (mx*d - pl)/(W-pl-pr)*tMax));
+    let lo = 0, hi = n-1; while (hi - lo > 1){ const m = (lo+hi)>>1; if (s.t[m] < tt) lo = m; else hi = m; }
+    const i = Math.abs(s.t[lo]-tt) < Math.abs(s.t[hi]-tt) ? lo : hi;
+    return { x: x(s.t[i])/d, y: pt/d + 30, html: `${fmtDur(Math.round(s.t[i]))}<br><span style="color:#5FA5F0">●</span> 前後 ${s.lo[i].toFixed(2)}G<br><span style="color:#E8794C">●</span> 左右 ${s.la[i].toFixed(2)}G${s.sp[i]!=null?'<br>'+Math.round(s.sp[i])+' km/h':''}`,
+      cross: () => { base(); ctx.strokeStyle = '#80858F'; ctx.lineWidth = 1*d; ctx.beginPath(); ctx.moveTo(x(s.t[i]), pt); ctx.lineTo(x(s.t[i]), H-pb); ctx.stroke();
+        [[s.lo[i],'#3987e5'],[s.la[i],'#d95926']].forEach(([g,c]) => { ctx.fillStyle = c; ctx.strokeStyle = '#171A1F'; ctx.lineWidth = 2*d; ctx.beginPath(); ctx.arc(x(s.t[i]), y(g), 4*d, 0, Math.PI*2); ctx.fill(); ctx.stroke(); }); } };
+  });
+}
+
+function drawRoute(cv, t, data){
+  setupCanvas(cv);
+  const P = data.path, ctx = cv.getContext('2d'), W = cv.width, H = cv.height, d = dpr, pad = 16*d;
+  let a = [Infinity,Infinity,-Infinity,-Infinity];
+  P.forEach(p => { a[0]=Math.min(a[0],p[1]); a[1]=Math.min(a[1],p[2]); a[2]=Math.max(a[2],p[1]); a[3]=Math.max(a[3],p[2]); });
+  const kx = Math.cos(((a[0]+a[2])/2)*Math.PI/180);
+  const sx = (a[3]-a[1])*kx || 1e-6, sy = (a[2]-a[0]) || 1e-6;
+  const sc = Math.min((W-2*pad)/sx, (H-2*pad)/sy);
+  const ox = (W - sx*sc)/2, oy = (H - sy*sc)/2;
+  const X = lon => ox + (lon - a[1])*kx*sc, Y = lat => H - oy - (lat - a[0])*sc;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle = '#5FB2FF'; ctx.globalAlpha = .55; ctx.lineWidth = 3*d; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath(); P.forEach((p,i) => i ? ctx.lineTo(X(p[2]), Y(p[1])) : ctx.moveTo(X(p[2]), Y(p[1]))); ctx.stroke(); ctx.globalAlpha = 1;
+  const dot = (p, c, r) => { ctx.fillStyle = c; ctx.strokeStyle = '#171A1F'; ctx.lineWidth = 2*d; ctx.beginPath(); ctx.arc(X(p[2]), Y(p[1]), r*d, 0, Math.PI*2); ctx.fill(); ctx.stroke(); };
+  dot(P[0], '#0ca30c', 6); dot(P[P.length-1], '#ECEDEF', 6);
+  const evs = t.events.filter(e => e.lat != null);
+  evs.forEach(e => dot([0, e.lat, e.lon], EV[e.type].color, 7));
+  ctx.fillStyle = '#80858F'; ctx.font = `${10*d}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('● 出発（緑）  ● 到着（白）', pad/2, pad/4);
+  attachHover(cv, (mx, my) => {
+    let best = null, bd = 18;
+    evs.forEach(e => { const dd = Math.hypot(X(e.lon)/d - mx, Y(e.lat)/d - my); if (dd < bd){ bd = dd; best = e; } });
+    if (!best) return null;
+    return { x: X(best.lon)/d, y: Y(best.lat)/d - 6, html: `${EV[best.type].name}<br>${best.peak.toFixed(2)} ${(best.type==='stop'||best.type==='jerk')?'G/秒':'G'}${best.kmh!=null?' ・ '+best.kmh+'km/h':''}` };
+  });
+}
+
+function drawScatter(cv, t, data){
+  setupCanvas(cv);
+  const s = data.s, ctx = cv.getContext('2d'), W = cv.width, H = cv.height, d = dpr;
+  const cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 16*d, M = 0.5;
+  const P = g => g/M*R;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = 'rgba(12,163,12,.12)'; ctx.beginPath(); ctx.arc(cx, cy, P(COMFORT_G), 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#30353D'; ctx.lineWidth = 1*d;
+  [0.1,0.2,0.3,0.4,0.5].forEach(g => { ctx.beginPath(); ctx.arc(cx, cy, P(g), 0, Math.PI*2); ctx.stroke(); });
+  ctx.beginPath(); ctx.moveTo(cx-R, cy); ctx.lineTo(cx+R, cy); ctx.moveTo(cx, cy-R); ctx.lineTo(cx, cy+R); ctx.stroke();
+  ctx.fillStyle = 'rgba(95,178,255,.22)';
+  for (let i=0;i<s.t.length;i++){
+    if (s.sp[i] != null && s.sp[i] < 3 && Math.hypot(s.lo[i], s.la[i]) < 0.05) continue;
+    const x = Math.max(-M, Math.min(M, -s.la[i])), y = Math.max(-M, Math.min(M, s.lo[i]));
+    ctx.fillRect(cx + P(x) - 1.5*d, cy + P(y) - 1.5*d, 3*d, 3*d);
+  }
+  ctx.fillStyle = '#80858F'; ctx.font = `${10*d}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  [0.1,0.3,0.5].forEach(g => ctx.fillText(g.toFixed(1)+'G', cx + 3*d, cy - P(g) + 7*d));
+}
+
+/* =====================================================================
+   CSV
+   ===================================================================== */
+function download(name, text){
+  const blob = new Blob(['﻿' + text], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function exportTripCsv(t, data){
+  const rows = ['経過秒,前後G,左右G,速度km/h'];
+  if (data) for (let i=0;i<data.s.t.length;i++) rows.push([data.s.t[i], data.s.lo[i], data.s.la[i], data.s.sp[i] ?? ''].join(','));
+  rows.push('', '経過秒,種類,強さ,単位,速度km/h,緯度,経度');
+  t.events.forEach(e => rows.push([e.t, EV[e.type].name, e.peak, (e.type==='stop'||e.type==='jerk')?'G/秒':'G', e.kmh ?? '', e.lat ?? '', e.lon ?? ''].join(',')));
+  download(`gmeter_${fileStamp(t.start)}.csv`, rows.join('\n'));
+}
+async function exportAllCsv(){
+  const trips = (await db.all('trips')).sort((a,b)=>a.start-b.start);
+  if (!trips.length){ toast('記録がありません'); return; }
+  const rows = ['開始,終了,走行秒,距離m,スコア,快適ゾーン%,最大ブレーキG,最大加速G,最大左右G,急ブレーキ,急発進,急ハンドル,カックン,急な操作'];
+  trips.forEach(t => rows.push([new Date(t.start).toLocaleString('ja-JP'), new Date(t.end).toLocaleString('ja-JP'), t.durationSec, t.distanceM, t.score, t.comfortPct ?? '', t.maxBrake, t.maxAccel, t.maxLat, t.counts.brake, t.counts.accel, t.counts.lat, t.counts.stop, t.counts.jerk].join(',')));
+  download(`gmeter_all_${fileStamp(Date.now())}.csv`, rows.join('\n'));
+}
+
+/* =====================================================================
+   デモ（車に乗らずに動作確認）
+   ===================================================================== */
+function startDemo(){
+  // スマホを縦にしてホルダーに付け、画面が運転者を向いている想定（重力は端末 +y）
+  st.gSlow = [0, G0, 0];
+  const t0 = performance.now()/1000;
+  // 運転のシナリオ（秒, 前後G, 左右G）を区間で補間
+  const script = [
+    [0,0,0],[2,0,0],[3,0.12,0],[7,0.08,0],[9,0,0],[12,0,0.08],[15,0,0.12],[17,0,0],          // 穏やかな発進とカーブ
+    [20,0,0],[20.6,-0.32,0],[22.5,-0.30,0],[23,0,0],[25,0,0],                                    // 急ブレーキ
+    [27,0.28,0],[29,0.25,0],[30,0,0],                                                            // 急発進
+    [33,0,0],[34,0,-0.30],[36,0,-0.28],[36.6,0,0],                                               // 急ハンドル
+    [39,-0.05,0],[40,-0.16,0],[43,-0.18,0],[43.12,0,0],[46,0,0],                                 // 停止時のカックン
+    [48,0.08,0],[51,0.06,0],[53,-0.08,0],[56,-0.03,0],[57,0,0],[60,0,0],                        // 理想的な停止
+  ];
+  const at = tt => {
+    tt = tt % 60;
+    for (let i=1;i<script.length;i++){
+      if (tt <= script[i][0]){ const a = script[i-1], b = script[i], k = (tt - a[0])/((b[0]-a[0])||1); return [a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k]; }
+    }
+    return [0,0];
+  };
+  let speed = 0;
+  st.demoTimer = setInterval(() => {
+    const now = performance.now()/1000, tt = now - t0;
+    const [lo, la] = at(tt);
+    const noise = () => (Math.random()-0.5)*0.03;
+    // 端末座標へ：前 = -z（画面の裏）, 右 = +x, 上 = +y
+    const ax = (la + noise())*G0, az = -(lo + noise())*G0, ay = noise()*G0;
+    processSample(now, [ax, G0 + ay, az], [ax, ay, az]);
+    speed = Math.max(0, speed + lo*G0/60);
+    if (((tt % 60) > 43.2 && (tt % 60) < 47)) speed = 0;
+  }, 1000/60);
+  st.demoGps = setInterval(() => {
+    st.speed = speed; st.speedAt = performance.now()/1000;
+    if (st.rec){ st.rec.dist += speed; }
+  }, 1000);
+  setChip('#chipGps', true, 'GPS(デモ)');
+}
+
+/* =====================================================================
+   画面の切り替え・設定 UI
+   ===================================================================== */
+function goView(v){
+  document.querySelectorAll('.view').forEach(e => e.classList.toggle('active', e.id === 'view-' + v));
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  if (v === 'history') renderHistory();
+  if (v === 'settings') renderSettings();
+  if (v === 'drive') setTimeout(resizeCanvases, 0);
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => goView(b.dataset.v));
+
+function renderSettings(){
+  document.querySelectorAll('#presetSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === S.preset));
+  $('#thrBrake').value = S.thr.brake; $('#thrAccel').value = S.thr.accel; $('#thrLat').value = S.thr.lat; $('#thrJerk').value = S.thr.jerk;
+  $('#optVoice').checked = S.voice; $('#optBeep').checked = S.beep; $('#optWake').checked = S.wake;
+  renderCalibInfo();
+  db.all('trips').then(ts => { $('#dataInfo').innerHTML = `保存されている走行：<b>${ts.length}件</b>（この端末の中だけ）`; }).catch(()=>{});
+}
+function renderCalibInfo(){
+  const el = $('#calibInfo'); if (!el) return;
+  const src = { auto:'自動推定（置き方から）', gps:`GPSで学習済み（${S.fwdCount}回の加減速）`, launch:'発進で学習済み', manual:'手動で反転' }[S.fwdSource] || '自動推定';
+  const pose = !S.up ? '未設定' : Math.abs(S.up[2]) > 0.75 ? '寝かせて設置' : '立てて設置';
+  el.innerHTML = `姿勢：<b>${pose}</b><br>前方向：<b>${src}</b>`;
+}
+document.querySelectorAll('#presetSeg button').forEach(b => b.onclick = () => {
+  const p = b.dataset.p; S.preset = p;
+  if (PRESETS[p]) S.thr = {...PRESETS[p]};
+  saveSettings(); renderSettings();
+});
+[['#thrBrake','brake'],['#thrAccel','accel'],['#thrLat','lat'],['#thrJerk','jerk']].forEach(([id,k]) => {
+  $(id).onchange = e => { const v = parseFloat(e.target.value); if (v > 0){ S.thr[k] = v; S.preset = 'custom'; saveSettings(); renderSettings(); } };
+});
+$('#optVoice').onchange = e => { S.voice = e.target.checked; saveSettings(); if (S.voice){ unlockAudio(); speak('音声のお知らせをオンにしました'); } };
+$('#optBeep').onchange = e => { S.beep = e.target.checked; saveSettings(); if (S.beep){ unlockAudio(); beep(); } };
+$('#optWake').onchange = e => { S.wake = e.target.checked; saveSettings(); if (!S.wake) releaseWake(); else if (st.rec) requestWake(); };
+$('#btnCalib').onclick = startCalibration;
+$('#btnCalib2').onclick = () => { goView('drive'); startCalibration(); };
+$('#btnLearnFwd').onclick = startLaunchLearn;
+$('#btnFlip').onclick = () => {
+  const f = S.fwd || st.fwd; S.fwd = v3.scale(f, -1); S.fwdSource = 'manual'; saveSettings(); renderCalibInfo(); toast('前後を反転しました');
+};
+$('#btnResetFwd').onclick = () => { S.fwd = null; S.fwdSource = 'auto'; S.fwdCount = 0; st.gpsLearn = null; saveSettings(); renderCalibInfo(); toast('前方向をリセットしました'); };
+$('#btnExportAll').onclick = exportAllCsv;
+$('#btnDeleteAll').onclick = async () => {
+  if (await confirmDlg('すべての記録を削除しますか？', '保存されている走行記録がすべて消えます。元に戻せません。')){
+    await db.clear('trips'); await db.clear('tripdata'); renderSettings(); toast('削除しました');
+  }
+};
+$('#btnEnable').onclick = () => enableSensors(false);
+$('#btnDemo').onclick = () => enableSensors(true);
+$('#btnRec').onclick = () => { unlockAudio(); st.rec ? stopRecording() : startRecording(); };
+
+function confirmDlg(title, text){
+  const d = $('#dlg'); $('#dlgTitle').textContent = title; $('#dlgText').textContent = text;
+  return new Promise(res => {
+    $('#dlgOk').onclick = () => { d.close(); res(true); };
+    $('#dlgCancel').onclick = () => { d.close(); res(false); };
+    d.showModal();
+  });
+}
+
+/* =====================================================================
+   小物
+   ===================================================================== */
+function setChip(sel, on, label){ const c = $(sel); c.classList.toggle('on', on); c.querySelector('span:last-child').textContent = label; }
+let toastTimer = 0;
+function toast(msg){
+  let t = $('.toast'); if (!t){ t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
+}
+function haversine(la1, lo1, la2, lo2){
+  const R = 6371000, r = Math.PI/180, dLa = (la2-la1)*r, dLo = (lo2-lo1)*r;
+  const a = Math.sin(dLa/2)**2 + Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+const pad2 = n => String(n).padStart(2,'0');
+function fmtDur(s){ s = Math.max(0, s|0); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60; return h ? `${h}:${pad2(m)}:${pad2(x)}` : `${m}:${pad2(x)}`; }
+function fmtClock(ms){ const d = new Date(ms); return `${d.getHours()}:${pad2(d.getMinutes())}`; }
+function fmtDate(ms){ const d = new Date(ms); const w = '日月火水木金土'[d.getDay()]; return `${d.getMonth()+1}/${d.getDate()}（${w}）${fmtClock(ms)}`; }
+function fileStamp(ms){ const d = new Date(ms); return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}`; }
+function niceStep(x){ const c = [10,30,60,120,300,600,900,1800,3600]; return c.find(v => v >= x) || 3600; }
+function scoreColor(s){ return s >= 85 ? '#0ca30c' : s >= 70 ? '#fab219' : '#d03b3b'; }
+function scoreText(s){ return s >= 85 ? 'var(--good-text)' : s >= 70 ? 'var(--warn)' : 'var(--bad-text)'; }
+function scoreWord(s){ return s >= 95 ? 'とても滑らか。お客様が眠れる運転です' : s >= 85 ? '滑らか。快適な運転です' : s >= 70 ? 'ふつう。急な操作を減らすともっと良くなります' : '急な操作が多め。次は早めのブレーキを意識しましょう'; }
+
+renderCalibInfo();
+updateLive();
+
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
