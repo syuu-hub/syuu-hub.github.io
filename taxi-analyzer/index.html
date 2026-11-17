@@ -2642,7 +2642,7 @@ function renderHud() {
   if (se.dataset.v !== String(sales)) { se.dataset.v = sales; se.innerHTML = yenHtml(sales); }
   // 1日の必要額＝月の目標の残り ÷ 残りの出勤日（月の目標が未設定・達成済みの時はその表示）
   $('#goalLbl').textContent = !mg ? '' : goal ? (dayUnit() ? '1日の目標' : '1日の必要') : '';
-  $('#goal').textContent = !mg ? '目標を設定' : goal ? yen(goal) : '月の目標達成';
+  $('#goal').textContent = !mg ? (goalAuto() ? '記録がたまると自動で設定' : '目標を設定') : goal ? yen(goal) : '月の目標達成';
   $('#pct').style.display = goal ? '' : 'none';
   $('#barWrap').style.visibility = goal ? '' : 'hidden';
   $('#pct').innerHTML = Math.floor(ratio * 100) + '<small>%</small>';
@@ -3048,7 +3048,7 @@ function goalReview() {
    ・営業中は変えない（その日の必要額が営業の途中で動かないように）。判定は1日1回
    ・記録が5日分に満たないうちは決めない（任意の金額のまま）
    ============================================================ */
-const goalAuto = () => S.settings.goalMode === 'auto';
+const goalAuto = () => S.settings.goalMode !== 'manual';   // 既定は自動。「任意の金額」を選んだ時だけ自分で決める
 function autoGoalCalc(now = Date.now()) {
   const tk = dayKey(new Date(now));
   const recent = S.rides.filter(r => r.ts >= now - 90 * 86400e3).map(r => r.total);
@@ -4130,7 +4130,7 @@ function renderDepart() {
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
   $('#dGoal .k').textContent = dayUnit() ? '本日の目標' : '本日の必要額';
-  $('#dGoalVal').textContent = hasGoal() ? (dailyNeed() ? yen(dailyNeed()) : '達成') : '未設定';
+  $('#dGoalVal').textContent = hasGoal() ? (dailyNeed() ? yen(dailyNeed()) : '達成') : goalAuto() ? `記録あと${autoGoalCalc().need || 0}日で自動` : '未設定';
   // ステップ目標：いま出庫したら、何時までにいくら（累計）を1時間ごとに
   const ds = $('#dSteps'), sp = stepPlan(null, Date.now(), dailyNeed());
   ds.hidden = !sp;
