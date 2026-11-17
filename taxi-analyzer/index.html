@@ -3742,7 +3742,7 @@ function renderAnalysis() {
     if (du >= 60 && allBlocks[i].rate != null) blocks.push({ d, b, du, c, raw: sa / (du / 60), rate: shrink(wsa, wdu / 60, allBlocks[i].rate, 3) });
   });
   const bestBlock = (blocks.filter(c => c.du >= 180).length ? blocks.filter(c => c.du >= 180) : blocks).slice().sort((a, b) => b.rate - a.rate)[0];   // 記録が十分あるマスから選ぶ
-  const heatCols = allBlocks.filter(c => c.du > 0).map(c => c.b);   // 記録のない時間は出さない
+  const heatCols = allBlocks.filter(c => c.c > 0).map(c => c.b);   // 乗車の記録のない時間は出さない（出庫前後の数分だけの営業では出さない）
 
   // ── 乗車地：回数・待ち時間込みの時間効率・高額の出やすさを1つの表に（並べ替えで切り替え）
   const hiAuto = !S.settings.hiFare;
