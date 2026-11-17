@@ -2651,7 +2651,8 @@ function renderHud() {
   $('#hud').classList.toggle('done', goal > 0 && sales >= goal);
   $('#remain').textContent = goal <= 0 ? '' : sales >= goal ? `達成 ＋${yen(sales - goal)}` : `あと ${yen(goal - sales)}`;
   // ステップ目標：次の正時までに必要な累計（いまの売上から逆算）と、この1時間であといくら。タップで1時間ごとの一覧
-  const sp = sh && goal && sales < goal ? stepPlan(sh) : null, sr = $('#stepRow');
+  // 先行分を上乗せしている時は、元の目標を超えても上乗せ後の目標まで段を出す
+  const sp0 = sh && goal ? stepPlan(sh) : null, sp = sp0 && sales < sp0.goal + (sp0.lead || 0) ? sp0 : null, sr = $('#stepRow');
   sr.hidden = !(sp && sp.next);
   if (sp && sp.next) {
     const n = sp.next, left = n.target - sales;
@@ -2919,7 +2920,10 @@ function stepPlan(sh, now = Date.now(), goal = sh ? dailyNeed(sh.start) : 0, sta
       return c;
     });
     const passed = cps.filter(c => c.passed);
-    return { goal, start, sales: sNow, cps, passed, next: cps.find(c => !c.passed) || null, hits: passed.filter(c => c.hit).length, hist: true };
+    // 予定より早く進んでいる時は、直近の段で上回った分をこの先の段と1日の目標に上乗せする（過ぎた段の判定は元の目標のまま）
+    const lead = stepLead(passed, c => c.target);
+    if (lead) { let p = passed.at(-1).sales; for (const c of cps) if (!c.passed) { c.target += lead; c.need = Math.max(0, c.target - p); p = c.target; } }
+    return { goal, start, sales: sNow, cps, passed, next: cps.find(c => !c.passed) || null, hits: passed.filter(c => c.hit).length, hist: true, lead };
   }
   // t0 の時点の売上 s0 から、t までに必要な累計
   const back = (t0, s0, t) => { const f0 = F(t0); return f0 >= 1 ? Math.max(s0, goal) : s0 + Math.max(0, goal - s0) * (F(t) - f0) / (1 - f0); };
@@ -2940,7 +2944,16 @@ function stepPlan(sh, now = Date.now(), goal = sh ? dailyNeed(sh.start) : 0, sta
     c.need = c.target - prev; prev = c.target;
   }
   const passed = cps.filter(c => c.passed);
-  return { goal, start, sales: sNow, cps, passed, next: cps.find(c => !c.passed) || null, hits: passed.filter(c => c.hit).length };
+  // 予定（出庫時点の配分）より早く進んでいる時は、上回った分をこの先の段と1日の目標に上乗せする
+  const plan = t => t === times.at(-1) ? goal : Math.min(goal, up100(goal * F(t)));
+  const lead = stepLead(passed, c => plan(c.t));
+  if (lead) { let p = sNow; for (const c of cps) if (!c.passed) { c.target = Math.max(c.target, plan(c.t) + lead); c.need = Math.max(0, c.target - p); p = c.target; } }
+  return { goal, start, sales: sNow, cps, passed, next: cps.find(c => !c.passed) || null, hits: passed.filter(c => c.hit).length, lead };
+}
+// 先行分：直近の過ぎた段の実績が予定を上回った額（100円単位で切り捨て）。下回っていれば 0
+function stepLead(passed, planOf) {
+  const c = passed.at(-1);
+  return c ? Math.max(0, Math.floor((c.sales - planOf(c)) / 100) * 100) : 0;
 }
 // 段の小さな階段グラフ（出庫画面・次の営業）。多い時は横にスクロール
 function stepsHtml(sp) {
@@ -2953,9 +2966,10 @@ function stepsHtml(sp) {
 }
 // 1時間ごとの一覧（ホームの「次は…」をタップ）：時刻・その1時間で稼ぐ額・累計の目標・結果
 function stepListHtml(sp) {
-  const left = Math.max(0, sp.goal - sp.sales);
-  return `<div class="sl-sum num"><span>${dayUnit() ? '1日の目標' : '1日の必要'} <b>${yen(sp.goal)}</b></span><span>いま <b>${yen(sp.sales)}</b></span><span>あと <b class="ac">${yen(left)}</b></span></div>
-    <div class="sl-note">${sp.hist ? '各時刻の目標は、過去の同じ条件の日に「その時刻までに稼いでいた累計」（中央値）を、1日の目標まで引き上げた金額です。営業中は変わりません。' : 'これからの段は、必要額の残りを残りの時間へ、あなたの稼ぎ方の配分で逆算した累計です。'}過ぎた段は実績の累計です。</div>
+  const top = sp.goal + (sp.lead || 0), left = Math.max(0, top - sp.sales);
+  return `<div class="sl-sum num"><span>${dayUnit() ? '1日の目標' : '1日の必要'} <b>${yen(top)}</b></span><span>いま <b>${yen(sp.sales)}</b></span><span>あと <b class="ac">${yen(left)}</b></span></div>
+    ${sp.lead ? `<div class="sl-note">予定より <b class="num">${yen(sp.lead)}</b> 早く進んでいます。この分をこの先の目標に上乗せしました（元の1日の目標 ${yen(sp.goal)}）。</div>` : ''}
+    <div class="sl-note">${sp.hist ? '各時刻の目標は、過去の同じ条件の日に「その時刻までに稼いでいた累計」（中央値）を、1日の目標まで引き上げた金額です。営業中は下がりません（予定より早く進んだ時だけ上乗せします）。' : 'これからの段は、必要額の残りを残りの時間へ、あなたの稼ぎ方の配分で逆算した累計です。'}過ぎた段は実績の累計です。</div>
     <ol class="sl">
       <li class="hd"><span>時刻</span><span>その1時間</span><span>累計</span><span>結果</span></li>
       ${sp.cps.map(c => {
