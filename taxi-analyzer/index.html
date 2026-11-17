@@ -3477,10 +3477,11 @@ const placeName = c => c.name ? c.name + (c.exact ? '' : ' 付近') : c.lat.toFi
    ・時間単価＝その時間帯に乗せた売上 ÷ その時間帯に営業していた時間
    ============================================================ */
 const HOUR_ORDER = [...Array.from({ length: 19 }, (_, i) => i + 5), 0, 1, 2, 3, 4];   // 5時〜翌4時
-// 曜日×時間帯は n 時間ずつにまとめる（設定で 1・2・3・4・6 時間。初期は3時間）。5時始まりで1日を区切る
+// 曜日×時間帯は n 時間ずつにまとめる（設定で 1・2・3・4・6 時間。初期は3時間）。
+// 区切りの始まりは s0 時（分析では、記録で一番早く乗車のある時間。記録が無ければ5時）
 const BLOCK_HS = [1, 2, 3, 4, 6];
 const blockH = () => BLOCK_HS.includes(+S.settings.anaBlock) ? +S.settings.anaBlock : 3;
-const makeBlocks = n => Array.from({ length: 24 / n }, (_, i) => { const s = (5 + i * n) % 24;
+const makeBlocks = (n, s0 = 5) => Array.from({ length: 24 / n }, (_, i) => { const s = (s0 + i * n) % 24;
   return { s, n, hs: Array.from({ length: n }, (_, j) => (s + j) % 24), label: n === 1 ? `${s}` : `${s}-${(s + n) % 24}`, head: s + '時' }; });
 let HEAT_BLOCKS = makeBlocks(3);
 const FIND_BLOCKS = makeBlocks(3);   // 乗車の検索の時間帯は3時間ごとのまま
@@ -3703,10 +3704,12 @@ function placeDetail(c, rideOf) {
 }
 
 function renderAnalysis() {
-  if (HEAT_BLOCKS[0].n !== blockH()) HEAT_BLOCKS = makeBlocks(blockH());
   const range = S.settings.anaRange || '90';
   $$('#anaRange [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === range));
   const A = analyze(range), body = $('#anaBody'), D = A.dayList;
+  // 区切りの始まりを、乗車のある一番早い時間に合わせる（1日は5時始まりで数える。6時出庫の人に「5-8時」の枠を出さない）
+  const s0 = Array.from({ length: 24 }, (_, i) => (5 + i) % 24).find(h => A.cnt.some(row => row[h] > 0)) ?? 5;
+  if (HEAT_BLOCKS[0].n !== blockH() || HEAT_BLOCKS[0].s !== s0) HEAT_BLOCKS = makeBlocks(blockH(), s0);
   if (D.length < 2 || A.rides.length < 3) {
     body.innerHTML = `<div class="ana-card"><div class="ana-empty">記録がまだ少ないです<br><span class="num">${D.length}日・${A.rides.length}件</span></div></div>`;
     return;
@@ -3742,7 +3745,7 @@ function renderAnalysis() {
     if (du >= 60 && allBlocks[i].rate != null) blocks.push({ d, b, du, c, raw: sa / (du / 60), rate: shrink(wsa, wdu / 60, allBlocks[i].rate, 3) });
   });
   const bestBlock = (blocks.filter(c => c.du >= 180).length ? blocks.filter(c => c.du >= 180) : blocks).slice().sort((a, b) => b.rate - a.rate)[0];   // 記録が十分あるマスから選ぶ
-  const heatCols = allBlocks.filter(c => c.du > 0).map(c => c.b);   // 記録のない時間は出さない
+  const heatCols = allBlocks.filter(c => c.c > 0).map(c => c.b);   // 乗車の記録のない時間は出さない（出庫前後の数分だけの営業では出さない）
 
   // ── 乗車地：回数・待ち時間込みの時間効率・高額の出やすさを1つの表に（並べ替えで切り替え）
   const hiAuto = !S.settings.hiFare;
