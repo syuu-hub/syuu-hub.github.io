@@ -1,0 +1,14 @@
+{
+  "appId": "io.github.syuuhub.gmeter",
+  "appName": "Gメーター",
+  "webDir": "www",
+  "backgroundColor": "#0E1014",
+  "server": {
+    "url": "https://syuu-hub.github.io/g-meter/",
+    "androidScheme": "https",
+    "errorPath": "index.html"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

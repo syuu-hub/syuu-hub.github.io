@@ -853,7 +853,11 @@ function beep(freq=880, ms=140, n=2){
     o.connect(g).connect(audioCtx.destination); o.start(t0); o.stop(t0+ms/1000+0.02);
   }
 }
+// Android アプリ（Capacitor）の中か。WebView で使えない読み上げ・振動・画面点灯維持・保存は本体側（GDevice 等）で行う
+const isNative = () => { const c = window.Capacitor; return !!(c && c.isNativePlatform && c.isNativePlatform() && c.nativePromise); };
+const nativeCall = (plugin, method, args={}) => window.Capacitor.nativePromise(plugin, method, args);
 function speak(text){
+  if (isNative()){ nativeCall('GDevice', 'speak', { text }).catch(() => { if (S.beep) beep(); }); return true; }
   if (!('speechSynthesis' in window)) return false;
   try{
     speechSynthesis.cancel();
@@ -865,7 +869,8 @@ function alertEvent(ev){
   const d = EV[ev.type];
   const unit = (ev.type === 'stop' || ev.type === 'jerk') ? ' G/秒' : ' G';
   showBanner(`${d.name}  ${ev.peak.toFixed(2)}${unit}`, ev.type === 'stop' || ev.type === 'accel' ? 'warn' : '', 2500);
-  if (navigator.vibrate) try{ navigator.vibrate(120); }catch(e){}
+  if (isNative()) nativeCall('GDevice', 'vibrate', { ms:120 }).catch(() => {});
+  else if (navigator.vibrate) try{ navigator.vibrate(120); }catch(e){}
   const now = Date.now();
   if (now - st.lastAlert < 3500) return;
   st.lastAlert = now;
@@ -946,9 +951,10 @@ function summarize(r){
 /* Wake Lock */
 let wakeLock = null;
 async function requestWake(){
+  if (isNative()){ nativeCall('GDevice', 'keepAwake', { on:true }).catch(() => {}); return; }
   try{ if ('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); } }catch(e){}
 }
-function releaseWake(){ try{ wakeLock && wakeLock.release(); }catch(e){} wakeLock = null; }
+function releaseWake(){ if (isNative()){ nativeCall('GDevice', 'keepAwake', { on:false }).catch(() => {}); return; } try{ wakeLock && wakeLock.release(); }catch(e){} wakeLock = null; }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && st.sensorOn && S.wake) requestWake();
 });
@@ -1579,6 +1585,13 @@ function drawScatter(cv, t, data){
    CSV
    ===================================================================== */
 function download(name, text){
+  // アプリの中ではリンクでの保存ができないので、ファイルを作って共有メニューから保存先を選ぶ
+  if (isNative()){
+    nativeCall('Filesystem', 'writeFile', { path:name, data:'\ufeff' + text, directory:'CACHE', encoding:'utf8' })
+      .then(r => nativeCall('Share', 'share', { title:name, files:[r.uri] }))
+      .catch(e => { if (!/cancel/i.test(String(e && e.message))) toast('保存できませんでした'); });
+    return;
+  }
   const blob = new Blob(['﻿' + text], {type:'text/csv'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
