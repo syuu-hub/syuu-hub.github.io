@@ -17,15 +17,18 @@
 <style>
 :root{
   color-scheme: dark;
-  --bg:#0E1014;
-  --surface:#171A1F;
-  --surface-2:#1F2329;
-  --surface-3:#2A2F36;
-  --line:#353B44;
-  --text:#ECEDEF;
-  --text-2:#B4B8C0;
-  --text-3:#80858F;
+  /* 夜の車内でまぶしくない、深い黒ベース */
+  --bg:#07080A;
+  --surface:#101216;
+  --surface-2:#171A1F;
+  --surface-3:#22262D;
+  --hair:rgba(255,255,255,.07);
+  --line:#2B3038;
+  --text:#F1F2F4;
+  --text-2:#AEB3BC;
+  --text-3:#727884;
   --primary:#5FB2FF;
+  --primary-soft:rgba(95,178,255,.14);
   --on-primary:#00213D;
 
   /* 系列（前後・左右） */
@@ -39,87 +42,122 @@
   --bad:#d03b3b;
   --bad-text:#FF7B7B;
 
-  --radius:18px;
+  --radius:20px;
+  --r-md:14px;
+  --r-sm:10px;
+  --nav-h:62px;
+  --head-h:52px;
   --safe-b:env(safe-area-inset-bottom,0px);
   --safe-t:env(safe-area-inset-top,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;font-size:15px;line-height:1.5}
-body{min-height:100dvh;padding-top:var(--safe-t);padding-bottom:calc(72px + var(--safe-b));overflow-x:hidden}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{min-height:100dvh;padding-top:var(--safe-t);padding-bottom:calc(var(--nav-h) + var(--safe-b));overflow-x:hidden}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 .hidden{display:none!important}
 
+/* 夜間減光：画面全体に薄い黒を重ねる */
+#dimmer{position:fixed;inset:0;background:rgba(0,0,0,.45);pointer-events:none;z-index:60;display:none}
+html.dim #dimmer{display:block}
+
 /* ヘッダー */
-header{display:flex;align-items:center;gap:10px;padding:10px 16px 6px}
-header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em;flex:1}
+header{display:flex;align-items:center;gap:8px;height:var(--head-h);padding:0 16px;max-width:1100px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.brand img{width:26px;height:26px;border-radius:8px}
+header h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:440px){html.recording header h1{display:none}}
+.status{display:inline-flex;align-items:center;gap:10px;padding:5px 11px;border-radius:999px;background:var(--surface);border:1px solid var(--hair);font-size:11.5px;color:var(--text-2);white-space:nowrap}
+.st{display:inline-flex;align-items:center;gap:5px}
+.st i{width:7px;height:7px;border-radius:50%;background:var(--text-3)}
+.st.on i{background:var(--good-text);box-shadow:0 0 6px rgba(76,216,106,.7)}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--text-2);font-size:12px;white-space:nowrap}
-.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--text-3)}
-.chip.on .dot{background:var(--good)}
-.chip.rec{background:#3A1414;color:#FFB3B3}
-.chip.rec .dot{background:var(--bad);animation:blink 1s infinite}
+.rec-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:rgba(208,59,59,.16);border:1px solid rgba(208,59,59,.45);color:#FFB3B3;font-size:12px;font-weight:700}
+.rec-pill i{width:7px;height:7px;border-radius:50%;background:var(--bad-text);animation:blink 1s infinite}
 @keyframes blink{50%{opacity:.25}}
+.icon-btn{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;color:var(--text-2);background:var(--surface);border:1px solid var(--hair);flex:none}
+.icon-btn svg{width:19px;height:19px}
+html.dim .icon-btn#btnDim{color:var(--warn);border-color:rgba(250,178,25,.4)}
 
 main{padding:0 16px;max-width:1100px;margin:0 auto}
 .view{display:none}
-.view.active{display:block}
+.view.active{display:block;animation:fade .25s ease-out}
+@keyframes fade{from{opacity:0}to{opacity:1}}
 
-.card{background:var(--surface);border-radius:var(--radius);padding:14px}
+.card{background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius);padding:16px}
 .card + .card{margin-top:12px}
-.card h2{font-size:14px;margin:0 0 8px;color:var(--text-2);font-weight:600}
+.card h2{font-size:13px;margin:0 0 10px;color:var(--text-2);font-weight:700;letter-spacing:.04em}
 
 /* 走行画面：開いたままにする前提で1画面に収める */
 .drive{display:grid;gap:10px;grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"ball" "ro" "log";
-  height:calc(100dvh - 54px - 72px - var(--safe-b) - var(--safe-t));min-height:560px}
+  height:calc(100dvh - var(--head-h) - var(--nav-h) - 10px - var(--safe-b) - var(--safe-t));min-height:540px}
 @media (orientation:landscape) and (min-width:600px){
   .drive{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"ball ro" "ball log";min-height:300px}
   .drive .gball-wrap{height:100%}
 }
-.gball-wrap{grid-area:ball;position:relative;background:var(--surface);border-radius:var(--radius);padding:6px;height:clamp(170px,28dvh,400px);width:100%}
+.gball-wrap{grid-area:ball;position:relative;border-radius:var(--radius);height:clamp(180px,30dvh,420px);width:100%;
+  background:radial-gradient(120% 90% at 50% 45%,#12151A 0%,#0B0D10 70%);border:1px solid var(--hair);overflow:hidden}
 #gball{width:100%;height:100%;display:block}
-.gball-label{position:absolute;left:14px;top:10px;font-size:11px;color:var(--text-3)}
-.gball-total{position:absolute;right:14px;top:8px;text-align:right}
-.gball-total b{font-size:28px;font-weight:800;line-height:1}
-.gball-total small{display:block;font-size:11px;color:var(--text-3)}
-#glass{position:absolute;left:8px;bottom:8px;width:64px;height:64px}
-.banner{position:absolute;left:12px;right:12px;bottom:12px;padding:10px 12px;border-radius:12px;font-weight:700;font-size:15px;text-align:center;background:rgba(208,59,59,.92);color:#fff;transition:opacity .3s;z-index:2}
-.banner.warn{background:rgba(250,178,25,.95);color:#2B1D00}
-.banner.info{background:rgba(42,47,54,.95);color:var(--text)}
+.gball-label{position:absolute;left:14px;top:11px;font-size:10.5px;color:var(--text-3);letter-spacing:.06em;font-weight:700}
+.gball-total{position:absolute;right:14px;top:8px;text-align:right;line-height:1}
+.gball-total b{font-size:34px;font-weight:800;letter-spacing:-.02em;transition:color .2s}
+.gball-total small{font-size:13px;font-weight:700;color:var(--text-3);margin-left:2px}
+.gball-total .cap{display:block;font-size:10.5px;color:var(--text-3);margin-top:4px;letter-spacing:.04em;font-weight:700}
+#glass{position:absolute;left:8px;bottom:6px;width:58px;height:58px;opacity:.95}
+.gball-legend{position:absolute;right:12px;bottom:10px;display:grid;gap:3px;font-size:10px;color:var(--text-3);text-align:right}
+.gball-legend span{display:inline-flex;align-items:center;justify-content:flex-end;gap:5px}
+.gball-legend i{width:8px;height:8px;border-radius:50%}
+.banner{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 24px);padding:9px 16px;border-radius:999px;font-weight:800;font-size:15px;text-align:center;white-space:nowrap;background:rgba(208,59,59,.95);color:#fff;z-index:2;box-shadow:0 8px 24px rgba(0,0,0,.45);animation:pop .25s ease-out}
+.banner.warn{background:rgba(250,178,25,.97);color:#2B1D00}
+.banner.info{background:rgba(34,38,45,.97);color:var(--text);border:1px solid var(--line)}
+@keyframes pop{from{transform:translate(-50%,8px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
 
-.readouts{grid-area:ro;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.ro{background:var(--surface);border-radius:14px;padding:6px 10px 4px}
-.ro .sub{min-height:0}
-.ro .k{font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:5px}
-.ro .k i{width:10px;height:3px;border-radius:2px;display:inline-block}
-.ro .v{font-size:19px;font-weight:700;line-height:1.2}
-.ro .sub{font-size:11px;color:var(--text-2);min-height:16px}
+/* 数値：1枚のパネルを細線で4分割 */
+.readouts{grid-area:ro;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border:1px solid var(--hair);border-radius:var(--r-md);overflow:hidden}
+.ro{padding:8px 10px 9px;position:relative}
+.ro + .ro{border-left:1px solid var(--hair)}
+.ro .k{font-size:10.5px;color:var(--text-3);display:flex;align-items:center;gap:5px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+.ro .k i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.ro .v{font-size:21px;font-weight:800;line-height:1.15;letter-spacing:-.01em;display:flex;align-items:baseline;gap:4px}
+.ro .v small{font-size:10.5px;font-weight:700;color:var(--text-3)}
+.ro .sub{font-size:10.5px;color:var(--text-2);height:15px;white-space:nowrap;overflow:hidden}
+.meter{height:3px;border-radius:2px;background:var(--surface-3);margin-top:3px;overflow:hidden}
+.meter b{display:block;height:100%;width:0;border-radius:2px;background:var(--good);transition:width .12s linear,background .2s}
 
-/* Gログ（ラップ） */
-.lap-panel{grid-area:log;display:flex;flex-direction:column;gap:8px;background:var(--surface);border-radius:var(--radius);padding:10px;min-height:0}
-.lap-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.lap-head b{font-size:15px}
-.lap-head .stats{flex:1;font-size:12px;color:var(--text-2);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lap-head .btn.small{min-height:34px;padding:0 12px}
-.laps{flex:1;min-height:0;overflow-y:auto;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;overscroll-behavior:contain}
-.lap{display:grid;grid-template-columns:2.4em 30px minmax(0,1fr) auto;gap:8px;align-items:center;background:var(--surface-2);border-radius:12px;padding:7px 10px;border-left:4px solid transparent}
-.lap.active{border-left-color:var(--primary);background:#1C2A3A}
-.lap.new{animation:lapIn .5s ease-out}
-@keyframes lapIn{from{background:#2C4766;transform:translateY(-6px)}to{transform:none}}
-.lap .no{font-size:12px;color:var(--text-3);font-weight:700}
-.lap .arr{width:30px;height:30px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center}
+/* Gログ（ストップウォッチのラップ一覧） */
+.lap-panel{grid-area:log;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius);min-height:0;overflow:hidden}
+.lap-head{display:flex;align-items:center;gap:8px;padding:10px 12px 8px;border-bottom:1px solid var(--hair)}
+.lap-head .ttl{display:flex;flex-direction:column;line-height:1.2;min-width:0;flex:1}
+.lap-head .ttl b{font-size:15px;font-weight:800}
+.lap-head .ttl b span{font-size:11px;font-weight:700;color:var(--text-3);margin-left:6px}
+.lap-head .stats{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lap-head .btn.small{min-height:32px;padding:0 12px;font-size:13px;border-radius:10px}
+.laps{flex:1;min-height:0;overflow-y:auto;list-style:none;margin:0;padding:0;overscroll-behavior:contain}
+.lap{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 12px 8px 10px;border-bottom:1px solid var(--hair);position:relative}
+.lap::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--lv)}
+.lap.active{background:linear-gradient(90deg,var(--primary-soft),transparent 80%)}
+.lap.active::before{background:var(--primary)}
+.lap.new{animation:lapIn .6s ease-out}
+@keyframes lapIn{from{background:rgba(95,178,255,.25)}to{background:transparent}}
+.lap .arr{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--lv) 16%,transparent);border:1px solid color-mix(in srgb,var(--lv) 40%,transparent)}
 .lap .arr svg{width:18px;height:18px}
 .lap .mid{min-width:0}
-.lap .ty{font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.lap .meta{font-size:12px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lap .meta .gap{color:var(--text);font-weight:700}
-.lap .pk{font-size:22px;font-weight:800;text-align:right;line-height:1.1}
-.lap .pk small{display:block;font-size:10px;font-weight:600;color:var(--text-3)}
-.tag{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--text);border:1px solid var(--c)}
-.lap-empty{color:var(--text-3);font-size:13px;text-align:center;padding:18px 8px}
-.score-strip{font-size:12.5px;color:var(--text-2);display:flex;gap:10px;align-items:center;white-space:nowrap;overflow:hidden}
-.score-strip b{color:var(--text)}
-.score-strip .sc{font-size:16px;font-weight:800}
-.lap-panel .actions .btn{min-height:44px}
+.lap .ty{font-weight:800;font-size:14.5px;display:flex;gap:6px;align-items:center;white-space:nowrap;overflow:hidden}
+.lap .meta{display:block;font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lap .meta .no{color:var(--text-2);font-weight:800;margin-right:2px}
+.lap .meta .gap{color:var(--text);font-weight:800}
+.lap .meta .live{color:var(--primary);font-weight:700}
+.lap .pk{font-size:25px;font-weight:800;text-align:right;line-height:1;letter-spacing:-.02em;color:var(--lvt)}
+.lap .pk small{font-size:11px;font-weight:700;color:var(--text-3);margin-left:2px;letter-spacing:0}
+.tag{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--c) 20%,transparent);color:color-mix(in srgb,var(--c) 45%,#fff);flex:none}
+.lap-empty{color:var(--text-3);font-size:13px;text-align:center;padding:22px 16px;display:grid;gap:8px;justify-items:center}
+.lap-empty svg{width:34px;height:34px;opacity:.6}
+.lap-foot{border-top:1px solid var(--hair);padding:8px 10px 10px;display:grid;gap:8px;background:var(--surface)}
+.score-strip{font-size:12px;color:var(--text-2);display:flex;gap:12px;align-items:center;white-space:nowrap;overflow:hidden;padding:0 2px}
+.score-strip b{color:var(--text);font-weight:800}
+.score-strip .sc{font-size:17px}
+.score-strip .sep{width:1px;height:12px;background:var(--line)}
 
 .empty{color:var(--text-3);font-size:13px;text-align:center;padding:10px}
 .score-row{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
@@ -127,24 +165,32 @@ main{padding:0 16px;max-width:1100px;margin:0 auto}
 .score-big::after{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--surface)}
 .score-big span{position:relative;z-index:1;font-size:28px;font-weight:800}
 
-/* 大きいボタン */
-.actions{display:flex;gap:10px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 18px;border-radius:16px;font-weight:700;font-size:16px;background:var(--surface-2);color:var(--text)}
-.btn.primary{background:var(--primary);color:var(--on-primary)}
-.btn.danger{background:var(--bad);color:#fff}
+/* ボタン */
+.actions{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 18px;border-radius:var(--r-md);font-weight:800;font-size:16px;background:var(--surface-2);color:var(--text);border:1px solid var(--hair);transition:transform .1s,background .2s}
+.btn:active{transform:scale(.98)}
+.btn svg{width:20px;height:20px;flex:none}
+.btn.primary{background:var(--primary);color:var(--on-primary);border-color:transparent}
+.btn.danger{background:rgba(208,59,59,.14);color:#FFB3B3;border-color:rgba(208,59,59,.55)}
 .btn.block{flex:1}
 .btn.small{min-height:40px;font-size:14px;border-radius:12px;padding:0 14px}
+.btn.square{width:50px;padding:0;flex:none;flex-direction:column;gap:0;font-size:10px;color:var(--text-2)}
+.btn.square svg{width:20px;height:20px;margin-bottom:1px}
 .btn:disabled{opacity:.45}
+.rec-dot{width:12px;height:12px;border-radius:50%;background:currentColor}
+.rec-stop{width:12px;height:12px;border-radius:3px;background:var(--bad-text)}
 
-/* 下部タブ */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:rgba(23,26,31,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:var(--safe-b);z-index:20}
-nav.tabs button{padding:8px 0 10px;display:grid;justify-items:center;gap:2px;font-size:11px;color:var(--text-3)}
-nav.tabs button svg{width:24px;height:24px}
-nav.tabs button.active{color:var(--primary)}
+/* 下部タブ（Material 3 風のピル） */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:rgba(13,15,18,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--hair);padding-bottom:var(--safe-b);z-index:20}
+nav.tabs button{height:var(--nav-h);display:grid;justify-items:center;align-content:center;gap:3px;font-size:11px;font-weight:700;color:var(--text-3)}
+nav.tabs button span{display:grid;place-items:center;width:56px;height:30px;border-radius:999px;transition:background .2s}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button.active{color:var(--text)}
+nav.tabs button.active span{background:var(--primary-soft);color:var(--primary)}
 
 /* 履歴 */
 .trip-list{display:grid;gap:8px}
-.trip{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;background:var(--surface);border-radius:14px;padding:10px 12px;text-align:left;width:100%}
+.trip{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:10px 12px;text-align:left;width:100%}
 .trip .sc{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;font-size:22px;font-weight:800;background:var(--surface-2)}
 .trip .ti{font-weight:700}
 .trip .meta{font-size:12px;color:var(--text-2)}
@@ -205,14 +251,19 @@ table.data td.r,table.data th.r{text-align:right}
 .ref-table td:first-child{white-space:nowrap}
 
 /* はじめての画面 */
-.onboard{display:grid;gap:12px;text-align:center;padding:24px 8px}
-.onboard h2{font-size:22px;margin:0;color:var(--text)}
+.onboard{display:grid;gap:14px;text-align:center;padding:28px 18px;margin-top:8px;background:radial-gradient(100% 70% at 50% 0%,#14202E 0%,var(--surface) 70%)}
+.onboard .hero{width:84px;height:84px;margin:0 auto;border-radius:24px;box-shadow:0 10px 30px rgba(95,178,255,.18)}
+.steps{list-style:none;margin:4px auto 0;padding:0;display:grid;gap:8px;text-align:left;max-width:380px}
+.steps li{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;color:var(--text-2);font-size:14px}
+.steps li b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);font-size:13px}
+.onboard h2{font-size:22px;margin:0;color:var(--text);letter-spacing:0;line-height:1.35}
 .onboard p{margin:0;color:var(--text-2)}
-.onboard .btn{margin:6px auto 0;min-width:240px}
+.onboard .btn{margin:2px auto 0;min-width:260px}
+.linkbtn{color:var(--primary);font-weight:700;font-size:14px;padding:8px}
 
-.toast{position:fixed;left:50%;bottom:calc(84px + var(--safe-b));transform:translateX(-50%);background:var(--surface-3);color:var(--text);padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;box-shadow:0 6px 20px rgba(0,0,0,.4);max-width:calc(100% - 32px)}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 14px + var(--safe-b));border:1px solid var(--line);transform:translateX(-50%);background:var(--surface-3);color:var(--text);padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;box-shadow:0 6px 20px rgba(0,0,0,.4);max-width:calc(100% - 32px)}
 
-dialog{background:var(--surface);color:var(--text);border:0;border-radius:20px;padding:20px;max-width:min(420px,calc(100% - 32px))}
+dialog{background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:20px;padding:20px;max-width:min(420px,calc(100% - 32px))}
 dialog::backdrop{background:rgba(0,0,0,.6)}
 dialog h3{margin:0 0 8px}
 dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
@@ -220,21 +271,27 @@ dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
 </head>
 <body>
 
+<div id="dimmer"></div>
 <header>
-  <h1>Gメーター</h1>
-  <span class="chip" id="chipSensor"><span class="dot"></span><span>センサー</span></span>
-  <span class="chip" id="chipGps"><span class="dot"></span><span>GPS</span></span>
-  <span class="chip rec hidden" id="chipRec"><span class="dot"></span><span class="num" id="recTime">0:00</span></span>
+  <div class="brand"><img src="icons/icon.svg" alt=""><h1>Gメーター</h1></div>
+  <span class="rec-pill hidden num" id="chipRec"><i></i><span id="recTime">0:00</span></span>
+  <span class="status"><span class="st" id="chipSensor"><i></i><span>センサー</span></span><span class="st" id="chipGps"><i></i><span>GPS</span></span></span>
+  <button class="icon-btn" id="btnDim" title="夜間減光" aria-label="夜間減光"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
 </header>
 
 <main>
   <!-- ===================== 走行 ===================== -->
   <section class="view active" id="view-drive">
     <div class="onboard card" id="onboard">
-      <h2>Gを見える化して、乗り心地を上げる</h2>
-      <p>スマホをホルダーにしっかり固定してから始めてください。<br>ブレーキ・発進・カーブで体にかかる力（G）をリアルタイムに表示し、一定以上のGがかかるたびにストップウォッチのラップのように1件ずつログに残します。</p>
+      <img class="hero" src="icons/icon.svg" alt="">
+      <h2>Gを見える化して<br>乗り心地のよい運転を</h2>
+      <ol class="steps">
+        <li><b>1</b><span>スマホをホルダーにしっかり固定（縦・横・寝かせてもOK）</span></li>
+        <li><b>2</b><span>センサーを有効にして、停車中に「姿勢」を合わせる</span></li>
+        <li><b>3</b><span>開いたまま走行。一定以上のGがかかるたびに、ラップのようにログが1件ずつ増えます</span></li>
+      </ol>
       <button class="btn primary" id="btnEnable">センサーを有効にする</button>
-      <button class="btn small" id="btnDemo">デモで試す（車に乗らずに確認）</button>
+      <button class="linkbtn" id="btnDemo">デモで試す（車に乗らずに確認）</button>
       <p style="font-size:12px;color:var(--text-3)">記録はこの端末の中だけに保存されます。運転中は画面を注視せず、音声のお知らせを使ってください。</p>
     </div>
 
@@ -242,27 +299,29 @@ dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
       <div class="gball-wrap">
         <canvas id="gball" aria-label="Gボール：体に感じる力の向きと大きさ"></canvas>
         <div class="gball-label">体に感じる力</div>
-        <div class="gball-total"><b class="num" id="gTotal">0.00</b><small>G 合計</small></div>
+        <div class="gball-total num"><b id="gTotal">0.00</b><small>G</small><span class="cap">合計</span></div>
         <canvas id="glass" width="160" height="160" aria-label="後部座席のコップの水"></canvas>
+        <div class="gball-legend"><span>快適 0.1G<i style="background:rgba(12,163,12,.6)"></i></span><span>注意<i style="background:rgba(208,59,59,.55)"></i></span></div>
         <div class="banner hidden" id="banner"></div>
       </div>
       <div class="readouts">
-        <div class="ro"><div class="k"><i style="background:var(--s-long)"></i>前後</div><div class="v num" id="roLong">0.00</div><div class="sub" id="roLongSub">—</div></div>
-        <div class="ro"><div class="k"><i style="background:var(--s-lat)"></i>左右</div><div class="v num" id="roLat">0.00</div><div class="sub" id="roLatSub">—</div></div>
-        <div class="ro"><div class="k">変化の急さ</div><div class="v num" id="roJerk">0.0</div><div class="sub">G/秒</div></div>
-        <div class="ro"><div class="k">速度</div><div class="v num" id="roSpeed">—</div><div class="sub">km/h</div></div>
+        <div class="ro"><div class="k"><i style="background:var(--s-long)"></i>前後</div><div class="v num"><span id="roLong">0.00</span><small>G</small></div><div class="sub" id="roLongSub">—</div><div class="meter"><b id="mtLong"></b></div></div>
+        <div class="ro"><div class="k"><i style="background:var(--s-lat)"></i>左右</div><div class="v num"><span id="roLat">0.00</span><small>G</small></div><div class="sub" id="roLatSub">—</div><div class="meter"><b id="mtLat"></b></div></div>
+        <div class="ro"><div class="k">変化の急さ</div><div class="v num"><span id="roJerk">0.0</span></div><div class="sub">G/秒</div><div class="meter"><b id="mtJerk"></b></div></div>
+        <div class="ro"><div class="k">速度</div><div class="v num"><span id="roSpeed">—</span></div><div class="sub">km/h</div><div class="meter" style="visibility:hidden"><b></b></div></div>
       </div>
       <div class="lap-panel">
         <div class="lap-head">
-          <b>Gログ</b><span class="chip num" id="lapThrChip" style="padding:2px 8px">0.15G以上</span>
-          <span class="stats num" id="lapStats"></span>
+          <div class="ttl"><b>Gログ<span class="num" id="lapThrChip">0.15G以上</span></b><span class="stats num" id="lapStats"></span></div>
           <button class="btn small" id="btnLapReset">リセット</button>
         </div>
         <ol class="laps" id="laps"></ol>
-        <div class="score-strip num" id="scoreStrip"></div>
-        <div class="actions">
-          <button class="btn primary block" id="btnRec">走行記録を開始</button>
-          <button class="btn" id="btnCalib" title="停車中に姿勢を合わせる">姿勢合わせ</button>
+        <div class="lap-foot">
+          <div class="score-strip num" id="scoreStrip"></div>
+          <div class="actions">
+            <button class="btn primary block" id="btnRec"></button>
+            <button class="btn square" id="btnCalib" title="停車中に姿勢を合わせる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>姿勢</button>
+          </div>
         </div>
       </div>
     </div>
@@ -408,10 +467,10 @@ dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
 </main>
 
 <nav class="tabs" id="tabs">
-  <button class="active" data-v="drive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="14" cy="9" r="1.8" fill="currentColor"/></svg>走行</button>
-  <button data-v="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg>記録</button>
-  <button data-v="guide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>コツ</button>
-  <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
+  <button class="active" data-v="drive"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="14" cy="9" r="1.8" fill="currentColor"/></svg></span>走行</button>
+  <button data-v="history"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg></span>記録</button>
+  <button data-v="guide"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></span>コツ</button>
+  <button data-v="settings"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>設定</button>
 </nav>
 
 <dialog id="dlg"><h3 id="dlgTitle"></h3><p id="dlgText"></p><div class="actions"><button class="btn block" id="dlgCancel">やめる</button><button class="btn danger block" id="dlgOk">OK</button></div></dialog>
@@ -443,7 +502,7 @@ const LS_KEY = 'gmeter-settings-v1';
 const defaultSettings = () => ({
   preset:'standard', thr:{...PRESETS.standard},
   voice:true, beep:false, wake:true,
-  logThr:0.15, lapBeep:false,
+  logThr:0.15, lapBeep:false, dim:false,
   up:null,            // 端末座標での上向き（重力の反対）
   fwd:null,           // 端末座標での前向き
   fwdSource:'auto',   // auto | gps | launch | manual
@@ -820,16 +879,18 @@ function alertEvent(ev){
 function startRecording(){
   st.rec = { id: 't' + Date.now(), start: Date.now(), events:[], laps:[], s:{t:[],lo:[],la:[],sp:[]}, path:[], dist:0, lastFix:null, movingN:0, comfortN:0, maxBrake:0, maxAccel:0, maxLat:0 };
   st.lastSampleT = 0;
-  $('#btnRec').textContent = '走行記録を終了';
+  $('#btnRec').innerHTML = `<span class="rec-stop"></span>記録を終了・保存`;
   $('#btnRec').classList.replace('primary','danger');
   $('#chipRec').classList.remove('hidden');
+  document.documentElement.classList.add('recording');
   updateLive();
 }
 async function stopRecording(){
   const r = st.rec; st.rec = null;
-  $('#btnRec').textContent = '走行記録を開始';
+  $('#btnRec').innerHTML = `<span class="rec-dot"></span>走行記録を開始`;
   $('#btnRec').classList.replace('danger','primary');
   $('#chipRec').classList.add('hidden');
+  document.documentElement.classList.remove('recording');
   if (!r) return;
   const sum = summarize(r);
   if (sum.durationSec < 20){ toast('20秒未満の記録は保存しません'); updateLive(); return; }
@@ -941,59 +1002,104 @@ function levelColor(g, thr){
 
 function draw(){
   if (!st.sensorOn) return;
-  const W = gball.width, H = gball.height, cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 24*dpr;
+  const W = gball.width, H = gball.height, d = dpr;
+  const cx = W/2, cy = H/2 + 4*d, R = Math.min(W, H)/2 - 22*d;
   const ctx = gctx;
   if (R < 20){ resizeCanvases(); requestAnimationFrame(draw); return; }
   ctx.clearRect(0,0,W,H);
   const toPx = g => g / GBALL_MAX * R;
-
-  // 快適ゾーン
-  ctx.fillStyle = 'rgba(12,163,12,.10)';
-  ctx.beginPath(); ctx.arc(cx, cy, toPx(COMFORT_G), 0, Math.PI*2); ctx.fill();
-  // 目盛り
-  ctx.lineWidth = 1*dpr;
-  [0.1,0.2,0.3,0.4,0.5].forEach(g => {
-    ctx.strokeStyle = g === 0.5 ? '#4A515B' : '#30353D';
-    ctx.beginPath(); ctx.arc(cx, cy, toPx(g), 0, Math.PI*2); ctx.stroke();
-  });
-  ctx.beginPath(); ctx.moveTo(cx-R, cy); ctx.lineTo(cx+R, cy); ctx.moveTo(cx, cy-R); ctx.lineTo(cx, cy+R); ctx.stroke();
-  // しきい値（楕円風に：前＝ブレーキ、後＝加速、左右＝カーブ）
   const T = S.thr;
-  ctx.strokeStyle = 'rgba(208,59,59,.75)'; ctx.setLineDash([6*dpr, 6*dpr]); ctx.lineWidth = 1.5*dpr;
-  ctx.beginPath();
-  for (let i=0;i<=64;i++){
-    const a = i/64*Math.PI*2, sx = Math.cos(a), sy = Math.sin(a);
-    const ry = sy < 0 ? T.brake : T.accel;  // 上（画面座標で負）＝ブレーキ
-    const px = cx + sx * toPx(T.lat), py = cy + sy * toPx(ry);
-    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  const TAU = Math.PI*2;
+  const threshPath = () => {
+    ctx.beginPath();
+    for (let i=0;i<=72;i++){
+      const a = i/72*TAU, sx = Math.cos(a), sy = Math.sin(a);
+      const ry = sy < 0 ? T.brake : T.accel;  // 上（画面座標で負）＝ブレーキ
+      const px = cx + sx*toPx(T.lat), py = cy + sy*toPx(ry);
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+  };
+
+  // 外周の円盤
+  const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+  bg.addColorStop(0, '#161A20'); bg.addColorStop(1, '#0E1115');
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
+  // しきい値の外側＝注意ゾーン（薄い赤）
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); threshPath();
+  ctx.fillStyle = 'rgba(208,59,59,.10)'; ctx.fill('evenodd');
+  ctx.restore();
+  // 快適ゾーン
+  const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, toPx(COMFORT_G));
+  cg.addColorStop(0, 'rgba(12,163,12,.30)'); cg.addColorStop(1, 'rgba(12,163,12,.12)');
+  ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx, cy, toPx(COMFORT_G), 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(76,216,106,.45)'; ctx.lineWidth = 1*d; ctx.stroke();
+  // 目盛りの円と十字
+  ctx.lineWidth = 1*d;
+  [0.2,0.3,0.4].forEach(g => { ctx.strokeStyle = '#232830'; ctx.beginPath(); ctx.arc(cx, cy, toPx(g), 0, TAU); ctx.stroke(); });
+  ctx.strokeStyle = '#3A414B'; ctx.lineWidth = 1.5*d; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = '#232830'; ctx.lineWidth = 1*d;
+  ctx.beginPath(); ctx.moveTo(cx-R, cy); ctx.lineTo(cx+R, cy); ctx.moveTo(cx, cy-R); ctx.lineTo(cx, cy+R); ctx.stroke();
+  // 外周の目盛り（0.05G刻み）
+  ctx.strokeStyle = '#3A414B';
+  for (let g = 0.05; g < GBALL_MAX; g += 0.05){
+    const r = toPx(g), k = (Math.round(g*100) % 10 === 0) ? 5*d : 3*d;
+    [[r,0],[-r,0],[0,r],[0,-r]].forEach(([x,y]) => {
+      ctx.beginPath();
+      if (x) { ctx.moveTo(cx+x, cy-k); ctx.lineTo(cx+x, cy+k); } else { ctx.moveTo(cx-k, cy+y); ctx.lineTo(cx+k, cy+y); }
+      ctx.stroke();
+    });
   }
-  ctx.stroke(); ctx.setLineDash([]);
-  // ラベル
-  ctx.fillStyle = '#80858F'; ctx.font = `${11*dpr}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  [0.1,0.2,0.3,0.4].forEach(g => ctx.fillText(g.toFixed(1), cx + 4*dpr, cy - toPx(g) + 8*dpr));
-  ctx.textAlign = 'center';
-  ctx.fillText('前', cx, cy - R - 12*dpr); ctx.fillText('後', cx, cy + R + 12*dpr);
-  ctx.textAlign = 'right'; ctx.fillText('左', cx - R - 4*dpr, cy);
-  ctx.textAlign = 'left'; ctx.fillText('右', cx + R + 4*dpr, cy);
+  // しきい値の線
+  threshPath(); ctx.strokeStyle = 'rgba(255,123,123,.55)'; ctx.lineWidth = 1.25*d; ctx.stroke();
+  // 目盛りの数字は斜め45°に置き、十字や点と重ならないようにする
+  ctx.fillStyle = '#5E646F'; ctx.font = `600 ${9.5*d}px -apple-system,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  [0.1,0.2,0.3,0.4].forEach(g => { const r = toPx(g) + 7*d; ctx.fillText(g.toFixed(1), cx + r*0.7071, cy - r*0.7071); });
+  // 方向
+  ctx.fillStyle = '#8A909B'; ctx.font = `700 ${11*d}px -apple-system,sans-serif`;
+  ctx.fillText('前', cx, cy - R - 11*d); ctx.fillText('後', cx, cy + R + 11*d);
+  ctx.fillText('左', cx - R - 11*d, cy); ctx.fillText('右', cx + R + 11*d, cy);
 
   // 体に感じる力 = 加速度の反対。ブレーキ(前後G負)で点は上(前)へ、右カーブ(左右G正)で点は左へ
-  const px = -st.la, py = st.lo; // 画面座標：x右, y下
-  const clampR = (x,y) => { const d = Math.hypot(x,y), m = GBALL_MAX*1.05; return d > m ? [x/d*m, y/d*m] : [x,y]; };
-  const [bx, by] = clampR(px, py);
-  st.trail.push([bx, by]); if (st.trail.length > 90) st.trail.shift();
-  ctx.lineCap = 'round';
-  for (let i=1;i<st.trail.length;i++){
-    const [x0,y0] = st.trail[i-1], [x1,y1] = st.trail[i];
-    ctx.strokeStyle = `rgba(95,178,255,${(i/st.trail.length*0.6).toFixed(3)})`;
-    ctx.lineWidth = 3*dpr;
-    ctx.beginPath(); ctx.moveTo(cx + toPx(x0), cy + toPx(y0)); ctx.lineTo(cx + toPx(x1), cy + toPx(y1)); ctx.stroke();
-  }
-  // 現在のトリップの最大値の点
+  const clampR = (x,y) => { const m = Math.hypot(x,y), lim = GBALL_MAX*1.02; return m > lim ? [x/m*lim, y/m*lim] : [x,y]; };
+  const [bx, by] = clampR(-st.la, st.lo);
   const gm = Math.hypot(st.lo, st.la);
   const over = (-st.lo > T.brake) || (st.lo > T.accel) || (Math.abs(st.la) > T.lat);
-  const col = gm < COMFORT_G ? '#0ca30c' : over ? '#d03b3b' : '#fab219';
-  ctx.fillStyle = col; ctx.strokeStyle = '#0E1014'; ctx.lineWidth = 3*dpr;
-  ctx.beginPath(); ctx.arc(cx + toPx(bx), cy + toPx(by), 13*dpr, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  const col = gm < COMFORT_G ? '#4CD86A' : over ? '#FF6B6B' : '#fab219';
+
+  // 軌跡（強さで色分け、古いほど薄く）
+  st.trail.push([bx, by, gm < COMFORT_G ? 0 : over ? 2 : 1]); if (st.trail.length > 120) st.trail.shift();
+  ctx.lineCap = 'round';
+  const tc = ['76,216,106','250,178,25','255,107,107'];
+  for (let i=1;i<st.trail.length;i++){
+    const [x0,y0] = st.trail[i-1], [x1,y1,lv] = st.trail[i];
+    ctx.strokeStyle = `rgba(${tc[lv]},${(i/st.trail.length*0.55).toFixed(3)})`;
+    ctx.lineWidth = (1 + 2.5*i/st.trail.length)*d;
+    ctx.beginPath(); ctx.moveTo(cx + toPx(x0), cy + toPx(y0)); ctx.lineTo(cx + toPx(x1), cy + toPx(y1)); ctx.stroke();
+  }
+  // ピークホールド（直近6秒の最大）
+  const nowS = performance.now()/1000;
+  if (!st.peakHold || gm >= st.peakHold.g || nowS - st.peakHold.t > 6) st.peakHold = { g:gm, x:bx, y:by, t:nowS, col };
+  const ph = st.peakHold;
+  if (ph.g > COMFORT_G){
+    const a = Math.max(0, 1 - (nowS - ph.t)/6);
+    ctx.globalAlpha = 0.35 + 0.65*a;
+    ctx.strokeStyle = ph.col; ctx.lineWidth = 2*d;
+    ctx.beginPath(); ctx.arc(cx + toPx(ph.x), cy + toPx(ph.y), 7*d, 0, TAU); ctx.stroke();
+    ctx.fillStyle = '#C9CDD4'; ctx.font = `700 ${10*d}px -apple-system,sans-serif`;
+    const lx = cx + toPx(ph.x), ly = cy + toPx(ph.y) - 15*d;
+    ctx.fillText(ph.g.toFixed(2), lx, ly);
+    ctx.globalAlpha = 1;
+  }
+  // 現在の点（光る）
+  const X = cx + toPx(bx), Y = cy + toPx(by);
+  const glow = ctx.createRadialGradient(X, Y, 0, X, Y, 30*d);
+  glow.addColorStop(0, col + '66'); glow.addColorStop(1, col + '00');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(X, Y, 30*d, 0, TAU); ctx.fill();
+  ctx.fillStyle = col; ctx.strokeStyle = '#0B0D10'; ctx.lineWidth = 3*d;
+  ctx.beginPath(); ctx.arc(X, Y, 11*d, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(X - 3.5*d, Y - 3.5*d, 3.2*d, 0, TAU); ctx.fill();
 
   drawGlass();
   updateReadouts();
@@ -1032,11 +1138,10 @@ function drawGlass(){
   }
   ctx.restore();
   // コップの枠
-  ctx.strokeStyle = '#B4B8C0'; ctx.lineWidth = 4;
+  ctx.strokeStyle = spill ? '#FF7B7B' : '#8A909B'; ctx.lineWidth = 6; ctx.lineJoin = 'round';
   ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx+gw*0.1, gy+gh); ctx.lineTo(gx+gw*0.9, gy+gh); ctx.lineTo(gx+gw, gy); ctx.stroke();
-  ctx.fillStyle = '#80858F'; ctx.font = '20px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#727884'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('← 前', W*0.22, H*0.07 + 6);
-  if (spill){ ctx.fillStyle = '#FF7B7B'; ctx.font = 'bold 22px sans-serif'; ctx.fillText('こぼれる！', W/2, H*0.62); }
 }
 
 let lastRO = 0;
@@ -1050,6 +1155,14 @@ function updateReadouts(){
   $('#roLat').textContent = Math.abs(la).toFixed(2);
   $('#roLatSub').textContent = Math.abs(la) < 0.03 ? '—' : la > 0 ? '右へ曲がる' : '左へ曲がる';
   $('#roJerk').textContent = st.jerk.toFixed(1);
+  const meter = (id, v, thr) => {
+    const el = document.getElementById(id); const r = Math.min(1, v / (thr * 1.4));
+    el.style.width = (r*100).toFixed(1) + '%';
+    el.style.background = v < COMFORT_G && id !== 'mtJerk' ? 'var(--good)' : v < thr ? 'var(--warn)' : 'var(--bad)';
+  };
+  meter('mtLong', Math.abs(lo), lo < 0 ? S.thr.brake : S.thr.accel);
+  meter('mtLat', Math.abs(la), S.thr.lat);
+  meter('mtJerk', st.jerk, S.thr.jerk);
   const gm = Math.hypot(lo, la);
   const tEl = $('#gTotal'); tEl.textContent = gm.toFixed(2);
   refreshActiveLap();
@@ -1065,12 +1178,12 @@ function updateReadouts(){
 
 function updateLive(){
   const r = st.rec, el = $('#scoreStrip');
-  if (!r){ el.innerHTML = '<span>ログは常に残ります。記録を開始するとスコアとルートも保存</span>'; return; }
+  if (!r){ el.innerHTML = '<span style="color:var(--text-3)">ログは常に残ります。記録するとスコアとルートも保存</span>'; return; }
   const sc = scoreOf(r.events, r.movingN/SAMPLE_HZ, S.thr);
   const c = t => r.events.filter(e => e.type === t).length;
-  el.innerHTML = `<span>スコア <b class="sc" style="color:${scoreText(sc)}">${sc}</b></span>
-    <span>快適 <b>${r.movingN ? Math.round(r.comfortN/r.movingN*100) + '%' : '—'}</b></span>
-    <span>距離 <b>${r.dist ? (r.dist/1000).toFixed(1) + 'km' : '—'}</b></span>
+  el.innerHTML = `<span>スコア <b class="sc" style="color:${scoreText(sc)}">${sc}</b></span><i class="sep"></i>
+    <span>快適 <b>${r.movingN ? Math.round(r.comfortN/r.movingN*100) + '%' : '—'}</b></span><i class="sep"></i>
+    <span>距離 <b>${r.dist ? (r.dist/1000).toFixed(1) + 'km' : '—'}</b></span><i class="sep"></i>
     <span>急ブ<b>${c('brake')}</b> 発<b>${c('accel')}</b> 曲<b>${c('lat')}</b> カ<b>${c('stop')}</b></span>`;
 }
 
@@ -1157,22 +1270,22 @@ function lapHtml(l){
   const val = l.peak != null ? l.peak.toFixed(2) : (l.jerk||0).toFixed(2);
   const unit = l.peak != null ? 'G' : 'G/秒';
   const tags = l.tags.map(t => `<span class="tag" style="--c:${EV[t].color}">${EV[t].name}</span>`).join('');
-  const meta = [fmtClockS(l.at),
+  const meta = [`<span class="no">#${l.n}</span> ${fmtClockS(l.at)}`,
     l.gap != null ? `<span class="gap">+${fmtDur(Math.round(l.gap))}</span>` : '最初',
-    l.active ? '計測中…' : (l.dur ? l.dur.toFixed(1) + '秒' : ''),
-    l.kmh != null ? l.kmh + 'km/h' : ''].filter(Boolean).join(' ・ ');
-  return `<li class="lap${l.active ? ' active' : ''}${l.isNew ? ' new' : ''}" id="lap-${l.n}">
-    <span class="no num">#${l.n}</span>
+    l.active ? '<span class="live">計測中</span>' : (l.dur ? l.dur.toFixed(1) + '秒' : ''),
+    l.kmh != null ? l.kmh + 'km/h' : ''].filter(Boolean).join(' · ');
+  const lv = bad ? '#FF6B6B' : '#fab219';
+  return `<li class="lap${l.active ? ' active' : ''}${l.isNew ? ' new' : ''}" id="lap-${l.n}" style="--lv:${lv};--lvt:${bad ? 'var(--bad-text)' : 'var(--warn)'}">
     <span class="arr">${lapArrow(l)}</span>
-    <span class="mid"><span class="ty">${lapDir(l)}${tags}</span><span class="meta num" style="display:block">${meta}</span></span>
-    <span class="pk num" style="color:${bad ? 'var(--bad-text)' : 'var(--warn)'}">${val}<small>${unit}</small></span></li>`;
+    <span class="mid"><span class="ty">${lapDir(l)}${tags}</span><span class="meta num">${meta}</span></span>
+    <span class="pk num">${val}<small>${unit}</small></span></li>`;
 }
 function renderLaps(){
   const ol = $('#laps'); if (!ol) return;
   $('#lapThrChip').textContent = S.logThr.toFixed(2) + 'G以上';
   const L = st.laps;
   if (!L.length){
-    ol.innerHTML = `<li class="lap-empty">${S.logThr.toFixed(2)}Gを超える力がかかるたびに、ここへ1件ずつ追加されます</li>`;
+    ol.innerHTML = `<li class="lap-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M10 2h4"/></svg>${S.logThr.toFixed(2)}Gを超える力がかかるたびに<br>ここへ1件ずつ追加されます</li>`;
     $('#lapStats').textContent = ''; return;
   }
   ol.innerHTML = L.slice(-200).reverse().map(lapHtml).join('');
@@ -1571,6 +1684,8 @@ $('#optBeep').onchange = e => { S.beep = e.target.checked; saveSettings(); if (S
 $('#optWake').onchange = e => { S.wake = e.target.checked; saveSettings(); if (!S.wake) releaseWake(); else if (st.sensorOn) requestWake(); };
 $('#btnCalib').onclick = startCalibration;
 $('#btnLapReset').onclick = resetLaps;
+function applyDim(){ document.documentElement.classList.toggle('dim', !!S.dim); }
+$('#btnDim').onclick = () => { S.dim = !S.dim; saveSettings(); applyDim(); toast(S.dim ? '夜間減光：オン' : '夜間減光：オフ'); };
 document.querySelectorAll('#logSeg button').forEach(b => b.onclick = () => { S.logThr = +b.dataset.g; saveSettings(); renderSettings(); renderLaps(); });
 $('#optLapBeep').onchange = e => { S.lapBeep = e.target.checked; saveSettings(); if (S.lapBeep){ unlockAudio(); beep(1320, 50, 1); } };
 $('#btnCalib2').onclick = () => { goView('drive'); startCalibration(); };
@@ -1624,6 +1739,8 @@ function scoreText(s){ return s >= 85 ? 'var(--good-text)' : s >= 70 ? 'var(--wa
 function scoreWord(s){ return s >= 95 ? 'とても滑らか。お客様が眠れる運転です' : s >= 85 ? '滑らか。快適な運転です' : s >= 70 ? 'ふつう。急な操作を減らすともっと良くなります' : '急な操作が多め。次は早めのブレーキを意識しましょう'; }
 
 st.laps = loadLaps();
+applyDim();
+$('#btnRec').innerHTML = `<span class="rec-dot"></span>走行記録を開始`;
 renderCalibInfo();
 renderLaps();
 updateLive();
