@@ -1,0 +1,69 @@
+# Gメーターの Android 外枠アプリ（APK）を作る
+# 中身は公開ページ（https://syuu-hub.github.io/g-meter/）を開くので、画面の更新に作り直しは不要
+name: g-meter-android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'g-meter-android/**'
+      - 'g-meter/icons/**'
+      - '.github/workflows/g-meter-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: g-meter-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Capacitor の Android プロジェクトを作る
+        run: |
+          command -v magick || command -v convert || (sudo apt-get update && sudo apt-get install -y imagemagick)
+          npm ci
+          npx cap add android
+          node scripts/patch-android.mjs
+          npx cap sync android
+      - name: APK を作る
+        working-directory: g-meter-android/android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: 署名する（Secrets の鍵があれば毎回同じ鍵：上書きインストールしてもデータが消えない）
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > release.keystore; PASS="$KEY_PASS"
+          else
+            echo "::warning::ANDROID_KEYSTORE_B64 が未登録のため、この実行だけの鍵で署名します（次の APK は上書きインストールできません）"
+            PASS="$(openssl rand -hex 16)"
+            keytool -genkeypair -keystore release.keystore -alias gmeter -keyalg RSA -keysize 2048 -validity 36500 \
+              -storepass "$PASS" -keypass "$PASS" -dname "CN=G Meter, C=JP"
+          fi
+          "$BT/zipalign" -f -p 4 android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          "$BT/apksigner" sign --ks release.keystore --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --out g-meter.apk aligned.apk
+          "$BT/apksigner" verify g-meter.apk
+          rm -f release.keystore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: g-meter-apk
+          path: g-meter-android/g-meter.apk
+      - name: Release に添付（スマホから直接ダウンロードできるように）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view g-meter-apk >/dev/null 2>&1 || gh release create g-meter-apk --title "Gメーター Android" --notes "提供元不明のアプリとしてインストールしてください。"
+          gh release upload g-meter-apk g-meter.apk --clobber
