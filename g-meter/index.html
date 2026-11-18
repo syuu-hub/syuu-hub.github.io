@@ -68,6 +68,11 @@ header{display:flex;align-items:center;gap:8px;height:var(--head-h);padding:0 16
 .brand img{width:26px;height:26px;border-radius:8px}
 header h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:440px){html.recording header h1{display:none}}
+/* デモ中：センサー・GPSの表示の代わりに「デモ終了」を出す */
+.demo-exit{display:none;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;background:rgba(250,178,25,.16);border:1px solid rgba(250,178,25,.55);color:#FFD27A;font-size:12.5px;font-weight:800;white-space:nowrap}
+.demo-exit svg{width:14px;height:14px}
+html.demo .demo-exit{display:inline-flex}
+html.demo .status{display:none}
 .status{display:inline-flex;align-items:center;gap:10px;padding:5px 11px;border-radius:999px;background:var(--surface);border:1px solid var(--hair);font-size:11.5px;color:var(--text-2);white-space:nowrap}
 .st{display:inline-flex;align-items:center;gap:5px}
 .st i{width:7px;height:7px;border-radius:50%;background:var(--text-3)}
@@ -275,6 +280,7 @@ dialog p{color:var(--text-2);margin:0 0 14px;font-size:14px}
 <header>
   <div class="brand"><img src="icons/icon.svg" alt=""><h1>Gメーター</h1></div>
   <span class="rec-pill hidden num" id="chipRec"><i></i><span id="recTime">0:00</span></span>
+  <button class="demo-exit" id="btnDemoExit" title="デモを終了"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>デモ終了</button>
   <span class="status"><span class="st" id="chipSensor"><i></i><span>センサー</span></span><span class="st" id="chipGps"><i></i><span>GPS</span></span></span>
   <button class="icon-btn" id="btnDim" title="夜間減光" aria-label="夜間減光"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
 </header>
@@ -572,6 +578,10 @@ async function enableSensors(demo=false){
     // 一定時間内にイベントが来なければ案内
     setTimeout(()=>{ if (!st.lastT) toast('センサーの値が届きません。スマホのブラウザで開いてください（デモも使えます）'); }, 2500);
   } else {
+    // デモのログは本物のログと混ぜない（終了時に元へ戻す）
+    st.lapsBeforeDemo = st.laps; st.laps = [];
+    document.documentElement.classList.add('demo');
+    renderLaps();
     startDemo();
   }
   if (S.up && !demo) st.gSlow = v3.scale(S.up, G0);
@@ -943,7 +953,7 @@ function summarize(r){
     distanceM: Math.round(r.dist), events:r.events, counts,
     comfortPct: r.movingN ? Math.round(r.comfortN / r.movingN * 100) : null,
     maxBrake:+r.maxBrake.toFixed(3), maxAccel:+r.maxAccel.toFixed(3), maxLat:+r.maxLat.toFixed(3),
-    score: scoreOf(r.events, movingSec, S.thr), thr:{...S.thr},
+    score: scoreOf(r.events, movingSec, S.thr), thr:{...S.thr}, demo: !!st.demo || undefined,
     logThr:S.logThr, laps: r.laps.map(l => ({...cleanLap(l), t: Math.round((l.at - r.start)/100)/10})),
   };
 }
@@ -1200,7 +1210,7 @@ const LAP_KEY = 'gmeter-laps-v1', LAP_MAX = 500;
 function speedNow(){ return st.speed != null && performance.now()/1000 - st.speedAt < 5 ? Math.round(st.speed*3.6) : null; }
 function cleanLap(l){ return { n:l.n, at:l.at, gap:l.gap, peak:l.peak, jerk:l.jerk, pLo:l.pLo, pLa:l.pLa, dur:l.dur, kmh:l.kmh, tags:l.tags.slice() }; }
 function loadLaps(){ try{ const a = JSON.parse(localStorage.getItem(LAP_KEY)); if (Array.isArray(a)) return a; }catch(e){} return []; }
-function saveLaps(){ try{ localStorage.setItem(LAP_KEY, JSON.stringify(st.laps.filter(l => !l.active).slice(-LAP_MAX).map(cleanLap))); }catch(e){} }
+function saveLaps(){ if (st.demo) return; try{ localStorage.setItem(LAP_KEY, JSON.stringify(st.laps.filter(l => !l.active).slice(-LAP_MAX).map(cleanLap))); }catch(e){} }
 
 function lapStep(t){
   const g = Math.hypot(st.lo, st.la), thr = S.logThr;
@@ -1359,7 +1369,7 @@ async function renderHistory(){
   list.innerHTML = trips.map(t => `
     <button class="trip" data-id="${t.id}">
       <div class="sc num" style="color:${scoreText(t.score)}">${t.score}</div>
-      <div><div class="ti">${fmtDate(t.start)}</div>
+      <div><div class="ti">${fmtDate(t.start)}${t.demo ? ' <span class="tag" style="--c:#fab219">デモ</span>' : ''}</div>
         <div class="meta num">${fmtDur(t.durationSec)}${t.distanceM ? ' ・ ' + (t.distanceM/1000).toFixed(1) + 'km' : ''} ・ 快適 ${t.comfortPct ?? '—'}% ・ 検知 ${t.events.length}回</div></div>
       <span class="chev">›</span>
     </button>`).join('');
@@ -1618,6 +1628,32 @@ async function exportAllCsv(){
 /* =====================================================================
    デモ（車に乗らずに動作確認）
    ===================================================================== */
+async function exitDemo(){
+  if (!st.demo) return;
+  if (st.rec && !(await confirmDlg('デモを終了しますか？', '記録中のデモ走行は保存せずに終了します。'))) return;
+  clearInterval(st.demoTimer); clearInterval(st.demoGps);
+  if (st.rec){
+    st.rec = null;
+    $('#btnRec').innerHTML = `<span class="rec-dot"></span>走行記録を開始`;
+    $('#btnRec').classList.replace('danger','primary');
+    $('#chipRec').classList.add('hidden');
+    document.documentElement.classList.remove('recording');
+  }
+  releaseWake();
+  // 状態を最初に戻す
+  Object.assign(st, { sensorOn:false, demo:false, lastT:0, gSlow:null, gFast:null, lo:0, la:0, vert:0, hist:[], jerkLo:0, jerkLa:0, jerk:0,
+    handling:0, speed:null, speedAt:0, ch:{}, trail:[], peakHold:null, lapCur:null, lapPend:0, lastLapEnd:0, calibrating:null });
+  st.laps = st.lapsBeforeDemo || loadLaps(); st.lapsBeforeDemo = null;
+  document.documentElement.classList.remove('demo');
+  $('#banner').classList.add('hidden');
+  setChip('#chipSensor', false, 'センサー'); setChip('#chipGps', false, 'GPS');
+  $('#driveUi').classList.add('hidden');
+  $('#onboard').classList.remove('hidden');
+  renderLaps(); updateLive();
+  goView('drive');
+  toast('デモを終了しました');
+}
+
 function startDemo(){
   // スマホを縦にしてホルダーに付け、画面が運転者を向いている想定（重力は端末 +y）
   st.gSlow = [0, G0, 0];
@@ -1715,6 +1751,7 @@ $('#btnDeleteAll').onclick = async () => {
 };
 $('#btnEnable').onclick = () => enableSensors(false);
 $('#btnDemo').onclick = () => enableSensors(true);
+$('#btnDemoExit').onclick = exitDemo;
 $('#btnRec').onclick = () => { unlockAudio(); st.rec ? stopRecording() : startRecording(); };
 
 function confirmDlg(title, text){
