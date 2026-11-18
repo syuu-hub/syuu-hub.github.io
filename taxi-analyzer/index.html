@@ -310,13 +310,6 @@ svg{display:block}
 .act-btn{height:100%;min-height:64px;font-size:clamp(16px,min(2.8vh,4.8vw),24px);white-space:nowrap;padding:0 10px}
 
 .pane-sec + .pane-sec,.pin-legend + .pane-sec,.dem-sel + .pane-sec{margin-top:28px}
-.share-open{width:100%;gap:10px}
-.share-open svg{color:var(--accent)}
-.share-seg{margin:0 0 14px}
-.share-seg button{flex:1;min-width:0}
-.qr-box{background:#fff;border-radius:var(--r-md);padding:14px;width:min(100%,280px);margin:0 auto}
-.qr-box svg{display:block;width:100%;height:auto}
-.qr-url{font-size:11px;color:var(--faint);text-align:center;margin-top:10px;overflow-wrap:anywhere;line-height:1.4}
 .sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
 .sec-h h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .sec-h .aside{font-size:12px;color:var(--faint)}
@@ -1151,10 +1144,6 @@ svg{display:block}
         <button class="btn danger" style="width:100%" id="shiftBtn">入庫（営業終了）</button>
       </div>
       <div class="pane-sec">
-        <div class="sec-h"><h3>アプリを教える</h3></div>
-        <button class="btn share-open" id="shareOpen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4"/></svg>QRコード</button>
-      </div>
-      <div class="pane-sec">
         <div class="sec-h"><h3>CSV出力</h3></div>
         <div class="btn-col">
           <button class="btn stack" data-export="log-all">営業ログ<wbr>（全期間）</button>
@@ -1513,25 +1502,6 @@ svg{display:block}
 </div>
 
 <!-- ===== 決済方法の編集 ===== -->
-<!-- ===== アプリを教える（QRコード） ===== -->
-<div class="sheet center" id="shareSheet" hidden role="dialog" aria-modal="true" aria-labelledby="shareTitle">
-  <div class="sheet-inner np-inner">
-    <header class="sheet-head">
-      <button class="close-btn" data-close>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
-      </button>
-      <h2 id="shareTitle">アプリを教える</h2>
-    </header>
-    <div class="seg share-seg" id="shareSeg"><button data-sh="apk" aria-pressed="true">Android</button><button data-sh="web" aria-pressed="false">iPhone・ブラウザ</button></div>
-    <div class="qr-box" data-qr="apk"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h45v45H0z"/><path stroke="#000000" d="M2 2.5h7m2 0h1m6 0h1m2 0h3m1 0h1m1 0h2m1 0h1m1 0h3m1 0h7M2 3.5h1m5 0h1m3 0h1m7 0h1m1 0h2m2 0h2m1 0h2m1 0h1m1 0h1m1 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m1 0h4m2 0h2m4 0h2m1 0h1m3 0h1m3 0h2m1 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m1 0h1m6 0h1m2 0h1m3 0h6m1 0h1m1 0h1m2 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h3m2 0h1m1 0h3m1 0h2m2 0h1m4 0h1m1 0h3m1 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m1 0h1m2 0h1m1 0h3m6 0h1m2 0h1m1 0h1m1 0h1m2 0h1m1 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M10 9.5h2m1 0h1m1 0h2m5 0h3m1 0h1m2 0h2m3 0h1M2 10.5h1m1 0h5m2 0h1m1 0h2m2 0h3m1 0h1m2 0h4m1 0h1m1 0h1m4 0h5M2 11.5h2m1 0h3m4 0h2m2 0h1m1 0h1m1 0h2m2 0h4m2 0h1m1 0h3m1 0h3m1 0h3M7 12.5h5m2 0h2m1 0h1m4 0h1m1 0h1m4 0h4m1 0h2m1 0h1M2 13.5h1m1 0h4m1 0h3m1 0h1m1 0h1m2 0h1m3 0h3m4 0h2m1 0h3m2 0h1m1 0h1m1 0h1M2 14.5h3m1 0h3m1 0h1m2 0h1m2 0h1m1 0h2m5 0h1m1 0h7m3 0h1m1 0h3M3 15.5h2m4 0h1m1 0h1m4 0h2m2 0h1m1 0h2m1 0h1m1 0h2m1 0h1m1 0h3m1 0h5m1 0h1M3 16.5h1m1 0h5m1 0h1m4 0h2m1 0h3m1 0h1m5 0h2m1 0h1m1 0h2m1 0h4M2 17.5h1m1 0h1m2 0h1m1 0h3m3 0h3m2 0h5m1 0h1m2 0h1m4 0h1m1 0h4M2 18.5h1m4 0h4m1 0h3m2 0h1m1 0h3m2 0h1m1 0h3m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2M4 19.5h1m1 0h1m2 0h1m2 0h1m1 0h1m1 0h1m1 0h5m2 0h1m4 0h5m1 0h3m2 0h2M2 20.5h3m1 0h3m2 0h1m1 0h7m8 0h2m1 0h1m6 0h4M2 21.5h2m3 0h1m1 0h1m1 0h1m5 0h1m1 0h3m1 0h2m1 0h1m1 0h3m1 0h1m1 0h1m3 0h1m2 0h2M2 22.5h2m4 0h2m2 0h1m1 0h2m2 0h1m2 0h1m1 0h1m2 0h6m1 0h3m4 0h2M2 23.5h6m1 0h1m2 0h4m1 0h1m1 0h5m1 0h1m1 0h2m1 0h9m1 0h3M2 24.5h2m1 0h2m1 0h1m1 0h1m2 0h1m1 0h3m2 0h1m1 0h1m3 0h5m1 0h1m5 0h3M2 25.5h1m4 0h1m1 0h1m1 0h2m1 0h2m1 0h2m1 0h1m1 0h4m3 0h1m6 0h3m2 0h1M2 26.5h1m3 0h1m1 0h2m2 0h1m1 0h3m1 0h2m2 0h1m1 0h5m1 0h2m1 0h1m6 0h1M2 27.5h1m2 0h1m1 0h1m3 0h2m1 0h1m1 0h3m2 0h2m1 0h2m4 0h2m1 0h1m1 0h5m2 0h1M2 28.5h1m1 0h1m1 0h3m2 0h1m2 0h2m1 0h2m1 0h1m1 0h1m1 0h1m3 0h2m1 0h1m2 0h3m1 0h1M2 29.5h1m2 0h3m3 0h1m5 0h2m3 0h4m2 0h2m2 0h4m1 0h3M4 30.5h1m2 0h3m2 0h1m1 0h1m1 0h2m1 0h1m2 0h1m1 0h5m1 0h2m1 0h1m3 0h1m1 0h3M2 31.5h1m2 0h1m4 0h1m4 0h1m1 0h3m4 0h2m1 0h1m2 0h1m1 0h2m1 0h4m2 0h2M2 32.5h1m2 0h4m3 0h1m3 0h3m3 0h3m1 0h1m2 0h1m4 0h7M2 33.5h1m1 0h1m1 0h1m2 0h1m6 0h1m6 0h1m1 0h1m2 0h3m1 0h1m2 0h2m2 0h1m2 0h1M2 34.5h1m2 0h1m2 0h1m2 0h3m2 0h2m1 0h1m2 0h1m1 0h4m2 0h12M10 35.5h3m2 0h2m3 0h3m1 0h2m4 0h1m1 0h1m1 0h1m3 0h5M2 36.5h7m4 0h1m1 0h2m3 0h1m1 0h1m1 0h1m2 0h1m1 0h2m1 0h3m1 0h1m1 0h3M2 37.5h1m5 0h1m1 0h2m2 0h5m11 0h1m2 0h2m3 0h2M2 38.5h1m1 0h3m1 0h1m1 0h3m1 0h2m2 0h1m1 0h2m1 0h5m3 0h1m2 0h5m1 0h1M2 39.5h1m1 0h3m1 0h1m1 0h2m2 0h2m1 0h1m1 0h1m1 0h2m2 0h2m3 0h1m1 0h1m1 0h2m1 0h1m1 0h4M2 40.5h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m2 0h2m1 0h2m2 0h8M2 41.5h1m5 0h1m7 0h2m1 0h1m1 0h1m1 0h4m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h2m1 0h1M2 42.5h7m1 0h1m1 0h4m3 0h1m2 0h1m1 0h1m1 0h4m1 0h1m1 0h1m3 0h4"/></svg></div>
-    <div class="qr-box" data-qr="web" hidden><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 33 33" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h33v33H0z"/><path stroke="#000000" d="M2 2.5h7m3 0h1m2 0h1m1 0h1m2 0h2m2 0h7M2 3.5h1m5 0h1m1 0h1m2 0h3m1 0h1m3 0h2m1 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m11 0h1m3 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m3 0h1m3 0h1m4 0h2m1 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h3m2 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m4 0h1m3 0h2m1 0h2m2 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M13 9.5h1m1 0h1m1 0h1m1 0h1m1 0h1M2 10.5h1m1 0h1m1 0h1m1 0h1m4 0h1m1 0h1m2 0h2m1 0h2m3 0h1m2 0h1M4 11.5h1m1 0h2m1 0h1m2 0h4m2 0h1m3 0h4m1 0h1m2 0h1M2 12.5h2m1 0h1m2 0h2m1 0h1m6 0h1m1 0h1m1 0h2m1 0h2m1 0h3M2 13.5h2m7 0h1m1 0h4m1 0h5m6 0h1M2 14.5h9m2 0h3m1 0h3m3 0h3m1 0h1m1 0h2M2 15.5h1m2 0h2m3 0h4m1 0h2m1 0h1m3 0h3m2 0h1m2 0h1M2 16.5h1m1 0h2m1 0h2m1 0h2m3 0h2m2 0h1m5 0h3m1 0h2M3 17.5h1m1 0h3m1 0h1m1 0h1m3 0h1m1 0h1m1 0h3m1 0h1m3 0h1m1 0h1M2 18.5h1m3 0h1m1 0h2m1 0h1m1 0h4m1 0h8m1 0h1m1 0h2M3 19.5h2m2 0h1m2 0h3m1 0h1m3 0h1m3 0h1m1 0h1m2 0h2m1 0h1M2 20.5h1m1 0h2m2 0h3m1 0h4m3 0h1m3 0h4m2 0h2M3 21.5h2m2 0h1m1 0h1m2 0h1m2 0h6m1 0h1m2 0h3m1 0h1M2 22.5h1m1 0h1m1 0h5m2 0h2m1 0h4m2 0h5M10 23.5h3m1 0h1m4 0h4m3 0h1m1 0h3M2 24.5h7m4 0h1m1 0h1m5 0h2m1 0h1m1 0h2m1 0h2M2 25.5h1m5 0h1m3 0h1m1 0h1m2 0h1m1 0h1m2 0h1m3 0h2M2 26.5h1m1 0h3m1 0h1m1 0h1m6 0h3m2 0h5M2 27.5h1m1 0h3m1 0h1m2 0h1m3 0h1m2 0h2m1 0h2m3 0h1m1 0h3M2 28.5h1m1 0h3m1 0h1m1 0h2m2 0h1m3 0h1m1 0h2m3 0h3m2 0h1M2 29.5h1m5 0h1m3 0h6m1 0h5m2 0h1m2 0h1M2 30.5h7m1 0h6m1 0h1m1 0h1m2 0h1m3 0h2m1 0h2"/></svg></div>
-    <div class="qr-url num" id="shareUrl"></div>
-    <footer class="e-foot">
-      <button class="btn primary" id="shareSend">リンクを送る</button>
-    </footer>
-  </div>
-</div>
-
 <div class="sheet center" id="paySheet" hidden role="dialog" aria-modal="true" aria-labelledby="payTitle">
   <div class="sheet-inner np-inner">
     <header class="sheet-head">
@@ -5394,27 +5364,6 @@ $('#mpDelete').addEventListener('click', deletePlace);
 $('#mpReset').addEventListener('click', resetPlace);
 $('#placeSheet [data-close]').addEventListener('click', () => closeSheet($('#placeSheet')));
 $('#pinSheet [data-close]').addEventListener('click', () => closeSheet($('#pinSheet')));
-// アプリを教える：Android は APK、iPhone・ブラウザは公開ページ。QRコードを読み取ってもらうか、リンクを送る
-const SHARE_URL = { apk: 'https://github.com/syuu-hub/syuu-hub.github.io/releases/download/taxi-analyzer-apk/taxi-analyzer.apk', web: 'https://syuu-hub.github.io/taxi-analyzer/' };
-let shareKind = 'apk';
-function renderShare() {
-  $$('#shareSeg [data-sh]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sh === shareKind));
-  $$('#shareSheet [data-qr]').forEach(b => { b.hidden = b.dataset.qr !== shareKind; });
-  $('#shareUrl').textContent = SHARE_URL[shareKind];
-}
-$('#shareOpen').addEventListener('click', () => { haptic(); renderShare(); openSheet($('#shareSheet')); });
-$('#shareSeg').addEventListener('click', e => { const b = e.target.closest('[data-sh]'); if (!b) return; haptic(); shareKind = b.dataset.sh; renderShare(); });
-$('#shareSheet [data-close]').addEventListener('click', () => closeSheet($('#shareSheet')));
-$('#shareSend').addEventListener('click', async () => {
-  haptic();
-  const url = SHARE_URL[shareKind], title = 'タクシーアナライザー', text = 'タクシーの売上記録・分析アプリ';
-  const cap = window.Capacitor;
-  try {
-    if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.nativePromise) { await cap.nativePromise('Share', 'share', { title, text, url }).catch(() => {}); return; }   // 閉じた時も何もしない
-    if (navigator.share) { await navigator.share({ title, text, url }); return; }
-  } catch (e) { if (e && e.name === 'AbortError') return; }
-  try { await navigator.clipboard.writeText(url); toast('リンクをコピーしました'); } catch (e) { toast(url); }
-});
 $('#mpHere').addEventListener('click', async () => {
   haptic();
   const b = $('#mpHere'); b.textContent = '取得中…';
