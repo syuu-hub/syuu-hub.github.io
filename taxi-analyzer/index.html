@@ -1302,7 +1302,7 @@ svg{display:block}
     <div class="entry-body">
       <section class="e-amount">
         <div class="total">
-          <span class="lbl">メーター総額</span>
+          <span class="lbl">メーター合計</span>
           <span class="v num" id="eFare"><span class="cur">¥</span>0</span>
         </div>
         <div class="breakdown num" id="eBreak"></div>
@@ -1751,7 +1751,7 @@ function freshState() {
   };
 }
 // 設定の引き継ぎ：機能の変更で設定の形が変わった時は、ここで古い値を新しい設定に移す（消さずに引き継ぐ）
-const SETTINGS_VER = 3;
+const SETTINGS_VER = 4;   // 4：メーターの合計の扱いを直した（以前の記録は fixMeterTotals で直す）
 function migrateSettings(st) {
   const v = st.sv || 0;
   if (v < 1) {
@@ -1795,6 +1795,7 @@ function loadState() {
         if (o.manual) { delete o.lat; delete o.lng; if (o.place) { delete o.place.kind; delete o.place.info; } }   // 手入力・施設はカテゴリとGPSを持たない
       }
       for (const sh of s.shifts || []) for (const t of [sh.trip, ...(sh.pending || [])]) if (t) for (const o of [t.from, t.to]) if (o) delete o.acc;
+      if (((s.settings || {}).sv || 0) < 4) fixMeterTotals(s);
       return { ...base, ...s, settings: { ...base.settings, ...migrateSettings({ ...s.settings }) } };
     }
   } catch (e) { LOAD_ERR = true; try { localStorage.setItem(BROKEN_KEY, raw); } catch (e2) {} }
@@ -4290,7 +4291,7 @@ function openEntry(rideId, shiftId) {
   if (r) {
     E = {
       editId: r.id, start: r.start, ts: r.ts,
-      amount: r.total ? String(r.total + (r.fare.long || 0) + (r.fare.handi || 0)) : '', app: r.app || null, noPickup: !!r.noPickup,
+      amount: r.total ? String(r.total + (r.toll || 0)) : '', app: r.app || null, noPickup: !!r.noPickup,
       handi: !!r.fare.handi,
       pay: r.pay, kind: r.kind || 'street', ticket: r.ticket || null, toll: r.toll || 0,
       from: { ...(r.from || {}) }, to: { ...(r.to || {}) }, dirty: {},
@@ -4329,26 +4330,53 @@ function openEntry(rideId, shiftId) {
   syncEntryMap();
 }
 
-function entryTotal() { return +E.amount || 0; }   // メーター総額（手数料・迎車料金込み）
+function entryTotal() { return +E.amount || 0; }   // メーターの「合計」（運賃＋迎車・手数料＋高速代−割引。お客さまが払う金額）
 
 // 迎車料金が付く乗車（配車アプリ・無線）は、総額から迎車料金を差し引いて運賃を出す。配車アプリはさらにアプリ手数料（決済方法で変わる）も
 const hasPickup = kind => kind === 'app' || kind === 'radio';
 // 「迎車なし」はメーターの迎車を押し忘れた時用：迎車料金を差し引かず内訳にも含めない
 // 割引（いずれも10円単位で四捨五入）
 // 遠距離割：運賃メーターが設定の金額（既定9,000円）を超えた部分の1割（設定でオフ可）。障害者割：遠距離割後の運賃の1割
-const tenth = v => Math.round(Math.max(0, v) * 0.1 / 10) * 10;
-const longDisc = fare => S.settings.longOn ? tenth(fare - (S.settings.longFrom || 0)) : 0;
-const handiDisc = fare => tenth(fare);
+// （読み込み時の記録の修正 fixMeterTotals からも使うので function で書く）
+function tenth(v) { return Math.round(Math.max(0, v) * 0.1 / 10) * 10; }
+function longDisc(fare, st = S.settings) { return st.longOn ? tenth(fare - (st.longFrom || 0)) : 0; }
+function handiDisc(fare) { return tenth(fare); }
+// 割引後の運賃 net から、割引前の運賃（メーター運賃）と割引を逆算する：運賃 − 遠距離割 − 障害者割 ＝ net
+function solveFare(net, handiOn, st = S.settings) {
+  const at = m => { const long = longDisc(m, st), handi = handiOn ? handiDisc(m - long) : 0; return { fare: m, long, handi, d: m - long - handi - net }; };
+  if (net <= 0) return at(net);
+  let best = at(net);
+  for (let m = net; m <= net * 1.3 + 100 && best.d; m += 10) {   // 運賃は10円単位
+    const x = at(m);
+    if (Math.abs(x.d) < Math.abs(best.d)) best = x;
+    if (x.d > 0) break;
+  }
+  return best;
+}
 function entryBreakdown() {
-  const gross = entryTotal();
+  const gross = entryTotal(), toll = E.toll || 0;
   const cfg = E.kind === 'app' && E.app && S.settings.apps.find(a => a.id === E.app.id);
   const pickup = (cfg || E.kind === 'radio') && !E.noPickup ? S.settings.pickupFee : 0;
   const appFee = cfg ? appFeeFor(cfg, E.pay) : 0;
-  const fare = gross - pickup - appFee;
-  const long = longDisc(fare);   // 遠距離割は自動適用（設定の金額を超えた時だけ効く）
-  const handi = E.handi ? handiDisc(fare - long) : 0;
-  // total：受け取る金額（割引後）、meter：割引後の運賃
-  return { gross, pickup, appFee, long, handi, total: gross - long - handi, meter: fare - long - handi };
+  const net = gross - pickup - appFee - toll;   // 割引後の運賃
+  const { fare, long, handi } = solveFare(net, !!E.handi);   // 遠距離割は自動（設定の金額を超えた時だけ効く）
+  // total：売上（高速代は売上外）、meter：割引後の運賃、fare：割引前の運賃（メーター運賃）
+  return { gross, pickup, appFee, toll, long, handi, fare, total: gross - toll, meter: net };
+}
+// 以前の記録（メーターの合計を「割引・高速代の前の金額」として計算していた）を直す
+function fixMeterTotals(s) {
+  const st = { ...freshState().settings, ...(s.settings || {}) };
+  for (const r of s.rides || []) {
+    const f = r.fare || {};
+    if (!f.long && !f.handi && !r.toll) continue;
+    const gross = r.total + (f.long || 0) + (f.handi || 0);   // 入力したメーターの合計
+    const net = gross - (f.pickup || 0) - (f.appFee || 0) - (r.toll || 0);
+    const x = solveFare(net, !!f.handi, st);
+    f.meter = net; delete f.long; delete f.handi;
+    if (x.long) f.long = x.long;
+    if (x.handi) f.handi = x.handi;
+    r.fare = f; r.total = gross - (r.toll || 0);
+  }
 }
 
 // 配車アプリを選ぶと、そのアプリのデフォルト決済方法を適用（変更可）
@@ -4371,18 +4399,18 @@ function renderEntry() {
   const parts = [bd.pickup && '迎車料金 +' + yen(bd.pickup), bd.appFee && 'アプリ手数料 +' + yen(bd.appFee)].filter(Boolean);
   const discs = [bd.long && '遠距離割 −' + yen(bd.long), bd.handi && '障害者割 −' + yen(bd.handi)].filter(Boolean);
   const brk = $('#eBreak');
-  const short = total > 0 && bd.meter + bd.long + bd.handi < 0;
+  const short = total > 0 && bd.meter < 0;
   brk.classList.toggle('warn', short);
   const bi = (t, cls = '') => `<span class="bi ${cls}">${t}</span>`;   // 項目の途中では折り返さない
   // 乗車詳細と同じ名前：メーター金額 → 迎車・手数料・割引 →（高速代があれば割引適用後合計・高速代）→ お支払い金額
   const adj = parts.length || discs.length;
-  brk.innerHTML = short ? bi(`総額が ${[bd.pickup && '迎車料金', bd.appFee && 'アプリ手数料'].filter(Boolean).join('・')} より少ない`)
+  brk.innerHTML = short ? bi(`合計が ${[bd.pickup && '迎車料金', bd.appFee && 'アプリ手数料', bd.toll && '高速代'].filter(Boolean).join('・')} より少ない`)
     : !adj && !E.toll ? ''
-    : [bi(`メーター金額 <b>${yen(Math.max(0, bd.gross - bd.pickup - bd.appFee))}</b>`),
+    : [bi(`メーター金額 <b>${yen(Math.max(0, bd.fare))}</b>`),
        ...parts.map(t => bi(t)), ...discs.map(t => bi(t, 'disc-amt')),
        adj && E.toll && bi(`割引適用後合計 <b>${yen(bd.total)}</b>`),
        E.toll && bi(`高速代 +${yen(E.toll)}（売上外）`),
-       bi(`お支払い金額 <b class="pay">${yen(bd.total + (E.toll || 0))}</b>`)].filter(Boolean).join('');
+       bi(`お支払い金額 <b class="pay">${yen(bd.gross)}</b>`)].filter(Boolean).join('');
   $('#eToll').setAttribute('aria-pressed', !!E.toll);
   $('#eTollSub').textContent = E.toll ? yen(E.toll) : '';
   $('#eDiscHandi').setAttribute('aria-pressed', !!E.handi);
@@ -4522,7 +4550,7 @@ function saveEntry() {
   E.start = t.start; E.ts = t.end;
   commitAddr('from'); commitAddr('to');
   const bd = entryBreakdown(), total = bd.total;
-  if (bd.meter + bd.long + bd.handi < 0) { toast('総額が迎車料金・手数料より少ないため記録できません'); return; }
+  if (bd.meter < 0) { toast('合計が迎車料金・手数料・高速代より少ないため記録できません'); return; }
   const fare = { meter: bd.meter, pickup: bd.pickup, appFee: bd.appFee };
   if (bd.long) fare.long = bd.long;
   if (bd.handi) fare.handi = bd.handi;
@@ -4780,6 +4808,7 @@ function restore(file) {
       if (!s || s.v !== 2 || !Array.isArray(s.rides)) throw new Error('format');
       if (!confirm(`バックアップを復元しますか？\n現在のデータは置き換えられます。\n（乗車記録 ${s.rides.length}件）`)) return;
       const base = freshState();
+      if (((s.settings || {}).sv || 0) < 4) fixMeterTotals(s);
       S = { ...base, ...s, settings: { ...base.settings, ...migrateSettings({ ...s.settings }) } };
       save(); applySettings(); setView(S.settings.tab);
       toast('復元しました');
