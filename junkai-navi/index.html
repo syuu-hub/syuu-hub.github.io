@@ -148,7 +148,7 @@
         <label class="btn ghost file-btn pl-file">CSVで読み込み<input id="pl-csv" type="file" accept=".csv,text/csv" hidden></label>
         <button id="pl-export" class="btn ghost">CSVで保存</button>
       </div>
-      <p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。設定の「タクシーアナライザの乗車で使う種類」に従い、初期は流しだけ（乗り場・アプリ配車等を除く）です。読み込み直すと、対象外になった場所は一覧から消えます）。</p>
+      <p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度, 乗車回数, 時間帯（例 7-10, 18-24）, 曜日（例 平日、土日、月水金）。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。設定の「タクシーアナライザの乗車で使う種類」に従い、初期は流しだけ（乗り場・アプリ配車等を除く）です。読み込み直すと、対象外になった場所は一覧から消えます）。</p>
 
       <form id="pl-form" class="pl-form hidden" autocomplete="off">
         <h3 id="pl-form-title">住所から追加</h3>
@@ -158,6 +158,12 @@
         <div class="seg">
           <label><input type="radio" name="pl-kind" value="custom" checked>常設の需要地点</label>
           <label><input type="radio" name="pl-kind" value="event">イベント</label>
+        </div>
+        <div id="pl-time">
+          <label>需要がある時間帯（任意）
+            <span class="pl-hours"><select id="pl-h1"><option value="">指定なし</option><option value="0">0時</option><option value="1">1時</option><option value="2">2時</option><option value="3">3時</option><option value="4">4時</option><option value="5">5時</option><option value="6">6時</option><option value="7">7時</option><option value="8">8時</option><option value="9">9時</option><option value="10">10時</option><option value="11">11時</option><option value="12">12時</option><option value="13">13時</option><option value="14">14時</option><option value="15">15時</option><option value="16">16時</option><option value="17">17時</option><option value="18">18時</option><option value="19">19時</option><option value="20">20時</option><option value="21">21時</option><option value="22">22時</option><option value="23">23時</option></select><span>〜</span><select id="pl-h2"><option value="1">1時</option><option value="2">2時</option><option value="3">3時</option><option value="4">4時</option><option value="5">5時</option><option value="6">6時</option><option value="7">7時</option><option value="8">8時</option><option value="9">9時</option><option value="10">10時</option><option value="11">11時</option><option value="12">12時</option><option value="13">13時</option><option value="14">14時</option><option value="15">15時</option><option value="16">16時</option><option value="17">17時</option><option value="18">18時</option><option value="19">19時</option><option value="20">20時</option><option value="21">21時</option><option value="22">22時</option><option value="23">23時</option><option value="24">24時</option></select></span></label>
+          <div class="pl-days" id="pl-days"><label><input type="checkbox" value="1" checked>月</label><label><input type="checkbox" value="2" checked>火</label><label><input type="checkbox" value="3" checked>水</label><label><input type="checkbox" value="4" checked>木</label><label><input type="checkbox" value="5" checked>金</label><label><input type="checkbox" value="6" checked>土</label><label><input type="checkbox" value="0" checked>日</label></div>
+          <p class="hint" id="pl-time-hint">指定した時間帯・曜日だけ需要を高く見ます（日をまたぐ時は 22時〜2時 のように）。営業ログから登録した地点は、乗車した時刻・曜日から自動で決まり、ここで指定すると上書きします。</p>
         </div>
         <div id="pl-event" class="hidden">
           <label>終了日時<input id="pl-end" type="datetime-local"></label>
@@ -199,6 +205,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=13"></script>
+<script type="module" src="js/main.js?v=14"></script>
 </body>
 </html>

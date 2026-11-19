@@ -1,6 +1,7 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・イベント・登録地点・タクシーアナライザの乗車実績から需要エリアを算出
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=13';
+import { haversine, bearing, angleDiff } from './geo.js?v=14';
+import { profFactor } from './profile.js?v=14';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -13,7 +14,7 @@ const P = {
 const BASE = { station: 1.0, hotel: 0.5, hospital: 0.6, nightlife: 0.12, shopping: 0.6, custom: 1.0 };
 export const CAT_JA = { station: '駅', hotel: 'ホテル', hospital: '病院', nightlife: '繁華街', shopping: '商業施設', custom: '登録地点' };
 
-function timeFactor(cat, date) {
+function timeFactor(cat, date, spot = null) {
   const h = date.getHours();
   const dow = date.getDay(); // 0=日
   const weekend = dow === 0 || dow === 6;
@@ -21,7 +22,8 @@ function timeFactor(cat, date) {
   if (cat === 'hospital' && weekend) f *= 0.3;
   if (cat === 'nightlife' && (dow === 5 || dow === 6) && (h >= 20 || h <= 3)) f *= 1.3; // 金土の夜
   if (cat === 'station' && weekend && (h === 7 || h === 8)) f *= 0.6; // 休日は朝ラッシュなし
-  if (cat === 'custom') f = 1;
+  // 登録地点：営業ログの乗車時刻・曜日、または自分で指定した時間帯・曜日（指定がなければ一日中同じ）
+  if (cat === 'custom') f = spot && spot.prof ? profFactor(spot.prof, date) : 1;
   return f;
 }
 
@@ -72,7 +74,7 @@ export class DemandEngine {
       if (name && w > a.nameW) { a.name = name; a.nameW = w; }
     };
     for (const s of this.spots) {
-      let v = (BASE[s.cat] || 0.3) * timeFactor(s.cat, now) * weatherFactor(s.cat, this.weather);
+      let v = (BASE[s.cat] || 0.3) * timeFactor(s.cat, now, s) * weatherFactor(s.cat, this.weather);
       if (s.cat === 'station' && this.railDisruption) v *= 1.8;
       // タクシーアナライザから取り込んだ地点は、乗車が多いほど重く（1回=1倍、4回=1.5倍、上限3倍）
       if (s.rides > 1) v *= Math.min(3, 0.5 + 0.5 * Math.sqrt(s.rides));

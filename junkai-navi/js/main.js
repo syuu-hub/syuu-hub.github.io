@@ -1,10 +1,11 @@
-import { EndlessNavigator } from './navcore.js?v=13';
-import { ValhallaClient } from './valhalla.js?v=13';
-import { DemandEngine, CAT_JA } from './demand.js?v=13';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=13';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=13';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=13';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=13';
+import { EndlessNavigator } from './navcore.js?v=14';
+import { ValhallaClient } from './valhalla.js?v=14';
+import { DemandEngine, CAT_JA } from './demand.js?v=14';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=14';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=14';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=14';
+import { profText, manualProf } from './profile.js?v=14';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=14';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -675,10 +676,11 @@ function renderPlaces() {
     item.className = 'pl-item' + (past ? ' past' : '');
     const badge = ev.kind !== 'event' ? `<span class="pl-badge">${ev.rides ? `乗車 ${ev.rides}回` : '常設'}</span>`
       : `<span class="pl-badge ev${past ? ' past' : ''}">${past ? '終了' : 'イベント'} ${fmtStamp(ev.end).slice(5)}</span>`;
-    item.innerHTML = `<div class="pl-top"><span class="pl-name"></span>${badge}</div><div class="pl-addr"></div>
+    item.innerHTML = `<div class="pl-top"><span class="pl-name"></span>${badge}</div><div class="pl-addr"></div>${ev.kind !== 'event' && profText(ev.prof) ? '<div class="pl-prof"></div>' : ''}
       <div class="pl-btns">${running ? '<button data-a="map">地図</button>' : ''}<button data-a="edit">編集</button><button data-a="del" class="del">削除</button></div>`;
     item.querySelector('.pl-name').textContent = ev.name;
     item.querySelector('.pl-addr').textContent = ev.addr || '地図の長押しで追加（住所なし）';
+    if (item.querySelector('.pl-prof')) item.querySelector('.pl-prof').textContent = '🕒 ' + profText(ev.prof);
     if (running) item.querySelector('[data-a=map]').onclick = () => {
       $('places').classList.add('hidden'); $('settings').classList.add('hidden');
       if (running) setFollow(false);
@@ -705,6 +707,17 @@ function openPlaceForm(ev) {
   const kind = ev ? (ev.kind === 'event' ? 'event' : 'custom') : 'custom';
   document.querySelectorAll('input[name=pl-kind]').forEach((r) => (r.checked = r.value === kind));
   $('pl-event').classList.toggle('hidden', kind !== 'event');
+  $('pl-time').classList.toggle('hidden', kind === 'event');
+  // 自分で指定した時間帯・曜日を表示（ひと続きの時間帯だけ。営業ログ由来は「指定なし」のまま）
+  const mp = ev && ev.prof && ev.prof.src === 'manual' ? ev.prof : null;
+  let h1 = '', h2 = '24';
+  if (mp && !mp.h.every(Boolean)) {
+    const start = mp.h.findIndex((v, i) => v && !mp.h[(i + 23) % 24]);
+    if (start >= 0) { let e = start; while (mp.h[e % 24] && e < start + 24) e++; h1 = String(start); h2 = String(e % 24 || 24); }
+  }
+  $('pl-h1').value = h1; $('pl-h2').value = h2;
+  document.querySelectorAll('#pl-days input').forEach((c) => (c.checked = mp ? !!mp.d[+c.value] : true));
+  $('pl-time-hint').dataset.log = ev && ev.prof && ev.prof.src === 'log' ? '1' : '';
   $('pl-end').value = toLocalInput(ev && ev.end ? ev.end : Date.now() + 3 * 3600e3);
   $('pl-size').value = ev && ev.size ? ev.size : 'm';
   $('pl-found').classList.add('hidden');
@@ -713,7 +726,23 @@ function openPlaceForm(ev) {
   (ev ? $('pl-name') : $('pl-addr')).focus();
 }
 function closePlaceForm() { plEditId = null; plFound = null; $('pl-form').classList.add('hidden'); }
-document.querySelectorAll('input[name=pl-kind]').forEach((r) => r.addEventListener('change', () => $('pl-event').classList.toggle('hidden', plKind() !== 'event')));
+document.querySelectorAll('input[name=pl-kind]').forEach((r) => r.addEventListener('change', () => {
+  $('pl-event').classList.toggle('hidden', plKind() !== 'event');
+  $('pl-time').classList.toggle('hidden', plKind() === 'event');
+}));
+// フォームの時間帯・曜日 → プロファイル（どちらも指定なしなら null）
+function formProf() {
+  const h1 = $('pl-h1').value;
+  let hours = null;
+  if (h1 !== '') {
+    hours = Array(24).fill(0);
+    const a = +h1, end = +$('pl-h2').value % 24;
+    if (a === end) hours.fill(1); else for (let h = a; h !== end; h = (h + 1) % 24) hours[h] = 1;
+  }
+  const days = Array(7).fill(0);
+  document.querySelectorAll('#pl-days input').forEach((c) => { if (c.checked) days[+c.value] = 1; });
+  return manualProf(hours, days.every(Boolean) ? null : days);
+}
 $('pl-addr').addEventListener('input', () => $('pl-found').classList.add('hidden'));
 $('pl-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -735,6 +764,14 @@ $('pl-form').addEventListener('submit', async (e) => {
   }
   const kind = plKind();
   const item = { id: old ? old.id : 'u' + Date.now(), name: $('pl-name').value.trim() || addr || (kind === 'event' ? 'イベント会場' : '登録地点'), addr, lat: +(+pos.lat).toFixed(6), lng: +(+pos.lng).toFixed(6), kind };
+  if (kind === 'custom') {
+    const fp = formProf();
+    if (fp && !fp.d.some(Boolean)) { toast('曜日を1つ以上選んでください'); return; }
+    // 指定なしなら、営業ログ由来の傾向はそのまま残す
+    const prof = fp || (old && old.prof && old.prof.src === 'log' ? old.prof : null);
+    if (prof) item.prof = prof;
+    if (old && old.rides) { item.rides = old.rides; item.fromLog = old.fromLog; }
+  }
   if (kind === 'event') {
     const end = $('pl-end').value ? new Date($('pl-end').value) : null;
     if (!end || isNaN(end)) { toast('終了日時を入力してください'); return; }

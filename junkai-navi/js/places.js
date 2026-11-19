@@ -1,9 +1,10 @@
 // 登録地点（任意で設定する需要地点・イベント会場）
 // ・住所から緯度経度を調べる（国土地理院の住所検索 → 見つからなければ OpenStreetMap の Nominatim）
 // ・CSV への書き出しと読み込み
-import { fetchT } from './sources.js?v=13';
-import { parseCsv, importAnalyzerCsv, placeKey, rideFilter } from './csv.js?v=13';
-import { haversine } from './geo.js?v=13';
+import { fetchT } from './sources.js?v=14';
+import { parseCsv, importAnalyzerCsv, placeKey, rideFilter } from './csv.js?v=14';
+import { haversine } from './geo.js?v=14';
+import { logProf, manualProf, parseHours, parseDays, hoursText, daysText } from './profile.js?v=14';
 
 // 日本付近の座標か
 export const inJapan = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng) && lat > 20 && lat < 46 && lng > 122 && lng < 154;
@@ -92,15 +93,16 @@ export function analyzerToPlaces(text, { kinds = null } = {}) {
     const k = placeKey(r);
     let g = by.get(k);
     // 施設名がなければ住所を短くして名前に（「兵庫県神戸市長田区大橋町4丁目1-10」→「長田区大橋町4丁目1-10」）
-    if (!g) { g = { name: r.fac || shortName(r.addr), addrs: new Map(), rides: 0, lat: null, lng: null }; by.set(k, g); }
+    if (!g) { g = { name: r.fac || shortName(r.addr), addrs: new Map(), rides: 0, lat: null, lng: null, times: [] }; by.set(k, g); }
     g.rides++;
+    g.times.push(r.t); // 乗車した時刻・曜日の傾向に使う
     if (r.addr) g.addrs.set(r.addr, (g.addrs.get(r.addr) || 0) + 1);
     if (r.lat != null && g.lat == null) { g.lat = r.lat; g.lng = r.lng; }
   }
   const items = [...by.values()].map((g) => {
     const addrs = [...g.addrs.entries()].sort((a, b) => b[1] - a[1]).map((x) => x[0]);
     const addr = addrs[0] || '';
-    const it = { name: g.name, addr, kind: 'custom', rides: g.rides, fromLog: true, q: [...new Set(addrs.flatMap((a) => queryCandidates(g.name, a)).concat(queryCandidates(g.name, '')))] };
+    const it = { name: g.name, addr, kind: 'custom', rides: g.rides, fromLog: true, prof: logProf(g.times), q: [...new Set(addrs.flatMap((a) => queryCandidates(g.name, a)).concat(queryCandidates(g.name, '')))] };
     if (g.lat != null) { it.lat = +g.lat.toFixed(6); it.lng = +g.lng.toFixed(6); }
     return it;
   }).sort((a, b) => b.rides - a.rides);
@@ -109,7 +111,7 @@ export function analyzerToPlaces(text, { kinds = null } = {}) {
 export const isAnalyzerLog = (head) => head.includes('種別') && (head.includes('乗車住所') || head.includes('乗車施設'));
 
 // ===== CSV =====
-export const PLACE_HEAD = ['名前', '住所', '種類', '終了日時', '規模', '緯度', '経度', '乗車回数'];
+export const PLACE_HEAD = ['名前', '住所', '種類', '終了日時', '規模', '緯度', '経度', '乗車回数', '時間帯', '曜日'];
 const SIZE_JA = { s: '小', m: '中', l: '大' };
 const SIZE_KEY = { 小: 's', 中: 'm', 大: 'l', s: 's', m: 'm', l: 'l' };
 const pad = (n) => String(n).padStart(2, '0');
@@ -127,6 +129,7 @@ export function placesToCsv(list) {
       p.name, p.addr || '', p.kind === 'event' ? 'イベント' : '常設',
       p.kind === 'event' && p.end ? fmtStamp(p.end) : '', p.kind === 'event' ? SIZE_JA[p.size] || '中' : '',
       p.lat != null ? (+p.lat).toFixed(6) : '', p.lng != null ? (+p.lng).toFixed(6) : '', p.rides || '',
+      p.kind !== 'event' ? hoursText(p.prof) : '', p.kind !== 'event' ? daysText(p.prof) : '',
     ]);
   }
   return '\ufeff' + rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
@@ -145,7 +148,7 @@ export function csvToPlaces(text, { kinds = null } = {}) {
   }
   const ci = (...names) => { for (const n of names) { const i = head.indexOf(n); if (i >= 0) return i; } return -1; };
   const iName = ci('名前', '名称', '施設名'), iAddr = ci('住所', '所在地'), iKind = ci('種類', '種別');
-  const iEnd = ci('終了日時', '終了時刻'), iSize = ci('規模'), iLat = ci('緯度', 'lat'), iLng = ci('経度', 'lng', 'lon'), iRides = ci('乗車回数');
+  const iEnd = ci('終了日時', '終了時刻'), iSize = ci('規模'), iLat = ci('緯度', 'lat'), iLng = ci('経度', 'lng', 'lon'), iRides = ci('乗車回数'), iHours = ci('時間帯'), iDays = ci('曜日');
   if (iAddr < 0 && (iLat < 0 || iLng < 0)) throw new Error('「住所」の列（または「緯度」「経度」の列）があるCSVを選んでください');
   const get = (r, i) => (i < 0 ? '' : String(r[i] ?? '').trim());
   const items = [], errors = [];
@@ -161,6 +164,9 @@ export function csvToPlaces(text, { kinds = null } = {}) {
     if (lat != null) { item.lat = lat; item.lng = lng; }
     const rides = parseInt(get(r, iRides), 10);
     if (rides > 0) item.rides = rides;
+    // 時間帯（例 7-10, 18-24）・曜日（例 平日、土日、月水金）。どちらも空なら一日中同じ
+    const prof = kind === 'custom' ? manualProf(parseHours(get(r, iHours)), parseDays(get(r, iDays))) : null;
+    if (prof) item.prof = prof;
     if (kind === 'event') {
       const end = parseStamp(get(r, iEnd));
       if (end == null) { errors.push(`${line}行目：イベントの終了日時（例 2026/11/20 21:00）がありません`); return; }
@@ -183,7 +189,10 @@ export function mergePlaces(list, incoming, newId = () => 'u' + Date.now() + Mat
   let added = 0, updated = 0;
   for (const it of incoming) {
     const i = out.findIndex((p) => same(p, it));
-    if (i >= 0) { out[i] = { ...out[i], ...it, id: out[i].id }; updated++; }
+    if (i >= 0) {
+      const keep = out[i].prof && out[i].prof.src === 'manual' && (!it.prof || it.prof.src === 'log') ? { prof: out[i].prof } : {};
+      out[i] = { ...out[i], ...it, ...keep, id: out[i].id }; updated++;
+    }
     else { out.push({ ...it, id: newId() }); added++; }
   }
   return { list: out, added, updated, removed };
