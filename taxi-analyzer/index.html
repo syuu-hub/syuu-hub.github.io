@@ -428,6 +428,23 @@ svg{display:block}
 .ana-aim .v{font-size:clamp(22px,6.6vw,30px);font-weight:800;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-aim .s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-sh{font-size:15px;font-weight:800;margin:18px 2px 8px}
+.adv-sh{margin-top:28px}
+/* 情報（イベント） */
+.inf-day{margin-bottom:16px}
+.inf-h{font-size:14px;font-weight:800;margin:0 2px 6px;display:flex;align-items:center;gap:8px}
+.inf-h.we{color:var(--accent)}
+.inf-h em{font-style:normal;font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--accent);color:var(--accent-ink)}
+.inf-list{list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:0 14px}
+.inf-list li{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:10px;align-items:start;padding:11px 0}
+.inf-list li + li{border-top:1px solid var(--line)}
+.inf-t{display:flex;flex-direction:column;line-height:1.25}
+.inf-t b{font-size:17px;font-weight:800}
+.inf-t b.na{font-size:12px;color:var(--faint);font-weight:600}
+.inf-t small{font-size:11px;color:var(--faint)}
+.inf-b{display:flex;flex-direction:column;gap:2px;min-width:0}
+.inf-v{font-size:12px;color:var(--muted);font-weight:700}
+.inf-n{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.inf-list li.big .inf-v{color:#B48CFF}
 .heat button.best{box-shadow:inset 0 0 0 2px var(--text)}
 .taxis{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:4px}
 .hls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
@@ -1129,12 +1146,14 @@ svg{display:block}
       <header class="view-head"><h2>分析</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
       <div class="seg ana-range" id="anaRange"><button data-v="30">直近30日</button><button data-v="90">直近90日</button><button data-v="all">全期間</button></div>
       <div id="anaBody"></div>
+      <div class="ana-sh adv-sh">アドバイス</div>
+      <div id="advBody"></div>
     </div></section>
 
-    <!-- アドバイス -->
-    <section class="view pane" data-view="adv" hidden><div class="view-body">
-      <header class="view-head"><h2>アドバイス</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
-      <div id="advBody"></div>
+    <!-- 情報（神戸の主要会場のイベント 1か月分） -->
+    <section class="view pane" data-view="info" hidden><div class="view-body">
+      <header class="view-head"><h2>情報</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
+      <div id="infoBody"></div>
     </div></section>
 
     <!-- 出力・設定 -->
@@ -1283,7 +1302,7 @@ svg{display:block}
   <button class="tab-btn" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></button>
   <button class="tab-btn" data-go="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>履歴</span></button>
   <button class="tab-btn" data-go="ana"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>分析</span></button>
-  <button class="tab-btn" data-go="adv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg><span>アドバイス</span></button>
+  <button class="tab-btn" data-go="info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>情報</span></button>
   <button class="tab-btn" data-go="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg><span>出力・設定</span></button>
 </nav>
 </div>
@@ -3562,10 +3581,31 @@ const anaTip = (el, text) => { const card = el.closest('.ana-card'), box = el.cl
 let EVENTS = null;
 function loadEvents() {
   return fetch('events.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null)
-    .then(d => { if (d && Array.isArray(d.events)) { EVENTS = d.events; if (S.settings.tab === 'ana') renderAnalysis(); } })
+    .then(d => { if (d && Array.isArray(d.events)) { EVENTS = d.events; if (S.settings.tab === 'ana') renderAnalysis(); if (S.settings.tab === 'info') renderInfo(); } })
     .catch(() => {});
 }
 // その日の営業時間（終わる時刻がいつもの営業時間か、その1時間前）に終わるものだけ。今日すでに終わったものは出さない
+// 情報ページ：今日から1か月のイベントを日ごとに（大きい会場・夜に終わるものが分かるように）
+function renderInfo() {
+  const body = $('#infoBody');
+  if (!EVENTS) { body.innerHTML = '<div class="ana-card"><div class="ana-empty">イベント情報を読み込めません</div></div>'; return; }
+  const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+  const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const end = new Date(d0); end.setDate(end.getDate() + 30);
+  const from = key(d0), to = key(end), now = new Date(), nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const list = EVENTS.filter(e => e.date >= from && e.date <= to && !(e.date === from && e.end && e.end < nowHM));
+  if (!list.length) { body.innerHTML = '<div class="ana-card"><div class="ana-empty">1か月以内のイベントはありません</div></div>'; return; }
+  const byDay = new Map();
+  for (const e of list) { if (!byDay.has(e.date)) byDay.set(e.date, []); byDay.get(e.date).push(e); }
+  const dayLbl = k => { const d = new Date(k + 'T00:00:00'), diff = Math.round((d - d0) / 86400e3);
+    return `${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）${diff === 0 ? '<em>今日</em>' : diff === 1 ? '<em>明日</em>' : ''}`; };
+  const tm = e => e.day ? `<b>〜${e.end}</b>` : e.start ? `<small>${e.start}〜</small><b>${e.end}頃</b>` : '<b class="na">時刻未定</b>';
+  body.innerHTML = [...byDay].map(([k, es]) => `<div class="inf-day">
+      <div class="inf-h ${new Date(k + 'T00:00:00').getDay() % 6 === 0 ? 'we' : ''}">${dayLbl(k)}</div>
+      <ul class="inf-list">${es.sort((a, b) => (a.day ? 1 : 0) - (b.day ? 1 : 0) || (a.end || '99').localeCompare(b.end || '99')).map(e => `<li class="${(e.cap || 0) >= 5000 ? 'big' : ''}">
+        <span class="inf-t num">${tm(e)}</span>
+        <span class="inf-b"><span class="inf-v">${esc(e.venue)}</span><span class="inf-n">${esc(e.title)}</span></span></li>`).join('')}</ul></div>`).join('');
+}
 function eventLines(day, inHours) {
   if (!EVENTS) return '';
   const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
@@ -4227,12 +4267,13 @@ function renderAll() {
   const t = S.settings.tab;
   if (t === 'home') return;
   if (t === 'log') renderLog();
-  else if (t === 'ana') renderAnalysis();
+  else if (t === 'ana') { renderAnalysis(); renderAdvice(); }
   else if (t === 'data') renderData();
-  else if (t === 'adv') renderAdvice();
+  else if (t === 'info') renderInfo();
 }
 
 function setView(v) {
+  if (v === 'adv') v = 'ana';   // アドバイスは分析に統合した
   if (!$(`.view[data-view="${v}"]`)) v = 'home';
   // ホーム以外のタブにいる間は履歴を1つ持ち、戻るでホームへ
   if (v !== 'home' && !NAV.tab) { NAV.tab = true; navPush(); }
