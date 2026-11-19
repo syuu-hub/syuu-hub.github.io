@@ -1,7 +1,7 @@
 // 同じサイトの他アプリのキャッシュには触れない
 // アプリ本体のみキャッシュ（地図タイル・ルート・需要データは常に最新を取得）
-const CACHE = 'endless-navi-v3';
-const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js?v=3', 'js/navcore.js?v=3', 'js/geo.js?v=3', 'js/valhalla.js?v=3', 'js/demand.js?v=3', 'js/sources.js?v=3', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'endless-navi-v4';
+const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js?v=4', 'js/navcore.js?v=4', 'js/geo.js?v=4', 'js/valhalla.js?v=4', 'js/demand.js?v=4', 'js/sources.js?v=4', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('endless-navi-') && k !== CACHE).map((k) => caches.delete(k)))));

@@ -3,7 +3,7 @@
 // ・新ルートは確定区間の終点から、進行方向を保ったまま接続する
 // ・案内済みの右左折はロック
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=3';
+import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=4';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）

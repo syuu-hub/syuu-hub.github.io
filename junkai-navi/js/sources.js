@@ -3,6 +3,15 @@
 // ・Open-Meteo：現在の降水（※商用利用は有料プランが必要）
 // ・ODPT（公共交通オープンデータ）：運行情報（任意・要無料登録キー）
 
+// タイムアウト付き fetch（応答のないサーバーで止まらないように）
+export async function fetchT(url, opt = {}, ms = 15000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try { return await fetch(url, { ...opt, signal: ctl.signal }); }
+  catch (e) { throw new Error(e.name === 'AbortError' ? '応答がありません' : e.message); }
+  finally { clearTimeout(t); }
+}
+
 export const OVERPASS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
@@ -25,11 +34,11 @@ nwr["shop"~"^(mall|department_store)$"]${a};
   let json = null, lastErr = '';
   for (const ep of OVERPASS) {
     try {
-      const res = await fetch(ep, {
+      const res = await fetchT(ep, {
         method: 'POST',
         body: 'data=' + encodeURIComponent(q),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      }, 25000);
       if (!res.ok) { lastErr = String(res.status); continue; }
       json = await res.json();
       break;
@@ -63,7 +72,7 @@ nwr["shop"~"^(mall|department_store)$"]${a};
 
 export async function fetchWeather([lng, lat]) {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lng.toFixed(3)}&current=precipitation,weather_code&timezone=Asia%2FTokyo`;
-  const res = await fetch(url);
+  const res = await fetchT(url, {}, 10000);
   if (!res.ok) throw new Error('天気の取得に失敗しました');
   const j = await res.json();
   const mm = j.current?.precipitation ?? 0;
@@ -76,7 +85,7 @@ export async function fetchWeather([lng, lat]) {
 // ODPT の運行情報から「平常運転」以外を検出
 export async function fetchRailDisruption(consumerKey) {
   const url = `https://api.odpt.org/api/v4/odpt:TrainInformation?acl:consumerKey=${encodeURIComponent(consumerKey)}`;
-  const res = await fetch(url);
+  const res = await fetchT(url, {}, 15000);
   if (!res.ok) throw new Error('運行情報の取得に失敗しました');
   const list = await res.json();
   const bad = [];

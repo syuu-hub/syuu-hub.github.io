@@ -1,8 +1,8 @@
-import { EndlessNavigator } from './navcore.js?v=3';
-import { ValhallaClient } from './valhalla.js?v=3';
-import { DemandEngine, CAT_JA } from './demand.js?v=3';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=3';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=3';
+import { EndlessNavigator } from './navcore.js?v=4';
+import { ValhallaClient } from './valhalla.js?v=4';
+import { DemandEngine, CAT_JA } from './demand.js?v=4';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=4';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=4';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -105,7 +105,7 @@ try {
   });
   map.addControl(new ML.AttributionControl({ compact: true }), 'bottom-right');
 } catch (e) {
-  mapError = e.message || String(e);
+  mapError = /WebGL/i.test(String(e && (e.message || e))) ? 'この端末・ブラウザはWebGLに非対応' : (e.message || String(e));
   map = createNullMap(cfg.lastCenter || DEFAULT_CENTER);
   ML = { Marker: NullMarker };
 }
@@ -287,14 +287,15 @@ async function start(sim) {
 
   const center = sim ? (cfg.lastCenter || map.getCenter().toArray()) : await firstPosition();
   cfg.lastCenter = center;
-  await ensureSpots(center);
   syncDemand();
   demand.update(new Date(), 1);
-  await refreshDemand();
   nav.serviceCenter = center;
+  // 位置の追跡はすぐ始め、需要スポット・天気の取得は裏で行う
   if (sim) startSim(); else startGPS();
+  render();
   demandTimer = setInterval(refreshDemand, 60e3);
   loopTimer = setInterval(() => { save(); }, 30e3);
+  ensureSpots(center).then(() => { syncDemand(); demand.update(new Date(), 1); return refreshDemand(); });
 }
 
 function firstPosition() {
