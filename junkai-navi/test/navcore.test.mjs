@@ -47,7 +47,7 @@ const passes = [], tourSizes = [];
 const nav = new EndlessNavigator({ router: fakeRouter, demand, now, emit: (t, d) => {
   if (t === 'voice') voices.push(d);
   if (t === 'route') { lastRouteEvent = d; tourSizes.push(d.tour.length); }
-  if (t === 'pass') passes.push(d);
+  if (t === 'pass') passes.push({ ...d, at: clock });
 } });
 
 const sleep = () => new Promise((r) => setImmediate(r));
@@ -63,6 +63,7 @@ assert(nav.route, '初期ルートが作られる');
 let switches = 0, extends_ = 0, reroutes = 0;
 let snapshot = null; // 確定区間内の形状
 let minAhead = Infinity;
+const driven = []; // 走った位置（約40m四方のマス）
 for (let step = 0; step < 3600; step++) {
   clock += 1000;
   if (step % 60 === 0) {
@@ -93,6 +94,7 @@ for (let step = 0; step < 3600; step++) {
   let p = pointAt(nav.route, nav.along + v).point;
   if (step >= 2500 && step < 2504) p = destination(p, 90, 150); // ルート逸脱
   nav.update({ point: p, speed: v, heading: null, accuracy: 5, t: clock });
+  if (step % 3 === 0) driven.push({ key: `${Math.round(p[1] / 0.0004)}:${Math.round(p[0] / 0.0005)}`, t: clock });
   await sleep(); await sleep();
 
   if (nav.route !== before && lastRouteEvent && lastRouteEvent.mode === 'reroute') { reroutes++; lastRouteEvent = null; }
@@ -143,6 +145,17 @@ assert(tourSizes.some((n) => n >= 2), `複数のエリアを通るルートを�
 assert(tourSizes.every((n) => n >= 1 && n <= 3), 'エリア数は設定の上限（3）以内');
 assert(passes.length > 0, `途中のエリアを通過したことを検出する（${passes.length} 回）`);
 assert(passes.every((a) => demand.visited.has(a.key)), '通過したエリアは「回った」扱いになる');
+// 同じ所をぐるぐる回らない：60分以内に、同じエリア（または500m以内）を2回通らない
+let revisits = 0;
+passes.forEach((a, i) => { for (let j = 0; j < i; j++) if (a.at - passes[j].at < 60 * 60e3 && haversine(a.center, passes[j].center) < 500) { revisits++; if (process.env.DBG2) console.log('REVISIT', passes[j].name, '->', a.name, Math.round((a.at - passes[j].at)/1000)+'s', Math.round(haversine(a.center, passes[j].center))+'m', a.key===passes[j].key); break; } });
+assert(revisits === 0, `60分以内に同じ所（500m以内）を通り直さない（${revisits} 回）`);
+// 走った道の重なり：1時間の走行で、同じ道（約40m四方）を通った割合
+{
+  const seen = new Map(); let tot = 0, again = 0;
+  for (const k of driven) { tot++; const t = seen.get(k.key); if (t != null && k.t - t > 3 * 60e3) again++; if (t == null || k.t - t > 3 * 60e3) seen.set(k.key, k.t); }
+  console.log(`走った道のうち、3分以上たってから同じ道を通り直した割合 ${(again / tot * 100).toFixed(1)}%`);
+  assert(again / tot < 0.15, '同じ道の通り直しが少ない');
+}
 console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.reduce((a, b) => a + b, 0) / tourSizes.length).toFixed(1)} エリア / 途中エリアの通過 ${passes.length} 回 / 通過地点つきの経路計算 ${fakeRouter.viaCalls} 回`);
 
 // 1か所ずつの設定（tourMax=1）では従来どおり
@@ -174,6 +187,25 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   }
   assert(ps.join('>') === 'A0>A1', `途中のエリアを順に通過: ${ps.join('>')}`);
   assert(n3.target && n3.target.name === 'A2', `通過後は次のエリアを案内: ${n3.target && n3.target.name}`);
+}
+
+// 需要エリアが少ない（3か所だけ）場合も、止まらずに案内を続ける（他に行き先が無い時だけ、前に通ったエリアへ）
+{
+  const d3 = new DemandEngine();
+  const o = [135.19, 34.69];
+  [0, 120, 240].forEach((b, i) => { const p = destination(o, b, 1500); d3.spots.push({ id: i, name: `P${i}`, lng: p[0], lat: p[1], cat: 'custom' }); });
+  d3.update(new Date(clock), 1);
+  const nf = new EndlessNavigator({ router: fakeRouter, demand: d3, now, emit: () => {} });
+  nf.update({ point: o, speed: 0, heading: 0, t: clock });
+  let gaps = 0;
+  for (let s3 = 0; s3 < 1500; s3++) {
+    clock += 1000;
+    if (!nf.route) { gaps++; nf.update({ point: o, speed: 0, heading: 0, t: clock }); await sleep(); continue; }
+    nf.update({ point: pointAt(nf.route, nf.along + 12).point, speed: 12, heading: null, accuracy: 5, t: clock });
+    await sleep();
+    if (nf.route.length - nf.along <= 0) gaps++;
+  }
+  assert(gaps < 5 && nf.route, `エリアが3か所だけでも案内が途切れない（途切れ ${gaps}）`);
 }
 
 console.log(`走行 3600秒 / 接続 ${extends_} 回 / 需要変化による切替 ${switches} 回 / 逸脱リルート ${reroutes} 回 / API呼び出し ${fakeRouter.calls} 回 / 音声 ${voices.length} 件`);
