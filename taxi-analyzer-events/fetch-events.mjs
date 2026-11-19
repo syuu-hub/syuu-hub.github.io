@@ -45,6 +45,13 @@ const V = {
   noesta: { venue: 'ノエビアスタジアム神戸', cap: 30000, dur: 120 },
   glion: { venue: 'GLION ARENA KOBE', cap: 10000, dur: 120 },
 };
+const cut = (s, n = 100) => { s = clean(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+const absUrl = (u, base) => { try { return u ? new URL(u.replace(/&amp;/g, '&'), base).href : undefined; } catch (e) { return undefined; } };
+// 詳細：空の項目は持たない
+// 料金：「※…」「【…」以降の注意書きは除く
+const priceOf = s => { const c = clean(s), p = c.replace(/\s*[※【][\s\S]*$/, ''); return cut(p || c); };
+const goodsOf = text => { const m = /[^。\s]{0,20}グッズ[^。]{0,90}/.exec(clean(text)); return m ? cut(m[0], 110) : undefined; };
+const info = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v));
 const ev = (v, date, start, title, extra = {}) => ({ date, start: start || null, end: start ? addMin(start, V[v].dur || 150) : extra.end || null, venue: V[v].venue, cap: V[v].cap, title, ...extra });
 
 // ワールド記念ホール：月ごとのイベントカレンダー（イベントごとに「月日(曜) 開演～」が並ぶ）
@@ -55,8 +62,13 @@ async function world() {
     for (const li of html.split(/<li\b[^>]*>/).slice(1)) {
       const title = clean((/^\s*<span>([\s\S]*?)<\/span>/.exec(li) || [])[1]);
       if (!title) continue;
+      // お問い合わせ（主催の名前・電話）と、アーティストの公式サイト
+      const contactHtml = (/<\/span><\/span>\s*<span>((?:(?!<\/span>\s*<span>)[\s\S])*?<span>[\d-]+<\/span>)<\/span>/.exec(li) || [])[1] || '';
+      const links = [...li.matchAll(/<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
+      const artist = links.find(l => /ｱｰﾃｨｽﾄ|アーティスト|オフィシャル|公式/.test(l[2]));
+      const det = info({ contact: cut(contactHtml), url: absUrl((artist || links[0] || [])[1], 'https://www.kobe-spokyo.jp/') });
       const re = /(\d{1,2})月(\d{1,2})日[^<]*<\/span>\s*(?:<span>(?:<span>)*(?:<span[^>]*>)?(\d{1,2}:\d{2}))?/g;
-      for (let x; (x = re.exec(li));) out.push(ev('world', withYear(+x[1], +x[2]), x[3] ? hm(x[3]) : null, title));
+      for (let x; (x = re.exec(li));) out.push(ev('world', withYear(+x[1], +x[2]), x[3] ? hm(x[3]) : null, title, det));
     }
   }
   return out;
@@ -77,21 +89,22 @@ async function kih() {
   const out = [], soon = ymd(...Object.values(ym(1)), 28);
   for (const e of list.values()) {
     if (e.to < TODAY) continue;
-    let times = [];
+    let times = [], det = { url: 'https://www.kih.co.jp' + e.url };
     if (e.from <= soon) {   // 近い公演だけ詳細を読む
       try {
         const html = await get('https://www.kih.co.jp' + e.url);
-        const raw = (/<th>日時<\/th>\s*<td>([\s\S]*?)<\/td>/.exec(html) || [])[1] || '';
-        times = timesFrom(raw.split(/<br\s*\/?>/i).map(clean), e.from, e.to);
+        const row = k => (new RegExp(`<th>${k}<\\/th>\\s*<td>([\\s\\S]*?)<\\/td>`).exec(html) || [])[1] || '';
+        times = timesFrom(row('日時').split(/<br\s*\/?>/i).map(clean), e.from, e.to);
+        det = info({ ...det, performer: cut(row('出演者') || row('アーティスト名'), 80), price: priceOf(row('入場料')), contact: cut(row('お問い合わせ')), goods: goodsOf(html.replace(/<(script|style)[\s\S]*?<\/\1>/g, ' ')) });
       } catch (err) { console.warn('kih detail', err.message); }
     }
-    if (!times.length) for (let d = e.from; d <= e.to; d = next(d)) times.push([d, null]);
-    for (const [d, t] of times) out.push(ev('kih', d, t, e.title));
+    if (!times.length) for (let d = e.from; d <= e.to; d = next(d)) times.push([d, null, null]);
+    for (const [d, t, o] of times) out.push(ev('kih', d, t, e.title, info({ ...det, open: o })));
   }
   return out;
 }
 const next = d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
-// 「日時」の行から [日付, 開演] を取り出す。書き方は会場・公演ごとに違う：
+// 「日時」の行から [日付, 開演, 開場] を取り出す。書き方は会場・公演ごとに違う：
 //   「2026年11月19日(木) OPEN/18:00 START/19:00」「2026/11/22(日) OPEN 16:30 / START 17:30」「2026/11/29(日) 16:30」
 //   「…18:30開演（17:30開場）」「2026年11月3日（火祝）開場 17:00 / 開演 18:00」（2日目以降は年が省かれることがある）
 function timesFrom(lines, from, to) {
@@ -105,10 +118,10 @@ function timesFrom(lines, from, to) {
     const all = [...rest.matchAll(/(\d{1,2}[:：]\d{2})/g)].map(x => x[1]);
     const op = /(\d{1,2}[:：]\d{2})\s*開場/.exec(rest) || /(?:開場|OPEN)\s*[\/／:：]?\s*(\d{1,2}[:：]\d{2})/i.exec(rest);
     const tm = st ? st[1] : all.filter(x => !op || x !== op[1]).pop();
-    if (lastDate && tm) times.push([lastDate, hm(tm)]);
+    if (lastDate && tm) times.push([lastDate, hm(tm), op && op[1] !== tm ? hm(op[1]) : null]);
   }
   // 日付の無い「18:30開演」だけの時は、公演日すべてに
-  if (!times.length) { const t1 = /(\d{1,2}[:：]\d{2})\s*開演/.exec(lines.join(' ')); if (t1) for (let d = from; d <= to; d = next(d)) times.push([d, hm(t1[1])]); }
+  if (!times.length) { const j = lines.join(' '), t1 = /(\d{1,2}[:：]\d{2})\s*開演/.exec(j), o1 = /(\d{1,2}[:：]\d{2})\s*開場/.exec(j); if (t1) for (let d = from; d <= to; d = next(d)) times.push([d, hm(t1[1]), o1 ? hm(o1[1]) : null]); }
   return times;
 }
 
@@ -121,10 +134,11 @@ async function bunka() {
       const d = /(\d{4})年(\d{1,2})月(\d{1,2})日/.exec(tr), hall = /(大ホール|中ホール)<\/a>/.exec(tr);
       const tds = tr.split(/<td\b[^>]*>/);
       if (!d || !hall || tds.length < 4) continue;
-      const start = hm(clean(tds[2]).replace(/^開演（開場）：/, ''));
-      const title = clean((/<div class="event-right">([\s\S]*?)<\/div>/.exec(tds[3]) || [, tds[3]])[1]);
+      const tt = clean(tds[2]).replace(/^開演（開場）：/, ''), start = hm(tt), open = hm((/\((\d{1,2}[:：]\d{2})\)/.exec(tt) || [])[1]);
+      const right = (/<div class="event-right">([\s\S]*?)<\/div>/.exec(tds[3]) || [, tds[3]])[1], title = clean(right);
       if (!title || /お知らせ|抽選/.test(title)) continue;
-      out.push(ev(hall[1] === '大ホール' ? 'bunkaL' : 'bunkaM', ymd(+d[1], +d[2], +d[3]), start, title));
+      const det = info({ open, price: priceOf((tds[4] || '').replace(/入場料：/, '')), contact: cut((tds[5] || '').replace(/お問い合わせ：/, '')), url: absUrl((/href="([^"]+)"/.exec(right) || [])[1], 'https://www.kobe-bunka.jp/') });
+      out.push(ev(hall[1] === '大ホール' ? 'bunkaL' : 'bunkaM', ymd(+d[1], +d[2], +d[3]), start, title, det));
     }
   }
   return out;
@@ -142,7 +156,8 @@ async function kcc() {
       const title = clean(tds[2]), place = clean(tds[4]);
       const v = /展示場/.test(place) ? 'kccEx' : 'kccCv';
       const from = ymd(+ds[0][1], +ds[0][2], +ds[0][3]), to = ds[1] ? ymd(+ds[1][1], +ds[1][2], +ds[1][3]) : from;
-      for (let d = from; d <= to; d = next(d)) out.push(ev(v, d, null, title, { end: '17:00', day: true }));
+      const det = info({ contact: cut(tds[3], 80), url: absUrl((/href="([^"]+)"/.exec(tds[2]) || [])[1], 'https://kobe-cc.jp/') });
+      for (let d = from; d <= to; d = next(d)) out.push(ev(v, d, null, title, { end: '17:00', day: true, ...det }));
     }
   }
   return out;
@@ -155,12 +170,16 @@ async function vissel() {
   const starts = [...html.matchAll(/"matchDate":"\$D(\d{4}-\d{2}-\d{2})/g)];
   starts.forEach((s, i) => {
     const seg = html.slice(s.index, i + 1 < starts.length ? starts[i + 1].index : s.index + 6000);
-    for (const m of seg.matchAll(/"stadiumFullName":"([^"]*)"[\s\S]*?"time":"(\d{1,2}:\d{2})"[\s\S]*?"homeTeam":\{[^{}]*?"name":"([^"]*)"[\s\S]*?"awayTeam":\{[^{}]*?"name":"([^"]*)"/g)) {
-      if (!/ノエビア|御崎/.test(m[1])) continue;
-      const k = s[1] + m[2];
+    for (const m of seg.matchAll(/"detailHref":"([^"]*)","stadiumName":"[^"]*","stadiumFullName":"([^"]*)"[\s\S]*?"time":"(\d{1,2}:\d{2})"[\s\S]*?"homeTeam":\{[^{}]*?"name":"([^"]*)"[\s\S]*?"awayTeam":\{[^{}]*?"name":"([^"]*)"/g)) {
+      const [, href, stadium, time, home, away] = m;
+      // 大会名・節：この試合より前で一番近いもの
+      const before = html.slice(Math.max(0, s.index - 600), s.index) + seg.slice(0, m.index), last = (k) => { const a = [...before.matchAll(new RegExp(`"${k}":"([^"]*)"`, 'g'))]; return a.length ? a[a.length - 1][1] : ''; };
+      const league = last('leagueDisplayName'), sec = last('seasonText');
+      if (!/ノエビア|御崎/.test(stadium)) continue;
+      const k = s[1] + time;
       if (seen.has(k)) continue;
       seen.add(k);
-      out.push(ev('noesta', s[1], hm(m[2]), `ヴィッセル神戸 vs ${m[4] === '神戸' ? m[3] : m[4]}`, { sport: true }));
+      out.push(ev('noesta', s[1], hm(time), `ヴィッセル神戸 vs ${away === '神戸' ? home : away}`, info({ sport: true, performer: [league, sec].filter(Boolean).join(' '), url: absUrl(href, 'https://www.jleague.jp/') })));
     }
   });
   return out;
@@ -171,7 +190,7 @@ async function storks() {
   const html = await get('https://www.storks.jp/schedule/list/');
   const out = [], t = clean(html);
   for (const x of t.matchAll(/HOME\s+\S+\s+神戸\s+(\d{1,2})\/(\d{1,2})\s*\([^)]*\)\s*(\d{1,2}:\d{2})\s*location_on\s*GLION ARENA KOBE\s*(\S+)/g)) {
-    out.push(ev('glion', withYear(+x[1], +x[2]), hm(x[3]), `神戸ストークス vs ${x[4]}`, { sport: true }));
+    out.push(ev('glion', withYear(+x[1], +x[2]), hm(x[3]), `神戸ストークス vs ${x[4]}`, { sport: true, performer: 'B.LEAGUE', url: 'https://www.storks.jp/schedule/list/' }));
   }
   return out;
 }
@@ -201,15 +220,20 @@ async function glion() {
   for (const x of items.values()) {
     const m = /^(\d{1,2})\.(\d{1,2})/.exec(x.date); if (!m) continue;
     const day = withYear(+m[1], +m[2]);
-    let times = [];
+    let times = [], det = { url: 'https://www.totteikobe.jp' + x.href };
     try {
-      const t = clean(await get('https://www.totteikobe.jp' + x.href));
+      const html = await get('https://www.totteikobe.jp' + x.href), t = clean(html.replace(/<(script|style)[\s\S]*?<\/\1>/g, ' '));
       const cell = (/時間\s*([\s\S]*?)(?:URL|主催者|料金|チケット|お問い合わせ|お気に入り)/.exec(t) || [])[1] || '';
       // 「2026年11月3日（火祝）開場 17:00 / 開演 18:00 2026年11月4日（水）開場 …」を日ごとに分ける
       times = timesFrom(cell.split(/(?=\d{4}年\d{1,2}月\d{1,2}日)/), day, day);
+      // 出演者・お問い合わせ・公式サイト（会場自身や SNS のリンクは除く）
+      const official = [...html.matchAll(/href="(https?:\/\/[^"]+)"/g)].map(m => m[1])
+        .find(u => !/totteikobe|youtube|facebook|x\.com|twitter|instagram|tiktok|storks\.jp|bleague|google|gstatic|hsforms|j-server|line\.me|apple\.com/.test(u));
+      det = info({ ...det, performer: cut((/出演者\s*([\s\S]*?)\s*(?:開催日|時間)/.exec(t) || [])[1], 80),
+        contact: cut((/お問い合わせ\s*(?:お問い合わせ)?[：:]?\s*([\s\S]*?)\s*(?:お気に入り|共有|PICK UP)/.exec(t) || [])[1]), official: absUrl(official), goods: goodsOf(t) });
     } catch (e) { console.warn('glion detail', e.message); }
     const hit = times.find(([d]) => d === day);
-    const e = ev('glion', day, hit ? hit[1] : null, x.title, x.cat === 'SPORTS' ? { sport: true } : {});
+    const e = ev('glion', day, hit ? hit[1] : null, x.title, info({ ...det, open: hit && hit[2], sport: x.cat === 'SPORTS' }));
     if (x.cat !== 'SPORTS' && e.start) e.end = addMin(e.start, 150);   // コンサートなどは試合より長め
     out.push(e);
   }

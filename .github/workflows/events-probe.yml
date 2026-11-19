@@ -1,0 +1,23 @@
+# 一時的：イベント取得を実際のサイトで試す（確認が済んだら消す）
+name: events-probe
+on:
+  push:
+    branches: [claude/taxi-board-app-ncbt4x]
+    paths: ['taxi-analyzer-events/fetch-events.mjs']
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm i --no-save playwright@1.49.1 && npx playwright install --with-deps chromium
+      - run: node taxi-analyzer-events/fetch-events.mjs
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add taxi-analyzer/events.json
+          git commit -m "events-probe: events.json" || exit 0
+          git push
