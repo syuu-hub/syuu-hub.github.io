@@ -189,6 +189,18 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   assert(n3.target && n3.target.name === 'A2', `通過後は次のエリアを案内: ${n3.target && n3.target.name}`);
 }
 
+// 2か所目が通常の条件（1つ先まで2.5km）より遠くても、複数の候補地を通るルートにする
+{
+  const d2 = new DemandEngine();
+  const o = [135.19, 34.69];
+  [[90, 900], [90, 4200]].forEach(([b, m], i) => { const p = destination(o, b, m); d2.spots.push({ id: i, name: `Q${i}`, lng: p[0], lat: p[1], cat: 'custom' }); });
+  d2.update(new Date(clock), 1);
+  const nq = new EndlessNavigator({ router: fakeRouter, demand: d2, now, emit: () => {} });
+  nq.update({ point: o, speed: 0, heading: 90, t: clock });
+  for (let i = 0; i < 20 && !nq.route; i++) await sleep();
+  assert(nq.tour.length === 2, `候補地が離れていても2か所を通る: ${nq.tour.map((x) => x.area.name).join('>')}`);
+}
+
 // 需要エリアが少ない（3か所だけ）場合も、止まらずに案内を続ける（他に行き先が無い時だけ、前に通ったエリアへ）
 {
   const d3 = new DemandEngine();

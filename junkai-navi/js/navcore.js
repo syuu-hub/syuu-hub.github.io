@@ -5,7 +5,7 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=12';
+import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=13';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -208,11 +208,18 @@ export class EndlessNavigator {
   // これから通る予定のエリア（とその500m以内）は、次の区間の行き先にしない
   nearPlanned(area, planned) { return planned.some((p) => p.key === area.key || haversine(p.center, area.center) < 500); }
 
-  // 1か所目 first から、近くの需要エリアを順につないだツアーを作る
+  // 1か所目 first から、近くの需要エリアを順につないだツアーを作る。
+  // 複数の候補地を通るのが基本：通常の条件で1か所しか選べない時は、条件をゆるめて（1つ先まで4km・価値1割以上）もう一度選ぶ
   buildTour(start, first, exclude = new Set(), planned = []) {
     const max = Math.max(1, Math.round(this.s.tourMax || 1));
+    if (max === 1) return [first];
+    const t = this.buildTourWith(start, first, exclude, planned, this.s.tourHopM, this.s.tourMinRatio, this.s.tourMaxM);
+    return t.length > 1 ? t : this.buildTourWith(start, first, exclude, planned, Math.max(this.s.tourHopM, 4000), 0.1, Math.max(this.s.tourMaxM, 10000));
+  }
+
+  buildTourWith(start, first, exclude, planned, hopM, minRatio, maxM) {
+    const max = Math.max(1, Math.round(this.s.tourMax || 1));
     const tour = [first];
-    if (max === 1) return tour;
     const base = this.rankOpts();
     const used = new Set([...base.exclude, ...exclude, first.key]);
     const plan = planned.concat(first);
@@ -220,8 +227,8 @@ export class EndlessNavigator {
     let prev = start.point, cur = first.center, total = haversine(start.point, first.center);
     while (tour.length < max) {
       const r = this.demand.rank(cur, bearing(prev, cur), { ...base, exclude: used, minDistM: 400 });
-      const c = r.find((x) => x.dist <= this.s.tourHopM && !this.nearPlanned(x.area, plan));
-      if (!c || c.utility < firstU * this.s.tourMinRatio || total + c.dist > this.s.tourMaxM) break;
+      const c = r.find((x) => x.dist <= hopM && !this.nearPlanned(x.area, plan));
+      if (!c || c.utility < firstU * minRatio || total + c.dist > maxM) break;
       tour.push(c.area);
       plan.push(c.area);
       used.add(c.area.key);
@@ -239,7 +246,12 @@ export class EndlessNavigator {
     let firsts = preferred;
     if (!firsts) {
       const exclude = mode === 'extend' ? old : new Set();
-      const ranked = this.rankFrom(start.point, start.bearing).filter((x) => !exclude.has(x.area.key));
+      let ranked = this.rankFrom(start.point, start.bearing).filter((x) => !exclude.has(x.area.key));
+      // 候補地をすべて今のルートで回る時（エリアが少ない時）も止まらないよう、ルートの終わりのエリア以外から選ぶ
+      if (!ranked.length && mode === 'extend') {
+        const lastKey = this.tour.length ? this.tour[this.tour.length - 1].area.key : null;
+        ranked = this.demand.rank(start.point, start.bearing, { ...this.rankOpts(), strict: false, minDistM: 300 }).filter((x) => x.area.key !== lastKey);
+      }
       const fresh = ranked.filter((x) => !this.nearPlanned(x.area, planned));
       firsts = (fresh.length ? fresh : ranked).slice(0, 2).map((x) => x.area); // 他に無ければ止まらないことを優先
       if (mode === 'reroute' && this.target) firsts = [this.target, ...firsts.filter((a) => a.key !== this.target.key)];
@@ -257,6 +269,7 @@ export class EndlessNavigator {
   async plan(mode, preferred = null) {
     if (this.planning) return;
     this.planning = true;
+    this.planMode = mode;
     try {
       let start, commit = null;
       // 先へつなぐ時は、今のルートの終わりから計算する（走っている先は何も変えない。右左折まで十分な距離もある）
@@ -328,9 +341,12 @@ export class EndlessNavigator {
     return best && best.route;
   }
 
+  // 最近走った道と、これから走る予定の道（同じ交差点・同じ道を2回通るルートを避ける）
   trackGrid() {
     const s = new Set();
     for (const { p } of this.track) s.add(gridKey(p));
+    // 先へつなぐ時だけ（切替・リルートでは今のルートの先は置き換わるので含めない）。つなぎ目の50mは除く
+    if (this.route && this.planMode === 'extend') for (const p of sampleLine(sliceRoute(this.route, this.along, this.route.length - 50), 25)) s.add(gridKey(p));
     return s;
   }
 
