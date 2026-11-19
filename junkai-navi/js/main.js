@@ -1,9 +1,10 @@
-import { EndlessNavigator } from './navcore.js?v=6';
-import { ValhallaClient } from './valhalla.js?v=6';
-import { DemandEngine, CAT_JA } from './demand.js?v=6';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=6';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=6';
-import { decodeCsv, importAnalyzerCsv, isStreetRide } from './csv.js?v=6';
+import { EndlessNavigator } from './navcore.js?v=7';
+import { ValhallaClient } from './valhalla.js?v=7';
+import { DemandEngine, CAT_JA } from './demand.js?v=7';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=7';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=7';
+import { decodeCsv, importAnalyzerCsv, isStreetRide } from './csv.js?v=7';
+import { geocode, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=7';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -524,19 +525,155 @@ function openSettings() {
   renderEvents();
   $('settings').classList.remove('hidden');
 }
+// 設定画面のボタンに件数を出す（一覧そのものは「登録地点」の画面）
 function renderEvents() {
-  const box = $('event-list');
+  $('btn-places').textContent = `登録地点の一覧を開く（${cfg.events.length}件）`;
+  if (!$('places').classList.contains('hidden')) renderPlaces();
+}
+
+// ===== 登録地点の一覧（住所から追加・編集・削除、CSV） =====
+let plEditId = null;    // 編集中の地点のID（新規は null）
+let plFound = null;     // 住所から見つかった位置 {lat,lng,title,addr}
+const plKind = () => document.querySelector('input[name=pl-kind]:checked').value;
+const toLocalInput = (t) => { const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+function placesChanged() {
+  save(); syncDemand(); demand.update(new Date()); refreshHeat(); renderStart(); renderEvents(); renderPlaces();
+}
+function openPlaces() {
+  closePlaceForm();
+  renderPlaces();
+  $('places').classList.remove('hidden');
+}
+function renderPlaces() {
+  const box = $('pl-list');
+  $('pl-count').textContent = `${cfg.events.length}件`;
   box.innerHTML = '';
-  for (const ev of cfg.events) {
-    const row = document.createElement('div');
-    row.className = 'ev';
-    const when = ev.kind === 'event' ? ` ・ 終了 ${new Date(ev.end).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ' ・ 常設';
-    row.innerHTML = `<span></span><button>削除</button>`;
-    row.firstChild.textContent = ev.name + when;
-    row.lastChild.onclick = () => { cfg.events = cfg.events.filter((x) => x !== ev); save(); syncDemand(); renderEvents(); };
-    box.appendChild(row);
+  if (!cfg.events.length) {
+    box.innerHTML = '<div class="pl-empty">まだ登録がありません。「＋ 住所から追加」かCSVの読み込みで登録できます。</div>';
+    return;
+  }
+  // 常設 → 開催予定のイベント（終了が早い順）→ 終了したイベント
+  const now = Date.now();
+  const order = (e) => (e.kind !== 'event' ? 0 : new Date(e.end).getTime() >= now ? 1 : 2);
+  const list = cfg.events.slice().sort((a, b) => order(a) - order(b) || (order(a) ? new Date(a.end) - new Date(b.end) : 0));
+  for (const ev of list) {
+    const past = ev.kind === 'event' && new Date(ev.end).getTime() < now;
+    const item = document.createElement('div');
+    item.className = 'pl-item' + (past ? ' past' : '');
+    const badge = ev.kind !== 'event' ? '<span class="pl-badge">常設</span>'
+      : `<span class="pl-badge ev${past ? ' past' : ''}">${past ? '終了' : 'イベント'} ${fmtStamp(ev.end).slice(5)}</span>`;
+    item.innerHTML = `<div class="pl-top"><span class="pl-name"></span>${badge}</div><div class="pl-addr"></div>
+      <div class="pl-btns">${running ? '<button data-a="map">地図</button>' : ''}<button data-a="edit">編集</button><button data-a="del" class="del">削除</button></div>`;
+    item.querySelector('.pl-name').textContent = ev.name;
+    item.querySelector('.pl-addr').textContent = ev.addr || '地図の長押しで追加（住所なし）';
+    if (running) item.querySelector('[data-a=map]').onclick = () => {
+      $('places').classList.add('hidden'); $('settings').classList.add('hidden');
+      if (running) setFollow(false);
+      map.easeTo({ center: [ev.lng, ev.lat], zoom: 16, duration: 600 });
+      toast(`「${ev.name}」の位置です`);
+    };
+    item.querySelector('[data-a=edit]').onclick = () => openPlaceForm(ev);
+    item.querySelector('[data-a=del]').onclick = () => {
+      if (!confirm(`「${ev.name}」を削除しますか？`)) return;
+      cfg.events = cfg.events.filter((x) => x.id !== ev.id);
+      if (plEditId === ev.id) closePlaceForm();
+      placesChanged();
+      toast(`「${ev.name}」を削除しました`);
+    };
+    box.appendChild(item);
   }
 }
+function openPlaceForm(ev) {
+  plEditId = ev ? ev.id : null;
+  plFound = ev && ev.lat != null ? { lat: ev.lat, lng: ev.lng, title: null, addr: ev.addr || '' } : null;
+  $('pl-form-title').textContent = ev ? '登録地点を編集' : '住所から追加';
+  $('pl-name').value = ev ? ev.name : '';
+  $('pl-addr').value = ev ? ev.addr || '' : '';
+  const kind = ev ? (ev.kind === 'event' ? 'event' : 'custom') : 'custom';
+  document.querySelectorAll('input[name=pl-kind]').forEach((r) => (r.checked = r.value === kind));
+  $('pl-event').classList.toggle('hidden', kind !== 'event');
+  $('pl-end').value = toLocalInput(ev && ev.end ? ev.end : Date.now() + 3 * 3600e3);
+  $('pl-size').value = ev && ev.size ? ev.size : 'm';
+  $('pl-found').classList.add('hidden');
+  $('pl-form').classList.remove('hidden');
+  $('pl-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  (ev ? $('pl-name') : $('pl-addr')).focus();
+}
+function closePlaceForm() { plEditId = null; plFound = null; $('pl-form').classList.add('hidden'); }
+document.querySelectorAll('input[name=pl-kind]').forEach((r) => r.addEventListener('change', () => $('pl-event').classList.toggle('hidden', plKind() !== 'event')));
+$('pl-addr').addEventListener('input', () => $('pl-found').classList.add('hidden'));
+$('pl-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const addr = $('pl-addr').value.trim();
+  const old = plEditId ? cfg.events.find((x) => x.id === plEditId) : null;
+  // 住所が変わった時（新規を含む）だけ調べ直す。住所なしの地点（地図で追加）は位置をそのまま使う
+  let pos = old && (old.addr || '') === addr && old.lat != null ? { lat: old.lat, lng: old.lng } : null;
+  if (!pos) {
+    if (!addr) { toast('住所を入力してください'); $('pl-addr').focus(); return; }
+    const btn = $('pl-save'); btn.disabled = true; btn.textContent = '住所を調べています…';
+    const hit = await geocode(addr);
+    btn.disabled = false; btn.textContent = '住所を調べて保存';
+    if (!hit) { toast('住所が見つかりませんでした。番地や市区町村を確かめてください（通信も確認）', 6000); return; }
+    pos = hit;
+    $('pl-found').textContent = `見つかった場所：${hit.title}`;
+    $('pl-found').classList.remove('hidden');
+  }
+  const kind = plKind();
+  const item = { id: old ? old.id : 'u' + Date.now(), name: $('pl-name').value.trim() || addr || (kind === 'event' ? 'イベント会場' : '登録地点'), addr, lat: +(+pos.lat).toFixed(6), lng: +(+pos.lng).toFixed(6), kind };
+  if (kind === 'event') {
+    const end = $('pl-end').value ? new Date($('pl-end').value) : null;
+    if (!end || isNaN(end)) { toast('終了日時を入力してください'); return; }
+    item.end = end.toISOString();
+    item.size = $('pl-size').value;
+  }
+  if (old) cfg.events = cfg.events.map((x) => (x.id === old.id ? item : x));
+  else cfg.events.push(item);
+  closePlaceForm();
+  placesChanged();
+  toast(`「${item.name}」を${old ? '更新' : '追加'}しました${pos.title ? `（${pos.title}）` : ''}${kind === 'custom' && cfg.demandSource === 'csv' ? '。常設の地点は「任意で設定」のときに使われます' : ''}`, 5000);
+});
+$('pl-cancel').onclick = closePlaceForm;
+$('pl-add').onclick = () => openPlaceForm(null);
+$('btn-places').onclick = openPlaces;
+$('pl-export').onclick = () => {
+  if (!cfg.events.length) { toast('登録地点がありません'); return; }
+  const d = new Date();
+  const name = `junkai-navi_places_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.csv`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([placesToCsv(cfg.events)], { type: 'text/csv;charset=utf-8' }));
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast(`${cfg.events.length}件をCSVで保存しました`);
+};
+$('pl-csv').addEventListener('change', async () => {
+  const f = $('pl-csv').files[0];
+  $('pl-csv').value = '';
+  if (!f) return;
+  try {
+    const { items, errors } = csvToPlaces(decodeCsv(await f.arrayBuffer()));
+    // 緯度・経度が無い行は住所から調べる（サーバーに負担をかけないよう1件ずつ）
+    const need = items.filter((it) => it.lat == null);
+    const missed = [];
+    for (let i = 0; i < need.length; i++) {
+      toast(`住所から位置を調べています… ${i + 1}/${need.length}`, 60000);
+      const hit = await geocode(need[i].addr);
+      if (hit) { need[i].lat = +hit.lat.toFixed(6); need[i].lng = +hit.lng.toFixed(6); }
+      else missed.push(need[i].name);
+      if (i < need.length - 1) await new Promise((r) => setTimeout(r, 300));
+    }
+    const ok = items.filter((it) => it.lat != null);
+    if (!ok.length) throw new Error(errors[0] || (missed.length ? `住所が見つかりませんでした（${missed.slice(0, 3).join('、')}）` : '読み込める行がありません'));
+    const { list, added, updated } = mergePlaces(cfg.events, ok);
+    cfg.events = list;
+    placesChanged();
+    const skip = errors.length + missed.length;
+    toast(`追加 ${added}件・更新 ${updated}件${skip ? `・読み込めなかった行 ${skip}件（${errors.concat(missed.map((m) => `${m}：住所が見つからない`)).slice(0, 2).join('／')}${skip > 2 ? ' ほか' : ''}）` : ''}`, 8000);
+  } catch (e) {
+    toast(e.message, 6000);
+  }
+});
+
 const bind = (id, key, conv = (v) => v, prop = 'value') => $(id).addEventListener('change', () => {
   cfg[key] = conv($(id)[prop]);
   save();
