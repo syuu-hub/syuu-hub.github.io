@@ -1,10 +1,3 @@
-world-cal https://www.kobe-spokyo.jp/world-kobe/cal_event?ym=202611
-world-cal12 https://www.kobe-spokyo.jp/world-kobe/cal_event?ym=202612
-kih-list https://www.kih.co.jp/kokusaihall/event/index/2026-11-19
-kih-detail https://www.kih.co.jp/kokusaihall/event/detail/2170
-kcc-cal https://kobe-cc.jp/ja/visitors/upcoming-events/
-bunka-cal https://www.kobe-bunka.jp/hall/date/2026/11/?cat=2
-tottei-ev https://www.totteikobe.jp/event
-storks-sch https://www.storks.jp/schedule/
-run2
-run3
+kih-2033 https://www.kih.co.jp/kokusaihall/event/detail/2033
+kih-2136 https://www.kih.co.jp/kokusaihall/event/detail/2136
+kih-2220 https://www.kih.co.jp/kokusaihall/event/detail/2220
