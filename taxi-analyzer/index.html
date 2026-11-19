@@ -550,6 +550,7 @@ svg{display:block}
 .plist .ic.rest{background:rgba(255,107,107,.68);color:#2A0606}
 .plist .ic.pl{background:var(--accent);color:var(--accent-ink)}
 .plist .ic.st{background:var(--info);color:#04122B}
+.plist .ic.ev{background:#B48CFF;color:#1B0B33}
 .plist small{display:block;font-size:12px;color:var(--faint)}
 .heat-legend .scale i{width:18px}
 .heat-legend .avg{flex-basis:100%;color:var(--faint)}
@@ -3557,6 +3558,23 @@ const anaTip = (el, text) => { const card = el.closest('.ana-card'), box = el.cl
 //   ・時間割：曜日×3時間の1時間あたりを、全曜日の同じ時間 → 全体の平均 の順に寄せて推定（階層的な縮小推定）
 //   ・場所：稼ぎどきの時間に乗せた場所
 //   ・乗り場の待ち：機会費用。乗り場の平均運賃 ÷ 1時間あたり ＝ 待ってもよい時間（乗車時間を除く）
+// ── 神戸の主要会場のイベント（events.json は GitHub Actions が毎日1回、各会場の公式サイトから作る）
+let EVENTS = null;
+function loadEvents() {
+  return fetch('events.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null)
+    .then(d => { if (d && Array.isArray(d.events)) { EVENTS = d.events; if (S.settings.tab === 'ana') renderAnalysis(); } })
+    .catch(() => {});
+}
+// その日の営業時間（終わる時刻がいつもの営業時間か、その1時間前）に終わるものだけ。今日すでに終わったものは出さない
+function eventLines(day, inHours) {
+  if (!EVENTS) return '';
+  const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+  const now = new Date(), isToday = dayKey(now) === dayKey(day), nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const list = EVENTS.filter(e => e.date === k && (e.cap || 0) >= 1500 && (!e.end || (inHours(+e.end.slice(0, 2)) && !(isToday && e.end < nowHM))))
+    .sort((a, b) => (b.cap || 0) - (a.cap || 0)).slice(0, 3)
+    .sort((a, b) => (a.end || '99').localeCompare(b.end || '99'));
+  return list.map(e => `<li><span class="ic ev">催</span><div><b>${e.day ? '〜' + e.end : e.end ? e.end + 'ごろ' : '時刻未定'}</b> ${esc(e.venue)}${e.day ? '' : ' 終演'}<small>${esc(e.title)}</small></div></li>`).join('');
+}
 function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   if (D.length < 3) return '';
   const kv = n => n >= 100000 ? compactYen(n) : yen(n);
@@ -3644,6 +3662,7 @@ ${goal ? `<div class="pbar"><i style="width:${Math.min(100, est / goal * 100).to
         ${goGroups.map(goRow).join('')}
         ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に</div></li>` : ''}
         ${standLine}
+        ${eventLines(nd, h => usual(h) || usual((h + 1) % 24))}
       </ul>
       <div class="tipgrp">
       <div class="sub-h">${wname}の時間割（千円/時）</div>
@@ -5681,6 +5700,7 @@ window.addEventListener('resize', () => {
    起動
    ============================================================ */
 applySettings();
+loadEvents();   // 神戸の主要会場のイベント（次の営業に出す）
 setView(S.settings.tab);
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}   // 端末の空き容量が減っても消されにくくする
 if (LOAD_ERR) toast('データを読み込めませんでした。設定の「前の状態に戻す」で戻せます');
