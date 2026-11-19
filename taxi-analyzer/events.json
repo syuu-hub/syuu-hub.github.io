@@ -7,7 +7,9 @@
   "kcc": 41,
   "vissel": 4,
   "storks": 3,
-  "glion": 19
+  "glion": 19,
+  "npb": 0,
+  "ships": 18
  },
  "events": [
   {
@@ -168,7 +170,7 @@
    "url": "https://www.totteikobe.jp/event/article/32052",
    "performer": "NiziU",
    "contact": "SOGO OSAKA 06-6344-3326 (平日 14:00～16:00 土日祝除く)",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://niziu.com/s/n123/page/livewithu2026_2027",
    "goods": "【グッズ会場販売について】 時間：2026年11月22日(日) 11:00～開演後30分 / 2026年11月23日(月・祝) 11:00～開演後30分 URL https://niziu",
    "open": "16:00",
    "src": "glion"
@@ -246,7 +248,7 @@
    "url": "https://www.totteikobe.jp/event/article/32052",
    "performer": "NiziU",
    "contact": "SOGO OSAKA 06-6344-3326 (平日 14:00～16:00 土日祝除く)",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://niziu.com/s/n123/page/livewithu2026_2027",
    "goods": "【グッズ会場販売について】 時間：2026年11月22日(日) 11:00～開演後30分 / 2026年11月23日(月・祝) 11:00～開演後30分 URL https://niziu",
    "open": "15:00",
    "src": "glion"
@@ -552,7 +554,7 @@
    "url": "https://www.totteikobe.jp/event/article/25027",
    "performer": "マカロニえんぴつ",
    "contact": "清⽔⾳泉 06-6357-3666 (平⽇15:00〜18:00)/ info@shimizuonsen.com",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://macaroniempitsu.com/news/19561.html",
    "src": "glion"
   },
   {
@@ -571,6 +573,22 @@
   },
   {
    "date": "2026-12-01",
+   "start": "15:00",
+   "end": null,
+   "venue": "神戸ポートターミナル",
+   "cap": 3000,
+   "title": "客船 STAR NAVIGATOR（初入港）",
+   "ship": true,
+   "depart": "01:00",
+   "departDate": "2026-12-02",
+   "from": "基隆",
+   "to": "高知",
+   "tons": 75338,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-01",
    "start": "18:00",
    "end": "20:30",
    "venue": "神戸国際会館こくさいホール",
@@ -585,6 +603,22 @@
   },
   {
    "date": "2026-12-02",
+   "start": "09:00",
+   "end": null,
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2100,
+   "title": "客船 飛鳥Ⅲ",
+   "ship": true,
+   "depart": "17:00",
+   "departDate": "2026-12-03",
+   "from": "蒲郡",
+   "to": "父島",
+   "tons": 52265,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-02",
    "start": "18:00",
    "end": "20:30",
    "venue": "GLION ARENA KOBE",
@@ -593,7 +627,7 @@
    "url": "https://www.totteikobe.jp/event/article/27671",
    "performer": "Mrs. GREEN APPLE",
    "contact": "キョードーインフォメーション 0570-200-888（平日12:00～17:00）",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://mrsgreenapple.com/feature/ringojamtour_shadows#top",
    "open": "17:00",
    "src": "glion"
   },
@@ -607,7 +641,7 @@
    "url": "https://www.totteikobe.jp/event/article/27671",
    "performer": "Mrs. GREEN APPLE",
    "contact": "キョードーインフォメーション 0570-200-888（平日12:00～17:00）",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://mrsgreenapple.com/feature/ringojamtour_shadows#top",
    "open": "17:00",
    "src": "glion"
   },
@@ -736,7 +770,7 @@
    "title": "2026-27 大同生命SV.LEAGUE MEN　大阪ブルテオン vs ジェイテクトSTINGS愛知",
    "url": "https://www.totteikobe.jp/event/article/28643",
    "contact": "大阪ブルテオン ファンクラブ事務局（TEL:050-8889-0260） 営業時間：平日 10:00～17:00",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://www.osaka-bluteon.com/homegame/2026-27/261205-1206/",
    "sport": true,
    "src": "glion"
   },
@@ -811,9 +845,25 @@
    "title": "2026-27 大同生命SV.LEAGUE MEN　大阪ブルテオン vs ジェイテクトSTINGS愛知",
    "url": "https://www.totteikobe.jp/event/article/28643",
    "contact": "大阪ブルテオン ファンクラブ事務局（TEL:050-8889-0260） 営業時間：平日 10:00～17:00",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://www.osaka-bluteon.com/homegame/2026-27/261205-1206/",
    "sport": true,
    "src": "glion"
+  },
+  {
+   "date": "2026-12-07",
+   "start": "14:00",
+   "end": null,
+   "venue": "神戸ポートターミナル",
+   "cap": 3100,
+   "title": "客船 PACIFIC WORLD",
+   "ship": true,
+   "depart": "09:00",
+   "departDate": "2026-12-08",
+   "from": "横浜",
+   "to": "横浜",
+   "tons": 77441,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-07",
@@ -826,6 +876,21 @@
    "performer": "B.LEAGUE",
    "url": "https://www.storks.jp/schedule/list/",
    "src": "storks"
+  },
+  {
+   "date": "2026-12-08",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2100,
+   "title": "客船 飛鳥Ⅲ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "父島",
+   "to": "高知",
+   "tons": 52265,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-08",
@@ -849,7 +914,7 @@
    "title": "ONE LOVE フェス 2026",
    "url": "https://www.totteikobe.jp/event/article/27155",
    "contact": "主催：株式会社LOVE is ALL お問い合わせ：ONE LOVE FES運営事務局 onelovefes.loveisall@gmail.com",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://onelovefes.jp/",
    "src": "glion"
   },
   {
@@ -875,6 +940,21 @@
    "contact": "公益社団法人高分子学会",
    "url": "https://www.spsj.or.jp/pmf/",
    "src": "kcc"
+  },
+  {
+   "date": "2026-12-11",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2100,
+   "title": "客船 飛鳥Ⅲ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "高知",
+   "to": "神戸",
+   "tons": 52265,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-11",
@@ -952,6 +1032,21 @@
   },
   {
    "date": "2026-12-13",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2100,
+   "title": "客船 飛鳥Ⅲ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "神戸",
+   "to": "東京",
+   "tons": 52265,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-13",
    "start": "16:00",
    "end": "18:30",
    "venue": "ワールド記念ホール",
@@ -981,7 +1076,6 @@
    "cap": 10000,
    "title": "【開催決定】BreakingDown 22",
    "url": "https://www.totteikobe.jp/event/article/29943",
-   "official": "https://www.feel-kobe.jp/",
    "sport": true,
    "src": "glion"
   },
@@ -1025,6 +1119,36 @@
   },
   {
    "date": "2026-12-16",
+   "start": "07:00",
+   "end": "11:00",
+   "venue": "神戸ポートターミナル",
+   "cap": 1300,
+   "title": "客船 MITSUI OCEAN FUJI",
+   "ship": true,
+   "depart": "11:00",
+   "from": "麗水",
+   "to": "横浜",
+   "tons": 32477,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-16",
+   "start": "13:00",
+   "end": "18:00",
+   "venue": "神戸ポートターミナル",
+   "cap": 3100,
+   "title": "客船 PACIFIC WORLD",
+   "ship": true,
+   "depart": "18:00",
+   "from": "横浜",
+   "to": "香港",
+   "tons": 77441,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-16",
    "start": "19:05",
    "end": "21:05",
    "venue": "GLION ARENA KOBE",
@@ -1034,6 +1158,21 @@
    "performer": "B.LEAGUE",
    "url": "https://www.storks.jp/schedule/list/",
    "src": "storks"
+  },
+  {
+   "date": "2026-12-17",
+   "start": "10:30",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2000,
+   "title": "客船 飛鳥Ⅱ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "名古屋",
+   "to": "博多",
+   "tons": 50444,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-18",
@@ -1086,7 +1225,7 @@
    "url": "https://www.totteikobe.jp/event/article/29467",
    "performer": "ØMI",
    "contact": "サウンドクリエーター TEL：06-6357-4400（月～金12 :00～15:00 ※祝日を除く）",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://m.tribe-m.jp/news/detail?news_id=55161&group_id=21",
    "open": "16:30",
    "src": "glion"
   },
@@ -1126,7 +1265,7 @@
    "url": "https://www.totteikobe.jp/event/article/29467",
    "performer": "ØMI",
    "contact": "サウンドクリエーター TEL：06-6357-4400（月～金12 :00～15:00 ※祝日を除く）",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://m.tribe-m.jp/news/detail?news_id=55161&group_id=21",
    "open": "16:00",
    "src": "glion"
   },
@@ -1169,6 +1308,36 @@
   },
   {
    "date": "2026-12-23",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2000,
+   "title": "客船 飛鳥Ⅱ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "博多",
+   "to": "神戸",
+   "tons": 50444,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-23",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "神戸ポートターミナル",
+   "cap": 1400,
+   "title": "客船 MITSUI OCEAN SAKURA",
+   "ship": true,
+   "depart": "17:00",
+   "from": "佐伯",
+   "to": "杵築",
+   "tons": 34138,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-23",
    "start": "10:30",
    "end": "13:00",
    "venue": "神戸文化ホール 大ホール",
@@ -1179,6 +1348,21 @@
    "contact": "神戸市生涯学習支援センター 078-251-4731（担当：照喜名）",
    "url": "https://www.kobe-spokyo.jp/comista/",
    "src": "bunka"
+  },
+  {
+   "date": "2026-12-25",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2000,
+   "title": "客船 飛鳥Ⅱ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "神戸",
+   "to": "神戸",
+   "tons": 50444,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-25",
@@ -1207,6 +1391,36 @@
   },
   {
    "date": "2026-12-26",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2000,
+   "title": "客船 飛鳥Ⅱ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "神戸",
+   "to": "高雄",
+   "tons": 50444,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-26",
+   "start": "10:00",
+   "end": "18:00",
+   "venue": "神戸ポートターミナル",
+   "cap": 1400,
+   "title": "客船 MITSUI OCEAN SAKURA",
+   "ship": true,
+   "depart": "18:00",
+   "from": "瀬戸田",
+   "to": "石垣島",
+   "tons": 34138,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-26",
    "start": "12:00",
    "end": "14:30",
    "venue": "ワールド記念ホール",
@@ -1226,7 +1440,7 @@
    "url": "https://www.totteikobe.jp/event/article/30847",
    "performer": "栗田博文 / 関西フィルハーモニー管弦楽団",
    "contact": "キョードーインフォメーション 0570-200-888（土日祝除く12:00~17:00）",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://www.koacreative.co.jp/marvel-isce/",
    "open": "14:00",
    "src": "glion"
   },
@@ -1277,7 +1491,7 @@
    "url": "https://www.totteikobe.jp/event/article/30847",
    "performer": "栗田博文 / 関西フィルハーモニー管弦楽団",
    "contact": "キョードーインフォメーション 0570-200-888（土日祝除く12:00~17:00）",
-   "official": "https://www.feel-kobe.jp/",
+   "official": "https://www.koacreative.co.jp/marvel-isce/",
    "open": "12:00",
    "src": "glion"
   },
