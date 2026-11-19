@@ -1,5 +1,5 @@
 // Valhalla ルーティング API クライアント
-import { decodePolyline, cumulative } from './geo.js?v=8';
+import { decodePolyline, cumulative } from './geo.js?v=9';
 
 // Valhalla maneuver type → 日本語と矢印種別
 export const MANEUVER = {
@@ -44,11 +44,13 @@ export class ValhallaClient {
   }
 
   // from: {point:[lng,lat], heading?}, to: [lng,lat]
-  async route(from, to, { alternates = 2, avoidTolls = true } = {}) {
+  // via: 途中で通り抜けるエリアの中心 [[lng,lat], …]（止まらずに通過する 'through' 地点。別ルート案は出ない）
+  async route(from, to, { alternates = 2, avoidTolls = true, via = [] } = {}) {
     const start = { lat: from.point[1], lon: from.point[0], type: 'break' };
     if (from.heading != null) { start.heading = Math.round(from.heading); start.heading_tolerance = 45; }
+    const mids = via.map((p) => ({ lat: p[1], lon: p[0], type: 'through', radius: 150 }));
     const body = {
-      locations: [start, { lat: to[1], lon: to[0], type: 'break' }],
+      locations: [start, ...mids, { lat: to[1], lon: to[0], type: 'break' }],
       costing: 'auto',
       costing_options: {
         auto: {
@@ -59,7 +61,7 @@ export class ValhallaClient {
           service_penalty: 30,
         },
       },
-      alternates,
+      alternates: mids.length ? 0 : alternates,
       units: 'kilometers',
       directions_type: 'maneuvers',
     };
@@ -91,15 +93,22 @@ function pickName(names) {
 }
 
 export function parseTrip(trip) {
-  const leg = trip.legs[0];
-  const coords = decodePolyline(leg.shape, 6);
+  // 通過地点（through）だけなら区間は1つ。念のため複数の区間もつなげる
+  let coords = [];
+  const raw = [];
+  for (const leg of trip.legs) {
+    const pts = decodePolyline(leg.shape, 6);
+    const off = coords.length ? coords.length - 1 : 0;
+    coords = coords.length ? coords.concat(pts.slice(1)) : pts;
+    for (const m of leg.maneuvers) raw.push({ m, idx: m.begin_shape_index + off });
+  }
   const cum = cumulative(coords);
   const maneuvers = [];
-  for (const m of leg.maneuvers) {
+  for (const { m, idx } of raw) {
     const def = MANEUVER[m.type];
     if (!def) continue; // 出発・到着など
     maneuvers.push({
-      at: cum[Math.min(m.begin_shape_index, cum.length - 1)],
+      at: cum[Math.min(idx, cum.length - 1)],
       type: m.type,
       kind: def.kind,
       ja: def.ja,
@@ -114,7 +123,7 @@ export function parseTrip(trip) {
     coords,
     cum,
     length: cum[cum.length - 1],
-    time: trip.summary ? trip.summary.time : leg.summary.time,
+    time: trip.summary ? trip.summary.time : trip.legs.reduce((t, l) => t + l.summary.time, 0),
     maneuvers,
   };
 }

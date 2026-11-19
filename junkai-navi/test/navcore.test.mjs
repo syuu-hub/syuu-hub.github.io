@@ -8,17 +8,19 @@ const now = () => clock;
 let seed = 7;
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 
-// 擬似ルーター：進行方向に d1 進み、曲がって目標へ（L字）
+// 擬似ルーター：進行方向に d1 進み、曲がって（通過地点を順に通り）目標へ
 const fakeRouter = {
-  calls: 0,
-  async route(from, to) {
+  calls: 0, viaCalls: 0,
+  async route(from, to, opt = {}) {
     this.calls++;
+    const via = opt.via || [];
+    if (via.length) this.viaCalls++;
     const out = [];
-    for (let k = 0; k < 2; k++) {
+    for (let k = 0; k < (via.length ? 1 : 2); k++) {
       const d1 = 80 + rnd() * 600;
-      const h = from.heading ?? bearing(from.point, to);
+      const h = from.heading ?? bearing(from.point, via[0] || to);
       const a = destination(from.point, h, d1);
-      const coords = [from.point, destination(from.point, h, d1 / 2), a, to];
+      const coords = [from.point, destination(from.point, h, d1 / 2), a, ...via, to];
       const cum = cumulative(coords);
       const turn = bearing(a, to) - h;
       const rightish = ((turn + 360) % 360) < 180;
@@ -41,7 +43,12 @@ demand.update(new Date(clock), 1);
 
 const voices = [];
 let lastRouteEvent = null;
-const nav = new EndlessNavigator({ router: fakeRouter, demand, now, emit: (t, d) => { if (t === 'voice') voices.push(d); if (t === 'route') lastRouteEvent = d; } });
+const passes = [], tourSizes = [];
+const nav = new EndlessNavigator({ router: fakeRouter, demand, now, emit: (t, d) => {
+  if (t === 'voice') voices.push(d);
+  if (t === 'route') { lastRouteEvent = d; tourSizes.push(d.tour.length); }
+  if (t === 'pass') passes.push(d);
+} });
 
 const sleep = () => new Promise((r) => setImmediate(r));
 let fails = 0;
@@ -110,6 +117,44 @@ for (let step = 0; step < 3600; step++) {
     const r = demand.rank(nav.pos, nav.heading, nav.rankOpts()).slice(0, 2).map(x => `${x.area.name}:${x.utility.toFixed(2)}`);
     console.log(step, 'target', nav.target && nav.target.name, 'rem', Math.round(nav.route.length - nav.along), 'sincePlan', (clock - nav.lastPlanAt)/1000, r.join(' '));
   }
+}
+
+// 複数エリアを通るルート（ツアー）
+assert(tourSizes.some((n) => n >= 2), `複数のエリアを通るルートを作る（エリア数: ${tourSizes.join(',')}）`);
+assert(tourSizes.every((n) => n >= 1 && n <= 3), 'エリア数は設定の上限（3）以内');
+assert(passes.length > 0, `途中のエリアを通過したことを検出する（${passes.length} 回）`);
+assert(passes.every((a) => demand.visited.has(a.key)), '通過したエリアは「回った」扱いになる');
+console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.reduce((a, b) => a + b, 0) / tourSizes.length).toFixed(1)} エリア / 途中エリアの通過 ${passes.length} 回 / 通過地点つきの経路計算 ${fakeRouter.viaCalls} 回`);
+
+// 1か所ずつの設定（tourMax=1）では従来どおり
+{
+  const n1 = new EndlessNavigator({ router: fakeRouter, demand, now, settings: { tourMax: 1 }, emit: () => {} });
+  n1.update({ point: center, speed: 0, heading: 90, t: clock });
+  for (let i = 0; i < 20 && !n1.route; i++) await sleep();
+  assert(n1.route && n1.tour.length === 1, '通るエリアの数を1にすると1か所ずつ');
+}
+
+// 一直線に並んだ3つの需要エリア：3つとも通るルートになり、順に通過する
+{
+  const d2 = new DemandEngine();
+  const o = [135.19, 34.69];
+  [800, 1800, 2800].forEach((m, i) => { const p = destination(o, 90, m); d2.spots.push({ id: i, name: `A${i}`, lng: p[0], lat: p[1], cat: 'custom' }); });
+  d2.update(new Date(clock), 1);
+  const ps = [];
+  const n3 = new EndlessNavigator({ router: fakeRouter, demand: d2, now, emit: (t, d) => { if (t === 'pass') ps.push(d.name); } });
+  n3.update({ point: o, speed: 0, heading: 90, t: clock });
+  for (let i = 0; i < 20 && !n3.route; i++) await sleep();
+  assert(n3.tour.map((x) => x.area.name).join('>') === 'A0>A1>A2', `近い順に3エリアを通る: ${n3.tour.map((x) => x.area.name).join('>')}`);
+  assert(n3.tour.slice(0, 2).every((x) => x.at != null), '途中のエリアはルート上にある');
+  for (let s2 = 0; s2 < 400 && n3.route; s2++) {
+    clock += 1000;
+    const p = pointAt(n3.route, n3.along + 12).point;
+    n3.update({ point: p, speed: 12, heading: null, accuracy: 5, t: clock });
+    await sleep();
+    if (ps.length >= 2) break;
+  }
+  assert(ps.join('>') === 'A0>A1', `途中のエリアを順に通過: ${ps.join('>')}`);
+  assert(n3.target && n3.target.name === 'A2', `通過後は次のエリアを案内: ${n3.target && n3.target.name}`);
 }
 
 console.log(`走行 3600秒 / 接続 ${extends_} 回 / 需要変化による切替 ${switches} 回 / 逸脱リルート ${reroutes} 回 / API呼び出し ${fakeRouter.calls} 回 / 音声 ${voices.length} 件`);

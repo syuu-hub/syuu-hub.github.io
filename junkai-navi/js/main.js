@@ -1,10 +1,10 @@
-import { EndlessNavigator } from './navcore.js?v=8';
-import { ValhallaClient } from './valhalla.js?v=8';
-import { DemandEngine, CAT_JA } from './demand.js?v=8';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=8';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=8';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=8';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=8';
+import { EndlessNavigator } from './navcore.js?v=9';
+import { ValhallaClient } from './valhalla.js?v=9';
+import { DemandEngine, CAT_JA } from './demand.js?v=9';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=9';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=9';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=9';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=9';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -23,6 +23,7 @@ const cfg = Object.assign(
     commitSec: 30,
     replanMin: 3,
     switchGain: 1.3,
+    tourMax: 3, // 1回のルートで通る需要エリアの数
     spots: [],
     spotsCenter: null,
     events: [],
@@ -153,6 +154,17 @@ const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAli
 const targetEl = document.createElement('div');
 targetEl.className = 'target-dot';
 const targetMarker = new ML.Marker({ element: targetEl });
+// ツアーで後から通るエリアの印
+let tourMarkers = [];
+function drawTourMarkers(areas) {
+  tourMarkers.forEach((m) => m.remove());
+  tourMarkers = areas.map((a, i) => {
+    const el = document.createElement('div');
+    el.className = 'tour-dot';
+    el.textContent = String(i + 2);
+    return new ML.Marker({ element: el }).setLngLat(a.center).addTo(map);
+  });
+}
 
 // ===== 案内アイコン =====
 function arrowSVG(kind) {
@@ -185,15 +197,30 @@ const nav = new EndlessNavigator({
   emit: (type, data) => {
     if (type === 'voice') { speak(data); }
     else if (type === 'status') { toast(data); }
+    else if (type === 'pass') {
+      const next = nav.tourRemaining()[0];
+      speak(`${demand.areaName(data)}です${next ? `。次は${demand.areaName(next)}へ向かいます` : ''}`);
+      drawRoute();
+    }
     else if (type === 'route') {
-      if (data.mode === 'switch') toast(`需要の変化に合わせて、${demand.areaName(data.target)}へ向かいます`);
-      if (data.mode === 'initial') speak(`巡回を開始します。${demand.areaName(data.target)}へ向かいます`);
+      if (data.mode === 'switch') toast(`需要の変化に合わせて、${tourText(data.tour)}へ向かいます`);
+      if (data.mode === 'initial') speak(`巡回を開始します。${tourSpeech(data.tour)}`);
       drawRoute();
     }
   },
 });
+// 「三宮駅周辺 → 新神戸駅 → 北野」のような表示と、読み上げ用の文
+const shortArea = (a) => (a && a.name) || '需要エリア';
+function tourText(tour) {
+  if (!tour || !tour.length) return '需要エリア';
+  return [demand.areaName(tour[0]), ...tour.slice(1).map(shortArea)].join(' → ');
+}
+function tourSpeech(tour) {
+  if (!tour || tour.length < 2) return `${demand.areaName(tour && tour[0])}へ向かいます`;
+  return `${tour.slice(0, -1).map((a) => demand.areaName(a)).join('、')}を通って、${demand.areaName(tour[tour.length - 1])}へ向かいます`;
+}
 function settingsForNav() {
-  return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000 };
+  return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000, tourMax: Math.min(4, Math.max(1, +cfg.tourMax || 3)) };
 }
 
 let running = false, riding = false, simulate = false, follow = true;
@@ -333,7 +360,7 @@ function stop() {
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   nav.reset();
   drawRoute();
-  puck.remove(); targetMarker.remove();
+  puck.remove(); targetMarker.remove(); drawTourMarkers([]);
   ['banner', 'sheet', 'speed', 'recenter'].forEach((id) => $(id).classList.add('hidden'));
   $('start').classList.remove('hidden');
   map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, bottom: 0 } });
@@ -371,10 +398,13 @@ function setFollow(on) {
 function drawRoute() {
   const src = map.getSource && map.getSource('route');
   if (!src) return;
-  if (!nav.route) { src.setData(empty); targetMarker.remove(); return; }
+  if (!nav.route) { src.setData(empty); targetMarker.remove(); drawTourMarkers([]); return; }
   const coords = sliceRoute(nav.route, nav.along);
   src.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } });
   if (nav.target) targetMarker.setLngLat(nav.target.center).addTo(map);
+  const rest = nav.tourRemaining().slice(1);
+  const sig = rest.map((a) => a.key).join('|');
+  if (sig !== drawRoute.sig) { drawRoute.sig = sig; drawTourMarkers(rest); }
 }
 
 function render() {
@@ -434,7 +464,7 @@ function render() {
   }
   if (v.then) { $('b-then').classList.remove('hidden'); $('b-then-icon').innerHTML = arrowSVG(v.then.kind); }
   else $('b-then').classList.add('hidden');
-  $('s-target').textContent = demand.areaName(v.target);
+  $('s-target').textContent = v.tour && v.tour.length > 1 ? tourText(v.tour) : demand.areaName(v.target);
   $('s-meta').textContent = `${fmtDist(v.remaining)} ・ 約${Math.max(1, Math.round(v.eta / 60))}分 ・ ${weatherJa()}`;
   const lv = demand.level(v.target && demand.areas.get(v.target.key));
   $('s-level').textContent = '需要 ' + '●'.repeat(lv) + '○'.repeat(5 - lv);
@@ -520,6 +550,7 @@ function openSettings() {
   $('set-commit').value = cfg.commitSec;
   $('set-replan').value = cfg.replanMin;
   $('set-gain').value = cfg.switchGain;
+  $('set-tour').value = cfg.tourMax;
   $('set-router').value = cfg.routerUrl;
   $('set-sim').value = cfg.simSpeed;
   $('set-pickups').textContent = `記録 ${cfg.pickups.length} 件（需要の学習に使います）`;
@@ -708,6 +739,7 @@ bind('set-voice', 'voice', Boolean, 'checked');
 bind('set-commit', 'commitSec', Number);
 bind('set-replan', 'replanMin', Number);
 bind('set-gain', 'switchGain', Number);
+bind('set-tour', 'tourMax', (v) => Math.min(4, Math.max(1, Math.round(Number(v)) || 3)));
 bind('set-router', 'routerUrl', (v) => v.trim() || 'https://valhalla1.openstreetmap.de');
 bind('set-sim', 'simSpeed', Number);
 
