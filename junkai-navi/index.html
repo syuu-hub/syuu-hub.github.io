@@ -75,11 +75,30 @@
   <div class="modal-card">
     <div class="modal-head"><h2>設定</h2><button class="close" data-close="settings">×</button></div>
     <div class="modal-body">
-      <h3>需要スポット</h3>
-      <p class="hint" id="set-spots"></p>
-      <div class="row"><button id="btn-fetch" class="btn">現在地周辺から自動取得</button><button id="btn-clear-spots" class="btn ghost">消去</button></div>
+      <h3>需要エリアの入力方法</h3>
+      <div class="seg">
+        <label><input type="radio" name="set-source" value="manual">任意で設定</label>
+        <label><input type="radio" name="set-source" value="csv">タクシーアナライザのCSV</label>
+      </div>
+
+      <div id="src-manual">
+        <p class="hint">周辺の駅・ホテル・病院・繁華街・商業施設を自動で取り込み、時間帯や曜日で需要を推定します。地図を長押しすると、自分の得意な地点を追加できます。</p>
+        <p class="hint" id="set-spots"></p>
+        <div class="row"><button id="btn-fetch" class="btn">現在地周辺から自動取得</button><button id="btn-clear-spots" class="btn ghost">消去</button></div>
+      </div>
+
+      <div id="src-csv" class="hidden">
+        <p class="hint">タクシーアナライザの「出力・設定 → CSV出力 → 営業ログ（全期間）」で保存したCSVを選んでください。乗車した場所と時刻から、今の時間帯に乗車が多いエリアを需要エリアにします。</p>
+        <p class="hint" id="set-csv"></p>
+        <div class="row">
+          <label class="btn file-btn">CSVを選択<input id="csv-file" type="file" accept=".csv,text/csv" hidden></label>
+          <button id="btn-clear-csv" class="btn ghost">消去</button>
+        </div>
+        <label class="check"><input id="set-street-only" type="checkbox">流し・乗り場の乗車だけ使う（アプリ配車・無線・予約を除く）</label>
+      </div>
+
       <label>営業エリア半径（km）<input id="set-radius" type="number" min="1" max="15" step="1"></label>
-      <p class="hint">地図を長押しすると、イベント会場や自分の得意な地点を追加できます。</p>
+      <p class="hint">地図を長押しすると、イベント会場（終了時刻の前後に需要が上がる）も追加できます。</p>
       <div id="event-list"></div>
 
       <h3>天気</h3>
@@ -137,6 +156,6 @@
 window.addEventListener('error', function (e) { var b = document.getElementById('spot-info'); if (b) b.textContent = 'エラー: ' + (e.message || e.target && e.target.src || '読み込み失敗'); }, true);
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
-<script type="module" src="js/main.js?v=5"></script>
+<script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・イベント・自分の乗車記録から需要エリアを算出
-import { haversine, bearing, angleDiff } from './geo.js?v=5';
+import { haversine, bearing, angleDiff } from './geo.js?v=6';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -53,6 +53,7 @@ export class DemandEngine {
     this.spots = []; // {id,name,lng,lat,cat}
     this.events = []; // {id,name,lng,lat,end,size}
     this.pickups = []; // {lng,lat,t}
+    this.csvRides = []; // タクシーアナライザの乗車実績 {lng,lat,t,name,fare}
     this.weather = 'clear'; // clear | rain | heavy
     this.railDisruption = false;
     this.areas = new Map(); // key -> {key, center, name, score, raw}
@@ -91,6 +92,18 @@ export class DemandEngine {
       const ageDays = (now - d) / 864e5;
       const v = 0.8 * (dh === 0 ? 1 : 0.5) * (sameType ? 1 : 0.4) * Math.exp(-ageDays / 60);
       add([p.lng, p.lat], v, '乗車実績', 0.005);
+    }
+
+    // タクシーアナライザの乗車実績：同じ時間帯・曜日タイプほど重く、運賃が高いほど少し重く
+    for (const p of this.csvRides) {
+      const d = new Date(p.t);
+      const dh = Math.min(Math.abs(d.getHours() - h), 24 - Math.abs(d.getHours() - h));
+      const tw = dh === 0 ? 1 : dh === 1 ? 0.5 : dh === 2 ? 0.2 : 0.03; // 時間帯外も少しだけ残す
+      const sameType = (d.getDay() === 0 || d.getDay() === 6) === wk;
+      const ageDays = Math.max(0, (now - d) / 864e5);
+      const fareW = 1 + 0.4 * Math.min(2, (p.fare || 0) / 3000);
+      const v = tw * (sameType ? 1 : 0.5) * Math.exp(-ageDays / 365) * fareW;
+      add([p.lng, p.lat], v, p.name || '乗車実績', p.name ? 0.5 + v : 0.005);
     }
 
     const next = new Map();

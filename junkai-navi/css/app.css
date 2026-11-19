@@ -88,3 +88,5 @@ button { font: inherit; cursor: pointer; }
 .ev button { border: 0; background: none; color: #d93025; font-weight: 700; }
 .maplibregl-ctrl-attrib { font-size: 10px; }
 .maplibregl-ctrl-bottom-right { bottom: calc(262px + var(--sab)); }
+.file-btn { display: inline-flex !important; align-items: center; margin: 0 !important; color: #fff !important; cursor: pointer; }
+.seg label { font-size: 14px; }

@@ -1,5 +1,5 @@
 // Valhalla ルーティング API クライアント
-import { decodePolyline, cumulative } from './geo.js?v=5';
+import { decodePolyline, cumulative } from './geo.js?v=6';
 
 // Valhalla maneuver type → 日本語と矢印種別
 export const MANEUVER = {

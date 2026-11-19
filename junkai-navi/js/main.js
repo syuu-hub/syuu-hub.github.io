@@ -1,8 +1,9 @@
-import { EndlessNavigator } from './navcore.js?v=5';
-import { ValhallaClient } from './valhalla.js?v=5';
-import { DemandEngine, CAT_JA } from './demand.js?v=5';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=5';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=5';
+import { EndlessNavigator } from './navcore.js?v=6';
+import { ValhallaClient } from './valhalla.js?v=6';
+import { DemandEngine, CAT_JA } from './demand.js?v=6';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=6';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=6';
+import { decodeCsv, importAnalyzerCsv, isStreetRide } from './csv.js?v=6';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -26,16 +27,22 @@ const cfg = Object.assign(
     events: [],
     pickups: [],
     lastCenter: null,
+    demandSource: 'manual', // manual: 任意で設定 / csv: タクシーアナライザのCSV
+    csvRides: [],
+    csvStreetOnly: true,
+    csvInfo: null,
   },
   load()
 );
 function load() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(cfg)); } catch { /* 容量超過など */ } }
+function save() { try { localStorage.setItem(STORE, JSON.stringify(cfg)); return true; } catch { return false; /* 容量超過など */ } }
 
 // ===== 需要エンジン =====
 const demand = new DemandEngine();
 function syncDemand() {
-  demand.spots = cfg.spots.concat(cfg.events.filter((e) => e.kind === 'custom').map((e) => ({ ...e, cat: 'custom' })));
+  const manual = cfg.demandSource !== 'csv';
+  demand.spots = manual ? cfg.spots.concat(cfg.events.filter((e) => e.kind === 'custom').map((e) => ({ ...e, cat: 'custom' }))) : [];
+  demand.csvRides = manual ? [] : cfg.csvStreetOnly ? cfg.csvRides.filter(isStreetRide) : cfg.csvRides;
   demand.events = cfg.events.filter((e) => e.kind !== 'custom' && new Date(e.end).getTime() > Date.now() - 2 * 3600e3);
   demand.pickups = cfg.pickups;
   demand.railDisruption = cfg.railManual || odptDisruption;
@@ -295,7 +302,12 @@ async function start(sim) {
   render();
   demandTimer = setInterval(refreshDemand, 60e3);
   loopTimer = setInterval(() => { save(); }, 30e3);
-  ensureSpots(center).then(() => { syncDemand(); demand.update(new Date(), 1); return refreshDemand(); });
+  if (cfg.demandSource === 'csv') {
+    if (!demand.csvRides.length) toast('タクシーアナライザのCSVが読み込まれていません。設定から読み込んでください', 6000);
+    refreshDemand();
+  } else {
+    ensureSpots(center).then(() => { syncDemand(); demand.update(new Date(), 1); return refreshDemand(); });
+  }
 }
 
 function firstPosition() {
@@ -432,13 +444,21 @@ function todayPickups() {
 }
 
 function renderStart() {
+  if (cfg.demandSource === 'csv') {
+    const n = cfg.csvStreetOnly ? cfg.csvRides.filter(isStreetRide).length : cfg.csvRides.length;
+    $('spot-info').innerHTML = cfg.csvRides.length
+      ? `需要エリア：タクシーアナライザのCSV<br>乗車実績 ${n} 件${cfg.csvStreetOnly ? '（流し・乗り場）' : ''}`
+      : '需要エリア：タクシーアナライザのCSV<br>設定からCSVを読み込んでください';
+    return;
+  }
   const n = cfg.spots.length;
   const cats = {};
   for (const s of cfg.spots) cats[s.cat] = (cats[s.cat] || 0) + 1;
   const detail = Object.entries(cats).map(([k, c]) => `${CAT_JA[k]} ${c}`).join('・');
-  $('spot-info').innerHTML = n
-    ? `需要スポット ${n} 件（${detail}）<br>乗車記録 ${cfg.pickups.length} 件`
-    : '開始すると現在地の周辺から駅・ホテル・病院・繁華街などを自動で取得します';
+  const custom = cfg.events.filter((e) => e.kind === 'custom').length;
+  $('spot-info').innerHTML = n || custom
+    ? `需要エリア：任意で設定<br>需要スポット ${n} 件${detail ? `（${detail}）` : ''}${custom ? `・登録地点 ${custom} 件` : ''}`
+    : '需要エリア：任意で設定<br>開始すると現在地の周辺から駅・ホテル・病院・繁華街などを自動で取得します';
 }
 
 // ===== 地図の長押しで地点追加 =====
@@ -480,13 +500,16 @@ $('ap-save').onclick = () => {
   cfg.events.push(item);
   save();
   $('addpoint').classList.add('hidden');
-  toast(kind === 'event' ? `「${name}」を追加しました（終了前後に需要が上がります）` : `「${name}」を需要地点に追加しました`);
+  toast(kind === 'event' ? `「${name}」を追加しました（終了前後に需要が上がります）` : `「${name}」を需要地点に追加しました${cfg.demandSource === 'csv' ? '（「任意で設定」のときに使われます）' : ''}`);
   syncDemand(); demand.update(new Date()); refreshHeat(); renderEvents();
 };
 
 // ===== 設定画面 =====
 function openSettings() {
   $('set-spots').textContent = `取得済み ${cfg.spots.length} 件`;
+  document.querySelectorAll('input[name=set-source]').forEach((r) => (r.checked = r.value === cfg.demandSource));
+  $('set-street-only').checked = cfg.csvStreetOnly;
+  showSourcePanels();
   $('set-radius').value = cfg.radiusKm;
   $('set-weather').value = cfg.weatherMode;
   $('set-rail').checked = cfg.railManual;
@@ -533,6 +556,50 @@ bind('set-replan', 'replanMin', Number);
 bind('set-gain', 'switchGain', Number);
 bind('set-router', 'routerUrl', (v) => v.trim() || 'https://valhalla1.openstreetmap.de');
 bind('set-sim', 'simSpeed', Number);
+
+// ===== 需要エリアの入力方法 =====
+function showSourcePanels() {
+  const csv = cfg.demandSource === 'csv';
+  $('src-manual').classList.toggle('hidden', csv);
+  $('src-csv').classList.toggle('hidden', !csv);
+  const info = cfg.csvInfo;
+  $('set-csv').textContent = cfg.csvRides.length && info
+    ? `読み込み済み：乗車 ${cfg.csvRides.length} 件（${info.from}〜${info.to}）・うち流し・乗り場 ${cfg.csvRides.filter(isStreetRide).length} 件${info.skipped ? `・位置情報なし ${info.skipped} 件は除外` : ''}`
+    : 'まだ読み込まれていません';
+}
+function applyDemandChange() {
+  save(); syncDemand(); demand.areas = new Map(); demand.update(new Date(), 1); refreshHeat(); renderStart();
+}
+document.querySelectorAll('input[name=set-source]').forEach((r) => r.addEventListener('change', () => {
+  cfg.demandSource = r.value;
+  showSourcePanels();
+  applyDemandChange();
+}));
+$('set-street-only').addEventListener('change', () => { cfg.csvStreetOnly = $('set-street-only').checked; applyDemandChange(); showSourcePanels(); });
+$('csv-file').addEventListener('change', async () => {
+  const f = $('csv-file').files[0];
+  $('csv-file').value = '';
+  if (!f) return;
+  try {
+    const { rides, total, skipped } = importAnalyzerCsv(decodeCsv(await f.arrayBuffer()));
+    if (!rides.length) throw new Error(total ? '乗車記録に位置情報（緯度・経度）がありません' : '乗車記録がありません');
+    const d = (t) => new Date(t).toLocaleDateString('ja-JP');
+    cfg.csvRides = rides.map((r) => ({ lng: +r.lng.toFixed(6), lat: +r.lat.toFixed(6), t: r.t, name: r.name, fare: r.fare, kind: r.kind, app: r.app }));
+    cfg.csvInfo = { file: f.name, from: d(rides[0].t), to: d(rides[rides.length - 1].t), skipped };
+    cfg.demandSource = 'csv';
+    document.querySelectorAll('input[name=set-source]').forEach((x) => (x.checked = x.value === 'csv'));
+    applyDemandChange();
+    showSourcePanels();
+    toast(save() ? `乗車実績 ${rides.length} 件を読み込みました` : `乗車実績 ${rides.length} 件を読み込みました（件数が多く端末に保存できないため、次回起動時は読み込み直しが必要です）`, 6000);
+  } catch (e) {
+    toast(e.message, 6000);
+  }
+});
+let clearCsvArmed = 0;
+$('btn-clear-csv').onclick = () => {
+  if (Date.now() - clearCsvArmed > 4000) { clearCsvArmed = Date.now(); toast('もう一度押すと読み込んだCSVを消去します'); return; }
+  cfg.csvRides = []; cfg.csvInfo = null; applyDemandChange(); showSourcePanels(); toast('CSVのデータを消去しました');
+};
 
 $('btn-fetch').onclick = async () => {
   const c = lastFix ? lastFix.point : await firstPosition();
