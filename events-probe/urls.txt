@@ -6,3 +6,4 @@ kcc-cal https://kobe-cc.jp/ja/visitors/upcoming-events/
 bunka-cal https://www.kobe-bunka.jp/hall/date/2026/11/?cat=2
 tottei-ev https://www.totteikobe.jp/event
 storks-sch https://www.storks.jp/schedule/
+run2

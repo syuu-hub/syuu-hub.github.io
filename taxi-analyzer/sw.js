@@ -1,7 +1,7 @@
 // タクシーアナライザー Service Worker
-// 画面（HTML）と場所データ（places.json）はネット優先：つながる時は常に最新を取得してキャッシュを更新、圏外ではキャッシュで起動
+// 画面（HTML）と場所データ（places.json）・イベント（events.json）はネット優先：つながる時は常に最新を取得してキャッシュを更新、圏外ではキャッシュで起動
 // アイコン等の静的ファイルはキャッシュ優先。外部サイト（住所検索・地図）は扱わない
-const CACHE = 'taxi-analyzer-v6';
+const CACHE = 'taxi-analyzer-v7';
 const ASSETS = ['./', './index.html', './places.json', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css'];
 
 self.addEventListener('install', e => {
@@ -18,10 +18,11 @@ self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
   // 場所データ：つながる時は最新、圏外では最後に読んだ内容
-  if (url.pathname.endsWith('/places.json')) {
+  const json = ['/places.json', '/events.json'].find(p => url.pathname.endsWith(p));
+  if (json) {
     e.respondWith(fetch(req, { cache: 'no-cache' })
-      .then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('./places.json', copy)); } return res; })
-      .catch(() => caches.match('./places.json')));
+      .then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('.' + json, copy)); } return res; })
+      .catch(() => caches.match('.' + json)));
     return;
   }
   if (req.mode === 'navigate') {
