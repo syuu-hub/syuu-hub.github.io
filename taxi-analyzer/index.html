@@ -1177,7 +1177,6 @@ svg{display:block}
     <!-- 情報（神戸の主要会場のイベント 1か月分） -->
     <section class="view pane" data-view="info" hidden><div class="view-body">
       <header class="view-head"><h2>情報</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
-      <div class="seg view-sw" id="infoSeg"><button data-it="ev">イベント</button><button data-it="tips">基本の型</button></div>
       <div class="seg inf-filt" id="infoFilt"><button data-if="main">主な</button><button data-if="all">すべて</button></div>
       <div id="infoBody"></div>
     </div></section>
@@ -3638,40 +3637,9 @@ function loadEvents() {
 }
 // その日の営業時間（終わる時刻がいつもの営業時間か、その1時間前）に終わるものだけ。今日すでに終わったものは出さない
 // 情報ページ：今日から1か月のイベントを日ごとに（大きい会場・夜に終わるものが分かるように）
-// 基本の型（流し・アプリ配車・付け待ち・安全）
-function tipsHtml() {
-  const tip = (title, rows) => `<div class="ana-card ana-fold"><div class="af-h"><span class="t">${title}</span></div><div class="af-b"><ul class="tips">${rows.map(r => `<li>${r}</li>`).join('')}</ul></div></div>`;
-  return `
-    ${tip('流し（手上げ）', [
-      '左車線を、制限速度か少し遅めで走る<small>速いと視野が狭くなって見逃し、急ブレーキの事故にもつながる</small>',
-      '前の車との車間を空けて「空車」を見せる',
-      '信号待ちは交差点の左車線の先頭が見つけてもらいやすい<small>先頭にこだわった急ブレーキは厳禁</small>',
-      '曲がるときは左折を優先（歩道側で乗せやすい）',
-      '降ろす前に次の狙いを決めておき、降車地の周りで次を探す（行った先営業）'])}
-    ${tip('アプリ配車', [
-      '朝・夕方・雨の日は必ずオン',
-      '「いまいる場所」ではなく、5〜10分後に需要が高まる場所へ先回り',
-      '迎車地点は、向かう前に着ける向きを確認<small>反対車線に着いてUターンで待たせない</small>',
-      '長距離で郊外に降ろしたら、需要のあるエリアへの帰り道を先に決める',
-      'アプリと会社のルールを守る（連続配車モードなど）'])}
-    ${tip('付け待ち', [
-      '台数より「何分に1台出るか（回転率）」で判断',
-      '10〜15分で乗せられれば良い場所、5分以内ならとても良い場所',
-      '新幹線・飛行機の到着時刻に合わせて、混む便の少し前に入る',
-      '帰る方向や次の狙いに合わせて車の向きを考えて並ぶ',
-      '待つか動くかは、分析「次の営業」の「乗り場は ◯分まで」で決める<small>並ぶ前に「前の台数 × 1台が出る間隔」で待ち時間を見積もり、超えそうなら並ばない</small>'])}
-    ${tip('安全と労働時間', [
-      '近距離のお客さんも断らない（乗車拒否は道路運送法で禁止）',
-      '走行中はアプリを操作しない。止まってから記録する',
-      '労働時間の上限は売上より優先',
-      '昼食後（13〜15時ごろ）は眠気が出やすい。休憩はここに'])}`;
-}
 const INFO = { tab: 'ev' };
 function renderInfo() {
-  $$('#infoSeg [data-it]').forEach(b => b.setAttribute('aria-pressed', b.dataset.it === INFO.tab));
-  $('#infoFilt').hidden = INFO.tab !== 'ev';
   $$('#infoFilt [data-if]').forEach(b => b.setAttribute('aria-pressed', b.dataset.if === (S.settings.infoAll ? 'all' : 'main')));
-  if (INFO.tab === 'tips') { $('#infoBody').innerHTML = tipsHtml(); return; }
   const body = $('#infoBody');
   if (!EVENTS) { body.innerHTML = '<div class="ana-card"><div class="ana-empty">イベント情報を読み込めません</div></div>'; return; }
   const d0 = new Date(); d0.setHours(0, 0, 0, 0);
@@ -3724,7 +3692,6 @@ function openEvent(i) {
   $('#evSheet .rp-body').scrollTop = 0;
   openSheet($('#evSheet'));
 }
-$('#infoSeg').addEventListener('click', e => { const b = e.target.closest('[data-it]'); if (!b) return; haptic(); INFO.tab = b.dataset.it; renderInfo(); $('.view[data-view="info"]').scrollTop = 0; });
 $('#infoFilt').addEventListener('click', e => { const b = e.target.closest('[data-if]'); if (!b) return; haptic(); S.settings.infoAll = b.dataset.if === 'all'; saveSoon(); renderInfo(); });
 $('#infoBody').addEventListener('click', e => { const li = e.target.closest('[data-evi]'); if (li) { haptic(); openEvent(+li.dataset.evi); } });
 // 次の営業のイベントの行 → 情報ページのその日へ
@@ -4077,7 +4044,6 @@ ${trView === 'month' ? (months.length ? `      <div class="mbars">${months.map(m
 /* ============================================================
    アドバイス：記録から「いま一番効く改善」を見つけて、理由（数字）とやることを並べる
    ・直近90日の記録から判定。効果の見込み（1日あたりの円）が大きい順に並べる
-   ・下に、流し・アプリ・付け待ちの基本の型（記録が少なくても見られる）
    ============================================================ */
 function adviceList() {
   const A = analyze('90'), D = A.dayList;
