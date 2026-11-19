@@ -1,10 +1,10 @@
 // 登録地点（任意で設定する需要地点・イベント会場）
 // ・住所から緯度経度を調べる（国土地理院の住所検索 → 見つからなければ OpenStreetMap の Nominatim）
 // ・CSV への書き出しと読み込み
-import { fetchT } from './sources.js?v=14';
-import { parseCsv, importAnalyzerCsv, placeKey, rideFilter } from './csv.js?v=14';
-import { haversine } from './geo.js?v=14';
-import { logProf, manualProf, parseHours, parseDays, hoursText, daysText } from './profile.js?v=14';
+import { fetchT } from './sources.js?v=15';
+import { parseCsv, importAnalyzerCsv, placeKey, rideFilter } from './csv.js?v=15';
+import { haversine } from './geo.js?v=15';
+import { logProf, manualProf, parseHours, parseDays, hoursText, daysText } from './profile.js?v=15';
 
 // 日本付近の座標か
 export const inJapan = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng) && lat > 20 && lat < 46 && lng > 122 && lng < 154;

@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#116a3f">
+<meta name="theme-color" content="#f6fbf3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1511" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -33,7 +34,7 @@
 
 <!-- 再センター -->
 <button id="recenter" class="recenter hidden" aria-label="現在地に戻る">
-  <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7z" fill="#1a73e8"/></svg>
+  <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
   <span>中央に戻す</span>
 </button>
 
@@ -49,23 +50,23 @@
     <span id="s-level" class="s-level"></span>
   </div>
   <div class="tiles">
-    <button id="btn-ride" class="tile tile-primary"><span class="ti">⏸</span><span id="btn-ride-label">休止</span></button>
-    <button id="btn-heat" class="tile"><span class="ti">🔥</span><span>需要マップ</span></button>
-    <button id="btn-settings2" class="tile"><span class="ti">⚙️</span><span>設定</span></button>
-    <button id="btn-stop" class="tile tile-danger"><span class="ti">■</span><span>終了</span></button>
+    <button id="btn-ride" class="tile tile-primary"><span class="ti"><svg class="i ic-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg><svg class="i ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="btn-ride-label">休止</span></button>
+    <button id="btn-heat" class="tile"><span class="ti"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.48 12.35c-1.57-4.08-7.16-4.3-5.81-10.23.1-.44-.37-.78-.75-.55C9.29 3.71 6.68 8 8.87 13.62c.18.46-.36.89-.75.59-1.81-1.37-2-3.34-1.84-4.75.06-.52-.62-.77-.91-.34C4.69 10.16 4 11.84 4 14.37c.38 5.6 5.11 7.32 6.81 7.54 2.43.31 5.06-.14 6.95-1.87 2.08-1.93 2.84-5.01 1.72-7.69zm-9.28 5.03c1.44-.35 2.18-1.39 2.38-2.31.33-1.43-.96-2.83-.09-5.09.33 1.87 3.27 3.04 3.27 5.08.08 2.53-2.66 4.7-5.56 2.32z"/></svg></span><span>需要マップ</span></button>
+    <button id="btn-settings2" class="tile"><span class="ti"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></span><span>設定</span></button>
+    <button id="btn-stop" class="tile tile-danger"><span class="ti"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg></span><span>終了</span></button>
   </div>
 </div>
 
 <!-- 開始画面 -->
 <div id="start" class="overlay">
   <div class="start-card">
-    <div class="logo">🚕</div>
+    <div class="logo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5H15V3H9v2H6.5c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg></div>
     <h1>巡回ナビ</h1>
     <p class="lead">需要エリアを回り続けるエンドレスナビ。目的地の設定は不要です。</p>
     <div id="spot-info" class="spot-info"></div>
-    <button id="btn-start" class="big primary">巡回を開始</button>
-    <button id="btn-sim" class="big">シミュレーションで試す</button>
-    <button id="btn-settings" class="big ghost">設定</button>
+    <button id="btn-start" class="big primary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>巡回を開始</button>
+    <button id="btn-sim" class="big tonal"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>シミュレーションで試す</button>
+    <button id="btn-settings" class="big ghost"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>設定</button>
     <p class="fine">地図 © OpenStreetMap contributors / OpenFreeMap / OpenMapTiles<br>ルート計算 Valhalla</p>
   </div>
 </div>
@@ -73,67 +74,79 @@
 <!-- 設定 -->
 <div id="settings" class="modal hidden">
   <div class="modal-card">
-    <div class="modal-head"><h2>設定</h2><button class="close" data-close="settings">×</button></div>
+    <div class="modal-head"><h2>設定</h2><button class="close" data-close="settings" aria-label="閉じる"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
     <div class="modal-body">
-      <h3>需要エリアの入力方法</h3>
-      <div class="seg">
-        <label><input type="radio" name="set-source" value="manual">任意で設定</label>
-        <label><input type="radio" name="set-source" value="csv">タクシーアナライザのCSV</label>
-      </div>
-
-      <div id="src-manual">
-        <p class="hint">周辺の駅・ホテル・病院・繁華街・商業施設を自動で取り込み、時間帯や曜日で需要を推定します。自分の得意な地点は、下の「登録地点」から住所で追加するか、地図を長押しして追加できます。</p>
-        <p class="hint" id="set-spots"></p>
-        <div class="row"><button id="btn-fetch" class="btn">現在地周辺から自動取得</button><button id="btn-clear-spots" class="btn ghost">消去</button></div>
-      </div>
-
-      <div id="src-csv" class="hidden">
-        <p class="hint">タクシーアナライザの「出力・設定 → CSV出力 → 営業ログ（全期間）」で保存したCSVを選んでください。乗車した場所と時刻から、今の時間帯に乗車が多いエリアを需要エリアにします。</p>
-        <p class="hint" id="set-csv"></p>
-        <div class="row">
-          <label class="btn file-btn">CSVを選択<input id="csv-file" type="file" accept=".csv,text/csv" hidden></label>
-          <button id="btn-clear-csv" class="btn ghost">消去</button>
+      <section class="group">
+        <h3>需要エリア</h3>
+        <p class="hint">需要エリアの元にするデータを選びます。</p>
+        <div class="seg">
+          <label><input type="radio" name="set-source" value="manual">任意で設定</label>
+          <label><input type="radio" name="set-source" value="csv">アナライザのCSV</label>
         </div>
-      </div>
+        <div id="src-manual">
+          <p class="hint" style="margin-top:12px">周辺の駅・ホテル・病院・繁華街・商業施設を自動で取り込み、時間帯や曜日で需要を推定します。自分の得意な地点は「登録地点」から追加できます。</p>
+          <p class="hint" id="set-spots"></p>
+          <div class="row"><button id="btn-fetch" class="btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>現在地周辺から自動取得</button><button id="btn-clear-spots" class="btn danger">消去</button></div>
+        </div>
+        <div id="src-csv" class="hidden">
+          <p class="hint" style="margin-top:12px">タクシーアナライザの「出力・設定 → CSV出力 → 営業ログ（全期間）」で保存したCSVを選んでください。乗車した場所と時刻から、今の時間帯に乗車が多いエリアを需要エリアにします。</p>
+          <p class="hint" id="set-csv"></p>
+          <div class="row">
+            <label class="btn file-btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>CSVを選択<input id="csv-file" type="file" accept=".csv,text/csv" hidden></label>
+            <button id="btn-clear-csv" class="btn danger">消去</button>
+          </div>
+        </div>
+        <label>営業エリア半径（km）<input id="set-radius" type="number" min="1" max="15" step="1"></label>
+      </section>
 
-      <h3>タクシーアナライザの乗車で使う種類</h3>
-      <p class="hint">営業ログCSVの乗車のうち、どれを需要に使うか（「タクシーアナライザのCSV」と、登録地点への読み込みの両方に使います）。初期は流しだけ：乗り場は待てば乗れる場所なので巡回先から外し、アプリ配車・無線・予約は呼ばれた場所なので外します。</p>
-      <label class="check"><input name="set-kind" value="street" type="checkbox">流し</label>
-      <label class="check"><input name="set-kind" value="stand" type="checkbox">乗り場</label>
-      <label class="check"><input name="set-kind" value="app" type="checkbox">アプリ配車・無線・予約</label>
+      <section class="group">
+        <h3>タクシーアナライザの乗車で使う種類</h3>
+        <p class="hint">「アナライザのCSV」と、登録地点への読み込みの両方に使います。初期は流しだけ（乗り場は待てば乗れる場所、アプリ配車・無線・予約は呼ばれた場所なので外します）。</p>
+        <div class="chips">
+          <label><input name="set-kind" value="street" type="checkbox">流し</label>
+          <label><input name="set-kind" value="stand" type="checkbox">乗り場</label>
+          <label><input name="set-kind" value="app" type="checkbox">アプリ配車・無線・予約</label>
+        </div>
+      </section>
 
-      <label>営業エリア半径（km）<input id="set-radius" type="number" min="1" max="15" step="1"></label>
-      <h3>登録地点・イベント</h3>
-      <p class="hint">住所を入力して、自分の得意な地点（常設）やイベント会場（終了時刻の前後に需要が上がる）を登録できます。一覧で追加・編集・削除、CSVで読み込み・保存ができ、この端末の中に保存されます。</p>
-      <button id="btn-places" class="btn">登録地点の一覧を開く</button>
+      <section class="group">
+        <h3>登録地点・イベント</h3>
+        <p class="hint">住所から、得意な地点（常設・時間帯や曜日も指定可）やイベント会場（終了時刻の前後に需要が上がる）を登録します。CSVで読み込み・保存でき、この端末に保存されます。</p>
+        <div class="row"><button id="btn-places" class="btn ghost"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>登録地点の一覧を開く</button></div>
+      </section>
 
-      <h3>天気</h3>
-      <select id="set-weather">
-        <option value="auto">自動（Open-Meteo）</option>
-        <option value="clear">晴れ・曇り</option>
-        <option value="rain">雨</option>
-        <option value="heavy">大雨・雪</option>
-      </select>
+      <section class="group">
+        <h3>天気・鉄道</h3>
+        <label>天気<select id="set-weather">
+          <option value="auto">自動（Open-Meteo）</option>
+          <option value="clear">晴れ・曇り</option>
+          <option value="rain">雨</option>
+          <option value="heavy">大雨・雪</option>
+        </select></label>
+        <label class="check"><input id="set-rail" type="checkbox">鉄道の遅延・運転見合わせが発生中</label>
+        <p class="hint">オンにすると駅の需要を上げます。</p>
+        <label>ODPT APIキー（任意）<input id="set-odpt" type="text" placeholder="未設定なら手動のみ" autocomplete="off"></label>
+      </section>
 
-      <h3>鉄道</h3>
-      <label class="check"><input id="set-rail" type="checkbox">遅延・運転見合わせが発生中（駅の需要を上げる）</label>
-      <label>ODPT APIキー（任意）<input id="set-odpt" type="text" placeholder="未設定なら手動のみ" autocomplete="off"></label>
+      <section class="group">
+        <h3>案内</h3>
+        <label class="check"><input id="set-voice" type="checkbox">音声案内</label>
+        <label>1回のルートで通る需要エリアの数（1〜4）<input id="set-tour" type="number" min="1" max="4" step="1"></label>
+        <p class="hint">候補のエリアが近くに複数あるときは、それらを順に通り抜けるルートにします（1つ先まで2.5km以内・全体8km以内）。1にすると1か所ずつ向かいます。</p>
+        <label>一度通ったエリアに、また向かうまでの時間（分）<input id="set-revisit" type="number" min="15" max="180" step="5"></label>
+        <p class="hint">通ったエリア（と、その500m以内）はこの時間は行き先にしません。最近走った道を4割以上通るルートも、他に案があれば使いません。</p>
+        <label>確定区間（秒）<input id="set-commit" type="number" min="15" max="90" step="5"></label>
+        <p class="hint">この時間内に通る道は変更しません。</p>
+        <label>需要による切替の最小間隔（分）<input id="set-replan" type="number" min="1" max="30" step="1"></label>
+        <label>切替に必要な需要の差（倍）<input id="set-gain" type="number" min="1.05" max="3" step="0.05"></label>
+      </section>
 
-      <h3>案内</h3>
-      <label class="check"><input id="set-voice" type="checkbox">音声案内</label>
-      <label>確定区間（秒）：この時間内に通る道は変更しません<input id="set-commit" type="number" min="15" max="90" step="5"></label>
-      <label>需要による切替の最小間隔（分）<input id="set-replan" type="number" min="1" max="30" step="1"></label>
-      <label>切替に必要な需要の差（倍）<input id="set-gain" type="number" min="1.05" max="3" step="0.05"></label>
-      <label>1回のルートで通る需要エリアの数（1〜4）<input id="set-tour" type="number" min="1" max="4" step="1"></label>
-      <label>一度通ったエリアに、また向かうまでの時間（分）<input id="set-revisit" type="number" min="15" max="180" step="5"></label>
-      <p class="hint">通ったエリア（と、その500m以内）は、この時間は行き先にしません。最近走った道を4割以上通るルートも、他に案があれば使いません（同じ所をぐるぐる回らないように）。</p>
-      <p class="hint">候補のエリアが近くに複数あるときは、それらを順に通り抜けるルートにします（近い順に、1つ先まで2.5km以内・全体で8km以内）。1にすると1か所ずつ向かいます。</p>
-
-
-      <h3>詳細</h3>
-      <label>ルートサーバーURL<input id="set-router" type="url"></label>
-      <p class="hint">初期値は FOSSGIS の公開サーバー（毎秒1回まで・個人の試用向け）。本格運用は自前の Valhalla を指定してください。</p>
-      <label>シミュレーション速度（km/h）<input id="set-sim" type="number" min="10" max="80" step="5"></label>
+      <section class="group">
+        <h3>詳細</h3>
+        <label>ルートサーバーURL<input id="set-router" type="url"></label>
+        <p class="hint">初期値は FOSSGIS の公開サーバー（毎秒1回まで・個人の試用向け）。本格運用は自前の Valhalla を指定してください。</p>
+        <label>シミュレーション速度（km/h）<input id="set-sim" type="number" min="10" max="80" step="5"></label>
+      </section>
     </div>
   </div>
 </div>
@@ -141,14 +154,14 @@
 <!-- 登録地点の一覧 -->
 <div id="places" class="modal hidden">
   <div class="modal-card">
-    <div class="modal-head"><h2>登録地点 <small id="pl-count" class="pl-count"></small></h2><button class="close" data-close="places">×</button></div>
+    <div class="modal-head"><h2>登録地点 <small id="pl-count" class="pl-count"></small></h2><button class="close" data-close="places" aria-label="閉じる"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
     <div class="modal-body">
       <div class="row pl-actions">
-        <button id="pl-add" class="btn">＋ 住所から追加</button>
-        <label class="btn ghost file-btn pl-file">CSVで読み込み<input id="pl-csv" type="file" accept=".csv,text/csv" hidden></label>
-        <button id="pl-export" class="btn ghost">CSVで保存</button>
+        <button id="pl-add" class="btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>住所から追加</button>
+        <label class="btn ghost file-btn pl-file"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>CSVで読み込み<input id="pl-csv" type="file" accept=".csv,text/csv" hidden></label>
+        <button id="pl-export" class="btn ghost"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>CSVで保存</button>
       </div>
-      <p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度, 乗車回数, 時間帯（例 7-10, 18-24）, 曜日（例 平日、土日、月水金）。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。設定の「タクシーアナライザの乗車で使う種類」に従い、初期は流しだけ（乗り場・アプリ配車等を除く）です。読み込み直すと、対象外になった場所は一覧から消えます）。</p>
+      <details class="more"><summary>CSVの形式と営業ログの読み込み</summary><p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度, 乗車回数, 時間帯（例 7-10, 18-24）, 曜日（例 平日、土日、月水金）。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。設定の「タクシーアナライザの乗車で使う種類」に従い、初期は流しだけ（乗り場・アプリ配車等を除く）です。読み込み直すと、対象外になった場所は一覧から消えます）。</p></details>
 
       <form id="pl-form" class="pl-form hidden" autocomplete="off">
         <h3 id="pl-form-title">住所から追加</h3>
@@ -170,8 +183,8 @@
           <label>規模<select id="pl-size"><option value="s">小（〜千人）</option><option value="m" selected>中（〜1万人）</option><option value="l">大（1万人〜）</option></select></label>
         </div>
         <div class="row">
+          <button id="pl-cancel" type="button" class="btn text">やめる</button>
           <button id="pl-save" type="submit" class="btn">住所を調べて保存</button>
-          <button id="pl-cancel" type="button" class="btn ghost">やめる</button>
         </div>
       </form>
 
@@ -183,7 +196,7 @@
 <!-- 地点追加 -->
 <div id="addpoint" class="modal hidden">
   <div class="modal-card small">
-    <div class="modal-head"><h2>この地点を追加</h2><button class="close" data-close="addpoint">×</button></div>
+    <div class="modal-head"><h2>この地点を追加</h2><button class="close" data-close="addpoint" aria-label="閉じる"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
     <div class="modal-body">
       <label>名前<input id="ap-name" type="text" placeholder="例：〇〇ホール"></label>
       <div class="seg">
@@ -205,6 +218,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=14"></script>
+<script type="module" src="js/main.js?v=15"></script>
 </body>
 </html>
