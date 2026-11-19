@@ -1,7 +1,4 @@
-cruise https://www.city.kobe.lg.jp/a14075/kanko/leisure/harbor/passenger/schedule/index2020.html
-cruise-pr https://www.city.kobe.lg.jp/a44800/537934214235.html
-npb-08 https://npb.jp/games/2026/schedule_08_detail.html
-npb-11 https://npb.jp/games/2026/schedule_11_detail.html
-koshien https://koshien.hanshin.co.jp/
-spokyo https://www.kobe-spokyo.jp/
-glion-d https://www.totteikobe.jp/event/article/30480
+meriken https://www.kobe-meriken.or.jp/terminal/eta/
+koshien-ev https://koshien.hanshin.co.jp/event/
+npb-03 https://npb.jp/games/2026/schedule_03_detail.html
+npb-05 https://npb.jp/games/2026/schedule_05_detail.html
