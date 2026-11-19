@@ -2,7 +2,7 @@
 // ・住所から緯度経度を調べる（国土地理院の住所検索 → 見つからなければ OpenStreetMap の Nominatim）
 // ・CSV への書き出しと読み込み
 import { fetchT } from './sources.js?v=7';
-import { parseCsv, importAnalyzerCsv, placeKey, isStreetRide } from './csv.js?v=7';
+import { parseCsv, importAnalyzerCsv, placeKey, rideFilter } from './csv.js?v=7';
 import { haversine } from './geo.js?v=7';
 
 // 日本付近の座標か
@@ -82,11 +82,11 @@ export function centerOf(points) {
 const shortName = (a) => String(a || '').replace(/^.{2,3}?[都道府県]/, '').replace(/^[^市]{1,6}市(?=[^市]+区)/, '') || a;
 
 // タクシーアナライザの営業ログ → 乗車した場所ごとにまとめた登録地点（乗車回数つき）
-// streetOnly：流し・乗り場の乗車だけ（アプリ配車・無線・予約は呼ばれた場所なので除く）
-export function analyzerToPlaces(text, { streetOnly = false } = {}) {
+// kinds：使う乗車の種類 { street, stand, app }（省略時はすべて）
+export function analyzerToPlaces(text, { kinds = null } = {}) {
   const all = importAnalyzerCsv(text);
   const { total, skipped } = all;
-  const rides = streetOnly ? all.rides.filter(isStreetRide) : all.rides;
+  const rides = kinds ? all.rides.filter(rideFilter(kinds)) : all.rides;
   const by = new Map();
   for (const r of rides) {
     const k = placeKey(r);
@@ -100,7 +100,7 @@ export function analyzerToPlaces(text, { streetOnly = false } = {}) {
   const items = [...by.values()].map((g) => {
     const addrs = [...g.addrs.entries()].sort((a, b) => b[1] - a[1]).map((x) => x[0]);
     const addr = addrs[0] || '';
-    const it = { name: g.name, addr, kind: 'custom', rides: g.rides, q: [...new Set(addrs.flatMap((a) => queryCandidates(g.name, a)).concat(queryCandidates(g.name, '')))] };
+    const it = { name: g.name, addr, kind: 'custom', rides: g.rides, fromLog: true, q: [...new Set(addrs.flatMap((a) => queryCandidates(g.name, a)).concat(queryCandidates(g.name, '')))] };
     if (g.lat != null) { it.lat = +g.lat.toFixed(6); it.lng = +g.lng.toFixed(6); }
     return it;
   }).sort((a, b) => b.rides - a.rides);
@@ -134,14 +134,14 @@ export function placesToCsv(list) {
 
 // 戻り値：{ items: [{name, addr, kind, end?, size?, lat?, lng?}], errors: [行番号: 理由] }
 // 緯度・経度が無い行は、取り込み時に住所から調べる
-export function csvToPlaces(text, { streetOnly = false } = {}) {
+export function csvToPlaces(text, { kinds = null } = {}) {
   text = String(text || '').replace(/^\ufeff/, '');
   const rows = parseCsv(text);
   const head = (rows.shift() || []).map((h) => h.trim());
   // タクシーアナライザの営業ログなら、乗車した場所ごとにまとめる
   if (isAnalyzerLog(head)) {
-    const { items, total, used, skipped } = analyzerToPlaces(text, { streetOnly });
-    return { items, errors: skipped ? [`位置も施設名・住所もない乗車 ${skipped}件`] : [], analyzer: { total, used, streetOnly } };
+    const { items, total, used, skipped } = analyzerToPlaces(text, { kinds });
+    return { items, errors: skipped ? [`位置も施設名・住所もない乗車 ${skipped}件`] : [], analyzer: { total, used } };
   }
   const ci = (...names) => { for (const n of names) { const i = head.indexOf(n); if (i >= 0) return i; } return -1; };
   const iName = ci('名前', '名称', '施設名'), iAddr = ci('住所', '所在地'), iKind = ci('種類', '種別');
@@ -172,14 +172,19 @@ export function csvToPlaces(text, { streetOnly = false } = {}) {
   return { items, errors };
 }
 
-// 同じ名前・住所の地点は上書き、それ以外は追加。戻り値：{ list, added, updated }
-export function mergePlaces(list, incoming, newId = () => 'u' + Date.now() + Math.random().toString(36).slice(2, 6)) {
-  const out = list.slice();
+// 同じ名前・住所の地点は上書き、それ以外は追加。戻り値：{ list, added, updated, removed }
+// replaceLog：営業ログから登録した地点のうち、今回の読み込みに含まれないもの（除外した種類の乗車だけの場所など）を消す
+export function mergePlaces(list, incoming, newId = () => 'u' + Date.now() + Math.random().toString(36).slice(2, 6), { replaceLog = false } = {}) {
+  const same = (p, it) => p.name === it.name && (p.addr || '') === (it.addr || '');
+  const isLog = (p) => p.fromLog || (p.kind !== 'event' && p.rides > 0);
+  const kept = replaceLog ? list.filter((p) => !isLog(p) || incoming.some((it) => same(p, it))) : list;
+  const removed = list.length - kept.length;
+  const out = kept.slice();
   let added = 0, updated = 0;
   for (const it of incoming) {
-    const i = out.findIndex((p) => p.name === it.name && (p.addr || '') === (it.addr || ''));
+    const i = out.findIndex((p) => same(p, it));
     if (i >= 0) { out[i] = { ...out[i], ...it, id: out[i].id }; updated++; }
     else { out.push({ ...it, id: newId() }); added++; }
   }
-  return { list: out, added, updated };
+  return { list: out, added, updated, removed };
 }

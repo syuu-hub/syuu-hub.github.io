@@ -94,8 +94,13 @@
           <label class="btn file-btn">CSVを選択<input id="csv-file" type="file" accept=".csv,text/csv" hidden></label>
           <button id="btn-clear-csv" class="btn ghost">消去</button>
         </div>
-        <label class="check"><input id="set-street-only" type="checkbox">流し・乗り場の乗車だけ使う（アプリ配車・無線・予約を除く）</label>
       </div>
+
+      <h3>タクシーアナライザの乗車で使う種類</h3>
+      <p class="hint">営業ログCSVの乗車のうち、どれを需要に使うか（「タクシーアナライザのCSV」と、登録地点への読み込みの両方に使います）。初期は流しだけ：乗り場は待てば乗れる場所なので巡回先から外し、アプリ配車・無線・予約は呼ばれた場所なので外します。</p>
+      <label class="check"><input name="set-kind" value="street" type="checkbox">流し</label>
+      <label class="check"><input name="set-kind" value="stand" type="checkbox">乗り場</label>
+      <label class="check"><input name="set-kind" value="app" type="checkbox">アプリ配車・無線・予約</label>
 
       <label>営業エリア半径（km）<input id="set-radius" type="number" min="1" max="15" step="1"></label>
       <h3>登録地点・イベント</h3>
@@ -143,7 +148,7 @@
         <label class="btn ghost file-btn pl-file">CSVで読み込み<input id="pl-csv" type="file" accept=".csv,text/csv" hidden></label>
         <button id="pl-export" class="btn ghost">CSVで保存</button>
       </div>
-      <p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。「流し・乗り場の乗車だけ使う」の設定に従います）。</p>
+      <p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。設定の「タクシーアナライザの乗車で使う種類」に従い、初期は流しだけ（乗り場・アプリ配車等を除く）です。読み込み直すと、対象外になった場所は一覧から消えます）。</p>
 
       <form id="pl-form" class="pl-form hidden" autocomplete="off">
         <h3 id="pl-form-title">住所から追加</h3>
