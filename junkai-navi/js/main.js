@@ -1,10 +1,10 @@
-import { EndlessNavigator } from './navcore.js?v=12';
-import { ValhallaClient } from './valhalla.js?v=12';
-import { DemandEngine, CAT_JA } from './demand.js?v=12';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=12';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=12';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=12';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=12';
+import { EndlessNavigator } from './navcore.js?v=13';
+import { ValhallaClient } from './valhalla.js?v=13';
+import { DemandEngine, CAT_JA } from './demand.js?v=13';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=13';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=13';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=13';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=13';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -25,6 +25,7 @@ const cfg = Object.assign(
     switchGain: 1.3,
     tourMax: 3, // 1回のルートで通る需要エリアの数
     revisitMin: 60, // 一度通ったエリアに、また向かうまでの時間（分）
+    sheetCollapsed: false, // 巡回中の表示エリアをたたんでいるか
     spots: [],
     spotsCenter: null,
     events: [],
@@ -93,6 +94,8 @@ function createNullMap(center) {
     addSource: (id) => { srcs[id] = { setData() {} }; },
     getSource: (id) => srcs[id],
     addLayer: (l) => { layers[l.id] = l; },
+    addImage() {},
+    hasImage: () => true,
     getLayer: (id) => layers[id],
     getCanvasContainer: () => el,
     easeTo() {},
@@ -143,12 +146,55 @@ map.on('load', () => {
         0, 'rgba(255,152,0,0)', 0.1, 'rgba(255,183,77,0.3)', 0.35, 'rgba(255,152,0,0.5)', 0.65, 'rgba(245,124,0,0.68)', 1, 'rgba(230,81,0,0.85)'],
     },
   }, firstSymbol);
+  // ルートは区間ごとに分けて描く：次のポイントまで（leg=0）は濃い青で太く上に、その先（leg>=1）は細く淡く下に。
+  // 同じ交差点を2回通る時も、今進む線が上に見え、線上の矢印で向きがわかる。次の右左折は白い矢印で示す
+  addArrowImages();
   map.addSource('route', { type: 'geojson', data: empty });
-  map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#0b57d0', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 7, 18, 22] } }, firstSymbol);
-  map.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#4c8df6', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 4.5, 18, 16] } }, firstSymbol);
+  map.addSource('turn', { type: 'geojson', data: empty });
+  const lw = (a, b) => ['interpolate', ['linear'], ['zoom'], 12, a, 18, b];
+  const lineLayout = { 'line-join': 'round', 'line-cap': 'round' };
+  map.addLayer({ id: 'route-later-casing', type: 'line', source: 'route', filter: ['>=', ['get', 'leg'], 1], layout: lineLayout, paint: { 'line-color': '#5b6f99', 'line-width': lw(5, 14), 'line-opacity': 0.55 } }, firstSymbol);
+  map.addLayer({ id: 'route-later-line', type: 'line', source: 'route', filter: ['>=', ['get', 'leg'], 1], layout: lineLayout, paint: { 'line-color': '#a8c3f5', 'line-width': lw(3, 9), 'line-opacity': 0.85 } }, firstSymbol);
+  map.addLayer({ id: 'route-later-arrows', type: 'symbol', source: 'route', filter: ['>=', ['get', 'leg'], 1],
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 70, 'icon-image': 'chev-later', 'icon-size': lw(0.35, 0.8), 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map' } });
+  map.addLayer({ id: 'route-casing', type: 'line', source: 'route', filter: ['==', ['get', 'leg'], 0], layout: lineLayout, paint: { 'line-color': '#0b57d0', 'line-width': lw(7, 22) } });
+  map.addLayer({ id: 'route-line', type: 'line', source: 'route', filter: ['==', ['get', 'leg'], 0], layout: lineLayout, paint: { 'line-color': '#4c8df6', 'line-width': lw(4.5, 16) } });
+  map.addLayer({ id: 'route-arrows', type: 'symbol', source: 'route', filter: ['==', ['get', 'leg'], 0],
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 60, 'icon-image': 'chev-now', 'icon-size': lw(0.45, 1.1), 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map' } });
+  // 次の右左折：交差点の手前から曲がった先までの白い矢印
+  map.addLayer({ id: 'turn-casing', type: 'line', source: 'turn', filter: ['==', ['geometry-type'], 'LineString'], layout: lineLayout, paint: { 'line-color': '#0b3d91', 'line-width': lw(6, 18) } });
+  map.addLayer({ id: 'turn-line', type: 'line', source: 'turn', filter: ['==', ['geometry-type'], 'LineString'], layout: lineLayout, paint: { 'line-color': '#ffffff', 'line-width': lw(3, 10) } });
+  map.addLayer({ id: 'turn-head', type: 'symbol', source: 'turn', filter: ['==', ['geometry-type'], 'Point'],
+    layout: { 'icon-image': 'turn-head', 'icon-size': lw(0.45, 1.2), 'icon-rotate': ['get', 'rot'], 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
   refreshHeat();
 });
 map.on('dragstart', () => { if (running) setFollow(false); });
+
+// 線の上の矢印（シェブロン）と、右左折の矢じりの画像
+function addArrowImages() {
+  const make = (draw, size = 48) => {
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    const x = c.getContext('2d'); draw(x, size);
+    return x.getImageData(0, 0, size, size);
+  };
+  // 右向き（線の進む向き）のシェブロン
+  const chev = (fill, stroke) => make((x, s) => {
+    x.lineJoin = 'round'; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(s * 0.32, s * 0.2); x.lineTo(s * 0.68, s * 0.5); x.lineTo(s * 0.32, s * 0.8);
+    x.strokeStyle = stroke; x.lineWidth = s * 0.2; x.stroke();
+    x.strokeStyle = fill; x.lineWidth = s * 0.1; x.stroke();
+  });
+  // 上向き（進む向き）の矢じり
+  const head = make((x, s) => {
+    x.beginPath(); x.moveTo(s * 0.5, s * 0.08); x.lineTo(s * 0.92, s * 0.72); x.lineTo(s * 0.08, s * 0.72); x.closePath();
+    x.lineJoin = 'round'; x.strokeStyle = '#0b3d91'; x.lineWidth = s * 0.1; x.stroke(); x.fillStyle = '#fff'; x.fill();
+  }, 64);
+  try {
+    map.addImage('chev-now', chev('#ffffff', '#0b57d0'), { pixelRatio: 2 });
+    map.addImage('chev-later', chev('#5b6f99', '#ffffff'), { pixelRatio: 2 });
+    map.addImage('turn-head', head, { pixelRatio: 2 });
+  } catch { /* 地図が使えない端末 */ }
+}
 
 const puckEl = document.createElement('div');
 puckEl.className = 'puck';
@@ -397,11 +443,35 @@ function drawRoute() {
   const src = map.getSource && map.getSource('route');
   if (!src) return;
   if (!nav.route) { src.setData(empty); drawTourMarkers([]); drawRoute.sig = null; return; }
-  const coords = sliceRoute(nav.route, nav.along);
-  src.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } });
+  // 区間ごとに分ける：今いる所 → 次のポイント（leg=0）、その先は次のポイントごとに leg=1,2,…
+  const cuts = nav.tour.filter((x) => !x.passed && x.at > nav.along + 5).map((x) => x.at).sort((a, b) => a - b);
+  const edges = [nav.along, ...cuts.filter((a) => a < nav.route.length - 5), nav.route.length];
+  const features = [];
+  for (let i = 0; i < edges.length - 1; i++) {
+    const c = sliceRoute(nav.route, edges[i], edges[i + 1]);
+    if (c.length >= 2) features.push({ type: 'Feature', properties: { leg: i }, geometry: { type: 'LineString', coordinates: c } });
+  }
+  // 遠い区間を先に（下に）描く
+  src.setData({ type: 'FeatureCollection', features: features.reverse() });
+  drawTurnArrow();
   const upcoming = nav.tourRemaining();
   const sig = upcoming.map((a) => a.key).join('|');
   if (sig !== drawRoute.sig) { drawRoute.sig = sig; drawTourMarkers(upcoming); }
+}
+
+// 次の右左折（600m以内）に、手前40mから曲がった先30mまでの白い矢印を出す
+function drawTurnArrow() {
+  const src = map.getSource && map.getSource('turn');
+  if (!src) return;
+  const next = nav.route && nav.nextActions()[0];
+  if (!next || next.at - nav.along > 600) { src.setData(empty); return; }
+  const from = Math.max(nav.along, next.at - 40), to = Math.min(nav.route.length, next.at + 30);
+  const line = sliceRoute(nav.route, from, to);
+  const tip = pointAt(nav.route, to);
+  src.setData({ type: 'FeatureCollection', features: [
+    { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line } },
+    { type: 'Feature', properties: { rot: tip.bearing }, geometry: { type: 'Point', coordinates: tip.point } },
+  ] });
 }
 
 function render() {
@@ -416,7 +486,7 @@ function render() {
       const zoom = kmh > 50 ? 15.6 : kmh > 25 ? 16.3 : 17;
       map.easeTo({
         center: fix.point, bearing: hd, pitch: 55, zoom,
-        padding: { top: window.innerHeight * 0.38, bottom: 170 },
+        padding: { top: window.innerHeight * 0.38, bottom: cfg.sheetCollapsed ? 60 : 170 },
         duration: 950, easing: (t) => t,
       });
     }
@@ -817,6 +887,46 @@ $('btn-fetch').onclick = async () => {
 $('btn-clear-spots').onclick = () => { cfg.spots = []; cfg.spotsCenter = null; save(); $('set-spots').textContent = '取得済み 0 件'; renderStart(); };
 document.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => $(b.dataset.close).classList.add('hidden')));
 document.querySelectorAll('.modal').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) m.classList.add('hidden'); }));
+
+// ===== 巡回中の表示エリア：下にスワイプでたたむ、上にスワイプ（または取っ手をタップ）で開く =====
+function setSheetCollapsed(on) {
+  cfg.sheetCollapsed = !!on; save();
+  $('sheet').classList.toggle('collapsed', cfg.sheetCollapsed);
+  document.body.classList.toggle('sheet-collapsed', cfg.sheetCollapsed);
+}
+(() => {
+  const sheet = $('sheet');
+  let y0 = null, dy = 0, moved = false;
+  const down = (y) => { y0 = y; dy = 0; moved = false; sheet.classList.add('dragging'); };
+  const move = (y) => {
+    if (y0 == null) return;
+    dy = y - y0;
+    if (Math.abs(dy) > 6) moved = true;
+    // たたむ方向（下）だけ指についてくる
+    sheet.style.transform = dy > 0 && !cfg.sheetCollapsed ? `translateY(${dy}px)` : '';
+  };
+  const up = () => {
+    if (y0 == null) return;
+    sheet.classList.remove('dragging');
+    sheet.style.transform = '';
+    if (dy > 40) setSheetCollapsed(true);
+    else if (dy < -40) setSheetCollapsed(false);
+    y0 = null;
+  };
+  // ボタンの上から始まった操作も、上下に動かしたらスワイプとして扱う
+  sheet.addEventListener('touchstart', (e) => down(e.touches[0].clientY), { passive: true });
+  sheet.addEventListener('touchmove', (e) => move(e.touches[0].clientY), { passive: true });
+  sheet.addEventListener('touchend', up);
+  sheet.addEventListener('touchcancel', up);
+  sheet.addEventListener('mousedown', (e) => down(e.clientY));
+  window.addEventListener('mousemove', (e) => move(e.clientY));
+  window.addEventListener('mouseup', up);
+  // スワイプした時はボタンを押したことにしない
+  sheet.addEventListener('click', (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  $('sheet-handle').addEventListener('click', () => setSheetCollapsed(!cfg.sheetCollapsed));
+  sheet.querySelector('.sheet-row1').addEventListener('click', () => { if (cfg.sheetCollapsed) setSheetCollapsed(false); });
+  setSheetCollapsed(cfg.sheetCollapsed);
+})();
 
 $('btn-start').onclick = () => start(false);
 $('btn-sim').onclick = () => start(true);

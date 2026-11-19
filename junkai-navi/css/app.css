@@ -110,3 +110,15 @@ button { font: inherit; cursor: pointer; }
 .pl-empty { text-align: center; color: var(--sub); font-size: 14px; padding: 18px 8px; }
 .tour-dot { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 3px solid #e37400; color: #b05a00; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 .tour-dot.next { width: 26px; height: 26px; background: #e37400; border-color: #fff; color: #fff; animation: pulse 2s infinite; }
+
+/* ===== 下部シートを下にスワイプしてたたむ ===== */
+.sheet { padding-top: 6px; transition: transform .25s ease; touch-action: none; }
+.sheet.dragging { transition: none; }
+.sheet-handle { display: block; width: 100%; border: 0; background: none; padding: 4px 0 10px; margin: 0; }
+.sheet-handle span { display: block; width: 44px; height: 5px; border-radius: 3px; background: #c4c7cc; margin: 0 auto; }
+.sheet.collapsed { padding-bottom: calc(10px + var(--sab)); }
+.sheet.collapsed .sheet-row2, .sheet.collapsed .tiles { display: none; }
+.sheet.collapsed .s-mode { font-size: 18px; }
+.sheet.collapsed .s-target { font-size: 15px; }
+body.sheet-collapsed .recenter { bottom: calc(84px + var(--sab)); }
+body.sheet-collapsed .maplibregl-ctrl-bottom-right { bottom: calc(76px + var(--sab)); }

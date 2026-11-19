@@ -39,6 +39,7 @@
 
 <!-- 下部シート -->
 <div id="sheet" class="sheet hidden">
+  <button id="sheet-handle" class="sheet-handle" aria-label="表示エリアをたたむ／開く"><span></span></button>
   <div class="sheet-row1">
     <span id="s-mode" class="s-mode">巡回中</span>
     <span id="s-target" class="s-target">需要エリアを計算中…</span>
@@ -198,6 +199,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=12"></script>
+<script type="module" src="js/main.js?v=13"></script>
 </body>
 </html>
