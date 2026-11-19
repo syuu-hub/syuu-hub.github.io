@@ -31,8 +31,7 @@
 </div>
 <div id="toast" class="toast hidden"></div>
 
-<!-- 速度・再センター -->
-<div id="speed" class="speed hidden"><b id="speed-v">0</b><small>km/h</small></div>
+<!-- 再センター -->
 <button id="recenter" class="recenter hidden" aria-label="現在地に戻る">
   <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7z" fill="#1a73e8"/></svg>
   <span>中央に戻す</span>
@@ -199,6 +198,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=11"></script>
+<script type="module" src="js/main.js?v=12"></script>
 </body>
 </html>
