@@ -4894,12 +4894,16 @@ const csvCell = v => { if (v == null) return ''; v = String(v); return /[",\r\n]
 const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
 function download(name, text, type = 'text/csv;charset=utf-8') {
   const body = type.startsWith('text/csv') ? '﻿' + text : text;
-  // Android アプリ（Capacitor）の中ではリンクでの保存ができないので、ファイルを作って共有メニューから保存先を選ぶ
+  // Android アプリ（Capacitor）の中ではリンクでの保存ができないので、端末の「ダウンロード/タクシーアナライザー」に直接保存する
+  //   （古い Android や、保存の機能が無い古いアプリでは、今まで通り共有メニューから保存先を選ぶ）
   const cap = window.Capacitor;
   if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.nativePromise) {
-    cap.nativePromise('Filesystem', 'writeFile', { path: name, data: body, directory: 'CACHE', encoding: 'utf8' })
+    const share = () => cap.nativePromise('Filesystem', 'writeFile', { path: name, data: body, directory: 'CACHE', encoding: 'utf8' })
       .then(r => cap.nativePromise('Share', 'share', { title: name, files: [r.uri] }))
       .catch(e => { if (!/cancel/i.test(String(e && e.message))) toast('保存できませんでした'); });
+    cap.nativePromise('TaFiles', 'saveDownload', { name, data: body, mime: type.split(';')[0] })
+      .then(() => toast(`ダウンロードに保存しました（${name}）`))
+      .catch(share);
     return;
   }
   const blob = new Blob([body], { type });

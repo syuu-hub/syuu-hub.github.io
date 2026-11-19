@@ -1,5 +1,6 @@
 // `cap add android` で作った android/ を、このアプリ用に直す（GitHub Actions で毎回実行）
 //   ・位置情報の権限を追加（アプリ内の navigator.geolocation 用）
+//   ・CSV・バックアップを端末の「ダウンロード」フォルダに直接保存するプラグイン TaFiles を追加
 //   ・Android 本体の住所変換（番地まで）を呼べるプラグイン JpGeocoder を追加
 //   ・端末の文字サイズ設定で文字だけが拡大されないようにする（textZoom 100%）
 //   ・アイコンと起動画面をタクシーアナライザーのものにする（ImageMagick を使う。7 は magick、6 は convert/identify）
@@ -126,6 +127,51 @@ public class JpGeocoderPlugin extends Plugin {
     }
 }
 `);
+// ファイルを端末の「ダウンロード/タクシーアナライザー」に直接保存する（Android 10 以降。権限は不要）
+//   アプリ内の画面から Capacitor.nativePromise('TaFiles', 'saveDownload', {name, data, mime}) で呼ぶ
+writeFileSync(join(pkgDir, 'TaFilesPlugin.java'), `package io.github.syuuhub.taxianalyzer;
+
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+
+@CapacitorPlugin(name = "TaFiles")
+public class TaFilesPlugin extends Plugin {
+    @PluginMethod
+    public void saveDownload(PluginCall call) {
+        String name = call.getString("name"), data = call.getString("data"), mime = call.getString("mime", "text/csv");
+        if (name == null || data == null) { call.reject("name/data required"); return; }
+        if (Build.VERSION.SDK_INT < 29) { call.reject("unsupported"); return; }
+        try {
+            String dir = Environment.DIRECTORY_DOWNLOADS + "/タクシーアナライザー";
+            ContentValues v = new ContentValues();
+            v.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+            v.put(MediaStore.MediaColumns.MIME_TYPE, mime);
+            v.put(MediaStore.MediaColumns.RELATIVE_PATH, dir);
+            ContentResolver cr = getContext().getContentResolver();
+            Uri uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+            if (uri == null) { call.reject("insert failed"); return; }
+            try (OutputStream os = cr.openOutputStream(uri)) { os.write(data.getBytes(StandardCharsets.UTF_8)); }
+            JSObject r = new JSObject();
+            r.put("uri", uri.toString());
+            r.put("path", dir + "/" + name);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+}
+`);
 writeFileSync(join(pkgDir, 'MainActivity.java'), `package io.github.syuuhub.taxianalyzer;
 
 import android.os.Bundle;
@@ -135,6 +181,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(JpGeocoderPlugin.class);
+        registerPlugin(TaFilesPlugin.class);
         super.onCreate(savedInstanceState);
         // 端末の文字サイズ設定で文字だけが大きくなり、ボタンの余白が無くなるのを防ぐ（ブラウザと同じ見た目にする）
         if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().getSettings().setTextZoom(100);
