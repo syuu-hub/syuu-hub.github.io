@@ -82,7 +82,7 @@
       </div>
 
       <div id="src-manual">
-        <p class="hint">周辺の駅・ホテル・病院・繁華街・商業施設を自動で取り込み、時間帯や曜日で需要を推定します。地図を長押しすると、自分の得意な地点を追加できます。</p>
+        <p class="hint">周辺の駅・ホテル・病院・繁華街・商業施設を自動で取り込み、時間帯や曜日で需要を推定します。自分の得意な地点は、下の「登録地点」から住所で追加するか、地図を長押しして追加できます。</p>
         <p class="hint" id="set-spots"></p>
         <div class="row"><button id="btn-fetch" class="btn">現在地周辺から自動取得</button><button id="btn-clear-spots" class="btn ghost">消去</button></div>
       </div>
@@ -98,8 +98,9 @@
       </div>
 
       <label>営業エリア半径（km）<input id="set-radius" type="number" min="1" max="15" step="1"></label>
-      <p class="hint">地図を長押しすると、イベント会場（終了時刻の前後に需要が上がる）も追加できます。</p>
-      <div id="event-list"></div>
+      <h3>登録地点・イベント</h3>
+      <p class="hint">住所を入力して、自分の得意な地点（常設）やイベント会場（終了時刻の前後に需要が上がる）を登録できます。一覧で追加・編集・削除、CSVで読み込み・保存ができ、この端末の中に保存されます。</p>
+      <button id="btn-places" class="btn">登録地点の一覧を開く</button>
 
       <h3>天気</h3>
       <select id="set-weather">
@@ -132,6 +133,42 @@
   </div>
 </div>
 
+<!-- 登録地点の一覧 -->
+<div id="places" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head"><h2>登録地点 <small id="pl-count" class="pl-count"></small></h2><button class="close" data-close="places">×</button></div>
+    <div class="modal-body">
+      <div class="row pl-actions">
+        <button id="pl-add" class="btn">＋ 住所から追加</button>
+        <label class="btn ghost file-btn pl-file">CSVで読み込み<input id="pl-csv" type="file" accept=".csv,text/csv" hidden></label>
+        <button id="pl-export" class="btn ghost">CSVで保存</button>
+      </div>
+      <p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。</p>
+
+      <form id="pl-form" class="pl-form hidden" autocomplete="off">
+        <h3 id="pl-form-title">住所から追加</h3>
+        <label>名前<input id="pl-name" type="text" placeholder="例：〇〇ホテル"></label>
+        <label>住所（施設名でも可）<input id="pl-addr" type="text" placeholder="例：兵庫県神戸市中央区加納町6-5-1"></label>
+        <p id="pl-found" class="hint pl-found hidden"></p>
+        <div class="seg">
+          <label><input type="radio" name="pl-kind" value="custom" checked>常設の需要地点</label>
+          <label><input type="radio" name="pl-kind" value="event">イベント</label>
+        </div>
+        <div id="pl-event" class="hidden">
+          <label>終了日時<input id="pl-end" type="datetime-local"></label>
+          <label>規模<select id="pl-size"><option value="s">小（〜千人）</option><option value="m" selected>中（〜1万人）</option><option value="l">大（1万人〜）</option></select></label>
+        </div>
+        <div class="row">
+          <button id="pl-save" type="submit" class="btn">住所を調べて保存</button>
+          <button id="pl-cancel" type="button" class="btn ghost">やめる</button>
+        </div>
+      </form>
+
+      <div id="pl-list" class="pl-list"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 地点追加 -->
 <div id="addpoint" class="modal hidden">
   <div class="modal-card small">
@@ -156,6 +193,6 @@
 window.addEventListener('error', function (e) { var b = document.getElementById('spot-info'); if (b) b.textContent = 'エラー: ' + (e.message || e.target && e.target.src || '読み込み失敗'); }, true);
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
-<script type="module" src="js/main.js?v=6"></script>
+<script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>
