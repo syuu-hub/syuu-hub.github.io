@@ -3,8 +3,8 @@ import { ValhallaClient } from './valhalla.js?v=7';
 import { DemandEngine, CAT_JA } from './demand.js?v=7';
 import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=7';
 import { sliceRoute, pointAt, haversine } from './geo.js?v=7';
-import { decodeCsv, importAnalyzerCsv, isStreetRide } from './csv.js?v=7';
-import { geocode, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=7';
+import { decodeCsv, importAnalyzerCsv, isStreetRide, placeKey } from './csv.js?v=7';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=7';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -32,6 +32,7 @@ const cfg = Object.assign(
     csvRides: [],
     csvStreetOnly: true,
     csvInfo: null,
+    geoCache: {}, // 住所・施設名 → 位置（調べた結果を端末に残し、同じ場所を何度も調べない）
   },
   load()
 );
@@ -531,6 +532,24 @@ function renderEvents() {
   if (!$('places').classList.contains('hidden')) renderPlaces();
 }
 
+// ===== 施設名・住所から位置を調べる（CSVの読み込み用） =====
+// list: [{ q: [候補…] }]。住所（市区町村を含む）を先に調べ、その中心の近くに絞って施設名だけのものを調べる
+const looksAddr = (q) => /[都道府県市区町村]/.test(q);
+async function resolveMany(list, label) {
+  const first = list.filter((x) => x.q.some(looksAddr)), rest = list.filter((x) => !x.q.some(looksAddr));
+  let done = 0;
+  const step = async (x, near) => {
+    toast(`${label}… ${++done}/${list.length}`, 60000);
+    const hit = await geocodeAny(x.q, cfg.geoCache, { near, maxKm: 60, wait: 250 });
+    if (hit) { x.lat = hit.lat; x.lng = hit.lng; }
+  };
+  for (const x of first) await step(x, null);
+  const near = centerOf(first.concat(cfg.events)) || (cfg.lastCenter && cfg.lastCenter !== DEFAULT_CENTER ? cfg.lastCenter : null);
+  for (const x of rest) await step(x, near);
+  save();
+  return list.filter((x) => x.lat == null);
+}
+
 // ===== 登録地点の一覧（住所から追加・編集・削除、CSV） =====
 let plEditId = null;    // 編集中の地点のID（新規は null）
 let plFound = null;     // 住所から見つかった位置 {lat,lng,title,addr}
@@ -555,12 +574,12 @@ function renderPlaces() {
   // 常設 → 開催予定のイベント（終了が早い順）→ 終了したイベント
   const now = Date.now();
   const order = (e) => (e.kind !== 'event' ? 0 : new Date(e.end).getTime() >= now ? 1 : 2);
-  const list = cfg.events.slice().sort((a, b) => order(a) - order(b) || (order(a) ? new Date(a.end) - new Date(b.end) : 0));
+  const list = cfg.events.slice().sort((a, b) => order(a) - order(b) || (order(a) ? new Date(a.end) - new Date(b.end) : (b.rides || 0) - (a.rides || 0)));
   for (const ev of list) {
     const past = ev.kind === 'event' && new Date(ev.end).getTime() < now;
     const item = document.createElement('div');
     item.className = 'pl-item' + (past ? ' past' : '');
-    const badge = ev.kind !== 'event' ? '<span class="pl-badge">常設</span>'
+    const badge = ev.kind !== 'event' ? `<span class="pl-badge">${ev.rides ? `乗車 ${ev.rides}回` : '常設'}</span>`
       : `<span class="pl-badge ev${past ? ' past' : ''}">${past ? '終了' : 'イベント'} ${fmtStamp(ev.end).slice(5)}</span>`;
     item.innerHTML = `<div class="pl-top"><span class="pl-name"></span>${badge}</div><div class="pl-addr"></div>
       <div class="pl-btns">${running ? '<button data-a="map">地図</button>' : ''}<button data-a="edit">編集</button><button data-a="del" class="del">削除</button></div>`;
@@ -611,9 +630,11 @@ $('pl-form').addEventListener('submit', async (e) => {
   if (!pos) {
     if (!addr) { toast('住所を入力してください'); $('pl-addr').focus(); return; }
     const btn = $('pl-save'); btn.disabled = true; btn.textContent = '住所を調べています…';
-    const hit = await geocode(addr);
+    let hit = null, offline = false;
+    try { hit = await geocode(addr, undefined, { near: centerOf(cfg.events) }); } catch { offline = true; }
     btn.disabled = false; btn.textContent = '住所を調べて保存';
-    if (!hit) { toast('住所が見つかりませんでした。番地や市区町村を確かめてください（通信も確認）', 6000); return; }
+    if (offline) { toast('住所を調べられませんでした。通信できる場所でもう一度お試しください', 6000); return; }
+    if (!hit) { toast('住所が見つかりませんでした。番地や市区町村を確かめてください', 6000); return; }
     pos = hit;
     $('pl-found').textContent = `見つかった場所：${hit.title}`;
     $('pl-found').classList.remove('hidden');
@@ -651,24 +672,20 @@ $('pl-csv').addEventListener('change', async () => {
   $('pl-csv').value = '';
   if (!f) return;
   try {
-    const { items, errors } = csvToPlaces(decodeCsv(await f.arrayBuffer()));
-    // 緯度・経度が無い行は住所から調べる（サーバーに負担をかけないよう1件ずつ）
+    const { items, errors, analyzer } = csvToPlaces(decodeCsv(await f.arrayBuffer()), { streetOnly: cfg.csvStreetOnly });
+    // 緯度・経度が無い行は、住所（無ければ施設名）から調べる。結果は端末に残すので、2回目からは速い
     const need = items.filter((it) => it.lat == null);
-    const missed = [];
-    for (let i = 0; i < need.length; i++) {
-      toast(`住所から位置を調べています… ${i + 1}/${need.length}`, 60000);
-      const hit = await geocode(need[i].addr);
-      if (hit) { need[i].lat = +hit.lat.toFixed(6); need[i].lng = +hit.lng.toFixed(6); }
-      else missed.push(need[i].name);
-      if (i < need.length - 1) await new Promise((r) => setTimeout(r, 300));
-    }
+    need.forEach((it) => { if (!it.q) it.q = queryCandidates(it.name, it.addr); });
+    const missedItems = await resolveMany(need, analyzer ? '乗車した場所の位置を調べています' : '住所から位置を調べています');
+    const missed = missedItems.map((it) => it.name);
+    items.forEach((it) => delete it.q);
     const ok = items.filter((it) => it.lat != null);
     if (!ok.length) throw new Error(errors[0] || (missed.length ? `住所が見つかりませんでした（${missed.slice(0, 3).join('、')}）` : '読み込める行がありません'));
     const { list, added, updated } = mergePlaces(cfg.events, ok);
     cfg.events = list;
     placesChanged();
     const skip = errors.length + missed.length;
-    toast(`追加 ${added}件・更新 ${updated}件${skip ? `・読み込めなかった行 ${skip}件（${errors.concat(missed.map((m) => `${m}：住所が見つからない`)).slice(0, 2).join('／')}${skip > 2 ? ' ほか' : ''}）` : ''}`, 8000);
+    toast(`${analyzer ? `営業ログの乗車 ${analyzer.used}件${analyzer.streetOnly ? '（流し・乗り場）' : ''}から、乗車した場所 ` : ''}追加 ${added}件・更新 ${updated}件${skip ? `・読み込めなかった行 ${skip}件（${errors.concat(missed.map((m) => `${m}：住所が見つからない`)).slice(0, 2).join('／')}${skip > 2 ? ' ほか' : ''}）` : ''}`, 8000);
   } catch (e) {
     toast(e.message, 6000);
   }
@@ -701,7 +718,7 @@ function showSourcePanels() {
   $('src-csv').classList.toggle('hidden', !csv);
   const info = cfg.csvInfo;
   $('set-csv').textContent = cfg.csvRides.length && info
-    ? `読み込み済み：乗車 ${cfg.csvRides.length} 件（${info.from}〜${info.to}）・うち流し・乗り場 ${cfg.csvRides.filter(isStreetRide).length} 件${info.skipped ? `・位置情報なし ${info.skipped} 件は除外` : ''}`
+    ? `読み込み済み：乗車 ${cfg.csvRides.length} 件（${info.from}〜${info.to}）・うち流し・乗り場 ${cfg.csvRides.filter(isStreetRide).length} 件${info.skipped ? `・場所がわからない ${info.skipped} 件は除外` : ''}`
     : 'まだ読み込まれていません';
 }
 function applyDemandChange() {
@@ -718,8 +735,25 @@ $('csv-file').addEventListener('change', async () => {
   $('csv-file').value = '';
   if (!f) return;
   try {
-    const { rides, total, skipped } = importAnalyzerCsv(decodeCsv(await f.arrayBuffer()));
-    if (!rides.length) throw new Error(total ? '乗車記録に位置情報（緯度・経度）がありません' : '乗車記録がありません');
+    const parsed = importAnalyzerCsv(decodeCsv(await f.arrayBuffer()));
+    const { total } = parsed;
+    let { rides, skipped } = parsed;
+    if (!rides.length) throw new Error(total ? '乗車記録に位置も施設名・住所もありません' : '乗車記録がありません');
+    // 施設・手入力で記録した乗車は緯度・経度が空なので、施設名・住所から位置を調べる（同じ場所は1回だけ）
+    const groups = new Map();
+    for (const r of rides) if (r.lat == null) {
+      const k = placeKey(r);
+      if (!groups.has(k)) groups.set(k, { q: queryCandidates(r.fac, r.addr), rides: [] });
+      groups.get(k).rides.push(r);
+    }
+    if (groups.size) {
+      const missed = await resolveMany([...groups.values()], '乗車した場所の位置を調べています');
+      for (const g of groups.values()) if (g.lat != null) g.rides.forEach((r) => { r.lat = g.lat; r.lng = g.lng; });
+      const before = rides.length;
+      rides = rides.filter((r) => r.lat != null);
+      skipped += before - rides.length;
+      if (!rides.length) throw new Error(`乗車した場所の位置を調べられませんでした（${missed.length}か所）。通信を確認してください`);
+    }
     const d = (t) => new Date(t).toLocaleDateString('ja-JP');
     cfg.csvRides = rides.map((r) => ({ lng: +r.lng.toFixed(6), lat: +r.lat.toFixed(6), t: r.t, name: r.name, fare: r.fare, kind: r.kind, app: r.app }));
     cfg.csvInfo = { file: f.name, from: d(rides[0].t), to: d(rides[rides.length - 1].t), skipped };

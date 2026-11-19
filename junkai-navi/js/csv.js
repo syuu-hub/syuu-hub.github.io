@@ -39,7 +39,8 @@ const placeName = (v) => (v ? v.replace(/（[^（）]*）$/, '').trim() : '');
 // 住所は番地を落として短く
 const shortAddr = (v) => (v ? v.replace(/^日本[、,\s]*/, '').replace(/〒?\d{3}-?\d{4}\s*/, '').replace(/^(東京都|北海道|京都府|大阪府|.{2,3}県)/, '').replace(/[0-9０-９].*$/, '').replace(/[、,\s\-－]+$/, '').slice(0, 14) : '');
 
-// 戻り値：{ rides: [{lng,lat,t,name,fare,kind,app}], total, skipped }
+// 戻り値：{ rides: [{lng,lat,t,name,fac,addr,fare,kind,app}], total, skipped }
+// 施設や手入力で記録した乗車は緯度・経度が空なので lat/lng は null（施設名・住所から位置を調べて使う）
 export function importAnalyzerCsv(text) {
   const rows = parseCsv(text);
   const head = (rows.shift() || []).map((h) => h.trim());
@@ -56,10 +57,12 @@ export function importAnalyzerCsv(text) {
     const lat = parseFloat(get(r, '乗車緯度')), lng = parseFloat(get(r, '乗車経度'));
     const t = parseStamp(get(r, '乗車時刻')) ?? parseStamp(get(r, '日時'));
     // 日本付近の座標だけ使う
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 20 || lat > 46 || lng < 122 || lng > 154 || t == null) { skipped++; continue; }
+    const hasPos = Number.isFinite(lat) && Number.isFinite(lng) && lat > 20 && lat < 46 && lng > 122 && lng < 154;
+    const fac = placeName(get(r, '乗車施設')), addr = get(r, '乗車住所');
+    if (t == null || (!hasPos && !fac && !addr)) { skipped++; continue; }
     rides.push({
-      lng, lat, t,
-      name: placeName(get(r, '乗車施設')) || shortAddr(get(r, '乗車住所')) || null,
+      lng: hasPos ? lng : null, lat: hasPos ? lat : null, t, fac, addr,
+      name: fac || shortAddr(addr) || null,
       fare: +get(r, '運賃合計') || 0,
       kind: get(r, '乗車種別'),
       app: get(r, '配車アプリ'),
@@ -70,4 +73,7 @@ export function importAnalyzerCsv(text) {
 }
 
 // 流し・乗り場（その場で拾えた需要）だけに絞る。アプリ・無線・予約は呼ばれた場所なので除く
+// 乗車地点ごとにまとめるキー（施設名、なければ住所）
+export const placeKey = (r) => r.fac || r.addr || '';
+
 export const isStreetRide = (r) => !r.app && (r.kind === '流し' || r.kind === '乗り場' || r.kind === '');

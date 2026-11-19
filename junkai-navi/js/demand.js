@@ -74,6 +74,8 @@ export class DemandEngine {
     for (const s of this.spots) {
       let v = (BASE[s.cat] || 0.3) * timeFactor(s.cat, now) * weatherFactor(s.cat, this.weather);
       if (s.cat === 'station' && this.railDisruption) v *= 1.8;
+      // タクシーアナライザから取り込んだ地点は、乗車が多いほど重く（1回=1倍、4回=1.5倍、上限3倍）
+      if (s.rides > 1) v *= Math.min(3, 0.5 + 0.5 * Math.sqrt(s.rides));
       if (s.name) add([s.lng, s.lat], v, s.name, BASE[s.cat] || 0.3);
       else add([s.lng, s.lat], v, s.cat === 'nightlife' ? '繁華街' : CAT_JA[s.cat], 0.01);
     }
