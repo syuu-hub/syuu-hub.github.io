@@ -1,11 +1,11 @@
-import { EndlessNavigator } from './navcore.js?v=14';
-import { ValhallaClient } from './valhalla.js?v=14';
-import { DemandEngine, CAT_JA } from './demand.js?v=14';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=14';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=14';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=14';
-import { profText, manualProf } from './profile.js?v=14';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=14';
+import { EndlessNavigator } from './navcore.js?v=15';
+import { ValhallaClient } from './valhalla.js?v=15';
+import { DemandEngine, CAT_JA } from './demand.js?v=15';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=15';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=15';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=15';
+import { profText, manualProf } from './profile.js?v=15';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=15';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -663,7 +663,7 @@ function renderPlaces() {
   $('pl-count').textContent = `${cfg.events.length}件`;
   box.innerHTML = '';
   if (!cfg.events.length) {
-    box.innerHTML = '<div class="pl-empty">まだ登録がありません。「＋ 住所から追加」かCSVの読み込みで登録できます。</div>';
+    box.innerHTML = '<div class="pl-empty">まだ登録がありません。「住所から追加」かCSVの読み込みで登録できます。</div>';
     return;
   }
   // 常設 → 開催予定のイベント（終了が早い順）→ 終了したイベント
