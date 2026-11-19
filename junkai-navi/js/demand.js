@@ -1,6 +1,6 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・イベント・登録地点・タクシーアナライザの乗車実績から需要エリアを算出
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=11';
+import { haversine, bearing, angleDiff } from './geo.js?v=12';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {

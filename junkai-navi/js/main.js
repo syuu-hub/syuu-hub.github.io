@@ -1,10 +1,10 @@
-import { EndlessNavigator } from './navcore.js?v=11';
-import { ValhallaClient } from './valhalla.js?v=11';
-import { DemandEngine, CAT_JA } from './demand.js?v=11';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=11';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=11';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=11';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=11';
+import { EndlessNavigator } from './navcore.js?v=12';
+import { ValhallaClient } from './valhalla.js?v=12';
+import { DemandEngine, CAT_JA } from './demand.js?v=12';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=12';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=12';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=12';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=12';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -311,7 +311,7 @@ async function start(sim) {
   // iOS は操作直後でないと読み上げできないため、ここで一度鳴らす
   speak(sim ? 'シミュレーションを開始します' : '現在地を確認しています', true);
   $('start').classList.add('hidden');
-  ['banner', 'sheet', 'speed'].forEach((id) => $(id).classList.remove('hidden'));
+  ['banner', 'sheet'].forEach((id) => $(id).classList.remove('hidden'));
   running = true;
   riding = false;
   setFollow(true);
@@ -360,7 +360,7 @@ function stop() {
   nav.reset();
   drawRoute();
   puck.remove(); drawTourMarkers([]); drawRoute.sig = null;
-  ['banner', 'sheet', 'speed', 'recenter'].forEach((id) => $(id).classList.add('hidden'));
+  ['banner', 'sheet', 'recenter'].forEach((id) => $(id).classList.add('hidden'));
   $('start').classList.remove('hidden');
   map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, bottom: 0 } });
   save();
@@ -411,7 +411,6 @@ function render() {
     puck.setLngLat(fix.point).addTo(map);
     const hd = nav.heading ?? 0;
     puck.setRotation(hd);
-    $('speed-v').textContent = Math.round((nav.speed || 0) * 3.6);
     if (follow) {
       const kmh = (nav.speed || 0) * 3.6;
       const zoom = kmh > 50 ? 15.6 : kmh > 25 ? 16.3 : 17;
