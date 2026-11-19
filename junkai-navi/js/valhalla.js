@@ -1,5 +1,5 @@
 // Valhalla ルーティング API クライアント
-import { decodePolyline, cumulative } from './geo.js?v=4';
+import { decodePolyline, cumulative } from './geo.js?v=5';
 
 // Valhalla maneuver type → 日本語と矢印種別
 export const MANEUVER = {
@@ -84,6 +84,12 @@ export class ValhallaClient {
   }
 }
 
+// 「1」「15」のような路線番号だけの名前は避け、通り名を優先
+function pickName(names) {
+  if (!names || !names.length) return '';
+  return names.find((n) => !/^[\d\-\s]+$/.test(n)) || '';
+}
+
 export function parseTrip(trip) {
   const leg = trip.legs[0];
   const coords = decodePolyline(leg.shape, 6);
@@ -100,7 +106,7 @@ export function parseTrip(trip) {
       action: def.action,
       right: !!def.right,
       uturn: !!def.uturn,
-      street: (m.street_names && m.street_names[0]) || (m.begin_street_names && m.begin_street_names[0]) || '',
+      street: pickName(m.street_names) || pickName(m.begin_street_names),
       announced: null,
     });
   }
