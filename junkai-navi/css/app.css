@@ -122,3 +122,8 @@ button { font: inherit; cursor: pointer; }
 .sheet.collapsed .s-target { font-size: 15px; }
 body.sheet-collapsed .recenter { bottom: calc(84px + var(--sab)); }
 body.sheet-collapsed .maplibregl-ctrl-bottom-right { bottom: calc(76px + var(--sab)); }
+.pl-hours { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.pl-hours select { flex: 1; margin-top: 0 !important; }
+.pl-days { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+.modal-body .pl-days label { margin: 0; display: flex; align-items: center; gap: 4px; border: 1px solid #dadce0; border-radius: 8px; padding: 6px 8px; color: var(--text); font-size: 14px; }
+.pl-prof { font-size: 12.5px; color: #b05a00; margin: -4px 0 8px; }
