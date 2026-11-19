@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>巡回ナビ 動作チェック</title>
+<style>body{font-family:sans-serif;padding:16px;line-height:1.6}li.ok{color:#137333}li.ng{color:#c5221f}</style></head>
+<body><h1>巡回ナビ 動作チェック</h1><ul id="out"></ul>
+<script>
+const out = document.getElementById('out');
+function log(ok, msg) { const li = document.createElement('li'); li.className = ok ? 'ok' : 'ng'; li.textContent = (ok ? '✔ ' : '✘ ') + msg; out.appendChild(li); }
+window.addEventListener('error', (e) => log(false, 'error: ' + e.message + ' @' + (e.filename || '') + ':' + (e.lineno || '')));
+</script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" crossorigin="anonymous"></script>
+<script type="module">
+log(!!window.maplibregl, '地図ライブラリ ' + (window.maplibregl ? window.maplibregl.getVersion() : '読み込み失敗'));
+const c = document.createElement('canvas');
+log(!!(c.getContext('webgl2') || c.getContext('webgl')), 'WebGL');
+for (const m of ['geo', 'valhalla', 'demand', 'navcore', 'sources']) {
+  try { await import(`./js/${m}.js?d=${Date.now()}`); log(true, `js/${m}.js`); } catch (e) { log(false, `js/${m}.js: ${e.message}`); }
+}
+const tests = [
+  ['ルート計算 Valhalla', 'https://valhalla1.openstreetmap.de/route?json=' + encodeURIComponent(JSON.stringify({ locations: [{ lat: 35.6812, lon: 139.7671 }, { lat: 35.6717, lon: 139.765 }], costing: 'auto', units: 'kilometers' })), (j) => j.trip ? `${j.trip.summary.length} km / 案内 ${j.trip.legs[0].maneuvers.length} 件 / ${j.trip.legs[0].maneuvers[1]?.instruction || ''}` : JSON.stringify(j).slice(0, 120)],
+  ['地図スタイル OpenFreeMap', 'https://tiles.openfreemap.org/styles/liberty', (j) => `レイヤー ${j.layers.length}`],
+  ['天気 Open-Meteo', 'https://api.open-meteo.com/v1/forecast?latitude=35.68&longitude=139.77&current=precipitation,weather_code', (j) => `降水 ${j.current.precipitation} mm`],
+];
+for (const [name, url, f] of tests) {
+  try { const r = await fetch(url); const j = await r.json(); log(r.ok, `${name}: ${f(j)}`); } catch (e) { log(false, `${name}: ${e.message}`); }
+}
+try {
+  const { fetchSpots } = await import('./js/sources.js');
+  const s = await fetchSpots([139.7671, 35.6812], 1500);
+  log(s.length > 0, `需要スポット Overpass: ${s.length} 件（例: ${s.filter(x => x.name).slice(0, 3).map(x => x.name).join('、')}）`);
+} catch (e) { log(false, '需要スポット Overpass: ' + e.message); }
+try {
+  await import('./js/main.js?d=' + Date.now());
+  log(true, 'main.js 読み込み');
+} catch (e) { log(false, 'main.js: ' + e.message); }
+log(true, 'チェック完了');
+</script>
+<div id="map" style="width:10px;height:10px"></div>
+<div id="spot-info"></div>
+</body></html>
