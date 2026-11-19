@@ -71,15 +71,44 @@ function toast(msg, ms = 3500) {
 }
 
 // ===== 地図 =====
-const map = new maplibregl.Map({
-  container: 'map',
-  style: 'https://tiles.openfreemap.org/styles/liberty',
-  center: cfg.lastCenter || DEFAULT_CENTER,
-  zoom: 14,
-  attributionControl: false,
-  pitchWithRotate: true,
-});
-map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+// WebGL非対応などで地図を作れない場合も、案内（バナー・音声）は動くようにする
+function createNullMap(center) {
+  const el = document.getElementById('map');
+  const layers = {}, vis = {}, srcs = {};
+  return {
+    on(ev, fn) { if (ev === 'load') setTimeout(fn, 0); },
+    addControl() {},
+    getStyle: () => ({ layers: [] }),
+    getLayoutProperty: (id, p) => (p === 'visibility' ? vis[id] : null),
+    setLayoutProperty: (id, p, v) => { if (p === 'visibility') vis[id] = v; },
+    addSource: (id) => { srcs[id] = { setData() {} }; },
+    getSource: (id) => srcs[id],
+    addLayer: (l) => { layers[l.id] = l; },
+    getLayer: (id) => layers[id],
+    getCanvasContainer: () => el,
+    easeTo() {},
+    getCenter: () => ({ toArray: () => center }),
+    unproject: () => ({ lng: center[0], lat: center[1] }),
+  };
+}
+const NullMarker = class { constructor() {} setLngLat() { return this; } addTo() { return this; } setRotation() { return this; } remove() {} };
+let map, ML = window.maplibregl, mapError = null;
+try {
+  if (!ML) throw new Error('地図ライブラリを読み込めませんでした');
+  map = new ML.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: cfg.lastCenter || DEFAULT_CENTER,
+    zoom: 14,
+    attributionControl: false,
+    pitchWithRotate: true,
+  });
+  map.addControl(new ML.AttributionControl({ compact: true }), 'bottom-right');
+} catch (e) {
+  mapError = e.message || String(e);
+  map = createNullMap(cfg.lastCenter || DEFAULT_CENTER);
+  ML = { Marker: NullMarker };
+}
 const empty = { type: 'FeatureCollection', features: [] };
 map.on('load', () => {
   // 地名を日本語優先に
@@ -111,10 +140,10 @@ map.on('dragstart', () => { if (running) setFollow(false); });
 const puckEl = document.createElement('div');
 puckEl.className = 'puck';
 puckEl.innerHTML = '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="#fff"/><path d="M24 7 37 38 24 31 11 38z" fill="#1a73e8"/></svg>';
-const puck = new maplibregl.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
+const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
 const targetEl = document.createElement('div');
 targetEl.className = 'target-dot';
-const targetMarker = new maplibregl.Marker({ element: targetEl });
+const targetMarker = new ML.Marker({ element: targetEl });
 
 // ===== 案内アイコン =====
 function arrowSVG(kind) {
@@ -554,6 +583,7 @@ $('recenter').onclick = () => { setFollow(true); render(); };
 syncDemand();
 demand.update(new Date(), 1);
 renderStart();
+if (mapError) $('spot-info').textContent = `地図を表示できません（${mapError}）。案内と音声は使えます`;
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
