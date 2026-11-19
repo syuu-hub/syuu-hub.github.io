@@ -3,7 +3,8 @@
 // ・新ルートは確定区間の終点から、進行方向を保ったまま接続する
 // ・案内済みの右左折はロック
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=8';
+// ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
+import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=9';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -15,6 +16,11 @@ export const DEFAULTS = {
   switchGain: 1.3, // 切替に必要な需要の改善倍率
   offRouteM: 45,
   radiusM: 6000,
+  tourMax: 3, // 1回のルートで通るエリアの数（1なら1か所ずつ）
+  tourHopM: 2500, // ツアーで次のエリアまでの直線距離の上限
+  tourMaxM: 8000, // ツアー全体の直線距離の上限
+  tourMinRatio: 0.3, // 2か所目以降は、1か所目の価値のこの割合以上のエリアだけ
+  passM: 250, // エリアの中心からこの距離以内を通ったら「通過」
 };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -41,7 +47,8 @@ export class EndlessNavigator {
     this.pos = null;
     this.speed = 0;
     this.heading = null;
-    this.target = null;
+    this.target = null; // 次に通るエリア
+    this.tour = []; // 今のルートで通るエリア [{ area, at, passed }]
     this.planning = false;
     this.lastPlanAt = 0;
     this.nextTryAt = 0;
@@ -72,6 +79,7 @@ export class EndlessNavigator {
       if (snap.dist > Math.max(this.s.offRouteM, acc * 1.2)) this.offCount++;
       else { this.offCount = 0; this.along = Math.max(this.along - 20, snap.along); }
       this.snapDist = snap.dist;
+      this.checkPassed();
       if (this.offCount >= 3 && !this.planning) {
         this.offCount = 0;
         this.emit('voice', 'ルートを再検索します');
@@ -81,6 +89,22 @@ export class EndlessNavigator {
       this.announce();
     }
     this.tick();
+  }
+
+  // ===== ツアーの通過 =====
+  tourRemaining() { return this.tour.filter((x) => !x.passed).map((x) => x.area); }
+
+  checkPassed() {
+    let changed = false;
+    for (const x of this.tour) {
+      if (x.passed || x.at == null || this.along < x.at - 30) continue;
+      // 最後のエリアは次の区間をつなぐ時に扱う（ここで通過にすると次の行き先が空になるため）
+      if (x === this.tour[this.tour.length - 1]) continue;
+      x.passed = true; changed = true;
+      this.demand.markVisited(x.area.key, this.now());
+      this.emit('pass', x.area);
+    }
+    if (changed) this.target = this.tourRemaining()[0] || this.target;
   }
 
   // ===== 音声案内 =====
@@ -130,9 +154,12 @@ export class EndlessNavigator {
       const c = this.commitAlong();
       const start = pointAt(this.route, c);
       const ranked = this.rankFrom(start.point, start.bearing);
-      const best = ranked[0];
-      if (best && best.area.key !== this.target.key) {
-        const cur = this.demand.utilityOf(this.target.key, start.point, start.bearing, this.rankOpts());
+      const remain = this.tourRemaining();
+      const inTour = new Set(remain.map((a) => a.key));
+      const best = ranked.find((x) => !inTour.has(x.area.key));
+      if (best) {
+        const opts = this.rankOpts();
+        const cur = Math.max(0, ...remain.map((a) => this.demand.utilityOf(a.key, start.point, start.bearing, opts)));
         if (best.utility >= cur * this.s.switchGain) return void this.plan('switch', [best.area]);
       }
       this.lastPlanAt = this.now(); // 切替不要 → 次回チェックまで待つ
@@ -152,6 +179,45 @@ export class EndlessNavigator {
     return r;
   }
 
+  // 1か所目 first から、近くの需要エリアを順につないだツアーを作る
+  buildTour(start, first, exclude = new Set()) {
+    const max = Math.max(1, Math.round(this.s.tourMax || 1));
+    const tour = [first];
+    if (max === 1) return tour;
+    const base = this.rankOpts();
+    const used = new Set([...base.exclude, ...exclude, first.key]);
+    const firstU = this.demand.utilityOf(first.key, start.point, start.bearing, base) || 1e-9;
+    let prev = start.point, cur = first.center, total = haversine(start.point, first.center);
+    while (tour.length < max) {
+      const r = this.demand.rank(cur, bearing(prev, cur), { ...base, exclude: used, minDistM: 400 });
+      const c = r.find((x) => x.dist <= this.s.tourHopM);
+      if (!c || c.utility < firstU * this.s.tourMinRatio || total + c.dist > this.s.tourMaxM) break;
+      tour.push(c.area);
+      used.add(c.area.key);
+      total += c.dist;
+      prev = cur; cur = c.area.center;
+    }
+    return tour;
+  }
+
+  // 試す順のルート案（ツアー → 1か所だけ → 次点の1か所）
+  candidatePlans(mode, start, preferred) {
+    const old = new Set(this.tour.map((x) => x.area.key));
+    let firsts = preferred;
+    if (!firsts) {
+      const exclude = mode === 'extend' ? old : new Set();
+      firsts = this.rankFrom(start.point, start.bearing).filter((x) => !exclude.has(x.area.key)).slice(0, 2).map((x) => x.area);
+      if (mode === 'reroute' && this.target) firsts = [this.target, ...firsts.filter((a) => a.key !== this.target.key)];
+    }
+    if (!firsts.length) return [];
+    const plans = [];
+    // 逸脱のリルートは、まだ通っていないエリアをそのまま回る
+    const tour = mode === 'reroute' && preferred && preferred.length > 1 ? preferred : this.buildTour(start, firsts[0], mode === 'extend' ? old : new Set());
+    if (tour.length > 1) plans.push(tour);
+    for (const a of firsts.slice(0, 2)) plans.push([a]);
+    return plans;
+  }
+
   async plan(mode, preferred = null) {
     if (this.planning) return;
     this.planning = true;
@@ -164,26 +230,21 @@ export class EndlessNavigator {
         commit = this.commitAlong();
         start = pointAt(this.route, commit);
       }
-      let targets = preferred;
-      if (!targets) {
-        const exclude = mode === 'extend' && this.target ? this.target.key : null;
-        targets = this.rankFrom(start.point, start.bearing)
-          .filter((x) => x.area.key !== exclude)
-          .slice(0, 3)
-          .map((x) => x.area);
-        if (mode === 'reroute' && this.target) targets = [this.target, ...targets];
-      }
-      if (!targets.length) {
+      if (mode === 'reroute' && !preferred && this.tourRemaining().length) preferred = this.tourRemaining();
+      const plans = this.candidatePlans(mode, start, preferred);
+      if (!plans.length) {
         this.emit('status', '周辺に需要エリアがありません。設定で需要スポットを取得してください');
         this.nextTryAt = this.now() + 15000;
         return;
       }
-      for (const target of targets.slice(0, 2)) {
+      for (const tour of plans.slice(0, 3)) {
+        const dest = tour[tour.length - 1];
+        const via = tour.slice(0, -1).map((a) => a.center);
         let routes;
         try {
-          routes = await this.router.route({ point: start.point, heading: start.bearing }, target.center);
+          routes = await this.router.route({ point: start.point, heading: start.bearing }, dest.center, via.length ? { via } : undefined);
         } catch (e) {
-          this.badTargets.set(target.key, this.now() + 10 * 60e3);
+          if (!via.length) this.badTargets.set(dest.key, this.now() + 10 * 60e3);
           this.emit('status', e.message);
           continue;
         }
@@ -192,7 +253,7 @@ export class EndlessNavigator {
         const remaining = this.route ? this.route.length - this.along : Infinity;
         const best = this.pickBest(routes, relaxed || remaining < 250);
         if (!best) continue;
-        this.apply(mode, target, best, commit);
+        this.apply(mode, tour, best, commit);
         return;
       }
       this.nextTryAt = this.now() + 5000;
@@ -231,20 +292,33 @@ export class EndlessNavigator {
     return s;
   }
 
-  apply(mode, target, newRoute, commit) {
-    if (mode === 'extend' && this.target) this.demand.markVisited(this.target.key, this.now());
+  apply(mode, tour, newRoute, commit) {
+    if (!Array.isArray(tour)) tour = [tour];
+    // 区間をつなぐ時は、前のツアーで残っていたエリア（最後の行き先など）を回ったことにする
+    if (mode === 'extend') for (const x of this.tour) if (!x.passed) this.demand.markVisited(x.area.key, this.now());
+    let newFrom; // 新しい区間が始まる位置（つないだ後のルート上の距離）
     if (commit == null) {
       this.route = newRoute;
       this.along = 0;
       if (this.pos) this.along = snapToRoute(newRoute, this.pos).along;
+      newFrom = this.along;
     } else {
       const keepFrom = Math.max(0, this.along - 300);
       this.route = stitch(this.route, keepFrom, commit, newRoute);
       this.along -= keepFrom;
+      newFrom = commit - keepFrom;
     }
-    this.target = target;
+    // 各エリアがルート上のどこにあるか（中心の近くを通らないエリアは at=null）
+    let hint = newFrom;
+    this.tour = tour.map((area) => {
+      const sn = snapToRoute(this.route, area.center, hint);
+      const near = sn && sn.dist <= this.s.passM;
+      if (near) hint = sn.along;
+      return { area, at: near ? sn.along : null, passed: false };
+    });
+    this.target = tour[0];
     this.lastPlanAt = this.now();
-    this.emit('route', { mode, target, route: this.route });
+    this.emit('route', { mode, target: this.target, tour: tour.slice(), route: this.route });
   }
 
   // ===== UI用 =====
@@ -257,6 +331,7 @@ export class EndlessNavigator {
       nextDist: next ? next.at - this.along : remaining,
       then: then && next && then.at - next.at < 300 ? then : null,
       target: this.target,
+      tour: this.tourRemaining(),
       remaining,
       eta: remaining / Math.max(this.speed, 6),
       commitAlong: this.commitAlong(),

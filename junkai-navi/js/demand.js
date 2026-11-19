@@ -1,5 +1,5 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・イベント・自分の乗車記録から需要エリアを算出
-import { haversine, bearing, angleDiff } from './geo.js?v=8';
+import { haversine, bearing, angleDiff } from './geo.js?v=9';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {

@@ -111,3 +111,4 @@ button { font: inherit; cursor: pointer; }
 .pl-btns button { border: 1px solid #dadce0; background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 700; color: var(--text); }
 .pl-btns button.del { color: #d93025; border-color: #f6aea9; }
 .pl-empty { text-align: center; color: var(--sub); font-size: 14px; padding: 18px 8px; }
+.tour-dot { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 3px solid #e37400; color: #b05a00; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
