@@ -1873,6 +1873,11 @@ function loadState() {
 }
 let S = loadState();
 let saveTimer = null;
+// 営業ごとの乗車・ステータスの索引。配列の入れ替え（追加・削除）があった時だけ作り直す。返すのは写し（並べ替えても元は変わらない）
+const IDX = { r: null, rl: -1, e: null, el: -1, rides: new Map(), evs: new Map() };
+function groupByShift(list) { const m = new Map(); for (const x of list) { let a = m.get(x.shiftId); if (!a) m.set(x.shiftId, a = []); a.push(x); } return m; }
+function ridesOf(id) { if (IDX.r !== S.rides || IDX.rl !== S.rides.length) { IDX.r = S.rides; IDX.rl = S.rides.length; IDX.rides = groupByShift(S.rides); } return (IDX.rides.get(id) || []).slice(); }
+function eventsOf(id) { if (IDX.e !== S.events || IDX.el !== S.events.length) { IDX.e = S.events; IDX.el = S.events.length; IDX.evs = groupByShift(S.events); } return (IDX.evs.get(id) || []).slice(); }
 function save() {
   clearTimeout(saveTimer); saveTimer = null;
   try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
@@ -2409,7 +2414,7 @@ function fixPauseForRide(r) {
   const sh = S.shifts.find(x => x.id === r.shiftId);
   if (!sh) return null;
   const t0 = r.start || r.ts, t1 = r.ts;
-  const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
+  const evs = eventsOf(sh.id).sort((a, b) => a.ts - b.ts);
   const i = evs.findIndex((e, k) => PAUSE.includes(e.status) && e.ts < t0 && (!evs[k + 1] || evs[k + 1].ts > t0));
   if (i < 0) return null;
   const next = evs[i + 1] || null;
@@ -2564,11 +2569,11 @@ const SS = { id: null };
 function shiftCtx(id) {
   const sh = S.shifts.find(s => s.id === id);
   if (!sh) return null;
-  const evs = S.events.filter(e => e.shiftId === id).sort((a, b) => a.ts - b.ts);
+  const evs = eventsOf(id).sort((a, b) => a.ts - b.ts);
   const departEv = evs.find(e => e.prev === 'off') || null;
   const endEv = sh.end ? evs.filter(e => e.status === 'off').at(-1) || null : null;
   const inner = [...evs.filter(e => e !== departEv && e !== endEv).map(e => e.ts),
-    ...S.rides.filter(r => r.shiftId === id).flatMap(r => [r.start || r.ts, r.ts])];
+    ...ridesOf(id).flatMap(r => [r.start || r.ts, r.ts])];
   const sorted = S.shifts.slice().sort((a, b) => a.start - b.start), i = sorted.indexOf(sh);
   const prev = sorted[i - 1], next = sorted[i + 1];
   return {
@@ -2669,7 +2674,7 @@ function openReport(id, keep) {
    集計
    ============================================================ */
 function shiftStats(sh) {
-  const rides = S.rides.filter(r => r.shiftId === sh.id);
+  const rides = ridesOf(sh.id);
   const byPay = {}; const fare = { meter: 0, pickup: 0, appFee: 0, handleFee: 0, long: 0, handi: 0 };
   let sales = 0;
   for (const r of rides) {
@@ -2678,7 +2683,7 @@ function shiftStats(sh) {
     for (const k in fare) fare[k] += r.fare[k] || 0;
   }
   const end = sh.end || Date.now();
-  const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
+  const evs = eventsOf(sh.id).sort((a, b) => a.ts - b.ts);
   const time = { vacant: 0, occupied: 0, wait: 0 };
   const pauses = [];   // 待機・休憩の区間 {ev, start, end(継続中は null), ms}
   evs.forEach((e, i) => {
@@ -2974,7 +2979,7 @@ function stepHistCum(dow, L) {
 function stepPlan(sh, now = Date.now(), goal = sh ? dailyNeed(sh.start) : 0, start = sh ? sh.start : now) {
   if (!goal) return null;
   const L = stepLen(), curve = stepCurve(new Date(start).getDay(), L), F = t => stepFrac(curve, L, (t - start) / 3600e3);
-  const rides = sh ? S.rides.filter(r => r.shiftId === sh.id) : [];
+  const rides = sh ? ridesOf(sh.id) : [];
   const salesAt = t => rides.reduce((a, r) => a + (r.ts <= t ? r.total : 0), 0);
   // 自動の目標：段は過去の累計（中央値）を1日の目標の高さまで引き上げた金額で固定。
   //   いまの売上で配り直さないので、先行しても先の段は下がらない（遅れても上がらない）
@@ -3369,7 +3374,7 @@ function addPause() {
   if (end > c.maxEnd) return toast(`終了は${sh.end ? '入庫' : '現在'}（${toHM(c.maxEnd)}）までにしてください`);
   if (start >= end) return toast('開始が終了より後になっています');
   if (S.rides.some(r => r.shiftId === sh.id && (r.start || r.ts) < end && r.ts > start)) return toast('乗車と重なっています');
-  const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
+  const evs = eventsOf(sh.id).sort((a, b) => a.ts - b.ts);
   if (evs.some(e => e.ts > start && e.ts < end && e.status !== 'off')) return toast('その時間に他のステータスの記録があります');
   const before = evs.filter(e => e.ts <= start).at(-1);
   const st0 = before ? before.status : 'vacant';
@@ -3515,18 +3520,27 @@ const ridePos = f => f.place && f.place.lat != null ? f.place
 const placeKey = f => f.place ? 'p:' + normName(f.place.name) : f.manual && f.addr ? 'a:' + normName(f.addr) : null;
 function demandPlaces(src = S.rides, hiFrom = Infinity) {   // hiFrom：この金額以上を「高額乗車」として数える
   const list = [], byKey = new Map();
-  const rides = src.filter(r => r.from && ridePos(r.from))
-    .sort((a, b) => !!placeKey(b.from) - !!placeKey(a.from) || (a.start || a.ts) - (b.start || b.ts));   // 施設・手入力を先にまとめる
-  for (const r of rides) {
-    const f = r.from, t = r.start || r.ts, pos = ridePos(f), k = placeKey(f);
+  const items = [];
+  for (const r of src) { if (!r.from) continue; const pos = ridePos(r.from); if (pos) items.push({ r, pos, k: placeKey(r.from), t: r.start || r.ts }); }
+  items.sort((a, b) => !!b.k - !!a.k || a.t - b.t);   // 施設・手入力を先にまとめる
+  // GPS のまとめは中心が少しずつしか動かないので、周りのマスだけを探す。施設・住所のまとめは中心が大きく動くことがあるので全部を見る（数は少ない）
+  const CELL = SAME_PLACE_M / 111000, cellOf = p => [Math.floor(p.lat / CELL), Math.floor(p.lng / CELL)], grid = new Map(), keyed = [];
+  for (const { r, pos, k, t } of items) {
+    const f = r.from;
     let c = k ? byKey.get(k) : null;
     if (!c && !k) {
       let best = SAME_PLACE_M;
-      for (const p of list) { const d = haversine(pinCenter(p), pos); if (d <= best) { best = d; c = p; } }
+      const [gy, gx] = cellOf(pos), near = keyed.slice();
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -3; dx <= 3; dx++) { const a = grid.get((gy + dy) + ':' + (gx + dx)); if (a) near.push(...a); }
+      near.sort((a, b) => a.i - b.i);   // 元と同じ順（同じ距離なら先にできた方）
+      for (const p of near) { const d = haversine(pinCenter(p), pos); if (d <= best) { best = d; c = p; } }
     }
     if (!c) {
       list.push(c = { key: r.id, ids: [], n: 0, hi: 0, hiHours: new Array(24).fill(0), lat: 0, lng: 0, flat: 0, flng: 0, fn: 0, sales: 0, hours: new Array(24).fill(0), dows: new Array(7).fill(0), names: {}, exact: !!(f.place) });
+      c.i = list.length;
       if (k) byKey.set(k, c);
+      if (k) keyed.push(c);   // 施設・住所のまとめにも近くの GPS の乗車が入る
+      else { const [gy, gx] = cellOf(pos), key = gy + ':' + gx; (grid.get(key) || grid.set(key, []).get(key)).push(c); }
     }
     c.n++; c.ids.push(r.id); c.lat += pos.lat; c.lng += pos.lng; c.sales += r.total;
     const fp = f.place && (f.place.lat != null ? f.place : knownPos(f.place.name));
@@ -3907,8 +3921,10 @@ function renderAnalysis() {
   // ── 期間の成績（前の同じ長さの期間と比べる）
   const kpi = (A2, D2) => {
     // 実車時間は乗車ごとの「乗車〜降車」の合計（実車ボタンを押さずに記録した乗車も数える）。乗車時刻の無い乗車が多ければステータスの記録で
+    // 乗車時刻の無い乗車は、時刻のある乗車の平均の長さで数える（抜けた分だけ実車率が低く出ないように）
     const timed = A2.rides.filter(r => r.start), rideMs = sumOf(timed, r => Math.max(0, r.ts - r.start));
-    const sales = sumOf(A2.rides, r => r.total), ms = sumOf(D2, d => d.ms), work = sumOf(D2, d => d.work), occ = timed.length >= A2.rides.length / 2 ? rideMs : sumOf(D2, d => d.occ);
+    const rideMsAll = timed.length ? rideMs + (A2.rides.length - timed.length) * rideMs / timed.length : 0;
+    const sales = sumOf(A2.rides, r => r.total), ms = sumOf(D2, d => d.ms), work = sumOf(D2, d => d.work), occ = timed.length >= A2.rides.length / 2 ? Math.min(rideMsAll, work) : sumOf(D2, d => d.occ);
     return { perHour: ms ? sales / (ms / 3600e3) : 0, perDay: D2.length ? sales / D2.length : 0, occ: work ? occ / work : 0, perRide: A2.rides.length ? sales / A2.rides.length : 0 };
   };
   const K = kpi(A, D);
@@ -4941,7 +4957,7 @@ function exportLog(onlyShiftId) {
   // ステータスの継続時間（同じシフトの次のステータスまで。営業中は現在まで）
   const nextTs = new Map();
   for (const sh of S.shifts) {
-    const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts);
+    const evs = eventsOf(sh.id).sort((a, b) => a.ts - b.ts);
     evs.forEach((e, i) => nextTs.set(e, i + 1 < evs.length ? evs[i + 1].ts : sh.end || Date.now()));
   }
   for (const e of S.events.filter(keep)) {
@@ -5125,7 +5141,7 @@ function importLogCsv(text) {
       fixPauseForRide(ride);   // 待機・休憩の解除忘れは乗車時刻で終わらせる（記録時と同じ扱い）
     }
     if (!sh.end) {   // 営業中として続ける：最後のステータスを今の状態に
-      const evs = S.events.filter(e => e.shiftId === sh.id).sort((a, b) => a.ts - b.ts), last = evs.at(-1);
+      const evs = eventsOf(sh.id).sort((a, b) => a.ts - b.ts), last = evs.at(-1);
       if (last) { sh.status = last.status; sh.statusSince = last.ts; }
     }
     lastId = sh.id;
