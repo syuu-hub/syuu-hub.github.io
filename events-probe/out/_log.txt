@@ -1,8 +1,3 @@
-world-cal 200 https://www.kobe-spokyo.jp/world-kobe/cal_event?ym=202611 12694 text/html; charset=UTF-8
-world-cal12 200 https://www.kobe-spokyo.jp/world-kobe/cal_event?ym=202612 11889 text/html; charset=UTF-8
-kih-list 200 https://www.kih.co.jp/kokusaihall/event/index/2026-11-19 25440 text/html; charset=UTF-8
-kih-detail 200 https://www.kih.co.jp/kokusaihall/event/detail/2170 10316 text/html; charset=UTF-8
-kcc-cal 200 https://kobe-cc.jp/ja/visitors/upcoming-events/ 51257 text/html; charset=UTF-8
-bunka-cal 200 https://www.kobe-bunka.jp/hall/date/2026/11/?cat=2 103073 text/html; charset=UTF-8
-tottei-ev 200 https://www.totteikobe.jp/event 130839 text/html
-storks-sch 200 https://www.storks.jp/schedule/list/ 116066 text/html; charset=utf-8
+kih-2033 200 https://www.kih.co.jp/kokusaihall/event/detail/2033 9990 text/html; charset=UTF-8
+kih-2136 200 https://www.kih.co.jp/kokusaihall/event/detail/2136 9435 text/html; charset=UTF-8
+kih-2220 200 https://www.kih.co.jp/kokusaihall/event/detail/2220 10509 text/html; charset=UTF-8
