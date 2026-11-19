@@ -3,7 +3,7 @@ import { ValhallaClient } from './valhalla.js?v=7';
 import { DemandEngine, CAT_JA } from './demand.js?v=7';
 import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=7';
 import { sliceRoute, pointAt, haversine } from './geo.js?v=7';
-import { decodeCsv, importAnalyzerCsv, isStreetRide, placeKey } from './csv.js?v=7';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=7';
 import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=7';
 
 const $ = (id) => document.getElementById(id);
@@ -30,13 +30,13 @@ const cfg = Object.assign(
     lastCenter: null,
     demandSource: 'manual', // manual: 任意で設定 / csv: タクシーアナライザのCSV
     csvRides: [],
-    csvStreetOnly: true,
+    csvKinds: { ...DEFAULT_KINDS }, // 使う乗車の種類（初期は流しだけ。乗り場は除く）
     csvInfo: null,
     geoCache: {}, // 住所・施設名 → 位置（調べた結果を端末に残し、同じ場所を何度も調べない）
   },
   load()
 );
-function load() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
+function load() { try { const c = JSON.parse(localStorage.getItem(STORE)) || {}; delete c.csvStreetOnly; return c; } catch { return {}; } } // 旧設定は使わない（新しい初期値：乗り場を除く）
 function save() { try { localStorage.setItem(STORE, JSON.stringify(cfg)); return true; } catch { return false; /* 容量超過など */ } }
 
 // ===== 需要エンジン =====
@@ -44,7 +44,7 @@ const demand = new DemandEngine();
 function syncDemand() {
   const manual = cfg.demandSource !== 'csv';
   demand.spots = manual ? cfg.spots.concat(cfg.events.filter((e) => e.kind === 'custom').map((e) => ({ ...e, cat: 'custom' }))) : [];
-  demand.csvRides = manual ? [] : cfg.csvStreetOnly ? cfg.csvRides.filter(isStreetRide) : cfg.csvRides;
+  demand.csvRides = manual ? [] : cfg.csvRides.filter(rideFilter(cfg.csvKinds));
   demand.events = cfg.events.filter((e) => e.kind !== 'custom' && new Date(e.end).getTime() > Date.now() - 2 * 3600e3);
   demand.pickups = cfg.pickups;
   demand.railDisruption = cfg.railManual || odptDisruption;
@@ -447,9 +447,9 @@ function todayPickups() {
 
 function renderStart() {
   if (cfg.demandSource === 'csv') {
-    const n = cfg.csvStreetOnly ? cfg.csvRides.filter(isStreetRide).length : cfg.csvRides.length;
+    const n = cfg.csvRides.filter(rideFilter(cfg.csvKinds)).length;
     $('spot-info').innerHTML = cfg.csvRides.length
-      ? `需要エリア：タクシーアナライザのCSV<br>乗車実績 ${n} 件${cfg.csvStreetOnly ? '（流し・乗り場）' : ''}`
+      ? `需要エリア：タクシーアナライザのCSV<br>乗車実績 ${n} 件（${kindsLabel(cfg.csvKinds)}）`
       : '需要エリア：タクシーアナライザのCSV<br>設定からCSVを読み込んでください';
     return;
   }
@@ -510,7 +510,7 @@ $('ap-save').onclick = () => {
 function openSettings() {
   $('set-spots').textContent = `取得済み ${cfg.spots.length} 件`;
   document.querySelectorAll('input[name=set-source]').forEach((r) => (r.checked = r.value === cfg.demandSource));
-  $('set-street-only').checked = cfg.csvStreetOnly;
+  document.querySelectorAll('input[name=set-kind]').forEach((c) => (c.checked = !!cfg.csvKinds[c.value]));
   showSourcePanels();
   $('set-radius').value = cfg.radiusKm;
   $('set-weather').value = cfg.weatherMode;
@@ -672,7 +672,7 @@ $('pl-csv').addEventListener('change', async () => {
   $('pl-csv').value = '';
   if (!f) return;
   try {
-    const { items, errors, analyzer } = csvToPlaces(decodeCsv(await f.arrayBuffer()), { streetOnly: cfg.csvStreetOnly });
+    const { items, errors, analyzer } = csvToPlaces(decodeCsv(await f.arrayBuffer()), { kinds: cfg.csvKinds });
     // 緯度・経度が無い行は、住所（無ければ施設名）から調べる。結果は端末に残すので、2回目からは速い
     const need = items.filter((it) => it.lat == null);
     need.forEach((it) => { if (!it.q) it.q = queryCandidates(it.name, it.addr); });
@@ -681,11 +681,11 @@ $('pl-csv').addEventListener('change', async () => {
     items.forEach((it) => delete it.q);
     const ok = items.filter((it) => it.lat != null);
     if (!ok.length) throw new Error(errors[0] || (missed.length ? `住所が見つかりませんでした（${missed.slice(0, 3).join('、')}）` : '読み込める行がありません'));
-    const { list, added, updated } = mergePlaces(cfg.events, ok);
+    const { list, added, updated, removed } = mergePlaces(cfg.events, ok, undefined, { replaceLog: !!analyzer });
     cfg.events = list;
     placesChanged();
     const skip = errors.length + missed.length;
-    toast(`${analyzer ? `営業ログの乗車 ${analyzer.used}件${analyzer.streetOnly ? '（流し・乗り場）' : ''}から、乗車した場所 ` : ''}追加 ${added}件・更新 ${updated}件${skip ? `・読み込めなかった行 ${skip}件（${errors.concat(missed.map((m) => `${m}：住所が見つからない`)).slice(0, 2).join('／')}${skip > 2 ? ' ほか' : ''}）` : ''}`, 8000);
+    toast(`${analyzer ? `営業ログの乗車 ${analyzer.used}件（${kindsLabel(cfg.csvKinds)}）から、乗車した場所 ` : ''}追加 ${added}件・更新 ${updated}件${removed ? `・対象外になった地点 ${removed}件を削除` : ''}${skip ? `・読み込めなかった行 ${skip}件（${errors.concat(missed.map((m) => `${m}：住所が見つからない`)).slice(0, 2).join('／')}${skip > 2 ? ' ほか' : ''}）` : ''}`, 8000);
   } catch (e) {
     toast(e.message, 6000);
   }
@@ -718,7 +718,7 @@ function showSourcePanels() {
   $('src-csv').classList.toggle('hidden', !csv);
   const info = cfg.csvInfo;
   $('set-csv').textContent = cfg.csvRides.length && info
-    ? `読み込み済み：乗車 ${cfg.csvRides.length} 件（${info.from}〜${info.to}）・うち流し・乗り場 ${cfg.csvRides.filter(isStreetRide).length} 件${info.skipped ? `・場所がわからない ${info.skipped} 件は除外` : ''}`
+    ? `読み込み済み：乗車 ${cfg.csvRides.length} 件（${info.from}〜${info.to}）・内訳 ${kindCounts()}・使う乗車 ${cfg.csvRides.filter(rideFilter(cfg.csvKinds)).length} 件${info.skipped ? `・場所がわからない ${info.skipped} 件は除外` : ''}`
     : 'まだ読み込まれていません';
 }
 function applyDemandChange() {
@@ -729,7 +729,16 @@ document.querySelectorAll('input[name=set-source]').forEach((r) => r.addEventLis
   showSourcePanels();
   applyDemandChange();
 }));
-$('set-street-only').addEventListener('change', () => { cfg.csvStreetOnly = $('set-street-only').checked; applyDemandChange(); showSourcePanels(); });
+function kindCounts() {
+  const c = { street: 0, stand: 0, app: 0 };
+  for (const r of cfg.csvRides) c[rideType(r)]++;
+  return `流し ${c.street}・乗り場 ${c.stand}・アプリ等 ${c.app}`;
+}
+document.querySelectorAll('input[name=set-kind]').forEach((c) => c.addEventListener('change', () => {
+  cfg.csvKinds = { ...cfg.csvKinds, [c.value]: c.checked };
+  applyDemandChange(); showSourcePanels();
+  if (!Object.values(cfg.csvKinds).some(Boolean)) toast('使う乗車の種類を1つ以上選んでください');
+}));
 $('csv-file').addEventListener('change', async () => {
   const f = $('csv-file').files[0];
   $('csv-file').value = '';

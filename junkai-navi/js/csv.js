@@ -77,3 +77,13 @@ export function importAnalyzerCsv(text) {
 export const placeKey = (r) => r.fac || r.addr || '';
 
 export const isStreetRide = (r) => !r.app && (r.kind === '流し' || r.kind === '乗り場' || r.kind === '');
+
+// 乗車の種類：street＝流し、stand＝乗り場、app＝アプリ配車・無線・予約（呼ばれた場所）
+export const rideType = (r) => (r.app || !(r.kind === '流し' || r.kind === '乗り場' || r.kind === '') ? 'app' : r.kind === '乗り場' ? 'stand' : 'street');
+// 使う種類だけ通すフィルター。kinds = { street, stand, app }（初期は流しだけ：乗り場は待てば乗れる場所なので巡回先にしない）
+export const DEFAULT_KINDS = { street: true, stand: false, app: false };
+export const rideFilter = (kinds = DEFAULT_KINDS) => (r) => !!kinds[rideType(r)];
+export const kindsLabel = (kinds = DEFAULT_KINDS) => {
+  const on = [kinds.street && '流し', kinds.stand && '乗り場', kinds.app && 'アプリ配車・無線・予約'].filter(Boolean);
+  return on.length === 3 ? 'すべての乗車' : on.length ? on.join('・') : '使う乗車なし';
+};

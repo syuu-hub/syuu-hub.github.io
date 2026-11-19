@@ -91,10 +91,18 @@ ok(lp.items.some((x) => x.name === 'コンフォートホテルERA神戸三宮' 
 // アップロードされた実データ（あれば）
 const real = process.env.REAL_CSV;
 if (real) {
-  const rp = csvToPlaces(readFileSync(real, 'utf8'), { streetOnly: true });
-  console.log(`実データ: 乗車 ${rp.analyzer.total}件（流し・乗り場 ${rp.analyzer.used}件） → ${rp.items.length}か所 / 上位: ${rp.items.slice(0, 5).map((x) => `${x.name}(${x.rides})`).join('、')} / エラー ${rp.errors.length}`);
+  const rp = csvToPlaces(readFileSync(real, 'utf8'), { kinds: { street: true, stand: false, app: false } });
+  console.log(`実データ: 乗車 ${rp.analyzer.total}件（流しのみ ${rp.analyzer.used}件） → ${rp.items.length}か所 / 上位: ${rp.items.slice(0, 5).map((x) => `${x.name}(${x.rides})`).join('、')} / エラー ${rp.errors.length}`);
   ok(rp.items.length > 0 && rp.items.every((x) => x.q.length), '実データの全地点に調べる候補がある');
 }
+
+// 乗車の種類で絞る（初期は流しだけ）
+const kl = csvToPlaces('\ufeff' + log, { kinds: { street: true, stand: false, app: false } });
+ok(kl.analyzer.used === 2 && !kl.items.some((x) => x.name === '新神戸駅'), `乗り場を除くと流しの ${kl.analyzer.used}件だけ`);
+// 読み込み直すと、営業ログ由来で対象外になった地点は消える（手で登録した地点は残る）
+const before = [{ id: 'm', name: '手で登録', addr: 'x', kind: 'custom', lat: 1, lng: 1 }, { id: 'l', name: '新神戸駅', addr: '兵庫県神戸市中央区加納町一丁目', kind: 'custom', rides: 3, lat: 1, lng: 1 }];
+const mr = mergePlaces(before, kl.items.map((x) => ({ ...x, lat: 1, lng: 1 })), () => 'n', { replaceLog: true });
+ok(mr.removed === 1 && mr.list.some((x) => x.id === 'm') && !mr.list.some((x) => x.name === '新神戸駅') && mr.added === 2, `対象外の地点を削除 ${mr.removed}件・手で登録した地点は残る`);
 
 console.log(fails ? `FAILED ${fails}` : 'ALL PASS');
 process.exit(fails ? 1 : 0);
