@@ -132,6 +132,11 @@
   </div>
 </div>
 
+<script>
+// 起動時のエラーを画面に表示（不具合の切り分け用）
+window.addEventListener('error', function (e) { var b = document.getElementById('spot-info'); if (b) b.textContent = 'エラー: ' + (e.message || e.target && e.target.src || '読み込み失敗'); }, true);
+window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
+</script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>
