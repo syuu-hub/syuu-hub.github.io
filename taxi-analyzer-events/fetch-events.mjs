@@ -209,7 +209,9 @@ async function glion() {
       times = timesFrom(cell.split(/(?=\d{4}年\d{1,2}月\d{1,2}日)/), day, day);
     } catch (e) { console.warn('glion detail', e.message); }
     const hit = times.find(([d]) => d === day);
-    out.push(ev('glion', day, hit ? hit[1] : null, x.title, x.cat === 'SPORTS' ? { sport: true } : {}));
+    const e = ev('glion', day, hit ? hit[1] : null, x.title, x.cat === 'SPORTS' ? { sport: true } : {});
+    if (x.cat !== 'SPORTS' && e.start) e.end = addMin(e.start, 150);   // コンサートなどは試合より長め
+    out.push(e);
   }
   return out;
 }
