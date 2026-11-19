@@ -1,0 +1,23 @@
+# 一時的：GLION ARENA KOBE のイベントページの確認（確認が済んだら消す）
+name: events-probe
+on:
+  push:
+    branches: [claude/taxi-board-app-ncbt4x]
+    paths: ['events-probe/render.mjs']
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm i --no-save playwright@1.49.1 && npx playwright install --with-deps chromium
+      - run: node events-probe/render.mjs
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add events-probe/out
+          git commit -m "events-probe: glion" || exit 0
+          git push
