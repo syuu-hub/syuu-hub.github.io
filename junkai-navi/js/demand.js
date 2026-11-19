@@ -1,5 +1,6 @@
-// 需要エンジン：時間帯・曜日・天気・鉄道・イベント・自分の乗車記録から需要エリアを算出
-import { haversine, bearing, angleDiff } from './geo.js?v=10';
+// 需要エンジン：時間帯・曜日・天気・鉄道・イベント・登録地点・タクシーアナライザの乗車実績から需要エリアを算出
+// （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
+import { haversine, bearing, angleDiff } from './geo.js?v=11';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -52,12 +53,11 @@ export class DemandEngine {
   constructor() {
     this.spots = []; // {id,name,lng,lat,cat}
     this.events = []; // {id,name,lng,lat,end,size}
-    this.pickups = []; // {lng,lat,t}
     this.csvRides = []; // タクシーアナライザの乗車実績 {lng,lat,t,name,fare}
     this.weather = 'clear'; // clear | rain | heavy
     this.railDisruption = false;
     this.areas = new Map(); // key -> {key, center, name, score, raw}
-    this.visited = new Map(); // key -> 訪問時刻
+    this.visited = new Map(); // key -> { t: 回った時刻, c: 中心 }
   }
 
   // 需要エリアを再計算（EMA で平滑化して急変を防ぐ）
@@ -83,19 +83,8 @@ export class DemandEngine {
       const v = eventFactor(ev, now);
       if (v > 0) add([ev.lng, ev.lat], v, ev.name, 10);
     }
-    // 自分の乗車記録：同じ曜日タイプ・前後1時間の実績を重み付け
     const h = now.getHours();
     const wk = now.getDay() === 0 || now.getDay() === 6;
-    for (const p of this.pickups) {
-      const d = new Date(p.t);
-      const dh = Math.min(Math.abs(d.getHours() - h), 24 - Math.abs(d.getHours() - h));
-      if (dh > 1) continue;
-      const sameType = (d.getDay() === 0 || d.getDay() === 6) === wk;
-      const ageDays = (now - d) / 864e5;
-      const v = 0.8 * (dh === 0 ? 1 : 0.5) * (sameType ? 1 : 0.4) * Math.exp(-ageDays / 60);
-      add([p.lng, p.lat], v, '乗車実績', 0.005);
-    }
-
     // タクシーアナライザの乗車実績：同じ時間帯・曜日タイプほど重く、運賃が高いほど少し重く
     for (const p of this.csvRides) {
       const d = new Date(p.t);
@@ -129,12 +118,29 @@ export class DemandEngine {
     return next;
   }
 
-  markVisited(key, now = Date.now()) { if (key) this.visited.set(key, now); }
+  markVisited(key, now = Date.now(), center = null) {
+    if (!key) return;
+    const c = center || (this.areas.get(key) && this.areas.get(key).center) || (this.visited.get(key) && this.visited.get(key).c) || null;
+    this.visited.set(key, { t: now, c });
+  }
+
+  // 回ってから revisitMin 分以内のエリアの中心
+  recentVisited(now, revisitMin) {
+    const out = [];
+    for (const [k, v] of this.visited) {
+      if (now - v.t < revisitMin * 60e3) out.push({ key: k, c: v.c, t: v.t });
+      else if (now - v.t > 6 * 3600e3) this.visited.delete(k); // 古い記録は捨てる
+    }
+    return out;
+  }
 
   // 次の目標エリアを選ぶ
   // from: 出発点, heading: 進行方位, opts.center/radiusM: 営業エリア, opts.exclude: 除外キー
-  rank(from, heading, { center, radiusM = 6000, exclude = new Set(), now = Date.now(), minDistM = 700 } = {}) {
+  // strict：回ってから revisitMin 分以内のエリアと、その近く（nearM 以内）は候補にしない（同じ所をぐるぐる回らない）
+  //         false なら候補には残し、点数を大きく下げるだけ（他に行き先が無い時の予備）
+  rank(from, heading, { center, radiusM = 6000, exclude = new Set(), now = Date.now(), minDistM = 700, revisitMin = 60, nearM = 500, strict = true } = {}) {
     const list = [];
+    const recent = this.recentVisited(now, revisitMin);
     for (const a of this.areas.values()) {
       if (exclude.has(a.key)) continue;
       const d = haversine(from, a.center);
@@ -145,10 +151,12 @@ export class DemandEngine {
         const diff = angleDiff(heading, bearing(from, a.center));
         u *= 1 - 0.4 * (diff / 180); // 前方を優先（Uターンを減らす）
       }
-      const v = this.visited.get(a.key);
-      if (v) {
-        const mins = (now - v) / 60e3;
-        if (mins < 25) u *= 0.15 + 0.85 * (mins / 25); // 直近に回ったエリアは後回し
+      // 直近に回ったエリア（そのものか、すぐ近く）
+      let last = null;
+      for (const r of recent) if (r.key === a.key || (r.c && haversine(r.c, a.center) < nearM)) if (!last || r.t > last) last = r.t;
+      if (last != null) {
+        if (strict) continue;
+        u *= 0.05 + 0.95 * ((now - last) / 60e3 / revisitMin) ** 2;
       }
       list.push({ area: a, utility: u, dist: d });
     }

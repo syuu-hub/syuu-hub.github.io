@@ -1,10 +1,10 @@
-import { EndlessNavigator } from './navcore.js?v=10';
-import { ValhallaClient } from './valhalla.js?v=10';
-import { DemandEngine, CAT_JA } from './demand.js?v=10';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=10';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=10';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=10';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=10';
+import { EndlessNavigator } from './navcore.js?v=11';
+import { ValhallaClient } from './valhalla.js?v=11';
+import { DemandEngine, CAT_JA } from './demand.js?v=11';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=11';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=11';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=11';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=11';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -24,10 +24,10 @@ const cfg = Object.assign(
     replanMin: 3,
     switchGain: 1.3,
     tourMax: 3, // 1回のルートで通る需要エリアの数
+    revisitMin: 60, // 一度通ったエリアに、また向かうまでの時間（分）
     spots: [],
     spotsCenter: null,
     events: [],
-    pickups: [],
     lastCenter: null,
     demandSource: 'manual', // manual: 任意で設定 / csv: タクシーアナライザのCSV
     csvRides: [],
@@ -47,7 +47,6 @@ function syncDemand() {
   demand.spots = manual ? cfg.spots.concat(cfg.events.filter((e) => e.kind === 'custom').map((e) => ({ ...e, cat: 'custom' }))) : [];
   demand.csvRides = manual ? [] : cfg.csvRides.filter(rideFilter(cfg.csvKinds));
   demand.events = cfg.events.filter((e) => e.kind !== 'custom' && new Date(e.end).getTime() > Date.now() - 2 * 3600e3);
-  demand.pickups = cfg.pickups;
   demand.railDisruption = cfg.railManual || odptDisruption;
   if (cfg.weatherMode !== 'auto') demand.weather = cfg.weatherMode;
 }
@@ -220,7 +219,7 @@ function tourSpeech(tour) {
   return `${(tour && tour.length ? tour : [null]).map((a) => demand.areaName(a)).join('、')}を通ります`;
 }
 function settingsForNav() {
-  return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000, tourMax: Math.min(4, Math.max(1, +cfg.tourMax || 3)) };
+  return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000, tourMax: Math.min(4, Math.max(1, +cfg.tourMax || 3)), revisitMin: Math.min(180, Math.max(15, +cfg.revisitMin || 60)) };
 }
 
 let running = false, riding = false, simulate = false, follow = true;
@@ -368,22 +367,21 @@ function stop() {
   renderStart();
 }
 
-// 実車・空車の切り替え
+// 休止・再開（お客様を乗せている間は案内を止める。乗車の記録はタクシーアナライザで行い、ここでは何も記録しない）
 function toggleRide() {
   if (!running) return;
   if (!riding) {
     riding = true;
-    if (lastFix) { cfg.pickups.push({ lng: lastFix.point[0], lat: lastFix.point[1], t: Date.now() }); save(); }
     if (nav.target) demand.markVisited(nav.target.key);
-    nav.route = null; nav.target = null;
+    nav.route = null; nav.target = null; nav.tour = [];
     drawRoute();
-    speak('実車です。乗車地点を記録しました');
+    speak('案内を休止します');
   } else {
     riding = false;
     nav.reset();
     nav.s = { ...nav.s, ...settingsForNav() };
     nav.serviceCenter = lastFix ? lastFix.point : null;
-    speak('空車に戻りました。巡回を再開します');
+    speak('巡回を再開します');
     if (lastFix) nav.update({ ...lastFix, t: Date.now() });
   }
   render();
@@ -429,19 +427,19 @@ function render() {
   const v = nav.view();
   if (riding) {
     $('b-icon').innerHTML = arrowSVG('straight');
-    $('b-dist').textContent = '実車中';
-    $('b-street').textContent = '降車後に「空車」を押すと巡回を再開します';
+    $('b-dist').textContent = '休止中';
+    $('b-street').textContent = '「再開」を押すと、今いる所から巡回を再開します';
     $('b-then').classList.add('hidden');
-    $('s-mode').textContent = '実車中'; $('s-mode').classList.add('riding');
+    $('s-mode').textContent = '休止中'; $('s-mode').classList.add('riding');
     $('s-target').textContent = '';
-    $('s-meta').textContent = `本日の乗車記録 ${todayPickups()} 件`;
+    $('s-meta').textContent = '案内を止めています（乗車の記録はタクシーアナライザで）';
     $('s-level').textContent = '';
-    $('btn-ride-label').textContent = '空車';
+    $('btn-ride-label').textContent = '再開';
     $('btn-ride').classList.add('riding');
     return;
   }
   $('s-mode').textContent = '巡回中'; $('s-mode').classList.remove('riding');
-  $('btn-ride-label').textContent = '実車';
+  $('btn-ride-label').textContent = '休止';
   $('btn-ride').classList.remove('riding');
   if (!v) {
     $('b-icon').innerHTML = arrowSVG('straight');
@@ -470,10 +468,6 @@ function render() {
   $('s-level').textContent = '需要 ' + '●'.repeat(lv) + '○'.repeat(5 - lv);
 }
 const weatherJa = () => ({ clear: '晴れ', rain: '雨', heavy: '大雨' }[demand.weather] || '') + (demand.railDisruption ? '・鉄道遅延' : '');
-function todayPickups() {
-  const d = new Date(); d.setHours(0, 0, 0, 0);
-  return cfg.pickups.filter((p) => p.t >= d.getTime()).length;
-}
 
 function renderStart() {
   if (cfg.demandSource === 'csv') {
@@ -551,9 +545,9 @@ function openSettings() {
   $('set-replan').value = cfg.replanMin;
   $('set-gain').value = cfg.switchGain;
   $('set-tour').value = cfg.tourMax;
+  $('set-revisit').value = cfg.revisitMin;
   $('set-router').value = cfg.routerUrl;
   $('set-sim').value = cfg.simSpeed;
-  $('set-pickups').textContent = `記録 ${cfg.pickups.length} 件（需要の学習に使います）`;
   renderEvents();
   $('settings').classList.remove('hidden');
 }
@@ -739,6 +733,7 @@ bind('set-voice', 'voice', Boolean, 'checked');
 bind('set-commit', 'commitSec', Number);
 bind('set-replan', 'replanMin', Number);
 bind('set-gain', 'switchGain', Number);
+bind('set-revisit', 'revisitMin', (v) => Math.min(180, Math.max(15, Math.round(Number(v)) || 60)));
 bind('set-tour', 'tourMax', (v) => Math.min(4, Math.max(1, Math.round(Number(v)) || 3)));
 bind('set-router', 'routerUrl', (v) => v.trim() || 'https://valhalla1.openstreetmap.de');
 bind('set-sim', 'simSpeed', Number);
@@ -821,28 +816,6 @@ $('btn-fetch').onclick = async () => {
   syncDemand(); demand.update(new Date(), 1); refreshHeat(); renderStart();
 };
 $('btn-clear-spots').onclick = () => { cfg.spots = []; cfg.spotsCenter = null; save(); $('set-spots').textContent = '取得済み 0 件'; renderStart(); };
-$('btn-export').onclick = async () => {
-  const text = JSON.stringify({ pickups: cfg.pickups, events: cfg.events });
-  $('io').classList.remove('hidden');
-  $('io').value = text;
-  try { await navigator.clipboard.writeText(text); toast('コピーしました'); } catch { $('io').select(); toast('表示されたテキストをコピーしてください'); }
-};
-$('btn-import').onclick = () => {
-  const box = $('io');
-  if (box.classList.contains('hidden') || !box.value.trim()) { box.classList.remove('hidden'); box.value = ''; box.focus(); toast('JSONを貼り付けて、もう一度「読み込み」を押してください'); return; }
-  try {
-    const j = JSON.parse(box.value);
-    if (Array.isArray(j.pickups)) cfg.pickups = cfg.pickups.concat(j.pickups);
-    if (Array.isArray(j.events)) cfg.events = cfg.events.concat(j.events);
-    save(); syncDemand(); openSettings(); toast('読み込みました');
-  } catch { toast('JSONの形式が正しくありません'); }
-};
-let clearArmed = 0;
-$('btn-clear-pickups').onclick = () => {
-  if (Date.now() - clearArmed > 4000) { clearArmed = Date.now(); toast('もう一度押すと乗車記録をすべて消去します'); return; }
-  cfg.pickups = []; save(); openSettings(); toast('乗車記録を消去しました');
-};
-
 document.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => $(b.dataset.close).classList.add('hidden')));
 document.querySelectorAll('.modal').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) m.classList.add('hidden'); }));
 

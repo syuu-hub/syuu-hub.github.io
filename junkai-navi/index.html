@@ -49,7 +49,7 @@
     <span id="s-level" class="s-level"></span>
   </div>
   <div class="tiles">
-    <button id="btn-ride" class="tile tile-primary"><span class="ti">🚕</span><span id="btn-ride-label">実車</span></button>
+    <button id="btn-ride" class="tile tile-primary"><span class="ti">⏸</span><span id="btn-ride-label">休止</span></button>
     <button id="btn-heat" class="tile"><span class="ti">🔥</span><span>需要マップ</span></button>
     <button id="btn-settings2" class="tile"><span class="ti">⚙️</span><span>設定</span></button>
     <button id="btn-stop" class="tile tile-danger"><span class="ti">■</span><span>終了</span></button>
@@ -125,12 +125,10 @@
       <label>需要による切替の最小間隔（分）<input id="set-replan" type="number" min="1" max="30" step="1"></label>
       <label>切替に必要な需要の差（倍）<input id="set-gain" type="number" min="1.05" max="3" step="0.05"></label>
       <label>1回のルートで通る需要エリアの数（1〜4）<input id="set-tour" type="number" min="1" max="4" step="1"></label>
+      <label>一度通ったエリアに、また向かうまでの時間（分）<input id="set-revisit" type="number" min="15" max="180" step="5"></label>
+      <p class="hint">通ったエリア（と、その500m以内）は、この時間は行き先にしません。最近走った道を4割以上通るルートも、他に案があれば使いません（同じ所をぐるぐる回らないように）。</p>
       <p class="hint">候補のエリアが近くに複数あるときは、それらを順に通り抜けるルートにします（近い順に、1つ先まで2.5km以内・全体で8km以内）。1にすると1か所ずつ向かいます。</p>
 
-      <h3>乗車記録</h3>
-      <p class="hint" id="set-pickups"></p>
-      <div class="row"><button id="btn-export" class="btn">書き出し</button><button id="btn-import" class="btn">読み込み</button><button id="btn-clear-pickups" class="btn ghost">消去</button></div>
-      <textarea id="io" class="hidden" rows="5" placeholder="ここにJSONを貼り付けて「読み込み」"></textarea>
 
       <h3>詳細</h3>
       <label>ルートサーバーURL<input id="set-router" type="url"></label>
@@ -201,6 +199,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=10"></script>
+<script type="module" src="js/main.js?v=11"></script>
 </body>
 </html>
