@@ -69,7 +69,7 @@ async function kih() {
     const { y, m } = ym(k), html = await get(`https://www.kih.co.jp/kokusaihall/event/index/${y}-${pad(m)}-01`);
     for (const li of html.split(/<li\b[^>]*>/).slice(1)) {
       const t = /<p class="title"><a href="(\/kokusaihall\/event\/detail\/\d+)">([\s\S]*?)<\/a>/.exec(li);
-      const d = /<p class="day">[\s\S]*?(\d{4})年(\d{2})月(\d{2})日[^<～]*(?:～(\d{4})年(\d{2})月(\d{2})日)?/.exec(li);
+      const d = /<p class="day">[\s\S]*?(\d{4})年(\d{2})月(\d{2})日[^<～]*(?:<br\s*\/?>\s*)?(?:～(\d{4})年(\d{2})月(\d{2})日)?/.exec(li);
       if (!t || !d || /PRIVATE/i.test(t[2])) continue;
       list.set(t[1], { url: t[1], title: clean(t[2]), from: ymd(+d[1], +d[2], +d[3]), to: d[4] ? ymd(+d[4], +d[5], +d[6]) : ymd(+d[1], +d[2], +d[3]) });
     }
@@ -82,8 +82,9 @@ async function kih() {
       try {
         const html = await get('https://www.kih.co.jp' + e.url);
         const cell = clean((/<th>日時<\/th>\s*<td>([\s\S]*?)<\/td>/.exec(html) || [])[1]);
-        // 「2026年11月22日（日）17:00開演」が日ごとに並ぶ
-        for (const x of cell.matchAll(/(\d{4})年(\d{1,2})月(\d{1,2})日[^0-9]*?(\d{1,2}:\d{2})\s*開演/g)) times.push([ymd(+x[1], +x[2], +x[3]), hm(x[4])]);
+        // 「2026年11月22日（日）17:00開演」が日ごとに並ぶ（2日目以降は年が省かれることがある）
+        let yy = +e.from.slice(0, 4);
+        for (const x of cell.matchAll(/(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日[^0-9]*?(\d{1,2}:\d{2})\s*開演/g)) { if (x[1]) yy = +x[1]; times.push([ymd(yy, +x[2], +x[3]), hm(x[4])]); }
         if (!times.length) { const t1 = /(\d{1,2}:\d{2})\s*開演/.exec(cell); if (t1) for (let d = e.from; d <= e.to; d = next(d)) times.push([d, hm(t1[1])]); }
       } catch (err) { console.warn('kih detail', err.message); }
     }
