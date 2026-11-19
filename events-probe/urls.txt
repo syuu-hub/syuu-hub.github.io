@@ -1,0 +1,8 @@
+world https://www.kobe-spokyo.jp/world-kobe/
+kih https://www.kih.co.jp/kokusaihall/
+tottei https://www.totteikobe.jp/
+tottei-event https://www.totteikobe.jp/news/category/event
+kcc https://kobe-cc.jp/
+bunka https://www.kobe-bunka.jp/hall/
+vissel https://www.jleague.jp/club/kobe/day/
+storks https://www.storks.jp/
