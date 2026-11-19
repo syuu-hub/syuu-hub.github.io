@@ -2,7 +2,7 @@
  "updated": "2026-11-19",
  "status": {
   "world": 19,
-  "kih": 24,
+  "kih": 25,
   "bunka": 37,
   "kcc": 41,
   "vissel": 4,
@@ -11,8 +11,8 @@
  "events": [
   {
    "date": "2026-11-19",
-   "start": null,
-   "end": null,
+   "start": "19:00",
+   "end": "21:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "椎名林檎と彼奴等と試す煩悩菩提"
@@ -29,19 +29,19 @@
   {
    "date": "2026-11-20",
    "start": "19:00",
+   "end": "21:30",
+   "venue": "神戸国際会館こくさいホール",
+   "cap": 2000,
+   "title": "椎名林檎と彼奴等と試す煩悩菩提"
+  },
+  {
+   "date": "2026-11-20",
+   "start": "19:00",
    "end": "21:00",
    "venue": "ノエビアスタジアム神戸",
    "cap": 30000,
    "title": "ヴィッセル神戸 vs 水戸",
    "sport": true
-  },
-  {
-   "date": "2026-11-20",
-   "start": null,
-   "end": null,
-   "venue": "神戸国際会館こくさいホール",
-   "cap": 2000,
-   "title": "椎名林檎と彼奴等と試す煩悩菩提"
   },
   {
    "date": "2026-11-20",
@@ -119,8 +119,8 @@
   },
   {
    "date": "2026-11-22",
-   "start": null,
-   "end": null,
+   "start": "17:30",
+   "end": "20:00",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare"
@@ -144,19 +144,19 @@
   },
   {
    "date": "2026-11-23",
+   "start": "16:00",
+   "end": "18:30",
+   "venue": "神戸国際会館こくさいホール",
+   "cap": 2000,
+   "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare"
+  },
+  {
+   "date": "2026-11-23",
    "start": "17:30",
    "end": "20:00",
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "日向坂４６"
-  },
-  {
-   "date": "2026-11-23",
-   "start": null,
-   "end": null,
-   "venue": "神戸国際会館こくさいホール",
-   "cap": 2000,
-   "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare"
   },
   {
    "date": "2026-11-23",
@@ -321,8 +321,8 @@
   },
   {
    "date": "2026-11-29",
-   "start": null,
-   "end": null,
+   "start": "16:30",
+   "end": "19:00",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "GORO NOGUCHI CONCERT TOUR 2026「 I sing songs !!～歌がある限り～」"
@@ -357,6 +357,14 @@
    "date": "2026-12-01",
    "start": "14:00",
    "end": "16:30",
+   "venue": "神戸国際会館こくさいホール",
+   "cap": 2000,
+   "title": "吉幾三 コンサート2026"
+  },
+  {
+   "date": "2026-12-01",
+   "start": "18:00",
+   "end": "20:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "吉幾三 コンサート2026"
@@ -645,19 +653,19 @@
   },
   {
    "date": "2026-12-20",
+   "start": "16:00",
+   "end": "18:30",
+   "venue": "神戸国際会館こくさいホール",
+   "cap": 2000,
+   "title": "バンドー化学株式会社 presents 第九コンサート2026"
+  },
+  {
+   "date": "2026-12-20",
    "start": "18:30",
    "end": "21:00",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "RAVENS CHEER FESTIVAL 2026"
-  },
-  {
-   "date": "2026-12-20",
-   "start": null,
-   "end": null,
-   "venue": "神戸国際会館こくさいホール",
-   "cap": 2000,
-   "title": "バンドー化学株式会社 presents 第九コンサート2026"
   },
   {
    "date": "2026-12-20",
@@ -695,8 +703,8 @@
   },
   {
    "date": "2026-12-25",
-   "start": null,
-   "end": null,
+   "start": "18:30",
+   "end": "21:00",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "Jang Wooyoung Concert in Japan"
@@ -711,8 +719,8 @@
   },
   {
    "date": "2026-12-26",
-   "start": null,
-   "end": null,
+   "start": "16:00",
+   "end": "18:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "Jang Wooyoung Concert in Japan"
@@ -738,17 +746,17 @@
    "date": "2026-12-27",
    "start": "18:00",
    "end": "20:30",
-   "venue": "神戸文化ホール 大ホール",
-   "cap": 2000,
-   "title": "神戸学院大学吹奏楽部 第50回定期演奏会"
-  },
-  {
-   "date": "2026-12-27",
-   "start": null,
-   "end": null,
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "角松敏生 TOSHIKI KADOMATSU 45th Anniversary Live 〜御礼参り〜"
+  },
+  {
+   "date": "2026-12-27",
+   "start": "18:00",
+   "end": "20:30",
+   "venue": "神戸文化ホール 大ホール",
+   "cap": 2000,
+   "title": "神戸学院大学吹奏楽部 第50回定期演奏会"
   },
   {
    "date": "2027-01-16",
