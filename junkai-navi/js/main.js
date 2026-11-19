@@ -1,10 +1,10 @@
-import { EndlessNavigator } from './navcore.js?v=9';
-import { ValhallaClient } from './valhalla.js?v=9';
-import { DemandEngine, CAT_JA } from './demand.js?v=9';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=9';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=9';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=9';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=9';
+import { EndlessNavigator } from './navcore.js?v=10';
+import { ValhallaClient } from './valhalla.js?v=10';
+import { DemandEngine, CAT_JA } from './demand.js?v=10';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=10';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=10';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=10';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=10';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -134,10 +134,14 @@ map.on('load', () => {
   map.addLayer({
     id: 'heat', type: 'heatmap', source: 'heat', layout: { visibility: 'none' },
     paint: {
-      'heatmap-weight': ['interpolate', ['linear'], ['get', 'score'], 0, 0, 3, 1],
+      'heatmap-weight': ['interpolate', ['linear'], ['get', 'score'], 0, 0, 1.5, 1],
+      // 案内中は拡大して見るので、拡大するほど強めに（需要の濃淡が見えるように）
+      'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 11, 1, 14, 1.8, 17, 3],
       'heatmap-radius': ['interpolate', ['exponential', 2], ['zoom'], 11, 25, 16, 160],
-      'heatmap-opacity': 0.55,
-      'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 0.2, '#fde68a', 0.5, '#fb923c', 0.8, '#ef4444', 1, '#b91c1c'],
+      'heatmap-opacity': 0.85,
+      // オレンジ一色。需要が多いほど濃く（透明 → 薄いオレンジ → 濃いオレンジ）
+      'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
+        0, 'rgba(255,152,0,0)', 0.1, 'rgba(255,183,77,0.3)', 0.35, 'rgba(255,152,0,0.5)', 0.65, 'rgba(245,124,0,0.68)', 1, 'rgba(230,81,0,0.85)'],
     },
   }, firstSymbol);
   map.addSource('route', { type: 'geojson', data: empty });
@@ -151,17 +155,14 @@ const puckEl = document.createElement('div');
 puckEl.className = 'puck';
 puckEl.innerHTML = '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="#fff"/><path d="M24 7 37 38 24 31 11 38z" fill="#1a73e8"/></svg>';
 const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
-const targetEl = document.createElement('div');
-targetEl.className = 'target-dot';
-const targetMarker = new ML.Marker({ element: targetEl });
-// ツアーで後から通るエリアの印
+// これから通るポイントの印（1＝次に通るポイント）。ゴールの印は出さない
 let tourMarkers = [];
 function drawTourMarkers(areas) {
   tourMarkers.forEach((m) => m.remove());
   tourMarkers = areas.map((a, i) => {
     const el = document.createElement('div');
-    el.className = 'tour-dot';
-    el.textContent = String(i + 2);
+    el.className = 'tour-dot' + (i === 0 ? ' next' : '');
+    el.textContent = String(i + 1);
     return new ML.Marker({ element: el }).setLngLat(a.center).addTo(map);
   });
 }
@@ -199,11 +200,11 @@ const nav = new EndlessNavigator({
     else if (type === 'status') { toast(data); }
     else if (type === 'pass') {
       const next = nav.tourRemaining()[0];
-      speak(`${demand.areaName(data)}です${next ? `。次は${demand.areaName(next)}へ向かいます` : ''}`);
+      speak(`${demand.areaName(data)}です${next ? `。次は${demand.areaName(next)}を通ります` : ''}`);
       drawRoute();
     }
     else if (type === 'route') {
-      if (data.mode === 'switch') toast(`需要の変化に合わせて、${tourText(data.tour)}へ向かいます`);
+      if (data.mode === 'switch') toast(`需要の変化に合わせて、${tourText(data.tour)}を通るルートに変えます`);
       if (data.mode === 'initial') speak(`巡回を開始します。${tourSpeech(data.tour)}`);
       drawRoute();
     }
@@ -216,8 +217,7 @@ function tourText(tour) {
   return [demand.areaName(tour[0]), ...tour.slice(1).map(shortArea)].join(' → ');
 }
 function tourSpeech(tour) {
-  if (!tour || tour.length < 2) return `${demand.areaName(tour && tour[0])}へ向かいます`;
-  return `${tour.slice(0, -1).map((a) => demand.areaName(a)).join('、')}を通って、${demand.areaName(tour[tour.length - 1])}へ向かいます`;
+  return `${(tour && tour.length ? tour : [null]).map((a) => demand.areaName(a)).join('、')}を通ります`;
 }
 function settingsForNav() {
   return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000, tourMax: Math.min(4, Math.max(1, +cfg.tourMax || 3)) };
@@ -360,7 +360,7 @@ function stop() {
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   nav.reset();
   drawRoute();
-  puck.remove(); targetMarker.remove(); drawTourMarkers([]);
+  puck.remove(); drawTourMarkers([]); drawRoute.sig = null;
   ['banner', 'sheet', 'speed', 'recenter'].forEach((id) => $(id).classList.add('hidden'));
   $('start').classList.remove('hidden');
   map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, bottom: 0 } });
@@ -398,13 +398,12 @@ function setFollow(on) {
 function drawRoute() {
   const src = map.getSource && map.getSource('route');
   if (!src) return;
-  if (!nav.route) { src.setData(empty); targetMarker.remove(); drawTourMarkers([]); return; }
+  if (!nav.route) { src.setData(empty); drawTourMarkers([]); drawRoute.sig = null; return; }
   const coords = sliceRoute(nav.route, nav.along);
   src.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } });
-  if (nav.target) targetMarker.setLngLat(nav.target.center).addTo(map);
-  const rest = nav.tourRemaining().slice(1);
-  const sig = rest.map((a) => a.key).join('|');
-  if (sig !== drawRoute.sig) { drawRoute.sig = sig; drawTourMarkers(rest); }
+  const upcoming = nav.tourRemaining();
+  const sig = upcoming.map((a) => a.key).join('|');
+  if (sig !== drawRoute.sig) { drawRoute.sig = sig; drawTourMarkers(upcoming); }
 }
 
 function render() {
@@ -464,8 +463,9 @@ function render() {
   }
   if (v.then) { $('b-then').classList.remove('hidden'); $('b-then-icon').innerHTML = arrowSVG(v.then.kind); }
   else $('b-then').classList.add('hidden');
-  $('s-target').textContent = v.tour && v.tour.length > 1 ? tourText(v.tour) : demand.areaName(v.target);
-  $('s-meta').textContent = `${fmtDist(v.remaining)} ・ 約${Math.max(1, Math.round(v.eta / 60))}分 ・ ${weatherJa()}`;
+  // ゴールは無いので、残り距離・到着時刻は出さず「次に通るポイント」を出す
+  $('s-target').textContent = v.tour && v.tour.length ? `次：${tourText(v.tour.slice(0, 2))}${v.tour.length > 2 ? ` ほか${v.tour.length - 2}` : ''}` : '次のポイントを計算中…';
+  $('s-meta').textContent = `${v.nextPointDist != null ? `次のポイントまで ${fmtDist(v.nextPointDist)} ・ ` : ''}${weatherJa()}`;
   const lv = demand.level(v.target && demand.areas.get(v.target.key));
   $('s-level').textContent = '需要 ' + '●'.repeat(lv) + '○'.repeat(5 - lv);
 }

@@ -62,6 +62,7 @@ assert(nav.route, '初期ルートが作られる');
 
 let switches = 0, extends_ = 0, reroutes = 0;
 let snapshot = null; // 確定区間内の形状
+let minAhead = Infinity;
 for (let step = 0; step < 3600; step++) {
   clock += 1000;
   if (step % 60 === 0) {
@@ -85,6 +86,8 @@ for (let step = 0; step < 3600; step++) {
   const lockedPts = [];
   for (let d = beforeAlong; d <= commit - 1; d += 25) lockedPts.push(pointAt(before, d).point);
   const announced = before.maneuvers.filter((m) => m.announced && m.at > beforeAlong + 5).map((m) => pointAt(before, m.at).point);
+  const aheadPts = [];
+  for (let d = beforeAlong; d <= before.length; d += 100) aheadPts.push(pointAt(before, d).point);
 
   const v = 12;
   let p = pointAt(nav.route, nav.along + v).point;
@@ -95,6 +98,16 @@ for (let step = 0; step < 3600; step++) {
   if (nav.route !== before && lastRouteEvent && lastRouteEvent.mode === 'reroute') { reroutes++; lastRouteEvent = null; }
   if (nav.route !== before && lastRouteEvent && lastRouteEvent.mode !== 'reroute') {
     if (lastRouteEvent.mode === 'switch') switches++; else extends_++;
+    // 先へつなぐ時は、走る先のルートを1mも変えない（終わりに足すだけ）
+    if (lastRouteEvent.mode === 'extend') {
+      let dev = 0;
+      for (const ap of aheadPts) {
+        let m = Infinity;
+        for (let d = Math.max(0, nav.along - 50); d < nav.along + (before.length - beforeAlong) + 60; d += 5) m = Math.min(m, haversine(ap, pointAt(nav.route, d).point));
+        dev = Math.max(dev, m);
+      }
+      assert(dev < 3, `先へつなぐ時に走る先のルートが変わらない (dev=${dev.toFixed(1)}m)`);
+    }
     // 確定区間（変更前に計算したもの）の形状がそのまま残っているか
     let maxDev = 0;
     for (const lp of lockedPts) {
@@ -113,11 +126,17 @@ for (let step = 0; step < 3600; step++) {
     lastRouteEvent = null;
   }
   assert(nav.route.length - nav.along > 0, 'ルートが途切れない');
+  // ゴールを作らない：最初の数分以降、ルートの先が常に1km以上ある
+  const ahead = nav.route.length - nav.along;
+  if (step > 120) minAhead = Math.min(minAhead, ahead);
   if (process.env.DBG && step >= 1500 && step % 30 === 0) {
     const r = demand.rank(nav.pos, nav.heading, nav.rankOpts()).slice(0, 2).map(x => `${x.area.name}:${x.utility.toFixed(2)}`);
     console.log(step, 'target', nav.target && nav.target.name, 'rem', Math.round(nav.route.length - nav.along), 'sincePlan', (clock - nav.lastPlanAt)/1000, r.join(' '));
   }
 }
+
+assert(minAhead > 1000, `ルートの先が常に残っている（最短 ${Math.round(minAhead)}m）`);
+console.log(`ルートの先の最短 ${Math.round(minAhead)}m`);
 
 // 複数エリアを通るルート（ツアー）
 assert(tourSizes.some((n) => n >= 2), `複数のエリアを通るルートを作る（エリア数: ${tourSizes.join(',')}）`);
