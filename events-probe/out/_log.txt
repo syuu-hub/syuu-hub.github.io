@@ -1,0 +1,7 @@
+cruise 404 https://www.city.kobe.lg.jp/a14075/kanko/leisure/harbor/passenger/schedule/index2020.html 10938
+cruise-pr 200 https://www.city.kobe.lg.jp/a44800/537934214235.html 29177
+npb-08 200 https://npb.jp/games/2026/schedule_08_detail.html 274713
+npb-11 200 https://npb.jp/games/2026/schedule_11_detail.html 41870
+koshien 200 https://koshien.hanshin.co.jp/ 40711
+spokyo 200 https://www.kobe-spokyo.jp/ 160
+glion-d 200 https://www.totteikobe.jp/event/article/30480 141034
