@@ -2,42 +2,114 @@
 // ・住所から緯度経度を調べる（国土地理院の住所検索 → 見つからなければ OpenStreetMap の Nominatim）
 // ・CSV への書き出しと読み込み
 import { fetchT } from './sources.js?v=7';
-import { parseCsv } from './csv.js?v=7';
+import { parseCsv, importAnalyzerCsv, placeKey, isStreetRide } from './csv.js?v=7';
+import { haversine } from './geo.js?v=7';
 
 // 日本付近の座標か
 export const inJapan = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng) && lat > 20 && lat < 46 && lng > 122 && lng < 154;
 
-// 住所（または施設名）→ { lat, lng, title }。見つからなければ null
-export async function geocode(addr, fetcher = fetchT) {
+// 住所（または施設名）→ { lat, lng, title }。見つからなければ null。どちらの検索にもつながらなければ例外（'offline'）
+// near: [lng, lat] を渡すと、そこから maxKm 以内の結果だけ使う（同じ名前の別の場所を拾わないように）
+export async function geocode(addr, fetcher = fetchT, { near = null, maxKm = 60 } = {}) {
   const q = String(addr || '').trim();
   if (!q) return null;
+  const okPos = (lat, lng) => inJapan(lat, lng) && (!near || haversine(near, [lng, lat]) <= maxKm * 1000);
+  // 施設名だけで探す時に、近くの範囲に絞って OpenStreetMap を検索する
+  let reached = false;
+  const box = near ? `&bounded=1&viewbox=${near[0] - 0.6},${near[1] + 0.5},${near[0] + 0.6},${near[1] - 0.5}` : '';
   try {
     const res = await fetcher(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(q)}`, {}, 10000);
     if (res.ok) {
+      reached = true;
       const list = await res.json();
       const hit = Array.isArray(list) && list.find((f) => f && f.geometry && Array.isArray(f.geometry.coordinates));
       if (hit) {
         const [lng, lat] = hit.geometry.coordinates.map(Number);
-        if (inJapan(lat, lng)) return { lat, lng, title: (hit.properties && hit.properties.title) || q };
+        if (okPos(lat, lng)) return { lat, lng, title: (hit.properties && hit.properties.title) || q };
       }
     }
   } catch { /* 次の検索へ */ }
   try {
-    const res = await fetcher(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=${encodeURIComponent(q)}`, {}, 10000);
+    const res = await fetcher(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja${box}&q=${encodeURIComponent(q)}`, {}, 10000);
     if (res.ok) {
+      reached = true;
       const list = await res.json();
       const hit = Array.isArray(list) && list[0];
       if (hit) {
         const lat = +hit.lat, lng = +hit.lon;
-        if (inJapan(lat, lng)) return { lat, lng, title: hit.display_name || q };
+        if (okPos(lat, lng)) return { lat, lng, title: hit.display_name || q };
       }
     }
   } catch { /* 見つからない */ }
+  if (!reached) throw new Error('offline');
   return null;
 }
 
+// 調べる文字列の候補：住所 → 住所の末尾の施設名を除いたもの → 施設名
+// 例「…加納町1丁目3-1新神戸駅」→「…加納町1丁目3-1」
+export function queryCandidates(name, addr) {
+  const a = String(addr || '').trim(), n = String(name || '').trim();
+  // 住所（市区町村を含む）の時だけ、最後の数字・丁目より後ろを落とす
+  const m = /[都道府県市区町村]/.test(a) && /^(.*(?:[0-9０-９]|丁目)(?:番地?|号)?)/.exec(a);
+  const cut = m && m[1].length < a.length ? m[1] : '';
+  return [...new Set([a, cut, n].filter((x) => x && x.length >= 2))];
+}
+
+// 候補を順に調べ、結果を cache（{ 文字列: {lat,lng,title} | {miss:1} }）に残す
+export async function geocodeAny(queries, cache = {}, opts = {}, fetcher = fetchT) {
+  for (const q of queries) {
+    const c = cache[q];
+    if (c && !c.miss) return c;
+    if (c && c.miss) continue;
+    let hit;
+    try { hit = await geocode(q, fetcher, opts); }
+    catch { return null; } // 通信できない時は「見つからない」と覚えない（後でもう一度調べる）
+    cache[q] = hit ? { lat: +hit.lat.toFixed(6), lng: +hit.lng.toFixed(6), title: hit.title } : { miss: 1 };
+    if (hit) return cache[q];
+    if (opts.wait) await new Promise((r) => setTimeout(r, opts.wait));
+  }
+  return null;
+}
+
+// 地点の中心（中央値）。施設名だけの検索を、この近くに絞るのに使う
+export function centerOf(points) {
+  const p = points.filter((x) => x && x.lat != null);
+  if (!p.length) return null;
+  const med = (a) => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
+  return [med(p.map((x) => x.lng)), med(p.map((x) => x.lat))];
+}
+
+const shortName = (a) => String(a || '').replace(/^.{2,3}?[都道府県]/, '').replace(/^[^市]{1,6}市(?=[^市]+区)/, '') || a;
+
+// タクシーアナライザの営業ログ → 乗車した場所ごとにまとめた登録地点（乗車回数つき）
+// streetOnly：流し・乗り場の乗車だけ（アプリ配車・無線・予約は呼ばれた場所なので除く）
+export function analyzerToPlaces(text, { streetOnly = false } = {}) {
+  const all = importAnalyzerCsv(text);
+  const { total, skipped } = all;
+  const rides = streetOnly ? all.rides.filter(isStreetRide) : all.rides;
+  const by = new Map();
+  for (const r of rides) {
+    const k = placeKey(r);
+    let g = by.get(k);
+    // 施設名がなければ住所を短くして名前に（「兵庫県神戸市長田区大橋町4丁目1-10」→「長田区大橋町4丁目1-10」）
+    if (!g) { g = { name: r.fac || shortName(r.addr), addrs: new Map(), rides: 0, lat: null, lng: null }; by.set(k, g); }
+    g.rides++;
+    if (r.addr) g.addrs.set(r.addr, (g.addrs.get(r.addr) || 0) + 1);
+    if (r.lat != null && g.lat == null) { g.lat = r.lat; g.lng = r.lng; }
+  }
+  const items = [...by.values()].map((g) => {
+    const addrs = [...g.addrs.entries()].sort((a, b) => b[1] - a[1]).map((x) => x[0]);
+    const addr = addrs[0] || '';
+    const it = { name: g.name, addr, kind: 'custom', rides: g.rides, q: [...new Set(addrs.flatMap((a) => queryCandidates(g.name, a)).concat(queryCandidates(g.name, '')))] };
+    if (g.lat != null) { it.lat = +g.lat.toFixed(6); it.lng = +g.lng.toFixed(6); }
+    return it;
+  }).sort((a, b) => b.rides - a.rides);
+  return { items, total, used: rides.length, skipped };
+}
+export const isAnalyzerLog = (head) => head.includes('種別') && (head.includes('乗車住所') || head.includes('乗車施設'));
+
 // ===== CSV =====
-export const PLACE_HEAD = ['名前', '住所', '種類', '終了日時', '規模', '緯度', '経度'];
+export const PLACE_HEAD = ['名前', '住所', '種類', '終了日時', '規模', '緯度', '経度', '乗車回数'];
 const SIZE_JA = { s: '小', m: '中', l: '大' };
 const SIZE_KEY = { 小: 's', 中: 'm', 大: 'l', s: 's', m: 'm', l: 'l' };
 const pad = (n) => String(n).padStart(2, '0');
@@ -54,20 +126,26 @@ export function placesToCsv(list) {
     rows.push([
       p.name, p.addr || '', p.kind === 'event' ? 'イベント' : '常設',
       p.kind === 'event' && p.end ? fmtStamp(p.end) : '', p.kind === 'event' ? SIZE_JA[p.size] || '中' : '',
-      p.lat != null ? (+p.lat).toFixed(6) : '', p.lng != null ? (+p.lng).toFixed(6) : '',
+      p.lat != null ? (+p.lat).toFixed(6) : '', p.lng != null ? (+p.lng).toFixed(6) : '', p.rides || '',
     ]);
   }
-  return '﻿' + rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
+  return '\ufeff' + rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 
 // 戻り値：{ items: [{name, addr, kind, end?, size?, lat?, lng?}], errors: [行番号: 理由] }
 // 緯度・経度が無い行は、取り込み時に住所から調べる
-export function csvToPlaces(text) {
-  const rows = parseCsv(String(text || '').replace(/^﻿/, ''));
+export function csvToPlaces(text, { streetOnly = false } = {}) {
+  text = String(text || '').replace(/^\ufeff/, '');
+  const rows = parseCsv(text);
   const head = (rows.shift() || []).map((h) => h.trim());
+  // タクシーアナライザの営業ログなら、乗車した場所ごとにまとめる
+  if (isAnalyzerLog(head)) {
+    const { items, total, used, skipped } = analyzerToPlaces(text, { streetOnly });
+    return { items, errors: skipped ? [`位置も施設名・住所もない乗車 ${skipped}件`] : [], analyzer: { total, used, streetOnly } };
+  }
   const ci = (...names) => { for (const n of names) { const i = head.indexOf(n); if (i >= 0) return i; } return -1; };
   const iName = ci('名前', '名称', '施設名'), iAddr = ci('住所', '所在地'), iKind = ci('種類', '種別');
-  const iEnd = ci('終了日時', '終了時刻'), iSize = ci('規模'), iLat = ci('緯度', 'lat'), iLng = ci('経度', 'lng', 'lon');
+  const iEnd = ci('終了日時', '終了時刻'), iSize = ci('規模'), iLat = ci('緯度', 'lat'), iLng = ci('経度', 'lng', 'lon'), iRides = ci('乗車回数');
   if (iAddr < 0 && (iLat < 0 || iLng < 0)) throw new Error('「住所」の列（または「緯度」「経度」の列）があるCSVを選んでください');
   const get = (r, i) => (i < 0 ? '' : String(r[i] ?? '').trim());
   const items = [], errors = [];
@@ -81,6 +159,8 @@ export function csvToPlaces(text) {
     const kind = /イベント|event/i.test(get(r, iKind)) ? 'event' : 'custom';
     const item = { name, addr, kind };
     if (lat != null) { item.lat = lat; item.lng = lng; }
+    const rides = parseInt(get(r, iRides), 10);
+    if (rides > 0) item.rides = rides;
     if (kind === 'event') {
       const end = parseStamp(get(r, iEnd));
       if (end == null) { errors.push(`${line}行目：イベントの終了日時（例 2026/11/20 21:00）がありません`); return; }

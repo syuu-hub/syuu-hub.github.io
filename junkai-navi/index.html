@@ -143,7 +143,7 @@
         <label class="btn ghost file-btn pl-file">CSVで読み込み<input id="pl-csv" type="file" accept=".csv,text/csv" hidden></label>
         <button id="pl-export" class="btn ghost">CSVで保存</button>
       </div>
-      <p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。</p>
+      <p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。「流し・乗り場の乗車だけ使う」の設定に従います）。</p>
 
       <form id="pl-form" class="pl-form hidden" autocomplete="off">
         <h3 id="pl-form-title">住所から追加</h3>
