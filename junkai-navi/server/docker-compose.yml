@@ -1,0 +1,18 @@
+# 自前の Valhalla ルートサーバー（無料・本格運用向け）
+# 使い方: このフォルダで `docker compose up -d`
+# 初回は地図データのダウンロードとルート用データの作成に時間がかかります（関東で数十分程度）
+services:
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:latest
+    container_name: valhalla
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./custom_files:/custom_files
+    environment:
+      # 関東のみ。全国にする場合は https://download.geofabrik.de/asia/japan-latest.osm.pbf
+      - tile_urls=https://download.geofabrik.de/asia/japan/kanto-latest.osm.pbf
+      - server_threads=2
+      - build_admins=True
+      - build_time_zones=True
+    restart: unless-stopped

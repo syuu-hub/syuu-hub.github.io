@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#116a3f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>巡回ナビ</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="css/app.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+</head>
+<body>
+<div id="map"></div>
+
+<!-- 上部の案内バナー -->
+<div id="banner" class="hidden">
+  <div class="banner-main">
+    <div id="b-icon" class="b-icon"></div>
+    <div class="b-text">
+      <div id="b-dist" class="b-dist"></div>
+      <div id="b-street" class="b-street"></div>
+    </div>
+  </div>
+  <div id="b-then" class="b-then hidden"><span>その先</span><span id="b-then-icon" class="b-then-icon"></span></div>
+</div>
+<div id="toast" class="toast hidden"></div>
+
+<!-- 速度・再センター -->
+<div id="speed" class="speed hidden"><b id="speed-v">0</b><small>km/h</small></div>
+<button id="recenter" class="recenter hidden" aria-label="現在地に戻る">
+  <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7z" fill="#1a73e8"/></svg>
+  <span>中央に戻す</span>
+</button>
+
+<!-- 下部シート -->
+<div id="sheet" class="sheet hidden">
+  <div class="sheet-row1">
+    <span id="s-mode" class="s-mode">巡回中</span>
+    <span id="s-target" class="s-target">需要エリアを計算中…</span>
+  </div>
+  <div class="sheet-row2">
+    <span id="s-meta"></span>
+    <span id="s-level" class="s-level"></span>
+  </div>
+  <div class="tiles">
+    <button id="btn-ride" class="tile tile-primary"><span class="ti">🚕</span><span id="btn-ride-label">実車</span></button>
+    <button id="btn-heat" class="tile"><span class="ti">🔥</span><span>需要マップ</span></button>
+    <button id="btn-settings2" class="tile"><span class="ti">⚙️</span><span>設定</span></button>
+    <button id="btn-stop" class="tile tile-danger"><span class="ti">■</span><span>終了</span></button>
+  </div>
+</div>
+
+<!-- 開始画面 -->
+<div id="start" class="overlay">
+  <div class="start-card">
+    <div class="logo">🚕</div>
+    <h1>巡回ナビ</h1>
+    <p class="lead">需要エリアを回り続けるエンドレスナビ。目的地の設定は不要です。</p>
+    <div id="spot-info" class="spot-info"></div>
+    <button id="btn-start" class="big primary">巡回を開始</button>
+    <button id="btn-sim" class="big">シミュレーションで試す</button>
+    <button id="btn-settings" class="big ghost">設定</button>
+    <p class="fine">地図 © OpenStreetMap contributors / OpenFreeMap / OpenMapTiles<br>ルート計算 Valhalla</p>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div id="settings" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head"><h2>設定</h2><button class="close" data-close="settings">×</button></div>
+    <div class="modal-body">
+      <h3>需要スポット</h3>
+      <p class="hint" id="set-spots"></p>
+      <div class="row"><button id="btn-fetch" class="btn">現在地周辺から自動取得</button><button id="btn-clear-spots" class="btn ghost">消去</button></div>
+      <label>営業エリア半径（km）<input id="set-radius" type="number" min="1" max="15" step="1"></label>
+      <p class="hint">地図を長押しすると、イベント会場や自分の得意な地点を追加できます。</p>
+      <div id="event-list"></div>
+
+      <h3>天気</h3>
+      <select id="set-weather">
+        <option value="auto">自動（Open-Meteo）</option>
+        <option value="clear">晴れ・曇り</option>
+        <option value="rain">雨</option>
+        <option value="heavy">大雨・雪</option>
+      </select>
+
+      <h3>鉄道</h3>
+      <label class="check"><input id="set-rail" type="checkbox">遅延・運転見合わせが発生中（駅の需要を上げる）</label>
+      <label>ODPT APIキー（任意）<input id="set-odpt" type="text" placeholder="未設定なら手動のみ" autocomplete="off"></label>
+
+      <h3>案内</h3>
+      <label class="check"><input id="set-voice" type="checkbox">音声案内</label>
+      <label>確定区間（秒）：この時間内に通る道は変更しません<input id="set-commit" type="number" min="15" max="90" step="5"></label>
+      <label>需要による切替の最小間隔（分）<input id="set-replan" type="number" min="1" max="30" step="1"></label>
+      <label>切替に必要な需要の差（倍）<input id="set-gain" type="number" min="1.05" max="3" step="0.05"></label>
+
+      <h3>乗車記録</h3>
+      <p class="hint" id="set-pickups"></p>
+      <div class="row"><button id="btn-export" class="btn">書き出し</button><button id="btn-import" class="btn">読み込み</button><button id="btn-clear-pickups" class="btn ghost">消去</button></div>
+      <textarea id="io" class="hidden" rows="5" placeholder="ここにJSONを貼り付けて「読み込み」"></textarea>
+
+      <h3>詳細</h3>
+      <label>ルートサーバーURL<input id="set-router" type="url"></label>
+      <p class="hint">初期値は FOSSGIS の公開サーバー（毎秒1回まで・個人の試用向け）。本格運用は自前の Valhalla を指定してください。</p>
+      <label>シミュレーション速度（km/h）<input id="set-sim" type="number" min="10" max="80" step="5"></label>
+    </div>
+  </div>
+</div>
+
+<!-- 地点追加 -->
+<div id="addpoint" class="modal hidden">
+  <div class="modal-card small">
+    <div class="modal-head"><h2>この地点を追加</h2><button class="close" data-close="addpoint">×</button></div>
+    <div class="modal-body">
+      <label>名前<input id="ap-name" type="text" placeholder="例：〇〇ホール"></label>
+      <div class="seg">
+        <label><input type="radio" name="ap-kind" value="event" checked>イベント</label>
+        <label><input type="radio" name="ap-kind" value="custom">常設の需要地点</label>
+      </div>
+      <div id="ap-event">
+        <label>終了時刻<input id="ap-end" type="time"></label>
+        <label>規模<select id="ap-size"><option value="s">小（〜千人）</option><option value="m" selected>中（〜1万人）</option><option value="l">大（1万人〜）</option></select></label>
+      </div>
+      <button id="ap-save" class="big primary">追加</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
