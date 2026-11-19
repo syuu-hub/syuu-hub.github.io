@@ -44,6 +44,10 @@ const V = {
   kccCv: { venue: '神戸国際会議場', cap: 3000 },
   noesta: { venue: 'ノエビアスタジアム神戸', cap: 30000, dur: 120 },
   glion: { venue: 'GLION ARENA KOBE', cap: 10000, dur: 120 },
+  koshien: { venue: '阪神甲子園球場', cap: 40000, dur: 210 },
+  hotto: { venue: 'ほっともっとフィールド神戸', cap: 30000, dur: 210 },
+  portT: { venue: '神戸ポートターミナル', cap: 2000 },
+  nakaT: { venue: '中突堤旅客ターミナル', cap: 1000 },
 };
 const cut = (s, n = 100) => { s = clean(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 const absUrl = (u, base) => { try { return u ? new URL(u.replace(/&amp;/g, '&'), base).href : undefined; } catch (e) { return undefined; } };
@@ -227,8 +231,9 @@ async function glion() {
       // 「2026年11月3日（火祝）開場 17:00 / 開演 18:00 2026年11月4日（水）開場 …」を日ごとに分ける
       times = timesFrom(cell.split(/(?=\d{4}年\d{1,2}月\d{1,2}日)/), day, day);
       // 出演者・お問い合わせ・公式サイト（会場自身や SNS のリンクは除く）
-      const official = [...html.matchAll(/href="(https?:\/\/[^"]+)"/g)].map(m => m[1])
-        .find(u => !/totteikobe|youtube|facebook|x\.com|twitter|instagram|tiktok|storks\.jp|bleague|google|gstatic|hsforms|j-server|line\.me|apple\.com/.test(u));
+      const urlSec = (/>\s*URL\s*<([\s\S]*?)(?:主催者|お問い合わせ|お気に入り)/.exec(html) || [])[1] || '';
+      const official = [...urlSec.matchAll(/href="(https?:\/\/[^"]+)"/g)].map(m => m[1]).find(u => !/totteikobe/.test(u))
+        || (/https?:\/\/[^\s<"）)]+/.exec(clean(urlSec)) || [])[0];
       det = info({ ...det, performer: cut((/出演者\s*([\s\S]*?)\s*(?:開催日|時間)/.exec(t) || [])[1], 80),
         contact: cut((/お問い合わせ\s*(?:お問い合わせ)?[：:]?\s*([\s\S]*?)\s*(?:お気に入り|共有|PICK UP)/.exec(t) || [])[1]), official: absUrl(official), goods: goodsOf(t) });
     } catch (e) { console.warn('glion detail', e.message); }
@@ -240,7 +245,52 @@ async function glion() {
   return out;
 }
 
-const SOURCES = { world, kih, bunka, kcc, vissel, storks, glion };
+// プロ野球：NPB 公式の月ごとの日程詳細から、甲子園・ほっともっとフィールド神戸の試合（今月・来月）
+async function npb() {
+  const out = [];
+  for (const k of [0, 1]) {
+    const { y, m } = ym(k);
+    let html = '';
+    try { html = await get(`https://npb.jp/games/${y}/schedule_${pad(m)}_detail.html`); } catch (e) { continue; }   // 日程が未発表の月は無い
+    let date = null;
+    for (const tr of html.split(/<tr\b/).slice(1)) {
+      const d = /<th[^>]*>\s*(\d{1,2})\/(\d{1,2})/.exec(tr);
+      if (d) date = ymd(y, +d[1], +d[2]);
+      const place = clean((/<div class="place">([\s\S]*?)<\/div>/.exec(tr) || [])[1]).replace(/\s/g, '');
+      const v = /甲子園/.test(place) ? 'koshien' : /ほっと神戸|ほっともっと/.test(place) ? 'hotto' : null;
+      if (!date || !v) continue;
+      const t1 = clean((/<div class="team1">([\s\S]*?)<\/div>/.exec(tr) || [])[1]), t2 = clean((/<div class="team2">([\s\S]*?)<\/div>/.exec(tr) || [])[1]);
+      const time = hm(clean((/<div class="time">([\s\S]*?)<\/div>/.exec(tr) || [])[1]));
+      const href = (/<a href="(\/scores\/[^"]+)"/.exec(tr) || [])[1];
+      out.push(ev(v, date, time, `${t1} vs ${t2}`, info({ sport: true, performer: 'プロ野球', url: absUrl(href, 'https://npb.jp/') })));
+    }
+  }
+  return out;
+}
+
+// 客船：神戸観光局の「客船入港予定」（今月・来月の表）。入港〜出港の時刻
+async function ships() {
+  const html = await get('https://www.kobe-meriken.or.jp/terminal/eta/');
+  const out = [];
+  for (const tr of html.split(/<tr\b[^>]*>/).slice(1)) {
+    const td = [...tr.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)].map(x => clean(x[1]));
+    if (td.length < 9) continue;
+    const [name, tons, berth, inD, inT, outD, outT, from, to] = td;
+    const a = /(\d{1,2})月(\d{1,2})日/.exec(inD), b = /(\d{1,2})月(\d{1,2})日/.exec(outD);
+    if (!a) continue;
+    const day = withYear(+a[1], +a[2]), outDay = b ? withYear(+b[1], +b[2]) : day;
+    const v = /NAKA/i.test(berth) ? 'nakaT' : 'portT';
+    const ton = +tons.replace(/[^\d]/g, '') || 0;
+    const e = ev(v, day, hm(inT), `客船 ${name.replace(/^\*/, '')}${name.startsWith('*') ? '（初入港）' : ''}`,
+      info({ ship: true, depart: hm(outT), departDate: outDay !== day ? outDay : undefined, from, to, tons: ton || undefined, url: 'https://www.kobe-meriken.or.jp/terminal/eta/' }));
+    e.end = outDay === day ? hm(outT) : null;   // 入港中（同じ日に出港する時はその時刻まで）
+    if (ton) e.cap = Math.round(ton / 25 / 100) * 100;   // 乗客数のおおよそ（総トン数から）
+    out.push(e);
+  }
+  return out;
+}
+
+const SOURCES = { world, kih, bunka, kcc, vissel, storks, glion, npb, ships };
 const prev = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : { events: [] };
 const all = [], status = {};
 for (const [k, fn] of Object.entries(SOURCES)) {

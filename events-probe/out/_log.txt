@@ -1,4 +1,0 @@
-meriken 200 https://www.kobe-meriken.or.jp/terminal/eta/ 43430
-koshien-ev 200 https://koshien.hanshin.co.jp/event/ 201
-npb-03 200 https://npb.jp/games/2026/schedule_03_detail.html 68444
-npb-05 200 https://npb.jp/games/2026/schedule_05_detail.html 275012

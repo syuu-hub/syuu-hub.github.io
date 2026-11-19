@@ -444,6 +444,7 @@ svg{display:block}
 .inf-b{display:flex;flex-direction:column;gap:2px;min-width:0}
 .inf-v{font-size:12px;color:var(--muted);font-weight:700}
 .inf-n{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.inf-s{font-size:12px;color:var(--muted)}
 .inf-list li.big .inf-v{color:#B48CFF}
 .inf-list li{cursor:pointer}
 .inf-list li:active{background:var(--surface-2)}
@@ -3629,12 +3630,14 @@ function renderInfo() {
   for (const e of list) { if (!byDay.has(e.date)) byDay.set(e.date, []); byDay.get(e.date).push(e); }
   const dayLbl = k => { const d = new Date(k + 'T00:00:00'), diff = Math.round((d - d0) / 86400e3);
     return `${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）${diff === 0 ? '<em>今日</em>' : diff === 1 ? '<em>明日</em>' : ''}`; };
-  const tm = e => e.day ? `<b>〜${e.end}</b>` : e.start ? `<small>${e.start}〜</small><b>${e.end}頃</b>` : '<b class="na">時刻未定</b>';
+  const md = k => { const d = new Date(k + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; };
+  const tm = e => e.ship ? `<small>入港</small><b>${e.start || '—'}</b>` : e.day ? `<b>〜${e.end}</b>` : e.start ? `<small>${e.start}〜</small><b>${e.end}頃</b>` : '<b class="na">時刻未定</b>';
+  const sub = e => e.ship && e.depart ? `<span class="inf-s">出港 ${e.departDate ? md(e.departDate) + ' ' : ''}${e.depart}</span>` : '';
   body.innerHTML = [...byDay].map(([k, es]) => `<div class="inf-day">
       <div class="inf-h ${new Date(k + 'T00:00:00').getDay() % 6 === 0 ? 'we' : ''}">${dayLbl(k)}</div>
-      <ul class="inf-list">${es.sort((a, b) => (a.day ? 1 : 0) - (b.day ? 1 : 0) || (a.end || '99').localeCompare(b.end || '99')).map(e => `<li class="${(e.cap || 0) >= 5000 ? 'big' : ''}" data-evi="${EVENTS.indexOf(e)}" role="button" tabindex="0">
+      <ul class="inf-list">${es.sort((a, b) => (a.day ? 1 : 0) - (b.day ? 1 : 0) || ((a.ship ? a.start : a.end) || '99').localeCompare((b.ship ? b.start : b.end) || '99')).map(e => `<li class="${(e.cap || 0) >= 5000 ? 'big' : ''}" data-evi="${EVENTS.indexOf(e)}" role="button" tabindex="0">
         <span class="inf-t num">${tm(e)}</span>
-        <span class="inf-b"><span class="inf-v">${esc(e.venue)}</span><span class="inf-n">${esc(e.title)}</span></span></li>`).join('')}</ul></div>`).join('');
+        <span class="inf-b"><span class="inf-v">${esc(e.venue)}</span><span class="inf-n">${esc(e.title)}</span>${sub(e)}</span></li>`).join('')}</ul></div>`).join('');
 }
 // イベントの詳細（会場の公式サイトに載っている内容）
 function openEvent(i) {
@@ -3642,19 +3645,22 @@ function openEvent(i) {
   const d = new Date(e.date + 'T00:00:00');
   const row = (k, v) => v ? `<div class="evr"><span class="k">${k}</span><span class="v">${v}</span></div>` : '';
   const link = (u, l) => u ? `<a class="btn ev-link" href="${esc(u)}" target="_blank" rel="noopener">${l}</a>` : '';
-  const official = e.official || (e.url && !/kih\.co\.jp|totteikobe|kobe-spokyo|kobe-bunka|kobe-cc|jleague|storks/.test(e.url) ? e.url : '');
+  const official = e.official || (e.url && !/kih\.co\.jp|totteikobe|kobe-spokyo|kobe-bunka|kobe-cc|jleague|storks|npb\.jp|kobe-meriken/.test(e.url) ? e.url : '');
   const page = e.url && e.url !== official ? e.url : '';
   $('#evBody').innerHTML = `
     <div class="ev-head"><div class="ev-v">${esc(e.venue)}</div><h2 id="evTitle">${esc(e.title)}</h2>
       <div class="ev-d num">${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）</div></div>
     <div class="ev-times num">
-      ${e.day ? `<div><span>開催</span><b>〜${e.end}</b></div>` : `
+      ${e.ship ? `<div><span>入港</span><b>${e.start || '—'}</b></div><div class="end"><span>出港${e.departDate ? ' ' + (new Date(e.departDate + 'T00:00:00').getMonth() + 1) + '/' + new Date(e.departDate + 'T00:00:00').getDate() : ''}</span><b>${e.depart || '—'}</b></div>` : e.day ? `<div><span>開催</span><b>〜${e.end}</b></div>` : `
       ${e.open ? `<div><span>開場</span><b>${e.open}</b></div>` : ''}
       <div><span>${e.sport ? '開始' : '開演'}</span><b>${e.start || '未定'}</b></div>
       ${e.end ? `<div class="end"><span>終わる目安</span><b>${e.end}頃</b></div>` : ''}`}
     </div>
     <div class="ev-rows">
       ${row(e.sport ? '大会' : '出演', esc(e.performer || ''))}
+      ${row('前の港', esc(e.from || ''))}
+      ${row('次の港', esc(e.to || ''))}
+      ${row('総トン数', e.tons ? e.tons.toLocaleString() + 'トン（乗客 約' + (e.cap || 0).toLocaleString() + '人）' : '')}
       ${row('グッズ', esc(e.goods || ''))}
       ${row('料金', esc(e.price || ''))}
       ${row(e.day ? '主催' : '問い合わせ', esc(e.contact || ''))}
@@ -3670,10 +3676,11 @@ function eventLines(day, inHours) {
   if (!EVENTS) return '';
   const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
   const now = new Date(), isToday = dayKey(now) === dayKey(day), nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const list = EVENTS.filter(e => e.date === k && (e.cap || 0) >= 1500 && (!e.end || (inHours(+e.end.slice(0, 2)) && !(isToday && e.end < nowHM))))
+  const at = e => e.ship ? e.start : e.end;   // 船は入港の時刻、ほかは終わる時刻
+  const list = EVENTS.filter(e => e.date === k && (e.cap || 0) >= 1500 && (!at(e) || (inHours(+at(e).slice(0, 2)) && !(isToday && at(e) < nowHM))))
     .sort((a, b) => (b.cap || 0) - (a.cap || 0)).slice(0, 3)
-    .sort((a, b) => (a.end || '99').localeCompare(b.end || '99'));
-  return list.map(e => `<li class="ev-li" data-evi="${EVENTS.indexOf(e)}" role="button" tabindex="0"><span class="ic ev">催</span><div><b>${e.day ? '〜' + e.end : e.end ? e.end + 'ごろ' : '時刻未定'}</b> ${esc(e.venue)}${e.day ? '' : ' 終演'}<small>${esc(e.title)}</small></div></li>`).join('');
+    .sort((a, b) => (at(a) || '99').localeCompare(at(b) || '99'));
+  return list.map(e => `<li class="ev-li" data-evi="${EVENTS.indexOf(e)}" role="button" tabindex="0"><span class="ic ev">催</span><div><b>${e.ship ? e.start + ' 入港' : e.day ? '〜' + e.end : e.end ? e.end + 'ごろ' : '時刻未定'}</b> ${esc(e.venue)}${e.day || e.ship ? '' : ' 終演'}<small>${esc(e.title)}</small></div></li>`).join('');
 }
 function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   if (D.length < 3) return '';
