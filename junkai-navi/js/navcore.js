@@ -4,14 +4,16 @@
 // ・案内済みの右左折はロック
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=9';
+// ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
+import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=10';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
   commitMinM: 300, // 確定区間の最小距離
   minFirstTurnSec: 10, // 接続直後の最初の右左折までの最小余裕
   minFirstTurnM: 150,
-  extendMinM: 900, // 残りがこれ以下（または90秒以下）になったら次の区間を接続
+  lookAheadM: 2500, // ルートの先がこれ（または lookAheadSec 秒分）より短くなったら、終わりに次の区間をつなぐ
+  lookAheadSec: 180,
   replanMs: 180000, // 需要変化による切替の最小間隔
   switchGain: 1.3, // 切替に必要な需要の改善倍率
   offRouteM: 45,
@@ -98,13 +100,11 @@ export class EndlessNavigator {
     let changed = false;
     for (const x of this.tour) {
       if (x.passed || x.at == null || this.along < x.at - 30) continue;
-      // 最後のエリアは次の区間をつなぐ時に扱う（ここで通過にすると次の行き先が空になるため）
-      if (x === this.tour[this.tour.length - 1]) continue;
       x.passed = true; changed = true;
       this.demand.markVisited(x.area.key, this.now());
       this.emit('pass', x.area);
     }
-    if (changed) this.target = this.tourRemaining()[0] || this.target;
+    if (changed) this.target = this.tourRemaining()[0] || null;
   }
 
   // ===== 音声案内 =====
@@ -149,7 +149,7 @@ export class EndlessNavigator {
     if (this.planning || this.now() < this.nextTryAt || !this.pos) return;
     if (!this.route) return void this.plan('initial');
     const remaining = this.route.length - this.along;
-    if (remaining < Math.max(this.s.extendMinM, this.speed * 90)) return void this.plan('extend');
+    if (remaining < Math.max(this.s.lookAheadM, this.speed * this.s.lookAheadSec)) return void this.plan('extend');
     if (this.now() - this.lastPlanAt > this.s.replanMs && this.target) {
       const c = this.commitAlong();
       const start = pointAt(this.route, c);
@@ -212,7 +212,8 @@ export class EndlessNavigator {
     if (!firsts.length) return [];
     const plans = [];
     // 逸脱のリルートは、まだ通っていないエリアをそのまま回る
-    const tour = mode === 'reroute' && preferred && preferred.length > 1 ? preferred : this.buildTour(start, firsts[0], mode === 'extend' ? old : new Set());
+    const max = Math.max(1, Math.round(this.s.tourMax || 1));
+    const tour = mode === 'reroute' && preferred && preferred.length > 1 ? preferred.slice(0, max) : this.buildTour(start, firsts[0], mode === 'extend' ? old : new Set());
     if (tour.length > 1) plans.push(tour);
     for (const a of firsts.slice(0, 2)) plans.push([a]);
     return plans;
@@ -223,8 +224,12 @@ export class EndlessNavigator {
     this.planning = true;
     try {
       let start, commit = null;
-      const relaxed = mode === 'initial' || mode === 'reroute';
-      if (relaxed) {
+      // 先へつなぐ時は、今のルートの終わりから計算する（走っている先は何も変えない。右左折まで十分な距離もある）
+      const relaxed = mode === 'initial' || mode === 'reroute' || mode === 'extend';
+      if (mode === 'extend') {
+        commit = this.route.length;
+        start = pointAt(this.route, commit);
+      } else if (relaxed) {
         start = { point: this.pos, bearing: this.heading };
       } else {
         commit = this.commitAlong();
@@ -248,7 +253,7 @@ export class EndlessNavigator {
           this.emit('status', e.message);
           continue;
         }
-        // 応答待ちの間に確定区間の終点を通り過ぎていたら破棄
+        // 応答待ちの間に確定区間の終点（先へつなぐ時はルートの終わり）を通り過ぎていたら破棄
         if (commit != null && this.along > commit - 30) break;
         const remaining = this.route ? this.route.length - this.along : Infinity;
         const best = this.pickBest(routes, relaxed || remaining < 250);
@@ -294,9 +299,8 @@ export class EndlessNavigator {
 
   apply(mode, tour, newRoute, commit) {
     if (!Array.isArray(tour)) tour = [tour];
-    // 区間をつなぐ時は、前のツアーで残っていたエリア（最後の行き先など）を回ったことにする
-    if (mode === 'extend') for (const x of this.tour) if (!x.passed) this.demand.markVisited(x.area.key, this.now());
     let newFrom; // 新しい区間が始まる位置（つないだ後のルート上の距離）
+    let kept = []; // まだ通っていない、残すルート上のエリア
     if (commit == null) {
       this.route = newRoute;
       this.along = 0;
@@ -304,21 +308,22 @@ export class EndlessNavigator {
       newFrom = this.along;
     } else {
       const keepFrom = Math.max(0, this.along - 300);
+      kept = this.tour.filter((x) => !x.passed && x.at != null && x.at <= commit).map((x) => ({ ...x, at: x.at - keepFrom }));
       this.route = stitch(this.route, keepFrom, commit, newRoute);
       this.along -= keepFrom;
       newFrom = commit - keepFrom;
     }
-    // 各エリアがルート上のどこにあるか（中心の近くを通らないエリアは at=null）
+    // 各エリアをルート上で一番近づく位置に対応させる（そこを過ぎたら「通過」）
     let hint = newFrom;
-    this.tour = tour.map((area) => {
+    const added = tour.map((area) => {
       const sn = snapToRoute(this.route, area.center, hint);
-      const near = sn && sn.dist <= this.s.passM;
-      if (near) hint = sn.along;
-      return { area, at: near ? sn.along : null, passed: false };
+      if (sn.dist <= this.s.passM) hint = sn.along;
+      return { area, at: Math.max(newFrom, sn.along), passed: false, dist: sn.dist };
     });
-    this.target = tour[0];
+    this.tour = kept.concat(added);
+    this.target = this.tourRemaining()[0] || tour[0];
     this.lastPlanAt = this.now();
-    this.emit('route', { mode, target: this.target, tour: tour.slice(), route: this.route });
+    this.emit('route', { mode, target: this.target, tour: tour.slice(), upcoming: this.tourRemaining(), route: this.route });
   }
 
   // ===== UI用 =====
@@ -332,6 +337,7 @@ export class EndlessNavigator {
       then: then && next && then.at - next.at < 300 ? then : null,
       target: this.target,
       tour: this.tourRemaining(),
+      nextPointDist: (() => { const x = this.tour.find((y) => !y.passed); return x ? Math.max(0, x.at - this.along) : null; })(),
       remaining,
       eta: remaining / Math.max(this.speed, 6),
       commitAlong: this.commitAlong(),

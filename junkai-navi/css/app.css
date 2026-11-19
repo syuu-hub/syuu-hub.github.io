@@ -112,3 +112,4 @@ button { font: inherit; cursor: pointer; }
 .pl-btns button.del { color: #d93025; border-color: #f6aea9; }
 .pl-empty { text-align: center; color: var(--sub); font-size: 14px; padding: 18px 8px; }
 .tour-dot { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 3px solid #e37400; color: #b05a00; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.tour-dot.next { width: 26px; height: 26px; background: #e37400; border-color: #fff; color: #fff; animation: pulse 2s infinite; }
