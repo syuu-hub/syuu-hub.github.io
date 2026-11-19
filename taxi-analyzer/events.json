@@ -7,7 +7,9 @@
   "kcc": 41,
   "vissel": 4,
   "storks": 3,
-  "glion": 19
+  "glion": 19,
+  "npb": 0,
+  "ships": 18
  },
  "events": [
   {
@@ -17,6 +19,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "椎名林檎と彼奴等と試す煩悩菩提",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2033",
+   "performer": "椎名林檎",
+   "price": "指定席 ¥12,500 立見席 ¥12,500",
+   "contact": "YUMEBANCHI 06-6341-3525（平日12:00~17:00 / 土日祝休） https://www.yumebanchi.jp/",
+   "open": "18:00",
    "src": "kih"
   },
   {
@@ -27,6 +34,8 @@
    "cap": 5000,
    "title": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
    "day": true,
+   "contact": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
+   "url": "https://www.c-linkage.co.jp/jser2026/",
    "src": "kcc"
   },
   {
@@ -36,6 +45,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "椎名林檎と彼奴等と試す煩悩菩提",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2033",
+   "performer": "椎名林檎",
+   "price": "指定席 ¥12,500 立見席 ¥12,500",
+   "contact": "YUMEBANCHI 06-6341-3525（平日12:00~17:00 / 土日祝休） https://www.yumebanchi.jp/",
+   "open": "18:00",
    "src": "kih"
   },
   {
@@ -46,6 +60,8 @@
    "cap": 30000,
    "title": "ヴィッセル神戸 vs 水戸",
    "sport": true,
+   "performer": "明治安田Ｊ１リーグ 第15節",
+   "url": "https://www.jleague.jp/match/j1/2026/112003",
    "src": "vissel"
   },
   {
@@ -56,6 +72,8 @@
    "cap": 5000,
    "title": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
    "day": true,
+   "contact": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
+   "url": "https://www.c-linkage.co.jp/jser2026/",
    "src": "kcc"
   },
   {
@@ -65,6 +83,9 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "第61回近畿高等学校演劇研究大会",
+   "open": "09:20",
+   "price": "無料・自由席",
+   "contact": "兵庫県高等学校演劇研究会 kinki-soubun-act@hyogo-c.ed.jp",
    "src": "bunka"
   },
   {
@@ -74,6 +95,9 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "第50回兵庫県高等学校総合文化祭『吹奏楽』部門演奏会",
+   "open": "10:00",
+   "price": "無料・自由席",
+   "contact": "近畿高等学校文化連盟吹奏楽部門 fuji_masato@himeji-hyg.ed.jp",
    "src": "bunka"
   },
   {
@@ -83,6 +107,10 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "クレイジーケンバンド CRAZY KEN BAND TOUR？2026-2027 Presented by NISHIHARA SHOKAI",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2189",
+   "performer": "クレイジーケンバンド",
+   "price": "全席指定：前売9,900円(税込) 当日10,500円(税込)",
+   "contact": "●神戸国際会館 078-231-8162（平日9:30～18:00）",
    "src": "kih"
   },
   {
@@ -92,6 +120,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "日向坂４６",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://www.hinatazaka46.com/s/official/page/hinachri2026",
    "src": "world"
   },
   {
@@ -102,6 +132,8 @@
    "cap": 5000,
    "title": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
    "day": true,
+   "contact": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
+   "url": "https://www.c-linkage.co.jp/jser2026/",
    "src": "kcc"
   },
   {
@@ -111,6 +143,9 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "第46回近畿高等学校総合文化祭兵庫大会 吹奏楽部門",
+   "open": "09:00",
+   "price": "無料・自由席",
+   "contact": "近畿高等学校文化連盟吹奏楽部門 fuji_masato@himeji-hyg.ed.jp",
    "src": "bunka"
   },
   {
@@ -120,6 +155,9 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "第61回近畿高等学校演劇研究大会",
+   "open": "09:20",
+   "price": "無料・自由席",
+   "contact": "兵庫県高等学校演劇研究会 kinki-soubun-act@hyogo-c.ed.jp",
    "src": "bunka"
   },
   {
@@ -129,6 +167,12 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "NiziU Live with U 2026-2027 \"Who? U! NiziU Fes.”",
+   "url": "https://www.totteikobe.jp/event/article/32052",
+   "performer": "NiziU",
+   "contact": "SOGO OSAKA 06-6344-3326 (平日 14:00～16:00 土日祝除く)",
+   "official": "https://niziu.com/s/n123/page/livewithu2026_2027",
+   "goods": "【グッズ会場販売について】 時間：2026年11月22日(日) 11:00～開演後30分 / 2026年11月23日(月・祝) 11:00～開演後30分 URL https://niziu",
+   "open": "16:00",
    "src": "glion"
   },
   {
@@ -138,6 +182,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "日向坂４６",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://www.hinatazaka46.com/s/official/page/hinachri2026",
    "src": "world"
   },
   {
@@ -147,6 +193,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2136",
+   "performer": "三浦大知",
+   "price": "[全席指定] 9,900円",
+   "contact": "サウンドクリエーター https://www.sound-c.co.jp お電話でのお問い合わせ：06-6357-4400（平日 12:00〜15:00 ※祝日を除く） メールでのお問い合わせ：ht…",
+   "open": "16:30",
    "src": "kih"
   },
   {
@@ -157,6 +208,8 @@
    "cap": 3000,
    "title": "わたしのキャリア研究会 キャリアフォーラム＆企業経営層・人事担当者との座談会",
    "day": true,
+   "contact": "兵庫県産業労働部労政福祉課",
+   "url": "https://www.comisapo.com/watacaree/menu/schedule",
    "src": "kcc"
   },
   {
@@ -166,6 +219,9 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "第61回近畿高等学校演劇研究大会",
+   "open": "09:20",
+   "price": "無料・自由席",
+   "contact": "兵庫県高等学校演劇研究会 kinki-soubun-act@hyogo-c.ed.jp",
    "src": "bunka"
   },
   {
@@ -175,6 +231,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2136",
+   "performer": "三浦大知",
+   "price": "[全席指定] 9,900円",
+   "contact": "サウンドクリエーター https://www.sound-c.co.jp お電話でのお問い合わせ：06-6357-4400（平日 12:00〜15:00 ※祝日を除く） メールでのお問い合わせ：ht…",
+   "open": "15:00",
    "src": "kih"
   },
   {
@@ -184,6 +245,12 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "NiziU Live with U 2026-2027 \"Who? U! NiziU Fes.”",
+   "url": "https://www.totteikobe.jp/event/article/32052",
+   "performer": "NiziU",
+   "contact": "SOGO OSAKA 06-6344-3326 (平日 14:00～16:00 土日祝除く)",
+   "official": "https://niziu.com/s/n123/page/livewithu2026_2027",
+   "goods": "【グッズ会場販売について】 時間：2026年11月22日(日) 11:00～開演後30分 / 2026年11月23日(月・祝) 11:00～開演後30分 URL https://niziu",
+   "open": "15:00",
    "src": "glion"
   },
   {
@@ -193,6 +260,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "日向坂４６",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://www.hinatazaka46.com/s/official/page/hinachri2026",
    "src": "world"
   },
   {
@@ -203,6 +272,8 @@
    "cap": 3000,
    "title": "東日本音楽祭",
    "day": true,
+   "contact": "一般社団法人東日本音楽祭実行委員会",
+   "url": "http://otofes.tokyo/%e6%9d%b1%e6%97%a5%e6%9c%ac%e9%9f%b3%e6%a5%bd%e7%a5%ad-2/",
    "src": "kcc"
   },
   {
@@ -213,6 +284,8 @@
    "cap": 3000,
    "title": "第4回 日本化粧品技術者会学術大会",
    "day": true,
+   "contact": "日本化粧品技術者会",
+   "url": "https://conference.wdc-jp.com/sccj/2026/",
    "src": "kcc"
   },
   {
@@ -222,6 +295,10 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "神戸市老眼大学",
+   "open": "09:45",
+   "price": "会員",
+   "contact": "神戸市生涯学習支援センター 078-251-4731（担当：照喜名）",
+   "url": "https://www.kobe-spokyo.jp/comista/",
    "src": "bunka"
   },
   {
@@ -231,6 +308,9 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "MAZZEL 2nd Fan Meeting -Play at the MUZEUM Vol.2-",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2221",
+   "performer": "MAZZEL",
+   "contact": "キョードーインフォメーション 0570-200-888 （11:00～18:00/日祝休業）",
    "src": "kih"
   },
   {
@@ -240,6 +320,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "EIKICHI YAZAWA CONCERT TOUR 2026 「Just keep going ～ロックの軌跡～」",
+   "contact": "ソーゴー大阪 （平日14:00〜16:00＊土日祝休） 06-6344-3326",
+   "url": "https://www.eikichiyazawa.com/feature/justkeepgoing2026",
    "src": "world"
   },
   {
@@ -250,6 +332,8 @@
    "cap": 3000,
    "title": "第4回 日本化粧品技術者会学術大会",
    "day": true,
+   "contact": "日本化粧品技術者会",
+   "url": "https://conference.wdc-jp.com/sccj/2026/",
    "src": "kcc"
   },
   {
@@ -259,6 +343,9 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "令和8年分 年末調整説明会",
+   "open": "13:00",
+   "price": "無料・自由席",
+   "contact": "公益社団法人 神戸納税協会 078-231-5811",
    "src": "bunka"
   },
   {
@@ -268,6 +355,10 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2219",
+   "performer": "浜崎あゆみ",
+   "price": "VIP席 ¥28,000 一般指定席 ¥14,000",
+   "contact": "キョードーインフォメーション 0570-200-888 （11:00～18:00/日祝休業）",
    "src": "kih"
   },
   {
@@ -278,6 +369,8 @@
    "cap": 3000,
    "title": "第4回 日本化粧品技術者会学術大会",
    "day": true,
+   "contact": "日本化粧品技術者会",
+   "url": "https://conference.wdc-jp.com/sccj/2026/",
    "src": "kcc"
   },
   {
@@ -287,6 +380,10 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2219",
+   "performer": "浜崎あゆみ",
+   "price": "VIP席 ¥28,000 一般指定席 ¥14,000",
+   "contact": "キョードーインフォメーション 0570-200-888 （11:00～18:00/日祝休業）",
    "src": "kih"
   },
   {
@@ -297,6 +394,8 @@
    "cap": 5000,
    "title": "ワールドアトリエセール",
    "day": true,
+   "contact": "株式会社ワールドストアパートナーズ",
+   "url": "https://store.world.co.jp/s/brand/ateliersale/kobe.html",
    "src": "kcc"
   },
   {
@@ -306,6 +405,9 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "第39回 藤園会日本舞踊公演",
+   "open": "10:30",
+   "price": "5,000円・自由席",
+   "contact": "藤園会（トウエンカイ） 代表 藤間莉佳子 090-3943-0383",
    "src": "bunka"
   },
   {
@@ -316,6 +418,8 @@
    "cap": 30000,
    "title": "ヴィッセル神戸 vs 千葉",
    "sport": true,
+   "performer": "明治安田Ｊ１リーグ 第17節",
+   "url": "https://www.jleague.jp/match/j1/2026/112808",
    "src": "vissel"
   },
   {
@@ -325,6 +429,10 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "尾崎亜美 50th Amii-versary Concert Tour 2026",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2139",
+   "performer": "尾崎亜美",
+   "price": "全席指定：8,500円（消費税込） 全席指定",
+   "contact": "神戸国際会館 078-231-8162 (平日9:30～18:00）",
    "src": "kih"
   },
   {
@@ -334,6 +442,9 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "西神戸吹奏楽団 第47回定期演奏会",
+   "open": "17:30",
+   "price": "500円・自由席",
+   "contact": "西神戸吹奏楽団 090-3629-1867",
    "src": "bunka"
   },
   {
@@ -344,6 +455,8 @@
    "cap": 5000,
    "title": "就職博＆転職博",
    "day": true,
+   "contact": "株式会社学情",
+   "url": "https://re-katsu.jp/career/events/evt_dtl?p1=evt2344",
    "src": "kcc"
   },
   {
@@ -354,6 +467,8 @@
    "cap": 3000,
    "title": "第40回日本耳鼻咽喉科頭頸部外科学会秋季大会",
    "day": true,
+   "contact": "神戸大学大学院医学研究科 耳鼻咽喉科頭頸部外科学分野",
+   "url": "https://www.congre.co.jp/shukitaikai40/",
    "src": "kcc"
   },
   {
@@ -364,6 +479,8 @@
    "cap": 5000,
    "title": "ワールドアトリエセール",
    "day": true,
+   "contact": "株式会社ワールドストアパートナーズ",
+   "url": "https://store.world.co.jp/s/brand/ateliersale/kobe.html",
    "src": "kcc"
   },
   {
@@ -373,6 +490,10 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "フェニックスフィルハーモニックオーケストラ 第17回演奏会",
+   "open": "13:00",
+   "price": "1,000円・自由席",
+   "contact": "フェニックスフィルハーモニック オーケストラ phoenix.2009.pho@gmail.com 090-6837-6033",
+   "url": "https://phoenix-phil.sakura.ne.jp/",
    "src": "bunka"
   },
   {
@@ -382,6 +503,10 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "GORO NOGUCHI CONCERT TOUR 2026「 I sing songs !!～歌がある限り～」",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2220",
+   "performer": "野口五郎",
+   "price": "全席指定 ¥8,800",
+   "contact": "キョードーインフォメーション 0570-200-888 （11:00～18:00/日祝休業） 神戸国際会館 078-231-8162",
    "src": "kih"
   },
   {
@@ -391,6 +516,8 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "MERCI competition",
+   "price": "1,000円・自由席",
+   "contact": "MERCI competition 050-1722-2988 ※内容は予告なく変更する場合がございます。 前の月へ 次の月へ カスタマーハラスメント対策方針 プライバシーポリシー リンク･著作権に…",
    "src": "bunka"
   },
   {
@@ -401,6 +528,8 @@
    "cap": 3000,
    "title": "第40回日本耳鼻咽喉科頭頸部外科学会秋季大会",
    "day": true,
+   "contact": "神戸大学大学院医学研究科 耳鼻咽喉科頭頸部外科学分野",
+   "url": "https://www.congre.co.jp/shukitaikai40/",
    "src": "kcc"
   },
   {
@@ -411,6 +540,8 @@
    "cap": 5000,
    "title": "ワールドアトリエセール",
    "day": true,
+   "contact": "株式会社ワールドストアパートナーズ",
+   "url": "https://store.world.co.jp/s/brand/ateliersale/kobe.html",
    "src": "kcc"
   },
   {
@@ -420,6 +551,10 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "マカロックツアーvol.22 〜いま、きみがすき︕篇〜",
+   "url": "https://www.totteikobe.jp/event/article/25027",
+   "performer": "マカロニえんぴつ",
+   "contact": "清⽔⾳泉 06-6357-3666 (平⽇15:00〜18:00)/ info@shimizuonsen.com",
+   "official": "https://macaroniempitsu.com/news/19561.html",
    "src": "glion"
   },
   {
@@ -429,7 +564,28 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "吉幾三 コンサート2026",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2215",
+   "performer": "吉幾三",
+   "price": "全席指定 8,800円（税込）",
+   "contact": "グリークス 06-6966-6555 (平日 10:00～16:00）",
+   "open": "13:15",
    "src": "kih"
+  },
+  {
+   "date": "2026-12-01",
+   "start": "15:00",
+   "end": null,
+   "venue": "神戸ポートターミナル",
+   "cap": 3000,
+   "title": "客船 STAR NAVIGATOR（初入港）",
+   "ship": true,
+   "depart": "01:00",
+   "departDate": "2026-12-02",
+   "from": "基隆",
+   "to": "高知",
+   "tons": 75338,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-01",
@@ -438,7 +594,28 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "吉幾三 コンサート2026",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2215",
+   "performer": "吉幾三",
+   "price": "全席指定 8,800円（税込）",
+   "contact": "グリークス 06-6966-6555 (平日 10:00～16:00）",
+   "open": "17:15",
    "src": "kih"
+  },
+  {
+   "date": "2026-12-02",
+   "start": "09:00",
+   "end": null,
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2100,
+   "title": "客船 飛鳥Ⅲ",
+   "ship": true,
+   "depart": "17:00",
+   "departDate": "2026-12-03",
+   "from": "蒲郡",
+   "to": "父島",
+   "tons": 52265,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-02",
@@ -447,6 +624,11 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "Mrs. GREEN APPLE Ringo Jam Tour “SHADOWS”",
+   "url": "https://www.totteikobe.jp/event/article/27671",
+   "performer": "Mrs. GREEN APPLE",
+   "contact": "キョードーインフォメーション 0570-200-888（平日12:00～17:00）",
+   "official": "https://mrsgreenapple.com/feature/ringojamtour_shadows#top",
+   "open": "17:00",
    "src": "glion"
   },
   {
@@ -456,6 +638,11 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "Mrs. GREEN APPLE Ringo Jam Tour “SHADOWS”",
+   "url": "https://www.totteikobe.jp/event/article/27671",
+   "performer": "Mrs. GREEN APPLE",
+   "contact": "キョードーインフォメーション 0570-200-888（平日12:00～17:00）",
+   "official": "https://mrsgreenapple.com/feature/ringojamtour_shadows#top",
+   "open": "17:00",
    "src": "glion"
   },
   {
@@ -465,6 +652,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "チャイコフスキーバレエ公演「くるみ割り人形」",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2224",
+   "performer": "くるみ割り人形",
+   "price": "価格 S席11,000円 A席8,000円 B席6,000円",
+   "contact": "光藍社チケットセンター 050-3776-6184 (12:00～15:00 土日祝休み)",
+   "open": "17:45",
    "src": "kih"
   },
   {
@@ -475,6 +667,8 @@
    "cap": 5000,
    "title": "第67回日本肺癌学会学術集会",
    "day": true,
+   "contact": "第67回日本肺癌学会学術集会",
+   "url": "https://conference.haigan.gr.jp/67/",
    "src": "kcc"
   },
   {
@@ -484,6 +678,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "渡辺真知子、サーカス、三浦祐太朗 ～時代を彩る名曲コンサート～",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2195",
+   "performer": "渡辺真知子、サーカス、三浦祐太朗、アロージャズオーケストラ",
+   "price": "全席指定：8,000円、学生席：3,000円（消費税込）",
+   "contact": "神戸国際会館 078-231-8162",
+   "open": "17:15",
    "src": "kih"
   },
   {
@@ -493,6 +692,9 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "第46回 神戸クリスマスフェスティバル",
+   "open": "18:30",
+   "price": "無料・自由席・関係者",
+   "contact": "神戸クリスマス・フェスティバル実行委員会 078-741-7919",
    "src": "bunka"
   },
   {
@@ -503,6 +705,8 @@
    "cap": 5000,
    "title": "第67回日本肺癌学会学術集会",
    "day": true,
+   "contact": "第67回日本肺癌学会学術集会",
+   "url": "https://conference.haigan.gr.jp/67/",
    "src": "kcc"
   },
   {
@@ -513,6 +717,8 @@
    "cap": 10000,
    "title": "神戸ストークス vs A千葉",
    "sport": true,
+   "performer": "B.LEAGUE",
+   "url": "https://www.storks.jp/schedule/list/",
    "src": "storks"
   },
   {
@@ -522,6 +728,10 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "加藤大樹の感動クラシック",
+   "open": "13:00",
+   "price": "5,000円・指定席",
+   "contact": "一般財団法人 民主音楽協会 関西センター 06-4304-9516",
+   "url": "https://www.kobe-bunka.jp/hall/wordpress/wp-content/uploads/2026/08/221205Kato_40054-scaled.jpg",
    "src": "bunka"
   },
   {
@@ -531,6 +741,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "島津亜矢 40周年記念コンサートツアー2026 ～ありがとう～",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/1982",
+   "performer": "島津亜矢",
+   "price": "S席：8,000円（全席指定･消費税込） A席：6,500円（全席指定･消費税込）",
+   "contact": "神戸国際会館 078-231-8162",
+   "open": "13:15",
    "src": "kih"
   },
   {
@@ -540,6 +755,10 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "音楽主催公演 神戸市室内管弦楽団＆神戸市混声合唱団 合同定期演奏会 ベルリオーズ：劇的物語『ファウストの劫罰』",
+   "open": "14:15",
+   "price": "【全席指定】S席6,000円 A席3,000円 U25（25歳以下）1,000円 18歳以下無料ご招待！ 詳細は下部、「文化庁 劇場・音楽堂等における子供舞台芸術鑑賞体験支援事業」をご覧ください。",
+   "contact": "（公財）神戸市民文化振興財団",
+   "url": "https://www.kobe-bunka.jp/hall/schedule/event/music/19392/",
    "src": "bunka"
   },
   {
@@ -549,6 +768,9 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "2026-27 大同生命SV.LEAGUE MEN　大阪ブルテオン vs ジェイテクトSTINGS愛知",
+   "url": "https://www.totteikobe.jp/event/article/28643",
+   "contact": "大阪ブルテオン ファンクラブ事務局（TEL:050-8889-0260） 営業時間：平日 10:00～17:00",
+   "official": "https://www.osaka-bluteon.com/homegame/2026-27/261205-1206/",
    "sport": true,
    "src": "glion"
   },
@@ -559,6 +781,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "GENERATIONS LIVE TOUR 2026 \"PARALLEL QUEST\"",
+   "contact": "ｻｳﾝﾄﾞｸﾘｴｰﾀｰ （平日12:00～15:00※祝日を除く） 06-6357-4400",
+   "url": "https://m.tribe-m.jp/artist/index/37",
    "src": "world"
   },
   {
@@ -569,6 +793,8 @@
    "cap": 5000,
    "title": "第67回日本肺癌学会学術集会",
    "day": true,
+   "contact": "第67回日本肺癌学会学術集会",
+   "url": "https://conference.haigan.gr.jp/67/",
    "src": "kcc"
   },
   {
@@ -578,6 +804,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "GENERATIONS LIVE TOUR 2026 \"PARALLEL QUEST\"",
+   "contact": "ｻｳﾝﾄﾞｸﾘｴｰﾀｰ （平日12:00～15:00※祝日を除く） 06-6357-4400",
+   "url": "https://m.tribe-m.jp/artist/index/37",
    "src": "world"
   },
   {
@@ -587,6 +815,10 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "音楽共催公演 神戸シャンソン・ポピュレール2026",
+   "open": "15:00",
+   "price": "一般 ：4,500円 友の会：4,000円 全席自由",
+   "contact": "（一社）日仏友好シャンソンKAKEHASHI事務局 （月～金10：00～16：00） 電話番号：078-381-6202 FAX：078‐381-6203",
+   "url": "https://www.kobe-bunka.jp/hall/schedule/event/music/21335/",
    "src": "bunka"
   },
   {
@@ -596,6 +828,12 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "LAWSON presents 夏川椎菜 as mona 3rdワンマンライブ motto☆motto愛を歌おうぜ♡",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2237",
+   "performer": "キャスト 夏川椎菜（mona役） バンドメンバー Guitar Oji／中西 Bass kyo Keyboard 宇都圭輝 Drums AtsuyuK! ゲス…",
+   "price": "＜全席指定＞ SS席 14,000円（税込） S席 12,000円（税込） A席 9,000円（税込） 学生席 5,000円（税込） ＜グッズ付きチケット＞ SS席 21,000円（税込） S席 1…",
+   "contact": "ソーゴー大阪 06-6344-3326（平日14:00～16:00）",
+   "goods": "＜グッズ付きチケット＞ SS席 21,000円（税込） S席 19,000円（税込） A席 16,000円（税込） 学生席 12,000円（税込） ※グッズは当日会場でのお渡しを予定してお",
+   "open": "17:00",
    "src": "kih"
   },
   {
@@ -605,8 +843,27 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "2026-27 大同生命SV.LEAGUE MEN　大阪ブルテオン vs ジェイテクトSTINGS愛知",
+   "url": "https://www.totteikobe.jp/event/article/28643",
+   "contact": "大阪ブルテオン ファンクラブ事務局（TEL:050-8889-0260） 営業時間：平日 10:00～17:00",
+   "official": "https://www.osaka-bluteon.com/homegame/2026-27/261205-1206/",
    "sport": true,
    "src": "glion"
+  },
+  {
+   "date": "2026-12-07",
+   "start": "14:00",
+   "end": null,
+   "venue": "神戸ポートターミナル",
+   "cap": 3100,
+   "title": "客船 PACIFIC WORLD",
+   "ship": true,
+   "depart": "09:00",
+   "departDate": "2026-12-08",
+   "from": "横浜",
+   "to": "横浜",
+   "tons": 77441,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-07",
@@ -616,7 +873,24 @@
    "cap": 10000,
    "title": "神戸ストークス vs 茨城",
    "sport": true,
+   "performer": "B.LEAGUE",
+   "url": "https://www.storks.jp/schedule/list/",
    "src": "storks"
+  },
+  {
+   "date": "2026-12-08",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2100,
+   "title": "客船 飛鳥Ⅲ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "父島",
+   "to": "高知",
+   "tons": 52265,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-08",
@@ -625,6 +899,10 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "神戸市老眼大学",
+   "open": "09:45",
+   "price": "会員",
+   "contact": "神戸市生涯学習支援センター 078-251-4731（担当：照喜名）",
+   "url": "https://www.kobe-spokyo.jp/comista/",
    "src": "bunka"
   },
   {
@@ -634,6 +912,9 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "ONE LOVE フェス 2026",
+   "url": "https://www.totteikobe.jp/event/article/27155",
+   "contact": "主催：株式会社LOVE is ALL お問い合わせ：ONE LOVE FES運営事務局 onelovefes.loveisall@gmail.com",
+   "official": "https://onelovefes.jp/",
    "src": "glion"
   },
   {
@@ -644,6 +925,8 @@
    "cap": 5000,
    "title": "第35回ポリマー材料フォーラム",
    "day": true,
+   "contact": "公益社団法人高分子学会",
+   "url": "https://www.spsj.or.jp/pmf/",
    "src": "kcc"
   },
   {
@@ -654,7 +937,24 @@
    "cap": 5000,
    "title": "第35回ポリマー材料フォーラム",
    "day": true,
+   "contact": "公益社団法人高分子学会",
+   "url": "https://www.spsj.or.jp/pmf/",
    "src": "kcc"
+  },
+  {
+   "date": "2026-12-11",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2100,
+   "title": "客船 飛鳥Ⅲ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "高知",
+   "to": "神戸",
+   "tons": 52265,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-11",
@@ -663,6 +963,9 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "劇団民藝 「ローズのジレンマ」",
+   "open": "18:00",
+   "price": "6,500円・指定席・会員",
+   "contact": "神戸演劇鑑賞会 078-381-8244",
    "src": "bunka"
   },
   {
@@ -673,6 +976,8 @@
    "cap": 5000,
    "title": "進路フェスタ in 神戸会場",
    "day": true,
+   "contact": "株式会社 さんぽう",
+   "url": "https://www.sanpou-s.net/edu-event/detail/612/",
    "src": "kcc"
   },
   {
@@ -682,6 +987,9 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "劇団民藝 「ローズのジレンマ」",
+   "open": "13:00",
+   "price": "6,500円・指定席・会員",
+   "contact": "神戸演劇鑑賞会 078-381-8244",
    "src": "bunka"
   },
   {
@@ -691,6 +999,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "ミュージカル『ALICE〜不思議の国のアリスより〜』",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2169",
+   "performer": "【CAST】 アリス：田中夢羽 ハートの女王：藤田朋子 帽子屋ハッター：ROLLY チェシャ猫：土屋アンナ 白ウサギ：吉田要士 チャールズ：松村雄基",
+   "price": "SS席 12,000円 S席 10,000円 A席 8,000円 （全席指定、税込）",
+   "contact": "神戸国際会館 078‐231‐8162",
+   "open": "13:00",
    "src": "kih"
   },
   {
@@ -700,6 +1013,10 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "主催公演情報主催公演 市民の第九2026",
+   "open": "13:45",
+   "price": "【全席自由】前売3,000円 当日3,500円 友の会2,500円",
+   "contact": "（公財）神戸市民文化振興財団",
+   "url": "https://www.kobe-bunka.jp/hall/schedule/event/20753/",
    "src": "bunka"
   },
   {
@@ -709,7 +1026,24 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "LUNA SEA TOUR 2026 UNENDING JOURNEY ーTO RISEー",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://www.lunasea.jp/",
    "src": "world"
+  },
+  {
+   "date": "2026-12-13",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2100,
+   "title": "客船 飛鳥Ⅲ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "神戸",
+   "to": "東京",
+   "tons": 52265,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-13",
@@ -718,6 +1052,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "LUNA SEA TOUR 2026 UNENDING JOURNEY ーTO RISEー",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://www.lunasea.jp/",
    "src": "world"
   },
   {
@@ -727,6 +1063,9 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "C＆K TOUR 2026-2027 「日本全国地元化計画～引き続きシンプルにライブします！でも3パターンあります！」",
+   "open": "17:00",
+   "price": "9,000円・指定席",
+   "contact": "キョードー関西 0570-200-888 12:00～17:00（土日祝休業）",
    "src": "bunka"
   },
   {
@@ -736,6 +1075,7 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "【開催決定】BreakingDown 22",
+   "url": "https://www.totteikobe.jp/event/article/29943",
    "sport": true,
    "src": "glion"
   },
@@ -746,6 +1086,10 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "REBECCA『Cosmic Autonomy Tour 2026-2027』",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2201",
+   "performer": "REBECCA",
+   "price": "全席指定 ¥13,200",
+   "contact": "キョードーインフォメーション 0570-200-888 (11:00～18:00日祝休業)",
    "src": "kih"
   },
   {
@@ -755,6 +1099,9 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "学校法人和弘学園 設立60周年記念発表会",
+   "open": "13:00",
+   "price": "無料・指定席・関係者",
+   "contact": "学校法人和弘学園 塩屋幼稚園 078-751-4114",
    "src": "bunka"
   },
   {
@@ -764,7 +1111,41 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "REBECCA『Cosmic Autonomy Tour 2026-2027』",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2201",
+   "performer": "REBECCA",
+   "price": "全席指定 ¥13,200",
+   "contact": "キョードーインフォメーション 0570-200-888 (11:00～18:00日祝休業)",
    "src": "kih"
+  },
+  {
+   "date": "2026-12-16",
+   "start": "07:00",
+   "end": "11:00",
+   "venue": "神戸ポートターミナル",
+   "cap": 1300,
+   "title": "客船 MITSUI OCEAN FUJI",
+   "ship": true,
+   "depart": "11:00",
+   "from": "麗水",
+   "to": "横浜",
+   "tons": 32477,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-16",
+   "start": "13:00",
+   "end": "18:00",
+   "venue": "神戸ポートターミナル",
+   "cap": 3100,
+   "title": "客船 PACIFIC WORLD",
+   "ship": true,
+   "depart": "18:00",
+   "from": "横浜",
+   "to": "香港",
+   "tons": 77441,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-16",
@@ -774,7 +1155,24 @@
    "cap": 10000,
    "title": "神戸ストークス vs 島根",
    "sport": true,
+   "performer": "B.LEAGUE",
+   "url": "https://www.storks.jp/schedule/list/",
    "src": "storks"
+  },
+  {
+   "date": "2026-12-17",
+   "start": "10:30",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2000,
+   "title": "客船 飛鳥Ⅱ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "名古屋",
+   "to": "博多",
+   "tons": 50444,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-18",
@@ -783,6 +1181,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "BUCK∞TICK TOUR 2026 -ナイショの薔薇の下-",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2248",
+   "performer": "BUCK∞TICK",
+   "price": "指定 11,000円（税込） 1階立見(立ち位置指定) 11,000円（税込） 2階立見(立ち位置指定) 11,000円（税込）",
+   "contact": "ソーゴー大阪 http://www.sogoosaka.com/ 06-6344-3326（平日14：00～16：00 ※土日祝休）",
+   "open": "17:30",
    "src": "kih"
   },
   {
@@ -792,6 +1195,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "手嶌葵 20th Anniversary Concert 2026",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/1581",
+   "performer": "〖歌〗手嶌葵 〖演奏〗ピアノ：真藤敬利 ギター＆バイオリン：江部和幸 バイオリン：向江陽子",
+   "price": "■全席指定・税込 ９,000円 ■U-22席 3,000円（U-22席はぴあのみで販売）",
+   "contact": "サモンプロモーション 06-6225-2237 (平日10:00～18:00) 【→サモンプロモーションHPはこちらをクリック←】",
+   "open": "13:15",
    "src": "kih"
   },
   {
@@ -801,6 +1209,10 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "ダンス共催公演 貞松・浜田バレエ団 クリスマス特別公演『くるみ割り人形と秘密の花園』全2幕",
+   "open": "14:15",
+   "price": "Ｓ席￥9,000／Ａ席￥7,000／Ｂ席￥5,000／C席￥3,000／学生席￥3,000",
+   "contact": "主催：（一社）貞松・浜田バレエ団 共催：神戸文化ホール（指定管理者：公益財団法人 神戸市民文化振興財団）",
+   "url": "https://www.kobe-bunka.jp/hall/schedule/event/dance/20915/",
    "src": "bunka"
   },
   {
@@ -810,6 +1222,11 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "ØMI MOON NIGHT 2026 \"Ø to 3\" ～今年もお世話になりました!!大忘年会SPECIAL～",
+   "url": "https://www.totteikobe.jp/event/article/29467",
+   "performer": "ØMI",
+   "contact": "サウンドクリエーター TEL：06-6357-4400（月～金12 :00～15:00 ※祝日を除く）",
+   "official": "https://m.tribe-m.jp/news/detail?news_id=55161&group_id=21",
+   "open": "16:30",
    "src": "glion"
   },
   {
@@ -820,6 +1237,8 @@
    "cap": 3000,
    "title": "第15回日本公衆衛生看護学会学術集会",
    "day": true,
+   "contact": "日本公衆衛生看護学会",
+   "url": "https://japhn15.yupia.net/",
    "src": "kcc"
   },
   {
@@ -829,6 +1248,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "バンドー化学株式会社 presents 第九コンサート2026",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2008",
+   "performer": "指 揮：松井慶太 管弦楽：大阪フィルハーモニー交響楽団 独 唱：ソプラノ：横山和美 メゾソプラノ：後藤真菜美 テノール：石井基幾 バリトン：駒田敏章 合唱指導…",
+   "price": "S席 ¥6,600 A席 ¥5,500 B席 ¥4,400",
+   "contact": "神戸国際会館（０７８－２３１－８１６２）",
+   "open": "15:15",
    "src": "kih"
   },
   {
@@ -838,6 +1262,11 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "ØMI MOON NIGHT 2026 \"Ø to 3\" ～今年もお世話になりました!!大忘年会SPECIAL～",
+   "url": "https://www.totteikobe.jp/event/article/29467",
+   "performer": "ØMI",
+   "contact": "サウンドクリエーター TEL：06-6357-4400（月～金12 :00～15:00 ※祝日を除く）",
+   "official": "https://m.tribe-m.jp/news/detail?news_id=55161&group_id=21",
+   "open": "16:00",
    "src": "glion"
   },
   {
@@ -847,6 +1276,10 @@
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
    "title": "RAVENS CHEER FESTIVAL 2026",
+   "open": "17:30",
+   "price": "一般1,000円、学生500円・指定席",
+   "contact": "神戸大学アメリカンフットボール部 RAVENS CHEER koberavenscheer@gmail.com",
+   "url": "https://www.kobe-bunka.jp/hall/wordpress/wp-content/uploads/2026/09/IMG_6381-002.jpeg",
    "src": "bunka"
   },
   {
@@ -857,6 +1290,8 @@
    "cap": 3000,
    "title": "第15回日本公衆衛生看護学会学術集会",
    "day": true,
+   "contact": "日本公衆衛生看護学会",
+   "url": "https://japhn15.yupia.net/",
    "src": "kcc"
   },
   {
@@ -867,7 +1302,39 @@
    "cap": 5000,
    "title": "マイナビ インターンシップ＆キャリア発見フェア 神戸会場",
    "day": true,
+   "contact": "株式会社マイナビ",
+   "url": "https://job.mynavi.jp/conts/event/2028/10844/index.html",
    "src": "kcc"
+  },
+  {
+   "date": "2026-12-23",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2000,
+   "title": "客船 飛鳥Ⅱ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "博多",
+   "to": "神戸",
+   "tons": 50444,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-23",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "神戸ポートターミナル",
+   "cap": 1400,
+   "title": "客船 MITSUI OCEAN SAKURA",
+   "ship": true,
+   "depart": "17:00",
+   "from": "佐伯",
+   "to": "杵築",
+   "tons": 34138,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-23",
@@ -876,7 +1343,26 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "神戸市老眼大学",
+   "open": "09:45",
+   "price": "会員",
+   "contact": "神戸市生涯学習支援センター 078-251-4731（担当：照喜名）",
+   "url": "https://www.kobe-spokyo.jp/comista/",
    "src": "bunka"
+  },
+  {
+   "date": "2026-12-25",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2000,
+   "title": "客船 飛鳥Ⅱ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "神戸",
+   "to": "神戸",
+   "tons": 50444,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-25",
@@ -885,6 +1371,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://pjsekai.sega.jp/colorfullive/6th-crossing/schedule-and-ticket.html",
    "src": "world"
   },
   {
@@ -894,7 +1382,42 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "Jang Wooyoung Concert in Japan",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2271",
+   "performer": "Jang Wooyoung",
+   "price": "1日券：15,500円 (税込) 2日間通し券：30,000円 (税込)",
+   "contact": "SOGO OSAKA https://www.sogoosaka.com/ 06-6344-3326（平日14：00～16：00 ※土日祝休）",
+   "open": "17:30",
    "src": "kih"
+  },
+  {
+   "date": "2026-12-26",
+   "start": "09:00",
+   "end": "17:00",
+   "venue": "中突堤旅客ターミナル",
+   "cap": 2000,
+   "title": "客船 飛鳥Ⅱ",
+   "ship": true,
+   "depart": "17:00",
+   "from": "神戸",
+   "to": "高雄",
+   "tons": 50444,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
+  },
+  {
+   "date": "2026-12-26",
+   "start": "10:00",
+   "end": "18:00",
+   "venue": "神戸ポートターミナル",
+   "cap": 1400,
+   "title": "客船 MITSUI OCEAN SAKURA",
+   "ship": true,
+   "depart": "18:00",
+   "from": "瀬戸田",
+   "to": "石垣島",
+   "tons": 34138,
+   "url": "https://www.kobe-meriken.or.jp/terminal/eta/",
+   "src": "ships"
   },
   {
    "date": "2026-12-26",
@@ -903,6 +1426,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://pjsekai.sega.jp/colorfullive/6th-crossing/schedule-and-ticket.html",
    "src": "world"
   },
   {
@@ -912,6 +1437,11 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "マーベル・スタジオ インフィニティ・サーガ コンサート・エクスペリエンス 2026",
+   "url": "https://www.totteikobe.jp/event/article/30847",
+   "performer": "栗田博文 / 関西フィルハーモニー管弦楽団",
+   "contact": "キョードーインフォメーション 0570-200-888（土日祝除く12:00~17:00）",
+   "official": "https://www.koacreative.co.jp/marvel-isce/",
+   "open": "14:00",
    "src": "glion"
   },
   {
@@ -921,6 +1451,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "Jang Wooyoung Concert in Japan",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2271",
+   "performer": "Jang Wooyoung",
+   "price": "1日券：15,500円 (税込) 2日間通し券：30,000円 (税込)",
+   "contact": "SOGO OSAKA https://www.sogoosaka.com/ 06-6344-3326（平日14：00～16：00 ※土日祝休）",
+   "open": "15:00",
    "src": "kih"
   },
   {
@@ -931,6 +1466,8 @@
    "cap": 5000,
    "title": "当事者と地域を越えて考える障害者福祉ワークショップ",
    "day": true,
+   "contact": "障害当事者団体ベクトルズ",
+   "url": "https://challenged-vectors.jimdofree.com/%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88/",
    "src": "kcc"
   },
   {
@@ -940,6 +1477,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://pjsekai.sega.jp/colorfullive/6th-crossing/schedule-and-ticket.html",
    "src": "world"
   },
   {
@@ -949,6 +1488,11 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "マーベル・スタジオ インフィニティ・サーガ コンサート・エクスペリエンス 2026",
+   "url": "https://www.totteikobe.jp/event/article/30847",
+   "performer": "栗田博文 / 関西フィルハーモニー管弦楽団",
+   "contact": "キョードーインフォメーション 0570-200-888（土日祝除く12:00~17:00）",
+   "official": "https://www.koacreative.co.jp/marvel-isce/",
+   "open": "12:00",
    "src": "glion"
   },
   {
@@ -958,6 +1502,11 @@
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
    "title": "角松敏生 TOSHIKI KADOMATSU 45th Anniversary Live 〜御礼参り〜",
+   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2236",
+   "performer": "角松敏生",
+   "price": "[全席指定] 11,000円",
+   "contact": "サウンドクリエーター https://www.sound-c.co.jp お電話でのお問い合わせ：06-6357-4400（平日 12:00〜15:00 ※祝日を除く） メールでのお問い合わせ：ht…",
+   "open": "17:00",
    "src": "kih"
   },
   {
@@ -967,6 +1516,9 @@
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
    "title": "神戸学院大学吹奏楽部 第50回定期演奏会",
+   "open": "17:30",
+   "price": "大人1,000円、中高生500円 自由席",
+   "contact": "神戸学院大学吹奏楽部 kguea006@kobegakuin.ac.jp ※内容は予告なく変更する場合がございます。 前の月へ 次の月へ カスタマーハラスメント対策方針 プライバシーポリシー リンク…",
    "src": "bunka"
   },
   {
@@ -976,6 +1528,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "NEXZ 1ST ASIA TOUR IN JAPAN",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00※土日祝休業） 0570-200-888",
+   "url": "https://nexz-official.com/s/n180/page/live_detail?55844",
    "src": "world"
   },
   {
@@ -985,6 +1539,8 @@
    "venue": "ワールド記念ホール",
    "cap": 8000,
    "title": "NEXZ 1ST ASIA TOUR IN JAPAN",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00※土日祝休業） 0570-200-888",
+   "url": "https://nexz-official.com/s/n180/page/live_detail?55844",
    "src": "world"
   }
  ]
