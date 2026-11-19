@@ -82,20 +82,7 @@ async function kih() {
       try {
         const html = await get('https://www.kih.co.jp' + e.url);
         const raw = (/<th>日時<\/th>\s*<td>([\s\S]*?)<\/td>/.exec(html) || [])[1] || '';
-        // 書き方は公演ごとに違う：「2026年11月19日(木) OPEN/18:00 START/19:00」「2026/11/22(日) OPEN 16:30 / START 17:30」「2026/11/29(日) 16:30」「…18:30開演（17:30開場）」
-        let yy = +e.from.slice(0, 4), lastDate = null;
-        for (const line of raw.split(/<br\s*\/?>/i).map(clean).filter(Boolean)) {
-          const dm = /(?:(\d{4})[年\/])?(\d{1,2})[月\/](\d{1,2})日?/.exec(line);
-          if (dm) { if (dm[1]) yy = +dm[1]; lastDate = ymd(yy, +dm[2], +dm[3]); }
-          const rest = dm ? line.slice(dm.index + dm[0].length) : line;
-          const st = /(\d{1,2}[:：]\d{2})\s*開演/.exec(rest) || /START\s*[\/／:：]?\s*(\d{1,2}[:：]\d{2})/i.exec(rest);
-          const all = [...rest.matchAll(/(\d{1,2}[:：]\d{2})/g)].map(x => x[1]);
-          const op = /(\d{1,2}[:：]\d{2})\s*開場/.exec(rest) || /OPEN\s*[\/／:：]?\s*(\d{1,2}[:：]\d{2})/i.exec(rest);
-          const tm = st ? st[1] : all.filter(x => !op || x !== op[1]).pop();
-          if (lastDate && tm) times.push([lastDate, hm(tm)]);
-        }
-        // 日付の無い「18:30開演」だけの時は、一覧の公演日すべてに
-        if (!times.length) { const t1 = /(\d{1,2}[:：]\d{2})\s*開演/.exec(clean(raw)); if (t1) for (let d = e.from; d <= e.to; d = next(d)) times.push([d, hm(t1[1])]); }
+        times = timesFrom(raw.split(/<br\s*\/?>/i).map(clean), e.from, e.to);
       } catch (err) { console.warn('kih detail', err.message); }
     }
     if (!times.length) for (let d = e.from; d <= e.to; d = next(d)) times.push([d, null]);
@@ -104,6 +91,26 @@ async function kih() {
   return out;
 }
 const next = d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+// 「日時」の行から [日付, 開演] を取り出す。書き方は会場・公演ごとに違う：
+//   「2026年11月19日(木) OPEN/18:00 START/19:00」「2026/11/22(日) OPEN 16:30 / START 17:30」「2026/11/29(日) 16:30」
+//   「…18:30開演（17:30開場）」「2026年11月3日（火祝）開場 17:00 / 開演 18:00」（2日目以降は年が省かれることがある）
+function timesFrom(lines, from, to) {
+  const times = [];
+  let yy = +from.slice(0, 4), lastDate = null;
+  for (const line of lines.filter(Boolean)) {
+    const dm = /(?:(\d{4})[年\/.])?(\d{1,2})[月\/.](\d{1,2})日?/.exec(line);
+    if (dm) { if (dm[1]) yy = +dm[1]; lastDate = ymd(yy, +dm[2], +dm[3]); }
+    const rest = dm ? line.slice(dm.index + dm[0].length) : line;
+    const st = /(\d{1,2}[:：]\d{2})\s*開演/.exec(rest) || /(?:開演|START)\s*[\/／:：]?\s*(\d{1,2}[:：]\d{2})/i.exec(rest);
+    const all = [...rest.matchAll(/(\d{1,2}[:：]\d{2})/g)].map(x => x[1]);
+    const op = /(\d{1,2}[:：]\d{2})\s*開場/.exec(rest) || /(?:開場|OPEN)\s*[\/／:：]?\s*(\d{1,2}[:：]\d{2})/i.exec(rest);
+    const tm = st ? st[1] : all.filter(x => !op || x !== op[1]).pop();
+    if (lastDate && tm) times.push([lastDate, hm(tm)]);
+  }
+  // 日付の無い「18:30開演」だけの時は、公演日すべてに
+  if (!times.length) { const t1 = /(\d{1,2}[:：]\d{2})\s*開演/.exec(lines.join(' ')); if (t1) for (let d = from; d <= to; d = next(d)) times.push([d, hm(t1[1])]); }
+  return times;
+}
 
 // 神戸文化ホール：公演カレンダー（日程・ホール・開演（開場）・公演名）
 async function bunka() {
@@ -169,19 +176,58 @@ async function storks() {
   return out;
 }
 
-const SOURCES = { world, kih, bunka, kcc, vissel, storks };
+// GLION ARENA KOBE：イベント一覧は画面の中で組み立てる作りなので、ブラウザ（Playwright）で表示して読む（今月・来月）
+//   アリーナでの催し（ARENA）だけ。ストークスの試合は storks() で取るので除く。開演は詳細ページ（普通に読める）から
+async function glion() {
+  if (localDir) return [];
+  const { chromium } = await import('playwright');
+  const b = await chromium.launch();
+  const items = new Map();
+  try {
+    const p = await b.newPage({ locale: 'ja-JP', userAgent: UA });
+    await p.goto('https://www.totteikobe.jp/event', { waitUntil: 'networkidle', timeout: 60000 });
+    const read = () => p.$$eval('.EventMonthly-content-day', days => days.flatMap(d => {
+      const date = (d.querySelector('.EventListHeader-date') || {}).textContent || '';
+      return [...d.querySelectorAll('.EventListCard')].map(c => ({ date: date.trim(),
+        cat: (c.querySelector('.EventListCard-category') || {}).textContent?.trim(), label: (c.querySelector('.EventListCard-label') || {}).textContent?.trim(),
+        href: (c.querySelector('a[href*="/event/article/"]') || {}).getAttribute?.('href'), title: (c.querySelector('.EventListCard-title') || {}).textContent?.trim() }));
+    }));
+    const add = list => { for (const x of list) if (x.href && x.label === 'ARENA' && x.cat !== 'STORKS') { const k = x.href + x.date; if (!items.has(k)) items.set(k, x); } };   // 複数日の催しは日ごとに
+    add(await read());
+    const nm = ym(1).m, mon = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][nm - 1];
+    try { await p.getByText(mon, { exact: true }).first().click(); await p.waitForTimeout(4000); add(await read()); } catch (e) { console.warn('glion next month', e.message); }
+  } finally { await b.close(); }
+  const out = [];
+  for (const x of items.values()) {
+    const m = /^(\d{1,2})\.(\d{1,2})/.exec(x.date); if (!m) continue;
+    const day = withYear(+m[1], +m[2]);
+    let times = [];
+    try {
+      const t = clean(await get('https://www.totteikobe.jp' + x.href));
+      const cell = (/時間\s*([\s\S]*?)(?:URL|主催者|料金|チケット|お問い合わせ|お気に入り)/.exec(t) || [])[1] || '';
+      // 「2026年11月3日（火祝）開場 17:00 / 開演 18:00 2026年11月4日（水）開場 …」を日ごとに分ける
+      times = timesFrom(cell.split(/(?=\d{4}年\d{1,2}月\d{1,2}日)/), day, day);
+    } catch (e) { console.warn('glion detail', e.message); }
+    const hit = times.find(([d]) => d === day);
+    const e = ev('glion', day, hit ? hit[1] : null, x.title, x.cat === 'SPORTS' ? { sport: true } : {});
+    if (x.cat !== 'SPORTS' && e.start) e.end = addMin(e.start, 150);   // コンサートなどは試合より長め
+    out.push(e);
+  }
+  return out;
+}
+
+const SOURCES = { world, kih, bunka, kcc, vissel, storks, glion };
 const prev = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : { events: [] };
 const all = [], status = {};
 for (const [k, fn] of Object.entries(SOURCES)) {
-  try { const r = await fn(); all.push(...r); status[k] = r.length; }
+  try { const r = await fn(); r.forEach(e => { e.src = k; }); all.push(...r); status[k] = r.length; }
   catch (e) {
     // 読めなかった会場は前回の分を残す（会場名で見分ける）
     status[k] = 'error: ' + e.message;
     console.warn(k, e.message);
   }
 }
-const okVenues = new Set(all.map(e => e.venue));
-const keep = (prev.events || []).filter(e => !okVenues.has(e.venue) && Object.entries(status).some(([k, s]) => typeof s !== 'number'));
+const keep = (prev.events || []).filter(e => e.src && typeof status[e.src] !== 'number');   // 読めなかった取得元は前回の分
 const limit = ymd(...Object.values(ym(2)), 31);
 const events = [...all, ...keep]
   .filter(e => e.date >= TODAY && e.date <= limit)

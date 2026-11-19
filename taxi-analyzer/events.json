@@ -6,7 +6,8 @@
   "bunka": 37,
   "kcc": 41,
   "vissel": 4,
-  "storks": 3
+  "storks": 3,
+  "glion": 19
  },
  "events": [
   {
@@ -15,7 +16,8 @@
    "end": "21:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "椎名林檎と彼奴等と試す煩悩菩提"
+   "title": "椎名林檎と彼奴等と試す煩悩菩提",
+   "src": "kih"
   },
   {
    "date": "2026-11-19",
@@ -24,7 +26,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-20",
@@ -32,7 +35,8 @@
    "end": "21:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "椎名林檎と彼奴等と試す煩悩菩提"
+   "title": "椎名林檎と彼奴等と試す煩悩菩提",
+   "src": "kih"
   },
   {
    "date": "2026-11-20",
@@ -41,7 +45,8 @@
    "venue": "ノエビアスタジアム神戸",
    "cap": 30000,
    "title": "ヴィッセル神戸 vs 水戸",
-   "sport": true
+   "sport": true,
+   "src": "vissel"
   },
   {
    "date": "2026-11-20",
@@ -50,7 +55,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-21",
@@ -58,7 +64,8 @@
    "end": "12:10",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "第61回近畿高等学校演劇研究大会"
+   "title": "第61回近畿高等学校演劇研究大会",
+   "src": "bunka"
   },
   {
    "date": "2026-11-21",
@@ -66,7 +73,8 @@
    "end": "12:50",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "第50回兵庫県高等学校総合文化祭『吹奏楽』部門演奏会"
+   "title": "第50回兵庫県高等学校総合文化祭『吹奏楽』部門演奏会",
+   "src": "bunka"
   },
   {
    "date": "2026-11-21",
@@ -74,7 +82,8 @@
    "end": "18:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "クレイジーケンバンド CRAZY KEN BAND TOUR？2026-2027 Presented by NISHIHARA SHOKAI"
+   "title": "クレイジーケンバンド CRAZY KEN BAND TOUR？2026-2027 Presented by NISHIHARA SHOKAI",
+   "src": "kih"
   },
   {
    "date": "2026-11-21",
@@ -82,7 +91,8 @@
    "end": "20:00",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "日向坂４６"
+   "title": "日向坂４６",
+   "src": "world"
   },
   {
    "date": "2026-11-21",
@@ -91,7 +101,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-22",
@@ -99,7 +110,8 @@
    "end": "12:00",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "第46回近畿高等学校総合文化祭兵庫大会 吹奏楽部門"
+   "title": "第46回近畿高等学校総合文化祭兵庫大会 吹奏楽部門",
+   "src": "bunka"
   },
   {
    "date": "2026-11-22",
@@ -107,7 +119,17 @@
    "end": "12:20",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "第61回近畿高等学校演劇研究大会"
+   "title": "第61回近畿高等学校演劇研究大会",
+   "src": "bunka"
+  },
+  {
+   "date": "2026-11-22",
+   "start": "17:00",
+   "end": "19:00",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "NiziU Live with U 2026-2027 \"Who? U! NiziU Fes.”",
+   "src": "glion"
   },
   {
    "date": "2026-11-22",
@@ -115,7 +137,8 @@
    "end": "20:00",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "日向坂４６"
+   "title": "日向坂４６",
+   "src": "world"
   },
   {
    "date": "2026-11-22",
@@ -123,7 +146,8 @@
    "end": "20:00",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare"
+   "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare",
+   "src": "kih"
   },
   {
    "date": "2026-11-22",
@@ -132,7 +156,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "わたしのキャリア研究会 キャリアフォーラム＆企業経営層・人事担当者との座談会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-23",
@@ -140,7 +165,8 @@
    "end": "12:20",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "第61回近畿高等学校演劇研究大会"
+   "title": "第61回近畿高等学校演劇研究大会",
+   "src": "bunka"
   },
   {
    "date": "2026-11-23",
@@ -148,7 +174,17 @@
    "end": "18:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare"
+   "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare",
+   "src": "kih"
+  },
+  {
+   "date": "2026-11-23",
+   "start": "16:00",
+   "end": "18:00",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "NiziU Live with U 2026-2027 \"Who? U! NiziU Fes.”",
+   "src": "glion"
   },
   {
    "date": "2026-11-23",
@@ -156,7 +192,8 @@
    "end": "20:00",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "日向坂４６"
+   "title": "日向坂４６",
+   "src": "world"
   },
   {
    "date": "2026-11-23",
@@ -165,7 +202,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "東日本音楽祭",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-24",
@@ -174,7 +212,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "第4回 日本化粧品技術者会学術大会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-25",
@@ -182,7 +221,8 @@
    "end": "13:00",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "神戸市老眼大学"
+   "title": "神戸市老眼大学",
+   "src": "bunka"
   },
   {
    "date": "2026-11-25",
@@ -190,7 +230,8 @@
    "end": "17:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "MAZZEL 2nd Fan Meeting -Play at the MUZEUM Vol.2-"
+   "title": "MAZZEL 2nd Fan Meeting -Play at the MUZEUM Vol.2-",
+   "src": "kih"
   },
   {
    "date": "2026-11-25",
@@ -198,7 +239,8 @@
    "end": "19:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "EIKICHI YAZAWA CONCERT TOUR 2026 「Just keep going ～ロックの軌跡～」"
+   "title": "EIKICHI YAZAWA CONCERT TOUR 2026 「Just keep going ～ロックの軌跡～」",
+   "src": "world"
   },
   {
    "date": "2026-11-25",
@@ -207,7 +249,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "第4回 日本化粧品技術者会学術大会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-26",
@@ -215,7 +258,8 @@
    "end": "16:30",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "令和8年分 年末調整説明会"
+   "title": "令和8年分 年末調整説明会",
+   "src": "bunka"
   },
   {
    "date": "2026-11-26",
@@ -223,7 +267,8 @@
    "end": "21:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-"
+   "title": "ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-",
+   "src": "kih"
   },
   {
    "date": "2026-11-26",
@@ -232,7 +277,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "第4回 日本化粧品技術者会学術大会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-27",
@@ -240,7 +286,8 @@
    "end": "21:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-"
+   "title": "ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-",
+   "src": "kih"
   },
   {
    "date": "2026-11-27",
@@ -249,7 +296,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "ワールドアトリエセール",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-28",
@@ -257,7 +305,8 @@
    "end": "13:30",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "第39回 藤園会日本舞踊公演"
+   "title": "第39回 藤園会日本舞踊公演",
+   "src": "bunka"
   },
   {
    "date": "2026-11-28",
@@ -266,7 +315,8 @@
    "venue": "ノエビアスタジアム神戸",
    "cap": 30000,
    "title": "ヴィッセル神戸 vs 千葉",
-   "sport": true
+   "sport": true,
+   "src": "vissel"
   },
   {
    "date": "2026-11-28",
@@ -274,7 +324,8 @@
    "end": "19:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "尾崎亜美 50th Amii-versary Concert Tour 2026"
+   "title": "尾崎亜美 50th Amii-versary Concert Tour 2026",
+   "src": "kih"
   },
   {
    "date": "2026-11-28",
@@ -282,7 +333,8 @@
    "end": "20:30",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "西神戸吹奏楽団 第47回定期演奏会"
+   "title": "西神戸吹奏楽団 第47回定期演奏会",
+   "src": "bunka"
   },
   {
    "date": "2026-11-28",
@@ -291,7 +343,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "就職博＆転職博",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-28",
@@ -300,7 +353,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "第40回日本耳鼻咽喉科頭頸部外科学会秋季大会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-28",
@@ -309,7 +363,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "ワールドアトリエセール",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-29",
@@ -317,7 +372,8 @@
    "end": "16:30",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "フェニックスフィルハーモニックオーケストラ 第17回演奏会"
+   "title": "フェニックスフィルハーモニックオーケストラ 第17回演奏会",
+   "src": "bunka"
   },
   {
    "date": "2026-11-29",
@@ -325,7 +381,8 @@
    "end": "19:00",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "GORO NOGUCHI CONCERT TOUR 2026「 I sing songs !!～歌がある限り～」"
+   "title": "GORO NOGUCHI CONCERT TOUR 2026「 I sing songs !!～歌がある限り～」",
+   "src": "kih"
   },
   {
    "date": "2026-11-29",
@@ -333,7 +390,8 @@
    "end": null,
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "MERCI competition"
+   "title": "MERCI competition",
+   "src": "bunka"
   },
   {
    "date": "2026-11-29",
@@ -342,7 +400,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "第40回日本耳鼻咽喉科頭頸部外科学会秋季大会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-11-29",
@@ -351,7 +410,17 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "ワールドアトリエセール",
-   "day": true
+   "day": true,
+   "src": "kcc"
+  },
+  {
+   "date": "2026-11-29",
+   "start": null,
+   "end": null,
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "マカロックツアーvol.22 〜いま、きみがすき︕篇〜",
+   "src": "glion"
   },
   {
    "date": "2026-12-01",
@@ -359,7 +428,8 @@
    "end": "16:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "吉幾三 コンサート2026"
+   "title": "吉幾三 コンサート2026",
+   "src": "kih"
   },
   {
    "date": "2026-12-01",
@@ -367,7 +437,26 @@
    "end": "20:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "吉幾三 コンサート2026"
+   "title": "吉幾三 コンサート2026",
+   "src": "kih"
+  },
+  {
+   "date": "2026-12-02",
+   "start": "18:00",
+   "end": "20:00",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "Mrs. GREEN APPLE Ringo Jam Tour “SHADOWS”",
+   "src": "glion"
+  },
+  {
+   "date": "2026-12-03",
+   "start": "18:00",
+   "end": "20:00",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "Mrs. GREEN APPLE Ringo Jam Tour “SHADOWS”",
+   "src": "glion"
   },
   {
    "date": "2026-12-03",
@@ -375,7 +464,8 @@
    "end": "21:00",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "チャイコフスキーバレエ公演「くるみ割り人形」"
+   "title": "チャイコフスキーバレエ公演「くるみ割り人形」",
+   "src": "kih"
   },
   {
    "date": "2026-12-03",
@@ -384,7 +474,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "第67回日本肺癌学会学術集会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-04",
@@ -392,7 +483,8 @@
    "end": "20:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "渡辺真知子、サーカス、三浦祐太朗 ～時代を彩る名曲コンサート～"
+   "title": "渡辺真知子、サーカス、三浦祐太朗 ～時代を彩る名曲コンサート～",
+   "src": "kih"
   },
   {
    "date": "2026-12-04",
@@ -400,7 +492,8 @@
    "end": "21:30",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "第46回 神戸クリスマスフェスティバル"
+   "title": "第46回 神戸クリスマスフェスティバル",
+   "src": "bunka"
   },
   {
    "date": "2026-12-04",
@@ -409,7 +502,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "第67回日本肺癌学会学術集会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-05",
@@ -418,7 +512,8 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "神戸ストークス vs A千葉",
-   "sport": true
+   "sport": true,
+   "src": "storks"
   },
   {
    "date": "2026-12-05",
@@ -426,7 +521,8 @@
    "end": "16:00",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "加藤大樹の感動クラシック"
+   "title": "加藤大樹の感動クラシック",
+   "src": "bunka"
   },
   {
    "date": "2026-12-05",
@@ -434,7 +530,8 @@
    "end": "16:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "島津亜矢 40周年記念コンサートツアー2026 ～ありがとう～"
+   "title": "島津亜矢 40周年記念コンサートツアー2026 ～ありがとう～",
+   "src": "kih"
   },
   {
    "date": "2026-12-05",
@@ -442,7 +539,18 @@
    "end": "17:30",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "音楽主催公演 神戸市室内管弦楽団＆神戸市混声合唱団 合同定期演奏会 ベルリオーズ：劇的物語『ファウストの劫罰』"
+   "title": "音楽主催公演 神戸市室内管弦楽団＆神戸市混声合唱団 合同定期演奏会 ベルリオーズ：劇的物語『ファウストの劫罰』",
+   "src": "bunka"
+  },
+  {
+   "date": "2026-12-05",
+   "start": "15:05",
+   "end": "17:05",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "2026-27 大同生命SV.LEAGUE MEN　大阪ブルテオン vs ジェイテクトSTINGS愛知",
+   "sport": true,
+   "src": "glion"
   },
   {
    "date": "2026-12-05",
@@ -450,7 +558,8 @@
    "end": "18:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "GENERATIONS LIVE TOUR 2026 \"PARALLEL QUEST\""
+   "title": "GENERATIONS LIVE TOUR 2026 \"PARALLEL QUEST\"",
+   "src": "world"
   },
   {
    "date": "2026-12-05",
@@ -459,7 +568,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "第67回日本肺癌学会学術集会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-06",
@@ -467,7 +577,8 @@
    "end": "17:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "GENERATIONS LIVE TOUR 2026 \"PARALLEL QUEST\""
+   "title": "GENERATIONS LIVE TOUR 2026 \"PARALLEL QUEST\"",
+   "src": "world"
   },
   {
    "date": "2026-12-06",
@@ -475,7 +586,8 @@
    "end": "18:00",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "音楽共催公演 神戸シャンソン・ポピュレール2026"
+   "title": "音楽共催公演 神戸シャンソン・ポピュレール2026",
+   "src": "bunka"
   },
   {
    "date": "2026-12-06",
@@ -483,7 +595,18 @@
    "end": "20:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "LAWSON presents 夏川椎菜 as mona 3rdワンマンライブ motto☆motto愛を歌おうぜ♡"
+   "title": "LAWSON presents 夏川椎菜 as mona 3rdワンマンライブ motto☆motto愛を歌おうぜ♡",
+   "src": "kih"
+  },
+  {
+   "date": "2026-12-06",
+   "start": null,
+   "end": null,
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "2026-27 大同生命SV.LEAGUE MEN　大阪ブルテオン vs ジェイテクトSTINGS愛知",
+   "sport": true,
+   "src": "glion"
   },
   {
    "date": "2026-12-07",
@@ -492,7 +615,8 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "神戸ストークス vs 茨城",
-   "sport": true
+   "sport": true,
+   "src": "storks"
   },
   {
    "date": "2026-12-08",
@@ -500,7 +624,17 @@
    "end": "13:00",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "神戸市老眼大学"
+   "title": "神戸市老眼大学",
+   "src": "bunka"
+  },
+  {
+   "date": "2026-12-09",
+   "start": "19:00",
+   "end": "21:00",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "ONE LOVE フェス 2026",
+   "src": "glion"
   },
   {
    "date": "2026-12-09",
@@ -509,7 +643,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "第35回ポリマー材料フォーラム",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-10",
@@ -518,7 +653,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "第35回ポリマー材料フォーラム",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-11",
@@ -526,7 +662,8 @@
    "end": "21:00",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "劇団民藝 「ローズのジレンマ」"
+   "title": "劇団民藝 「ローズのジレンマ」",
+   "src": "bunka"
   },
   {
    "date": "2026-12-11",
@@ -535,7 +672,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "進路フェスタ in 神戸会場",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-12",
@@ -543,7 +681,8 @@
    "end": "16:00",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "劇団民藝 「ローズのジレンマ」"
+   "title": "劇団民藝 「ローズのジレンマ」",
+   "src": "bunka"
   },
   {
    "date": "2026-12-12",
@@ -551,7 +690,8 @@
    "end": "16:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "ミュージカル『ALICE〜不思議の国のアリスより〜』"
+   "title": "ミュージカル『ALICE〜不思議の国のアリスより〜』",
+   "src": "kih"
   },
   {
    "date": "2026-12-12",
@@ -559,7 +699,8 @@
    "end": "17:00",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "主催公演情報主催公演 市民の第九2026"
+   "title": "主催公演情報主催公演 市民の第九2026",
+   "src": "bunka"
   },
   {
    "date": "2026-12-12",
@@ -567,7 +708,8 @@
    "end": "19:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "LUNA SEA TOUR 2026 UNENDING JOURNEY ーTO RISEー"
+   "title": "LUNA SEA TOUR 2026 UNENDING JOURNEY ーTO RISEー",
+   "src": "world"
   },
   {
    "date": "2026-12-13",
@@ -575,7 +717,8 @@
    "end": "18:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "LUNA SEA TOUR 2026 UNENDING JOURNEY ーTO RISEー"
+   "title": "LUNA SEA TOUR 2026 UNENDING JOURNEY ーTO RISEー",
+   "src": "world"
   },
   {
    "date": "2026-12-13",
@@ -583,7 +726,18 @@
    "end": "20:30",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "C＆K TOUR 2026-2027 「日本全国地元化計画～引き続きシンプルにライブします！でも3パターンあります！」"
+   "title": "C＆K TOUR 2026-2027 「日本全国地元化計画～引き続きシンプルにライブします！でも3パターンあります！」",
+   "src": "bunka"
+  },
+  {
+   "date": "2026-12-13",
+   "start": null,
+   "end": null,
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "【開催決定】BreakingDown 22",
+   "sport": true,
+   "src": "glion"
   },
   {
    "date": "2026-12-14",
@@ -591,7 +745,8 @@
    "end": "20:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "REBECCA『Cosmic Autonomy Tour 2026-2027』"
+   "title": "REBECCA『Cosmic Autonomy Tour 2026-2027』",
+   "src": "kih"
   },
   {
    "date": "2026-12-15",
@@ -599,7 +754,8 @@
    "end": "16:00",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "学校法人和弘学園 設立60周年記念発表会"
+   "title": "学校法人和弘学園 設立60周年記念発表会",
+   "src": "bunka"
   },
   {
    "date": "2026-12-15",
@@ -607,7 +763,8 @@
    "end": "20:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "REBECCA『Cosmic Autonomy Tour 2026-2027』"
+   "title": "REBECCA『Cosmic Autonomy Tour 2026-2027』",
+   "src": "kih"
   },
   {
    "date": "2026-12-16",
@@ -616,7 +773,8 @@
    "venue": "GLION ARENA KOBE",
    "cap": 10000,
    "title": "神戸ストークス vs 島根",
-   "sport": true
+   "sport": true,
+   "src": "storks"
   },
   {
    "date": "2026-12-18",
@@ -624,7 +782,8 @@
    "end": "21:00",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "BUCK∞TICK TOUR 2026 -ナイショの薔薇の下-"
+   "title": "BUCK∞TICK TOUR 2026 -ナイショの薔薇の下-",
+   "src": "kih"
   },
   {
    "date": "2026-12-19",
@@ -632,7 +791,8 @@
    "end": "16:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "手嶌葵 20th Anniversary Concert 2026"
+   "title": "手嶌葵 20th Anniversary Concert 2026",
+   "src": "kih"
   },
   {
    "date": "2026-12-19",
@@ -640,7 +800,17 @@
    "end": "17:30",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "ダンス共催公演 貞松・浜田バレエ団 クリスマス特別公演『くるみ割り人形と秘密の花園』全2幕"
+   "title": "ダンス共催公演 貞松・浜田バレエ団 クリスマス特別公演『くるみ割り人形と秘密の花園』全2幕",
+   "src": "bunka"
+  },
+  {
+   "date": "2026-12-19",
+   "start": "17:30",
+   "end": "19:30",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "ØMI MOON NIGHT 2026 \"Ø to 3\" ～今年もお世話になりました!!大忘年会SPECIAL～",
+   "src": "glion"
   },
   {
    "date": "2026-12-19",
@@ -649,7 +819,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "第15回日本公衆衛生看護学会学術集会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-20",
@@ -657,7 +828,17 @@
    "end": "18:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "バンドー化学株式会社 presents 第九コンサート2026"
+   "title": "バンドー化学株式会社 presents 第九コンサート2026",
+   "src": "kih"
+  },
+  {
+   "date": "2026-12-20",
+   "start": "17:00",
+   "end": "19:00",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "ØMI MOON NIGHT 2026 \"Ø to 3\" ～今年もお世話になりました!!大忘年会SPECIAL～",
+   "src": "glion"
   },
   {
    "date": "2026-12-20",
@@ -665,7 +846,8 @@
    "end": "21:00",
    "venue": "神戸文化ホール 中ホール",
    "cap": 900,
-   "title": "RAVENS CHEER FESTIVAL 2026"
+   "title": "RAVENS CHEER FESTIVAL 2026",
+   "src": "bunka"
   },
   {
    "date": "2026-12-20",
@@ -674,7 +856,8 @@
    "venue": "神戸国際会議場",
    "cap": 3000,
    "title": "第15回日本公衆衛生看護学会学術集会",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-20",
@@ -683,7 +866,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "マイナビ インターンシップ＆キャリア発見フェア 神戸会場",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-23",
@@ -691,7 +875,8 @@
    "end": "13:00",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "神戸市老眼大学"
+   "title": "神戸市老眼大学",
+   "src": "bunka"
   },
   {
    "date": "2026-12-25",
@@ -699,7 +884,8 @@
    "end": "21:00",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-"
+   "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-",
+   "src": "world"
   },
   {
    "date": "2026-12-25",
@@ -707,7 +893,8 @@
    "end": "21:00",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "Jang Wooyoung Concert in Japan"
+   "title": "Jang Wooyoung Concert in Japan",
+   "src": "kih"
   },
   {
    "date": "2026-12-26",
@@ -715,7 +902,17 @@
    "end": "14:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-"
+   "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-",
+   "src": "world"
+  },
+  {
+   "date": "2026-12-26",
+   "start": "15:00",
+   "end": "17:00",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "マーベル・スタジオ インフィニティ・サーガ コンサート・エクスペリエンス 2026",
+   "src": "glion"
   },
   {
    "date": "2026-12-26",
@@ -723,7 +920,8 @@
    "end": "18:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "Jang Wooyoung Concert in Japan"
+   "title": "Jang Wooyoung Concert in Japan",
+   "src": "kih"
   },
   {
    "date": "2026-12-26",
@@ -732,7 +930,8 @@
    "venue": "神戸国際展示場",
    "cap": 5000,
    "title": "当事者と地域を越えて考える障害者福祉ワークショップ",
-   "day": true
+   "day": true,
+   "src": "kcc"
   },
   {
    "date": "2026-12-27",
@@ -740,7 +939,17 @@
    "end": "14:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-"
+   "title": "プロジェクトセカイ COLORFUL LIVE 6th-Crossing-",
+   "src": "world"
+  },
+  {
+   "date": "2026-12-27",
+   "start": "13:00",
+   "end": "15:00",
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "マーベル・スタジオ インフィニティ・サーガ コンサート・エクスペリエンス 2026",
+   "src": "glion"
   },
   {
    "date": "2026-12-27",
@@ -748,7 +957,8 @@
    "end": "20:30",
    "venue": "神戸国際会館こくさいホール",
    "cap": 2000,
-   "title": "角松敏生 TOSHIKI KADOMATSU 45th Anniversary Live 〜御礼参り〜"
+   "title": "角松敏生 TOSHIKI KADOMATSU 45th Anniversary Live 〜御礼参り〜",
+   "src": "kih"
   },
   {
    "date": "2026-12-27",
@@ -756,7 +966,8 @@
    "end": "20:30",
    "venue": "神戸文化ホール 大ホール",
    "cap": 2000,
-   "title": "神戸学院大学吹奏楽部 第50回定期演奏会"
+   "title": "神戸学院大学吹奏楽部 第50回定期演奏会",
+   "src": "bunka"
   },
   {
    "date": "2027-01-16",
@@ -764,7 +975,8 @@
    "end": "19:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "NEXZ 1ST ASIA TOUR IN JAPAN"
+   "title": "NEXZ 1ST ASIA TOUR IN JAPAN",
+   "src": "world"
   },
   {
    "date": "2027-01-17",
@@ -772,7 +984,8 @@
    "end": "18:30",
    "venue": "ワールド記念ホール",
    "cap": 8000,
-   "title": "NEXZ 1ST ASIA TOUR IN JAPAN"
+   "title": "NEXZ 1ST ASIA TOUR IN JAPAN",
+   "src": "world"
   }
  ]
 }
