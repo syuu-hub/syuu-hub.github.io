@@ -1,0 +1,14 @@
+{
+  "appId": "io.github.syuuhub.junkainavi",
+  "appName": "巡回ナビ",
+  "webDir": "www",
+  "backgroundColor": "#116a3f",
+  "server": {
+    "url": "https://syuu-hub.github.io/junkai-navi/",
+    "androidScheme": "https",
+    "errorPath": "index.html"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

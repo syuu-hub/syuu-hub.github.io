@@ -1,11 +1,11 @@
-import { EndlessNavigator } from './navcore.js?v=15';
-import { ValhallaClient } from './valhalla.js?v=15';
-import { DemandEngine, CAT_JA } from './demand.js?v=15';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=15';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=15';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=15';
-import { profText, manualProf } from './profile.js?v=15';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=15';
+import { EndlessNavigator } from './navcore.js?v=16';
+import { ValhallaClient } from './valhalla.js?v=16';
+import { DemandEngine, CAT_JA } from './demand.js?v=16';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=16';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=16';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=16';
+import { profText, manualProf } from './profile.js?v=16';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=16';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -54,6 +54,11 @@ function syncDemand() {
 }
 let odptDisruption = false;
 
+// ===== Android アプリ（Capacitor）の中か =====
+// WebView では読み上げ・画面点灯維持・リンクでの保存が使えないので、本体側のプラグイン（NaviDevice 等）で行う
+const isNative = () => { const c = window.Capacitor; return !!(c && c.isNativePlatform && c.isNativePlatform() && c.nativePromise); };
+const nativeCall = (plugin, method, args = {}) => window.Capacitor.nativePromise(plugin, method, args);
+
 // ===== 音声 =====
 let jaVoice = null;
 function pickVoice() {
@@ -62,7 +67,9 @@ function pickVoice() {
 }
 if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 function speak(text, force = false) {
-  if ((!cfg.voice && !force) || !('speechSynthesis' in window)) return;
+  if (!cfg.voice && !force) return;
+  if (isNative()) { nativeCall('NaviDevice', 'speak', { text }).catch(() => {}); return; }
+  if (!('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'ja-JP';
   if (jaVoice) u.voice = jaVoice;
@@ -316,6 +323,7 @@ function startSim() {
 }
 
 async function requestWakeLock() {
+  if (isNative()) { nativeCall('NaviDevice', 'keepAwake', { on: true }).catch(() => {}); return; }
   try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch { /* noop */ }
 }
 document.addEventListener('visibilitychange', () => { if (running && document.visibilityState === 'visible') requestWakeLock(); });
@@ -403,6 +411,7 @@ function stop() {
   if (nav._origApply) { nav.apply = nav._origApply; delete nav._origApply; }
   watchId = simTimer = demandTimer = loopTimer = null;
   try { wakeLock && wakeLock.release(); } catch { /* noop */ }
+  if (isNative()) nativeCall('NaviDevice', 'keepAwake', { on: false }).catch(() => {});
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   nav.reset();
   drawRoute();
@@ -791,8 +800,19 @@ $('pl-export').onclick = () => {
   if (!cfg.events.length) { toast('登録地点がありません'); return; }
   const d = new Date();
   const name = `junkai-navi_places_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.csv`;
+  const body = placesToCsv(cfg.events);
+  // アプリの中では「ダウンロード/巡回ナビ」に直接保存（できない古い Android では共有メニューから保存先を選ぶ）
+  if (isNative()) {
+    const share = () => nativeCall('Filesystem', 'writeFile', { path: name, data: body, directory: 'CACHE', encoding: 'utf8' })
+      .then((r) => nativeCall('Share', 'share', { title: name, files: [r.uri] }))
+      .catch((e) => { if (!/cancel/i.test(String(e && e.message))) toast('保存できませんでした'); });
+    nativeCall('NaviDevice', 'saveDownload', { name, data: body, mime: 'text/csv' })
+      .then(() => toast(`${cfg.events.length}件を「ダウンロード/巡回ナビ」に保存しました`))
+      .catch(share);
+    return;
+  }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([placesToCsv(cfg.events)], { type: 'text/csv;charset=utf-8' }));
+  a.href = URL.createObjectURL(new Blob([body], { type: 'text/csv;charset=utf-8' }));
   a.download = name;
   document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
