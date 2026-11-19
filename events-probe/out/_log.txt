@@ -1,3 +1,0 @@
-kih-2033 200 https://www.kih.co.jp/kokusaihall/event/detail/2033 9990 text/html; charset=UTF-8
-kih-2136 200 https://www.kih.co.jp/kokusaihall/event/detail/2136 9435 text/html; charset=UTF-8
-kih-2220 200 https://www.kih.co.jp/kokusaihall/event/detail/2220 10509 text/html; charset=UTF-8

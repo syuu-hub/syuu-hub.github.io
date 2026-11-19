@@ -3565,10 +3565,12 @@ function loadEvents() {
     .then(d => { if (d && Array.isArray(d.events)) { EVENTS = d.events; if (S.settings.tab === 'ana') renderAnalysis(); } })
     .catch(() => {});
 }
-function eventLines(day) {
+// その日の営業時間（終わる時刻がいつもの営業時間か、その1時間前）に終わるものだけ。今日すでに終わったものは出さない
+function eventLines(day, inHours) {
   if (!EVENTS) return '';
   const k = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-  const list = EVENTS.filter(e => e.date === k && (e.cap || 0) >= 1500)
+  const now = new Date(), isToday = dayKey(now) === dayKey(day), nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const list = EVENTS.filter(e => e.date === k && (e.cap || 0) >= 1500 && (!e.end || (inHours(+e.end.slice(0, 2)) && !(isToday && e.end < nowHM))))
     .sort((a, b) => (b.cap || 0) - (a.cap || 0)).slice(0, 3)
     .sort((a, b) => (a.end || '99').localeCompare(b.end || '99'));
   return list.map(e => `<li><span class="ic ev">催</span><div><b>${e.day ? '〜' + e.end : e.end ? e.end + 'ごろ' : '時刻未定'}</b> ${esc(e.venue)}${e.day ? '' : ' 終演'}<small>${esc(e.title)}</small></div></li>`).join('');
@@ -3660,7 +3662,7 @@ ${goal ? `<div class="pbar"><i style="width:${Math.min(100, est / goal * 100).to
         ${goGroups.map(goRow).join('')}
         ${restSlot ? `<li><span class="ic rest">▼</span><div><b>${restSlot.b.label}時</b> は休憩に</div></li>` : ''}
         ${standLine}
-        ${eventLines(nd)}
+        ${eventLines(nd, h => usual(h) || usual((h + 1) % 24))}
       </ul>
       <div class="tipgrp">
       <div class="sub-h">${wname}の時間割（千円/時）</div>

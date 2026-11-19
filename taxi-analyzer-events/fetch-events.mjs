@@ -81,11 +81,21 @@ async function kih() {
     if (e.from <= soon) {   // 近い公演だけ詳細を読む
       try {
         const html = await get('https://www.kih.co.jp' + e.url);
-        const cell = clean((/<th>日時<\/th>\s*<td>([\s\S]*?)<\/td>/.exec(html) || [])[1]);
-        // 「2026年11月22日（日）17:00開演」が日ごとに並ぶ（2日目以降は年が省かれることがある）
-        let yy = +e.from.slice(0, 4);
-        for (const x of cell.matchAll(/(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日[^0-9]*?(\d{1,2}:\d{2})\s*開演/g)) { if (x[1]) yy = +x[1]; times.push([ymd(yy, +x[2], +x[3]), hm(x[4])]); }
-        if (!times.length) { const t1 = /(\d{1,2}:\d{2})\s*開演/.exec(cell); if (t1) for (let d = e.from; d <= e.to; d = next(d)) times.push([d, hm(t1[1])]); }
+        const raw = (/<th>日時<\/th>\s*<td>([\s\S]*?)<\/td>/.exec(html) || [])[1] || '';
+        // 書き方は公演ごとに違う：「2026年11月19日(木) OPEN/18:00 START/19:00」「2026/11/22(日) OPEN 16:30 / START 17:30」「2026/11/29(日) 16:30」「…18:30開演（17:30開場）」
+        let yy = +e.from.slice(0, 4), lastDate = null;
+        for (const line of raw.split(/<br\s*\/?>/i).map(clean).filter(Boolean)) {
+          const dm = /(?:(\d{4})[年\/])?(\d{1,2})[月\/](\d{1,2})日?/.exec(line);
+          if (dm) { if (dm[1]) yy = +dm[1]; lastDate = ymd(yy, +dm[2], +dm[3]); }
+          const rest = dm ? line.slice(dm.index + dm[0].length) : line;
+          const st = /(\d{1,2}[:：]\d{2})\s*開演/.exec(rest) || /START\s*[\/／:：]?\s*(\d{1,2}[:：]\d{2})/i.exec(rest);
+          const all = [...rest.matchAll(/(\d{1,2}[:：]\d{2})/g)].map(x => x[1]);
+          const op = /(\d{1,2}[:：]\d{2})\s*開場/.exec(rest) || /OPEN\s*[\/／:：]?\s*(\d{1,2}[:：]\d{2})/i.exec(rest);
+          const tm = st ? st[1] : all.filter(x => !op || x !== op[1]).pop();
+          if (lastDate && tm) times.push([lastDate, hm(tm)]);
+        }
+        // 日付の無い「18:30開演」だけの時は、一覧の公演日すべてに
+        if (!times.length) { const t1 = /(\d{1,2}[:：]\d{2})\s*開演/.exec(clean(raw)); if (t1) for (let d = e.from; d <= e.to; d = next(d)) times.push([d, hm(t1[1])]); }
       } catch (err) { console.warn('kih detail', err.message); }
     }
     if (!times.length) for (let d = e.from; d <= e.to; d = next(d)) times.push([d, null]);
