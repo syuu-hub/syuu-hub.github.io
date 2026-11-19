@@ -3,6 +3,12 @@
 // ・Open-Meteo：現在の降水（※商用利用は有料プランが必要）
 // ・ODPT（公共交通オープンデータ）：運行情報（任意・要無料登録キー）
 
+export const OVERPASS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+];
+
 export async function fetchSpots(center, radiusM = 6000) {
   const r = Math.min(10000, Math.round(radiusM));
   const [lng, lat] = center;
@@ -15,13 +21,21 @@ nwr["amenity"="hospital"]${a};
 node["amenity"~"^(bar|pub|nightclub|karaoke_box)$"]${a};
 nwr["shop"~"^(mall|department_store)$"]${a};
 );out center tags;`;
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: 'data=' + encodeURIComponent(q),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  });
-  if (!res.ok) throw new Error(`需要スポットの取得に失敗しました (${res.status})`);
-  const json = await res.json();
+  // 公開サーバーが混雑・不通のときは別のサーバーを試す
+  let json = null, lastErr = '';
+  for (const ep of OVERPASS) {
+    try {
+      const res = await fetch(ep, {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(q),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      if (!res.ok) { lastErr = String(res.status); continue; }
+      json = await res.json();
+      break;
+    } catch (e) { lastErr = e.message; }
+  }
+  if (!json) throw new Error(`需要スポットの取得に失敗しました (${lastErr})`);
   const spots = [];
   for (const el of json.elements || []) {
     const t = el.tags || {};

@@ -23,15 +23,17 @@ const tests = [
 for (const [name, url, f] of tests) {
   try { const r = await fetch(url); const j = await r.json(); log(r.ok, `${name}: ${f(j)}`); } catch (e) { log(false, `${name}: ${e.message}`); }
 }
+{
+  const { OVERPASS } = await import('./js/sources.js?v=3');
+  for (const ep of OVERPASS) {
+    try { const r = await fetch(ep, { method: 'POST', body: 'data=' + encodeURIComponent('[out:json];node["railway"="station"](around:500,35.6812,139.7671);out 1;'), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }); log(r.ok, `Overpass ${new URL(ep).host}: ${r.status}`); } catch (e) { log(false, `Overpass ${new URL(ep).host}: ${e.message}`); }
+  }
+}
 try {
   const { fetchSpots } = await import('./js/sources.js');
   const s = await fetchSpots([139.7671, 35.6812], 1500);
   log(s.length > 0, `需要スポット Overpass: ${s.length} 件（例: ${s.filter(x => x.name).slice(0, 3).map(x => x.name).join('、')}）`);
 } catch (e) { log(false, '需要スポット Overpass: ' + e.message); }
-try {
-  await import('./js/main.js?d=' + Date.now());
-  log(true, 'main.js 読み込み');
-} catch (e) { log(false, 'main.js: ' + e.message); }
 log(true, 'チェック完了');
 </script>
 <div id="map" style="width:10px;height:10px"></div>

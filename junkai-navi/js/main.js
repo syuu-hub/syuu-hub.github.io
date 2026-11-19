@@ -1,8 +1,8 @@
-import { EndlessNavigator } from './navcore.js';
-import { ValhallaClient } from './valhalla.js';
-import { DemandEngine, CAT_JA } from './demand.js';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js';
-import { sliceRoute, pointAt, haversine } from './geo.js';
+import { EndlessNavigator } from './navcore.js?v=3';
+import { ValhallaClient } from './valhalla.js?v=3';
+import { DemandEngine, CAT_JA } from './demand.js?v=3';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=3';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=3';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
