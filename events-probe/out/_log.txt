@@ -1,0 +1,8 @@
+world 200 https://www.kobe-spokyo.jp/world-kobe/ 15815 text/html; charset=UTF-8
+kih 200 https://www.kih.co.jp/kokusaihall/ 22427 text/html; charset=UTF-8
+tottei 200 https://www.totteikobe.jp/ 202215 text/html
+tottei-event 200 https://www.totteikobe.jp/news/category/event 188209 text/html
+kcc 200 https://kobe-cc.jp/ja/ 47373 text/html; charset=UTF-8
+bunka 200 https://www.kobe-bunka.jp/hall/ 54916 text/html; charset=UTF-8
+vissel 200 https://www.jleague.jp/club/kobe/day/ 1187485 text/html; charset=utf-8
+storks 200 https://www.storks.jp/ 192272 text/html; charset=utf-8
