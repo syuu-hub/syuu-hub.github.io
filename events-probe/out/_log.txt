@@ -1,8 +1,8 @@
-world 200 https://www.kobe-spokyo.jp/world-kobe/ 15815 text/html; charset=UTF-8
-kih 200 https://www.kih.co.jp/kokusaihall/ 22427 text/html; charset=UTF-8
-tottei 200 https://www.totteikobe.jp/ 202215 text/html
-tottei-event 200 https://www.totteikobe.jp/news/category/event 188209 text/html
-kcc 200 https://kobe-cc.jp/ja/ 47373 text/html; charset=UTF-8
-bunka 200 https://www.kobe-bunka.jp/hall/ 54916 text/html; charset=UTF-8
-vissel 200 https://www.jleague.jp/club/kobe/day/ 1187485 text/html; charset=utf-8
-storks 200 https://www.storks.jp/ 192272 text/html; charset=utf-8
+world-cal 200 https://www.kobe-spokyo.jp/world-kobe/cal_event?ym=202611 12694 text/html; charset=UTF-8
+world-cal12 200 https://www.kobe-spokyo.jp/world-kobe/cal_event?ym=202612 11889 text/html; charset=UTF-8
+kih-list 200 https://www.kih.co.jp/kokusaihall/event/index/2026-11-19 25440 text/html; charset=UTF-8
+kih-detail 200 https://www.kih.co.jp/kokusaihall/event/detail/2170 10316 text/html; charset=UTF-8
+kcc-cal 200 https://kobe-cc.jp/ja/visitors/upcoming-events/ 51257 text/html; charset=UTF-8
+bunka-cal 200 https://www.kobe-bunka.jp/hall/date/2026/11/?cat=2 103073 text/html; charset=UTF-8
+tottei-ev 200 https://www.totteikobe.jp/event 130839 text/html
+storks-sch 200 https://www.storks.jp/schedule/list/ 116066 text/html; charset=utf-8
