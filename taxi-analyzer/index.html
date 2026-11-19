@@ -431,11 +431,16 @@ svg{display:block}
 .adv-sh{margin-top:28px}
 /* 情報（イベント） */
 .inf-day{margin-bottom:16px}
-.inf-h{font-size:14px;font-weight:800;margin:0 2px 6px;display:flex;align-items:center;gap:8px}
+.inf-h{font-size:14px;font-weight:800;margin:0 -2px 6px;padding:6px 4px;display:flex;align-items:center;gap:8px;position:sticky;top:60px;z-index:1;background:var(--bg)}
 .inf-h.we{color:var(--accent)}
 .inf-h em{font-style:normal;font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--accent);color:var(--accent-ink)}
 .inf-list{list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:0 14px}
-.inf-list li{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:10px;align-items:start;padding:11px 0}
+.inf-list li{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:10px;align-items:start;padding:10px 0}
+.inf-filt{margin:-2px 0 12px}
+.inf-filt button{height:32px;padding:0 14px;font-size:12px}
+.ev-li{position:relative;padding-right:18px}
+.ev-li .ev-more{font-size:12px;color:var(--muted);font-weight:700}
+.ev-li .ev-go{position:absolute;right:0;top:50%;transform:translateY(-50%);color:var(--faint);font-size:20px;line-height:1}
 .inf-list li + li{border-top:1px solid var(--line)}
 .inf-t{display:flex;flex-direction:column;line-height:1.25}
 .inf-t b{font-size:17px;font-weight:800}
@@ -443,7 +448,7 @@ svg{display:block}
 .inf-t small{font-size:11px;color:var(--faint)}
 .inf-b{display:flex;flex-direction:column;gap:2px;min-width:0}
 .inf-v{font-size:12px;color:var(--muted);font-weight:700}
-.inf-n{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.inf-n{font-size:14px;line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .inf-s{font-size:12px;color:var(--muted)}
 .inf-list li.big .inf-v{color:#B48CFF}
 .inf-list li{cursor:pointer}
@@ -1172,6 +1177,8 @@ svg{display:block}
     <!-- 情報（神戸の主要会場のイベント 1か月分） -->
     <section class="view pane" data-view="info" hidden><div class="view-body">
       <header class="view-head"><h2>情報</h2><button class="mini" data-go="home" aria-label="ホームに戻る"><i></i><span class="mini-st"></span><span class="mini-sales num"></span></button></header>
+      <div class="seg view-sw" id="infoSeg"><button data-it="ev">イベント</button><button data-it="tips">基本の型</button></div>
+      <div class="seg inf-filt" id="infoFilt"><button data-if="main">主な</button><button data-if="all">すべて</button></div>
       <div id="infoBody"></div>
     </div></section>
 
@@ -3617,14 +3624,48 @@ function loadEvents() {
 }
 // その日の営業時間（終わる時刻がいつもの営業時間か、その1時間前）に終わるものだけ。今日すでに終わったものは出さない
 // 情報ページ：今日から1か月のイベントを日ごとに（大きい会場・夜に終わるものが分かるように）
+// 基本の型（流し・アプリ配車・付け待ち・安全）
+function tipsHtml() {
+  const tip = (title, rows) => `<div class="ana-card ana-fold"><div class="af-h"><span class="t">${title}</span></div><div class="af-b"><ul class="tips">${rows.map(r => `<li>${r}</li>`).join('')}</ul></div></div>`;
+  return `
+    ${tip('流し（手上げ）', [
+      '左車線を、制限速度か少し遅めで走る<small>速いと視野が狭くなって見逃し、急ブレーキの事故にもつながる</small>',
+      '前の車との車間を空けて「空車」を見せる',
+      '信号待ちは交差点の左車線の先頭が見つけてもらいやすい<small>先頭にこだわった急ブレーキは厳禁</small>',
+      '曲がるときは左折を優先（歩道側で乗せやすい）',
+      '降ろす前に次の狙いを決めておき、降車地の周りで次を探す（行った先営業）'])}
+    ${tip('アプリ配車', [
+      '朝・夕方・雨の日は必ずオン',
+      '「いまいる場所」ではなく、5〜10分後に需要が高まる場所へ先回り',
+      '迎車地点は、向かう前に着ける向きを確認<small>反対車線に着いてUターンで待たせない</small>',
+      '長距離で郊外に降ろしたら、需要のあるエリアへの帰り道を先に決める',
+      'アプリと会社のルールを守る（連続配車モードなど）'])}
+    ${tip('付け待ち', [
+      '台数より「何分に1台出るか（回転率）」で判断',
+      '10〜15分で乗せられれば良い場所、5分以内ならとても良い場所',
+      '新幹線・飛行機の到着時刻に合わせて、混む便の少し前に入る',
+      '帰る方向や次の狙いに合わせて車の向きを考えて並ぶ',
+      '待つか動くかは、分析「次の営業」の「乗り場は ◯分まで」で決める<small>並ぶ前に「前の台数 × 1台が出る間隔」で待ち時間を見積もり、超えそうなら並ばない</small>'])}
+    ${tip('安全と労働時間', [
+      '近距離のお客さんも断らない（乗車拒否は道路運送法で禁止）',
+      '走行中はアプリを操作しない。止まってから記録する',
+      '労働時間の上限は売上より優先',
+      '昼食後（13〜15時ごろ）は眠気が出やすい。休憩はここに'])}`;
+}
+const INFO = { tab: 'ev' };
 function renderInfo() {
+  $$('#infoSeg [data-it]').forEach(b => b.setAttribute('aria-pressed', b.dataset.it === INFO.tab));
+  $('#infoFilt').hidden = INFO.tab !== 'ev';
+  $$('#infoFilt [data-if]').forEach(b => b.setAttribute('aria-pressed', b.dataset.if === (S.settings.infoAll ? 'all' : 'main')));
+  if (INFO.tab === 'tips') { $('#infoBody').innerHTML = tipsHtml(); return; }
   const body = $('#infoBody');
   if (!EVENTS) { body.innerHTML = '<div class="ana-card"><div class="ana-empty">イベント情報を読み込めません</div></div>'; return; }
   const d0 = new Date(); d0.setHours(0, 0, 0, 0);
   const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const end = new Date(d0); end.setDate(end.getDate() + 30);
   const from = key(d0), to = key(end), now = new Date(), nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const list = EVENTS.filter(e => e.date >= from && e.date <= to && !(e.date === from && e.end && e.end < nowHM));
+  // 主な：1,500人以上の会場（小さいホールや会議室の催しは「すべて」で）
+  const list = EVENTS.filter(e => e.date >= from && e.date <= to && !(e.date === from && e.end && e.end < nowHM) && (S.settings.infoAll || (e.cap || 0) >= 1500));
   if (!list.length) { body.innerHTML = '<div class="ana-card"><div class="ana-empty">1か月以内のイベントはありません</div></div>'; return; }
   const byDay = new Map();
   for (const e of list) { if (!byDay.has(e.date)) byDay.set(e.date, []); byDay.get(e.date).push(e); }
@@ -3633,7 +3674,7 @@ function renderInfo() {
   const md = k => { const d = new Date(k + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; };
   const tm = e => e.ship ? `<small>入港</small><b>${e.start || '—'}</b>` : e.day ? `<b>〜${e.end}</b>` : e.start ? `<small>${e.start}〜</small><b>${e.end}頃</b>` : '<b class="na">時刻未定</b>';
   const sub = e => e.ship && e.depart ? `<span class="inf-s">出港 ${e.departDate ? md(e.departDate) + ' ' : ''}${e.depart}</span>` : '';
-  body.innerHTML = [...byDay].map(([k, es]) => `<div class="inf-day">
+  body.innerHTML = [...byDay].map(([k, es]) => `<div class="inf-day" data-d="${k}">
       <div class="inf-h ${new Date(k + 'T00:00:00').getDay() % 6 === 0 ? 'we' : ''}">${dayLbl(k)}</div>
       <ul class="inf-list">${es.sort((a, b) => (a.day ? 1 : 0) - (b.day ? 1 : 0) || ((a.ship ? a.start : a.end) || '99').localeCompare((b.ship ? b.start : b.end) || '99')).map(e => `<li class="${(e.cap || 0) >= 5000 ? 'big' : ''}" data-evi="${EVENTS.indexOf(e)}" role="button" tabindex="0">
         <span class="inf-t num">${tm(e)}</span>
@@ -3669,8 +3710,12 @@ function openEvent(i) {
   $('#evSheet .rp-body').scrollTop = 0;
   openSheet($('#evSheet'));
 }
+$('#infoSeg').addEventListener('click', e => { const b = e.target.closest('[data-it]'); if (!b) return; haptic(); INFO.tab = b.dataset.it; renderInfo(); $('.view[data-view="info"]').scrollTop = 0; });
+$('#infoFilt').addEventListener('click', e => { const b = e.target.closest('[data-if]'); if (!b) return; haptic(); S.settings.infoAll = b.dataset.if === 'all'; saveSoon(); renderInfo(); });
 $('#infoBody').addEventListener('click', e => { const li = e.target.closest('[data-evi]'); if (li) { haptic(); openEvent(+li.dataset.evi); } });
-$('#anaBody').addEventListener('click', e => { const li = e.target.closest('.ev-li[data-evi]'); if (li) { haptic(); openEvent(+li.dataset.evi); } });
+// 次の営業のイベントの行 → 情報ページのその日へ
+$('#anaBody').addEventListener('click', e => { const li = e.target.closest('.ev-li[data-info]'); if (!li) return; haptic(); INFO.tab = 'ev'; setView('info');
+  requestAnimationFrame(() => { const d = document.querySelector(`.inf-day[data-d="${li.dataset.info}"]`); if (d) d.scrollIntoView({ block: 'start' }); }); });
 $('#evSheet [data-close]').addEventListener('click', () => closeSheet($('#evSheet')));
 function eventLines(day, inHours) {
   if (!EVENTS) return '';
@@ -3678,9 +3723,11 @@ function eventLines(day, inHours) {
   const now = new Date(), isToday = dayKey(now) === dayKey(day), nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const at = e => e.ship ? e.start : e.end;   // 船は入港の時刻、ほかは終わる時刻
   const list = EVENTS.filter(e => e.date === k && (e.cap || 0) >= 1500 && (!at(e) || (inHours(+at(e).slice(0, 2)) && !(isToday && at(e) < nowHM))))
-    .sort((a, b) => (b.cap || 0) - (a.cap || 0)).slice(0, 3)
     .sort((a, b) => (at(a) || '99').localeCompare(at(b) || '99'));
-  return list.map(e => `<li class="ev-li" data-evi="${EVENTS.indexOf(e)}" role="button" tabindex="0"><span class="ic ev">催</span><div><b>${e.ship ? e.start + ' 入港' : e.day ? '〜' + e.end : e.end ? e.end + 'ごろ' : '時刻未定'}</b> ${esc(e.venue)}${e.day || e.ship ? '' : ' 終演'}<small>${esc(e.title)}</small></div></li>`).join('');
+  if (!list.length) return '';
+  const e = list.slice().sort((a, b) => (b.cap || 0) - (a.cap || 0))[0];
+  const when = e.ship ? e.start + ' 入港' : e.day ? '〜' + e.end : e.end ? e.end + 'ごろ終演' : '';
+  return `<li class="ev-li" data-info="${k}" role="button" tabindex="0"><span class="ic ev">催</span><div><b>${when}</b> ${esc(e.venue)}${list.length > 1 ? ` <span class="ev-more">ほか${list.length - 1}件</span>` : ''}<small>${esc(e.title)}</small></div><span class="ev-go" aria-hidden="true">›</span></li>`;
 }
 function nextPlan(A, D, { perHour, hiFrom, effOf, shrink }) {
   if (D.length < 3) return '';
@@ -3844,6 +3891,7 @@ function placeDetail(c, rideOf) {
 }
 
 function renderAnalysis() {
+  queueMicrotask(renderAdvice);   // 描き終わったらアドバイスも（どの描き直しでも）
   const range = S.settings.anaRange || '90';
   $$('#anaRange [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === range));
   const A = analyze(range), body = $('#anaBody'), D = A.dayList;
@@ -3910,7 +3958,9 @@ function renderAnalysis() {
                n: { k: 'n', label: '回数', note: '乗せた回数', v: c => c.n, fmt: c => `${c.n}<small>回</small>` },
                hi: { k: 'hi', label: '高額', note: `${hiFrom >= 100000 ? compactYen(hiFrom) : yen(hiFrom)}以上の割合${hiAuto ? '・自動' : ''}`, v: c => c.hi ? c.hiR : null, fmt: c => `${Math.round(c.hi / c.n * 100)}<small>%</small>` } };
   const ps = PS[S.settings.anaPlace] || PS.eff;
-  const plRows = pls.filter(c => ps.v(c) != null).sort((a, b) => ps.v(b) - ps.v(a)).slice(0, 6);
+  const plSeen = new Set();   // 同じ名前（例：◯◯丁目 付近）が並ばないよう、上位のものだけ
+  const plRows = pls.filter(c => ps.v(c) != null).sort((a, b) => ps.v(b) - ps.v(a))
+    .filter(c => { const k = placeName(c); if (plSeen.has(k)) return false; plSeen.add(k); return true; }).slice(0, 6);
   const plMax = Math.max(...plRows.map(c => ps.v(c)), 1e-9);
 
   // ── 推移
@@ -3946,6 +3996,7 @@ function renderAnalysis() {
 
   body.innerHTML = `
     ${plan}
+    <div id="advSlot"></div>
     ${reviewHtml()}
     <div class="ana-sh">${range === 'all' ? '全期間' : '直近' + range + '日'}の成績</div>
     <div class="kpis k3">
@@ -4122,7 +4173,13 @@ function adviceList() {
 }
 
 function renderAdvice() {
-  const R = adviceList(), body = $('#advBody');
+  // 分析の「次の営業」のすぐ下に出す（記録が少なく分析が出ない時は下の欄に）
+  const slot = $('#advSlot'), body = slot || $('#advBody');
+  $('#advBody').hidden = !!slot; $('.adv-sh').hidden = !!slot;
+  if (slot) $('#advBody').innerHTML = '';
+  const R = adviceList();
+  // 分析の中では「いま一番効くこと」の1枚だけ（無い時は何も出さない）
+  if (slot) { R.items = R.need ? [] : R.items.slice(0, 1); if (!R.items.length) { slot.innerHTML = ''; return; } }
   const cards = R.need
     ? `<div class="ana-card"><div class="ana-empty">記録が増えると、あなた専用のアドバイスが出ます<br><span class="num">いま ${R.D}日・${R.n}件（3日・10件から）</span></div></div>`
     : !R.items.length ? `<div class="ana-card"><div class="ana-empty">いまの記録では、大きな改善点は見つかりませんでした。<br>この調子で続けましょう</div></div>`
@@ -4133,33 +4190,8 @@ function renderAdvice() {
         <div class="why">${a.why}</div>
         <div class="act">${a.act}</div>
       </div>${i === 0 && R.items.length > 1 ? '<div class="ana-sh">ほかにできること</div>' : ''}`).join('')
-      + '<div class="ana-note">見込みは直近90日の記録からのおおよその目安です</div>';
-  const tip = (title, rows) => `<div class="ana-card ana-fold"><div class="af-h"><span class="t">${title}</span></div><div class="af-b"><ul class="tips">${rows.map(r => `<li>${r}</li>`).join('')}</ul></div></div>`;
-  body.innerHTML = `${cards}
-    <div class="ana-sh">基本の型</div>
-    ${tip('流し（手上げ）', [
-      '左車線を、制限速度か少し遅めで走る<small>速いと視野が狭くなって見逃し、急ブレーキの事故にもつながる</small>',
-      '前の車との車間を空けて「空車」を見せる',
-      '信号待ちは交差点の左車線の先頭が見つけてもらいやすい<small>先頭にこだわった急ブレーキは厳禁</small>',
-      '曲がるときは左折を優先（歩道側で乗せやすい）',
-      '降ろす前に次の狙いを決めておき、降車地の周りで次を探す（行った先営業）'])}
-    ${tip('アプリ配車', [
-      '朝・夕方・雨の日は必ずオン',
-      '「いまいる場所」ではなく、5〜10分後に需要が高まる場所へ先回り',
-      '迎車地点は、向かう前に着ける向きを確認<small>反対車線に着いてUターンで待たせない</small>',
-      '長距離で郊外に降ろしたら、需要のあるエリアへの帰り道を先に決める',
-      'アプリと会社のルールを守る（連続配車モードなど）'])}
-    ${tip('付け待ち', [
-      '台数より「何分に1台出るか（回転率）」で判断',
-      '10〜15分で乗せられれば良い場所、5分以内ならとても良い場所',
-      '新幹線・飛行機の到着時刻に合わせて、混む便の少し前に入る',
-      '帰る方向や次の狙いに合わせて車の向きを考えて並ぶ',
-      '待つか動くかは、分析「次の営業」の「乗り場は ◯分まで」で決める<small>並ぶ前に「前の台数 × 1台が出る間隔」で待ち時間を見積もり、超えそうなら並ばない</small>'])}
-    ${tip('安全と労働時間', [
-      '近距離のお客さんも断らない（乗車拒否は道路運送法で禁止）',
-      '走行中はアプリを操作しない。止まってから記録する',
-      '労働時間の上限は売上より優先',
-      '昼食後（13〜15時ごろ）は眠気が出やすい。休憩はここに'])}`;
+      + (slot ? '' : '<div class="ana-note">見込みは直近90日の記録からのおおよその目安です</div>');
+  body.innerHTML = cards;
 }
 
 // ── 乗車地マップ（Leaflet・OpenStreetMap）。ライブラリはアプリと同じ場所に置き、開いた時だけ読み込む
@@ -4334,7 +4366,7 @@ function renderAll() {
   const t = S.settings.tab;
   if (t === 'home') return;
   if (t === 'log') renderLog();
-  else if (t === 'ana') { renderAnalysis(); renderAdvice(); }
+  else if (t === 'ana') renderAnalysis();
   else if (t === 'data') renderData();
   else if (t === 'info') renderInfo();
 }
