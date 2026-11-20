@@ -1,7 +1,7 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・イベント・登録地点・タクシーアナライザの乗車実績から需要エリアを算出
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=16';
-import { profFactor } from './profile.js?v=16';
+import { haversine, bearing, angleDiff } from './geo.js?v=17';
+import { profFactor } from './profile.js?v=17';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -50,6 +50,9 @@ const cellCenter = (key) => {
   const [a, b] = key.split(':').map(Number);
   return [(b + 0.5) * CELL_LNG, (a + 0.5) * CELL_LAT];
 };
+
+// 最短距離モードの点数：走る距離 effM（m）が短いほど高い。需要の比率 share（0〜1）は1割5分だけ効かせる
+export const nearestUtility = (effM, share) => (0.85 + 0.15 * share) / (effM + 200);
 
 export class DemandEngine {
   constructor() {
@@ -140,17 +143,26 @@ export class DemandEngine {
   // from: 出発点, heading: 進行方位, opts.center/radiusM: 営業エリア, opts.exclude: 除外キー
   // strict：回ってから revisitMin 分以内のエリアと、その近く（nearM 以内）は候補にしない（同じ所をぐるぐる回らない）
   //         false なら候補には残し、点数を大きく下げるだけ（他に行き先が無い時の予備）
-  rank(from, heading, { center, radiusM = 6000, exclude = new Set(), now = Date.now(), minDistM = 700, revisitMin = 60, nearM = 500, strict = true } = {}) {
+  // pick：'nearest'＝需要のあるエリア（一番高いエリアの minShare 以上）のうち、近い順（後ろのエリアは遠い扱い）
+  //       'demand' ＝需要の高さと距離のかね合い（需要が高ければ少し遠くても選ぶ）
+  rank(from, heading, { center, radiusM = 6000, exclude = new Set(), now = Date.now(), minDistM = 700, revisitMin = 60, nearM = 500, strict = true, pick = 'demand', minShare = 0.25 } = {}) {
     const list = [];
     const recent = this.recentVisited(now, revisitMin);
+    let maxScore = 0;
+    for (const a of this.areas.values()) maxScore = Math.max(maxScore, a.score);
     for (const a of this.areas.values()) {
+      if (pick === 'nearest' && a.score < maxScore * minShare) continue; // 需要が小さいエリアは行き先にしない
       if (exclude.has(a.key)) continue;
       const d = haversine(from, a.center);
       if (d < minDistM) continue;
       if (center && haversine(center, a.center) > radiusM) continue;
-      let u = a.score / (1 + d / 2500);
-      if (heading != null) {
-        const diff = angleDiff(heading, bearing(from, a.center));
+      const diff = heading != null ? angleDiff(heading, bearing(from, a.center)) : 0;
+      let u;
+      if (pick === 'nearest') {
+        // 走る距離が短いほど良い。後ろのエリアはUターン・回り込みが要るので遠い扱い。需要は同じくらいの近さの時の決め手に少しだけ
+        u = nearestUtility(d * (1 + 0.6 * (diff / 180)), a.score / (maxScore || 1));
+      } else {
+        u = a.score / (1 + d / 2500);
         u *= 1 - 0.4 * (diff / 180); // 前方を優先（Uターンを減らす）
       }
       // 直近に回ったエリア（そのものか、すぐ近く）
@@ -160,7 +172,7 @@ export class DemandEngine {
         if (strict) continue;
         u *= 0.05 + 0.95 * ((now - last) / 60e3 / revisitMin) ** 2;
       }
-      list.push({ area: a, utility: u, dist: d });
+      list.push({ area: a, utility: u, dist: d, diff });
     }
     list.sort((x, y) => y.utility - x.utility);
     return list;

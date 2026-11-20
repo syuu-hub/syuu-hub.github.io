@@ -5,7 +5,8 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=16';
+import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=17';
+import { nearestUtility } from './demand.js?v=17';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -23,6 +24,7 @@ export const DEFAULTS = {
   tourMaxM: 8000, // ツアー全体の直線距離の上限
   tourMinRatio: 0.3, // 2か所目以降は、1か所目の価値のこの割合以上のエリアだけ
   passM: 250, // エリアの中心からこの距離以内を通ったら「通過」
+  pickMode: 'nearest', // 行き先の選び方：'nearest'＝今いる所から近い需要エリア順、'demand'＝需要の高さ優先
   revisitMin: 60, // 回ったエリア（とその近く）は、この時間は行き先にしない
   trackMin: 45, // 走った道を覚えておく時間（同じ道を何度も通らないように）
   maxOverlap: 0.4, // 新しい区間のうち、最近走った道と重なる割合がこれを超えるルートは使わない（他の案があれば）
@@ -183,13 +185,16 @@ export class EndlessNavigator {
     const now = this.now();
     const exclude = new Set();
     for (const [k, until] of this.badTargets) if (until > now) exclude.add(k);
-    return { center: this.serviceCenter, radiusM: this.s.radiusM, exclude, now, revisitMin: this.s.revisitMin };
+    return { center: this.serviceCenter, radiusM: this.s.radiusM, exclude, now, revisitMin: this.s.revisitMin, pick: this.s.pickMode };
   }
 
   // まだ回っていないエリア → 営業エリアの外も → それでも無ければ、一番前に回ったエリア（点数を下げて）
   rankFrom(point, heading) {
     const o = this.rankOpts();
     let r = this.demand.rank(point, heading, o);
+    // 最短距離モードで需要の大きいエリアを回り切った時は、需要の小さいまだ回っていないエリアへ（同じ所に戻るより先に）
+    if (!r.length && o.pick === 'nearest') r = this.demand.rank(point, heading, { ...o, minShare: 0.1 });
+    if (!r.length && o.pick === 'nearest') r = this.demand.rank(point, heading, { ...o, minShare: 0 });
     if (!r.length) r = this.demand.rank(point, heading, { ...o, center: null, minDistM: 300 });
     if (!r.length) r = this.demand.rank(point, heading, { ...o, strict: false, minDistM: 300 });
     return r;
@@ -214,10 +219,11 @@ export class EndlessNavigator {
     const max = Math.max(1, Math.round(this.s.tourMax || 1));
     if (max === 1) return [first];
     const t = this.buildTourWith(start, first, exclude, planned, this.s.tourHopM, this.s.tourMinRatio, this.s.tourMaxM);
-    return t.length > 1 ? t : this.buildTourWith(start, first, exclude, planned, Math.max(this.s.tourHopM, 4000), 0.1, Math.max(this.s.tourMaxM, 10000));
+    return t.length > 1 ? t : this.buildTourWith(start, first, exclude, planned, Math.max(this.s.tourHopM, 4000), 0.1, Math.max(this.s.tourMaxM, 10000), 0.1);
   }
 
-  buildTourWith(start, first, exclude, planned, hopM, minRatio, maxM) {
+  // minShare：最短距離モードで行き先にする需要の下限（一番高いエリアに対する割合）
+  buildTourWith(start, first, exclude, planned, hopM, minRatio, maxM, minShare = 0.25) {
     const max = Math.max(1, Math.round(this.s.tourMax || 1));
     const tour = [first];
     const base = this.rankOpts();
@@ -226,7 +232,7 @@ export class EndlessNavigator {
     const firstU = this.demand.utilityOf(first.key, start.point, start.bearing, base) || 1e-9;
     let prev = start.point, cur = first.center, total = haversine(start.point, first.center);
     while (tour.length < max) {
-      const r = this.demand.rank(cur, bearing(prev, cur), { ...base, exclude: used, minDistM: 400 });
+      const r = this.demand.rank(cur, bearing(prev, cur), { ...base, exclude: used, minDistM: 400, minShare });
       const c = r.find((x) => x.dist <= hopM && !this.nearPlanned(x.area, plan));
       if (!c || c.utility < firstU * minRatio || total + c.dist > maxM) break;
       tour.push(c.area);
@@ -238,8 +244,23 @@ export class EndlessNavigator {
     return tour;
   }
 
+  // 最短距離モード：直線で近い候補を、道のりの距離（ルートサーバーの距離の行列）で並べ直す。
+  // 川・線路・一方通行で直線より遠回りになるエリアを後ろへ。使えない時は直線のまま
+  async roadRerank(start, ranked) {
+    if (this.s.pickMode !== 'nearest' || !this.router.matrix || ranked.length < 2) return ranked;
+    const top = ranked.slice(0, 6);
+    let dist;
+    try { dist = await this.router.matrix({ point: start.point, heading: start.bearing }, top.map((x) => x.area.center)); }
+    catch { return ranked; }
+    let maxScore = 0;
+    for (const a of this.demand.areas.values()) maxScore = Math.max(maxScore, a.score);
+    const re = top.map((x, i) => (dist[i] == null ? { ...x, utility: x.utility * 0.5 } : { ...x, road: dist[i], utility: nearestUtility(dist[i], x.area.score / (maxScore || 1)) }));
+    re.sort((a, b) => b.utility - a.utility);
+    return re.concat(ranked.slice(6));
+  }
+
   // 試す順のルート案（ツアー → 1か所だけ → 次点の1か所）
-  candidatePlans(mode, start, preferred) {
+  async candidatePlans(mode, start, preferred) {
     const old = new Set(this.tour.map((x) => x.area.key));
     // 先へつなぐ時は、今のルートでこれから通るエリアの近くには行かない
     const planned = mode === 'extend' ? this.tourRemaining() : [];
@@ -252,8 +273,10 @@ export class EndlessNavigator {
         const lastKey = this.tour.length ? this.tour[this.tour.length - 1].area.key : null;
         ranked = this.demand.rank(start.point, start.bearing, { ...this.rankOpts(), strict: false, minDistM: 300 }).filter((x) => x.area.key !== lastKey);
       }
-      const fresh = ranked.filter((x) => !this.nearPlanned(x.area, planned));
-      firsts = (fresh.length ? fresh : ranked).slice(0, 2).map((x) => x.area); // 他に無ければ止まらないことを優先
+      let fresh = ranked.filter((x) => !this.nearPlanned(x.area, planned));
+      if (!fresh.length) fresh = ranked; // 他に無ければ止まらないことを優先
+      fresh = await this.roadRerank(start, fresh);
+      firsts = fresh.slice(0, 2).map((x) => x.area);
       if (mode === 'reroute' && this.target) firsts = [this.target, ...firsts.filter((a) => a.key !== this.target.key)];
     }
     if (!firsts.length) return [];
@@ -284,7 +307,7 @@ export class EndlessNavigator {
         start = pointAt(this.route, commit);
       }
       if (mode === 'reroute' && !preferred && this.tourRemaining().length) preferred = this.tourRemaining();
-      const plans = this.candidatePlans(mode, start, preferred);
+      const plans = await this.candidatePlans(mode, start, preferred);
       if (!plans.length) {
         this.emit('status', '周辺に需要エリアがありません。設定で需要スポットを取得してください');
         this.nextTryAt = this.now() + 15000;

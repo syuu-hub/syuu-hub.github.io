@@ -44,9 +44,10 @@ demand.update(new Date(clock), 1);
 const voices = [];
 let lastRouteEvent = null;
 const passes = [], tourSizes = [];
+let stepModes = [];
 const nav = new EndlessNavigator({ router: fakeRouter, demand, now, emit: (t, d) => {
   if (t === 'voice') voices.push(d);
-  if (t === 'route') { lastRouteEvent = d; tourSizes.push(d.tour.length); }
+  if (t === 'route') { lastRouteEvent = d; stepModes.push(d.mode); tourSizes.push(d.tour.length); }
   if (t === 'pass') passes.push({ ...d, at: clock });
 } });
 
@@ -82,6 +83,7 @@ for (let step = 0; step < 3600; step++) {
     demand.update(new Date(clock), 1);
   }
   const before = nav.route;
+  stepModes = [];
   const beforeAlong = nav.along;
   const commit = nav.commitAlong();
   const lockedPts = [];
@@ -105,8 +107,12 @@ for (let step = 0; step < 3600; step++) {
       let dev = 0;
       for (const ap of aheadPts) {
         let m = Infinity;
-        for (let d = Math.max(0, nav.along - 50); d < nav.along + (before.length - beforeAlong) + 60; d += 5) m = Math.min(m, haversine(ap, pointAt(nav.route, d).point));
+        for (let d = Math.max(0, nav.along - 300); d < nav.along + (before.length - beforeAlong) + 60; d += 5) m = Math.min(m, haversine(ap, pointAt(nav.route, d).point));
         dev = Math.max(dev, m);
+      }
+      if (dev >= 3 && process.env.DBG2) {
+        console.log('DBG step', step, 'modes', stepModes.join(','), 'beforeAlong', Math.round(beforeAlong), 'beforeLen', Math.round(before.length), 'nowAlong', Math.round(nav.along), 'nowLen', Math.round(nav.route.length));
+        aheadPts.forEach((ap, k) => { let m = Infinity, at = 0; for (let d = 0; d < nav.route.length; d += 5) { const h = haversine(ap, pointAt(nav.route, d).point); if (h < m) { m = h; at = d; } } if (m > 3 || k < 2) console.log('  pt', k, 'minDist', m.toFixed(1), 'at', at); });
       }
       assert(dev < 3, `先へつなぐ時に走る先のルートが変わらない (dev=${dev.toFixed(1)}m)`);
     }
@@ -114,7 +120,7 @@ for (let step = 0; step < 3600; step++) {
     let maxDev = 0;
     for (const lp of lockedPts) {
       let m = Infinity;
-      for (let d = Math.max(0, nav.along - 50); d < nav.along + (commit - beforeAlong) + 50; d += 5) m = Math.min(m, haversine(lp, pointAt(nav.route, d).point));
+      for (let d = Math.max(0, nav.along - 300); d < nav.along + (commit - beforeAlong) + 50; d += 5) m = Math.min(m, haversine(lp, pointAt(nav.route, d).point));
       maxDev = Math.max(maxDev, m);
     }
     assert(maxDev < 3, `確定区間が保持される (dev=${maxDev.toFixed(1)}m)`);
@@ -187,6 +193,43 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   }
   assert(ps.join('>') === 'A0>A1', `途中のエリアを順に通過: ${ps.join('>')}`);
   assert(n3.target && n3.target.name === 'A2', `通過後は次のエリアを案内: ${n3.target && n3.target.name}`);
+}
+
+// ===== 最短距離モード =====
+{
+  const o = [135.19, 34.69];
+  const mk = (list) => { const d = new DemandEngine(); list.forEach(([name, b, m, n], i) => { const p = destination(o, b, m); for (let k = 0; k < n; k++) d.spots.push({ id: `${name}${k}`, name, lng: p[0], lat: p[1], cat: 'custom' }); }); d.update(new Date(clock), 1); return d; };
+  const first = async (dm, settings = {}, router = fakeRouter) => {
+    const n = new EndlessNavigator({ router, demand: dm, now, settings: { tourMax: 1, ...settings }, emit: () => {} });
+    n.update({ point: o, speed: 0, heading: 90, t: clock });
+    for (let i = 0; i < 30 && !n.route; i++) await sleep();
+    return n;
+  };
+  // 近い（需要そこそこ）と、遠い（需要が高い）
+  const dmA = mk([['近い店', 90, 900, 3], ['遠い駅', 90, 3200, 12]]);
+  assert((await first(dmA)).target.name === '近い店', '最短距離：需要があれば近いエリアを選ぶ');
+  assert((await first(mk([['近い店', 90, 900, 3], ['遠い駅', 90, 3200, 12]]), { pickMode: 'demand' })).target.name === '遠い駅', '需要の高さ優先：需要が高い遠いエリアを選ぶ');
+  // 需要がとても小さいエリアは近くても行き先にしない（一番高いエリアの4分の1未満）
+  assert((await first(mk([['ほぼ無い', 90, 900, 1], ['遠い駅', 90, 3200, 30]]))).target.name === '遠い駅', '最短距離：需要の小さいエリアは近くても選ばない');
+  // 道のりの距離：直線では近いが川の向こう（道のりは遠い）エリアより、道のりが近いエリア
+  const matrixRouter = { ...fakeRouter, route: fakeRouter.route.bind(fakeRouter), async matrix(from, targets) { return targets.map((p) => (haversine(o, p) < 1000 ? 5000 : haversine(o, p) * 1.2)); } };
+  assert((await first(mk([['川向こう', 90, 800, 3], ['橋のこちら', 80, 1500, 3]]), {}, matrixRouter)).target.name === '橋のこちら', '最短距離：道のりの距離で選ぶ');
+  // 走っている位置に合わせて、もっと近い需要エリアが出てきたら切り替える
+  const dmS = mk([['先のエリア', 90, 3500, 3]]);
+  const ns = new EndlessNavigator({ router: fakeRouter, demand: dmS, now, settings: { tourMax: 1, replanMs: 60000 }, emit: () => {} });
+  ns.update({ point: o, speed: 0, heading: 90, t: clock });
+  for (let i = 0; i < 30 && !ns.route; i++) await sleep();
+  const near = destination(destination(o, 90, 1100), 0, 900); // ルートから900m横（今の行き先より近い）
+  for (let k = 0; k < 3; k++) dmS.spots.push({ id: 'nn' + k, name: '途中の新しいエリア', lng: near[0], lat: near[1], cat: 'custom' });
+  dmS.update(new Date(clock), 1);
+  let switched = false;
+  for (let s2 = 0; s2 < 120 && !switched; s2++) {
+    clock += 1000;
+    ns.update({ point: pointAt(ns.route, ns.along + 10).point, speed: 10, heading: null, accuracy: 5, t: clock });
+    await sleep(); await sleep();
+    if (ns.target && ns.target.name === '途中の新しいエリア') switched = true;
+  }
+  assert(switched, '走っている位置に合わせて、もっと近い需要エリアに切り替える');
 }
 
 // 2か所目が通常の条件（1つ先まで2.5km）より遠くても、複数の候補地を通るルートにする
