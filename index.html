@@ -696,12 +696,19 @@
       });
     }
 
+    // 売上を集計に入れる記録：確定済み・営業中のほか、予定のままでも売上が入力されていれば入れる
+    const hasSales = r => !!r && r.type === 'work' && !r.isVirtual && (r.isConfirmed || r.ongoing || Number(r.sales) > 0);
+    // その日の営業が終わった記録（締め日までの残り出勤日数に数えない）
+    const isDayDone = r => !!r && r.type === 'work' && !r.isVirtual && !r.ongoing && (r.fromAnalyzer || r.isConfirmed || Number(r.sales) > 0);
+
     function updateSalesPopupCalculations() {
       const startDate = new Date(state.currentYear, state.currentMonth - 2, 21);
       const endDate = new Date(state.currentYear, state.currentMonth - 1, 20);
       
       let totalSales = 0;
+      let ongoingSales = 0;
       let remainingWorkDays = 0;
+      let todayDone = false;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -710,11 +717,14 @@
         const record = getRecord(dateStr);
         const dayOfWeek = d.getDay();
         
-        if (record && record.type === 'work' && (record.isConfirmed || record.ongoing) && !record.isVirtual) {
+        if (hasSales(record)) {
           totalSales += Number(record.sales || 0);
+          if (record.ongoing) ongoingSales += Number(record.sales || 0);
         }
 
-        if (d >= today && !(record && record.fromAnalyzer && !record.ongoing)) {
+        // 当日分の売上が入力済み（営業終了）なら、当日は残り出勤日数に数えない
+        if (d.getTime() === today.getTime() && isDayDone(record)) todayDone = true;
+        if (d >= today && !isDayDone(record)) {
           const dayType = getDayTypeStr(dateStr, dayOfWeek, d);
           if (record ? record.type === 'work' : dayType === 'work') {
             remainingWorkDays++;
@@ -724,7 +734,8 @@
 
       const goal = Number(state.config.salesGoal) || 500000;
       const remainingAmount = Math.max(0, goal - totalSales);
-      const requiredPerDay = remainingWorkDays > 0 ? Math.ceil(remainingAmount / remainingWorkDays) : 0;
+      // 営業中の日は残り出勤日に含めるので、その日の売上は差し引く前の残額で1日あたりを出す（営業中に目標が下がり続けないように）
+      const requiredPerDay = remainingWorkDays > 0 ? Math.ceil(Math.max(0, goal - (totalSales - ongoingSales)) / remainingWorkDays) : 0;
 
       const remEl = document.getElementById('popup-sales-remaining');
       const reqEl = document.getElementById('popup-required-per-day');
@@ -733,7 +744,7 @@
       if (remEl) remEl.innerText = `¥${remainingAmount.toLocaleString()}`;
       if (reqEl) reqEl.innerText = `¥${requiredPerDay.toLocaleString()}`;
       if (infoEl) {
-        infoEl.innerHTML = `残り出勤 ${remainingWorkDays}日`;
+        infoEl.innerHTML = `残り出勤 ${remainingWorkDays}日${todayDone ? '（本日分入力済）' : ''}`;
       }
     }
 
@@ -917,7 +928,7 @@
           
           let displayHtml = '';
           if (state.config.displayMode === 'sales') {
-            if (record.isConfirmed || record.ongoing) {
+            if (hasSales(record)) {
               let salesText = record.sales >= 10000 
                 ? (record.sales / 10000).toFixed(1).replace('.0', '') + '万' 
                 : record.sales.toLocaleString();
@@ -974,7 +985,7 @@
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const record = getRecord(dateStr);
-        if (record && record.type === 'work' && (record.isConfirmed || record.ongoing) && !record.isVirtual) {
+        if (hasSales(record)) {
           totalSales += Number(record.sales || 0);
         }
       }
