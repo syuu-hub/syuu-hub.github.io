@@ -76,6 +76,12 @@ Cloudflare Pages や Netlify でも同じように無料で公開できます。
 
 需要の時間帯の傾向や重みは `js/demand.js` の冒頭で変更できます。
 
+## 実際の営業で効くように
+- **神戸の会場のイベントを自動で反映**（初期オン）：タクシーアナライザと共通の `taxi-analyzer/events.json`（GitHub Actions が毎日、各会場の公式サイトから作る）を読み、ワールド記念ホール・GLION ARENA KOBE・ノエビアスタジアム・国際会館・文化ホール・国際展示場・国際会議場・客船の入港などを需要イベントにします。終わる30分前から上がり、終了10分後がピーク（客船は入港の30分後を基準）。規模は収容人数から（1万人以上＝大、3千人以上＝中）。近くの会場がまもなく終わる時は一度お知らせします。圏外では前回読み込んだ内容を使います（会場の位置は `js/venues.js`）
+- **需要は着くころの時刻で見る**：エリアまで数分かかるので、5分先の需要で行き先を選びます
+- **GPSの乱れで再検索しない**：精度が60mより悪い位置（ビル街・トンネル）はルートから外れた判定に使わず、再検索は20秒以上あけます
+- **ルートサーバーが一時的に使えない時**：行き先を外さず、待つ時間を5秒→10秒→…最大60秒と延ばし、お知らせも繰り返しません。つながったら案内を再開します
+
 ## 対象地域：関西圏
 - 地図データ（タイル）は関西圏（大阪・京都・兵庫・奈良・滋賀・和歌山）の範囲だけを読み込みます。地図のスタイルを読み込む時に、タイルの出どころに範囲を付けるので、範囲の外のタイルは通信しません
 - 地図は関西圏の外へは動かせず、日本全体のような引いた地図（ズーム8未満）も読み込みません
@@ -107,12 +113,14 @@ Cloudflare Pages や Netlify でも同じように無料で公開できます。
 - `js/csv.js`：タクシーアナライザの営業ログCSVの読み込み
 - `js/places.js`：登録地点（住所からの位置検索、CSVの書き出し・読み込み）
 - `js/profile.js`：登録地点の時間帯・曜日（営業ログの傾向、自分で指定）
+- `js/venues.js`：神戸の会場のイベント（events.json）を需要イベントにする、会場の位置
 - `js/region.js`：対象地域（関西圏）の範囲、地図データを範囲内だけにするスタイルの書き換え
 - `js/geo.js`：地理計算
 - `sw.js`, `manifest.webmanifest`, `icons/`：PWA
 - `test/navcore.test.mjs`：走行シミュレーションによる検証（`node test/navcore.test.mjs`）
 - `test/csv.test.mjs`：CSV読み込みと需要計算の検証（`TZ=Asia/Tokyo node test/csv.test.mjs`）
 - `test/places.test.mjs`：登録地点の住所検索とCSVの検証（`REAL_CSV=営業ログ.csv` を付けると実データでも確認）
+- `test/venues.test.mjs`：会場のイベントの取り込みと需要（`TZ=Asia/Tokyo node test/venues.test.mjs`）
 - `test/region.test.mjs`：地図データ・住所検索を関西圏だけにする処理の検証
 - `test/profile.test.mjs`：時間帯・曜日の傾向と需要の検証（`TZ=Asia/Tokyo node test/profile.test.mjs`）
 - `server/docker-compose.yml`：自前のValhallaサーバー

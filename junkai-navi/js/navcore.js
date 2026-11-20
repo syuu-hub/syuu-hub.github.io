@@ -5,8 +5,8 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=19';
-import { nearestUtility } from './demand.js?v=19';
+import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=20';
+import { nearestUtility } from './demand.js?v=20';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -28,6 +28,8 @@ export const DEFAULTS = {
   revisitMin: 60, // 回ったエリア（とその近く）は、この時間は行き先にしない
   trackMin: 45, // 走った道を覚えておく時間（同じ道を何度も通らないように）
   maxOverlap: 0.4, // 新しい区間のうち、最近走った道と重なる割合がこれを超えるルートは使わない（他の案があれば）
+  poorAccuracyM: 60, // これより精度の悪いGPS（ビル街・トンネル）は、ルートから外れた判定に使わない
+  rerouteCooldownMs: 20000, // 再検索の間隔の下限（GPSの乱れで再検索を繰り返さない）
 };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -59,6 +61,8 @@ export class EndlessNavigator {
     this.planning = false;
     this.lastPlanAt = 0;
     this.nextTryAt = 0;
+    this.failCount = 0; // ルートの計算に続けて失敗した回数（待つ時間を延ばす）
+    this.lastRerouteAt = 0;
     this.offCount = 0;
     this.track = [];
     this.badTargets = new Map();
@@ -84,12 +88,15 @@ export class EndlessNavigator {
     if (this.route) {
       const snap = snapToRoute(this.route, fix.point, this.along);
       const acc = fix.accuracy == null ? 10 : fix.accuracy;
-      if (snap.dist > Math.max(this.s.offRouteM, acc * 1.2)) this.offCount++;
-      else { this.offCount = 0; this.along = Math.max(this.along - 20, snap.along); }
+      if (snap.dist > Math.max(this.s.offRouteM, acc * 1.2)) {
+        // 精度の悪い位置（ビル街・トンネル）では「外れた」と数えない（位置が跳んでも再検索しない）
+        if (acc <= this.s.poorAccuracyM) this.offCount++;
+      } else { this.offCount = 0; this.along = Math.max(this.along - 20, snap.along); }
       this.snapDist = snap.dist;
       this.checkPassed();
-      if (this.offCount >= 3 && !this.planning) {
+      if (this.offCount >= 3 && !this.planning && t - this.lastRerouteAt > this.s.rerouteCooldownMs) {
         this.offCount = 0;
+        this.lastRerouteAt = t;
         this.emit('voice', 'ルートを再検索します');
         this.plan('reroute');
         return;
@@ -313,6 +320,7 @@ export class EndlessNavigator {
         this.nextTryAt = this.now() + 15000;
         return;
       }
+      let lastErr = null;
       for (const tour of plans.slice(0, 3)) {
         const dest = tour[tour.length - 1];
         const via = tour.slice(0, -1).map((a) => a.center);
@@ -320,8 +328,10 @@ export class EndlessNavigator {
         try {
           routes = await this.router.route({ point: start.point, heading: start.bearing }, dest.center, via.length ? { via } : undefined);
         } catch (e) {
-          if (!via.length) this.badTargets.set(dest.key, this.now() + 10 * 60e3);
-          this.emit('status', e.message);
+          lastErr = e;
+          // 通信の問題の時は行き先のせいではないので、行き先を外さない
+          if (!via.length && !e.offline) this.badTargets.set(dest.key, this.now() + 10 * 60e3);
+          if (e.offline) break; // つながらない時は他の案も試さない（無駄に待たない）
           continue;
         }
         // 応答待ちの間に確定区間の終点（先へつなぐ時はルートの終わり）を通り過ぎていたら破棄
@@ -331,10 +341,15 @@ export class EndlessNavigator {
         if (!best) continue;
         // 走ったばかりの道を何度も通るルートは、他の案があれば使わない（同じ所をぐるぐる回らない）
         if (tour !== plans[Math.min(plans.length, 3) - 1] && this.overlap(best) > this.s.maxOverlap) continue;
+        if (this.failCount >= 2) this.emit('status', 'ルートの計算が戻りました');
+        this.failCount = 0;
         this.apply(mode, tour, best, commit);
         return;
       }
-      this.nextTryAt = this.now() + 5000;
+      // 失敗が続く時は待つ時間を延ばし（5秒→10秒→20秒→…最大60秒）、お知らせは最初の1回と、その後はたまに
+      this.failCount++;
+      this.nextTryAt = this.now() + Math.min(60000, 5000 * 2 ** (this.failCount - 1));
+      if (lastErr && (this.failCount === 1 || this.failCount % 5 === 0)) this.emit('status', `${lastErr.message}。少し待って再試行します`);
     } finally {
       this.planning = false;
     }

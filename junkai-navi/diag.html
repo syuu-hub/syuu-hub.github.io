@@ -24,7 +24,7 @@ for (const [name, url, f] of tests) {
   try { const r = await fetch(url); const j = await r.json(); log(r.ok, `${name}: ${f(j)}`); } catch (e) { log(false, `${name}: ${e.message}`); }
 }
 {
-  const { OVERPASS } = await import('./js/sources.js?v=19');
+  const { OVERPASS } = await import('./js/sources.js?v=20');
   for (const ep of OVERPASS) {
     try { const r = await fetch(ep, { method: 'POST', body: 'data=' + encodeURIComponent('[out:json];node["railway"="station"](around:500,35.6812,139.7671);out 1;'), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }); log(r.ok, `Overpass ${new URL(ep).host}: ${r.status}`); } catch (e) { log(false, `Overpass ${new URL(ep).host}: ${e.message}`); }
   }
