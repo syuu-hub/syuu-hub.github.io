@@ -48,5 +48,15 @@ const all = venueEvents(real, { from: 0, to: Infinity });
 const unknown = [...new Set(real.events.map((e) => e.venue))].filter((v) => !VENUES[v]);
 console.log(`実データ：${real.events.length} 件 → 需要イベント ${all.length} 件 / 位置が分からない会場 ${unknown.length ? unknown.join('、') : 'なし'}`);
 ok(unknown.length === 0, 'events.json の会場はすべて位置が分かる');
+// 始まる時刻の前後は需要にしない（終わった後だけ）
+{
+  const d = new DemandEngine();
+  d.events = venueEvents({ events: [{ date: '2026-11-20', start: '19:00', end: '21:00', venue: 'ノエビアスタジアム神戸', cap: 30000, title: '試合' }] }, { from: 0, to: Infinity });
+  const at = (hm) => { d.areas = new Map(); d.update(new Date(`2026-11-20T${hm}:00+09:00`), 1); return [...d.areas.values()].reduce((s, a) => s + a.score, 0); };
+  ok(at('18:45') === 0 && at('19:10') === 0 && at('20:30') === 0, '開始の前後・試合中は需要なし');
+  ok(at('20:55') > 0 && at('21:15') > at('20:55') && at('21:15') > at('21:50'), `終了10分前から上がり、15分後がピーク（20:55 ${at('20:55').toFixed(2)} / 21:15 ${at('21:15').toFixed(2)} / 21:50 ${at('21:50').toFixed(2)}）`);
+  ok(at('22:05') === 0, '終了60分後で終わり');
+  ok(venueEvents({ events: [{ date: '2026-11-20', start: '19:00', end: null, venue: 'GLION ARENA KOBE', cap: 10000, title: '終わり不明' }] }, { from: 0, to: Infinity }).length === 0, '終わる時刻が分からないイベントは使わない');
+}
 console.log(fails ? `FAILED ${fails}` : 'ALL PASS');
 process.exit(fails ? 1 : 0);

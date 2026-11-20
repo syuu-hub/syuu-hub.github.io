@@ -1,5 +1,6 @@
 // 神戸の主要会場のイベント（タクシーアナライザと共通の taxi-analyzer/events.json。GitHub Actions が毎日1回、各会場の公式サイトから作る）
-// → 巡回ナビの需要イベントにする（終演の30分前から上がり、終演10分後がピーク、60分後まで）
+// → 巡回ナビの需要イベントにする。使うのは「終わる時刻」だけ（始まる時は駅などから歩いて来るので乗車にならない）
+//   終了の10分前から上がり、終了15分後がピーク、60分後まで。開始時刻しか分からないイベントは使わない
 // 会場の位置はおおよそ（需要エリアは約450m四方なので、出入口の位置まで細かくなくてよい）
 
 export const EVENTS_URL = '../taxi-analyzer/events.json';
@@ -35,7 +36,7 @@ export function venueEvents(json, { from = Date.now() - 2 * 3600e3, to = Date.no
     if (!pos) continue;
     let t;
     if (e.ship) {
-      // 客船：入港してから下船・観光に出るので、入港の30分後を「終わり」とみなす
+      // 客船：入港＝船旅の終わり（下船して観光に出る）。入港の30分後を「終わり」とみなす（出港＝乗船は使わない）
       const a = at(e.date, e.start);
       t = a ? new Date(a.getTime() + 30 * 60e3) : null;
     } else {
