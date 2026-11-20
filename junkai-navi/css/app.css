@@ -189,10 +189,15 @@ body.sheet-collapsed .maplibregl-ctrl-bottom-right { bottom: calc(80px + var(--s
 /* ===== 自車・ポイントの印 ===== */
 .puck { width: 44px; height: 44px; }
 .puck svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); }
-.target-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--demand); border: 3px solid #fff; animation: pulse 2s infinite; }
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(227,116,0,.6); } 70% { box-shadow: 0 0 0 18px rgba(227,116,0,0); } 100% { box-shadow: 0 0 0 0 rgba(227,116,0,0); } }
+/* 脈打つ輪：影を動かすと毎フレーム描き直しになるので、拡大と透明度だけで（GPUで合成、電池にやさしい） */
+.target-dot, .tour-dot.next { position: relative; }
+.target-dot::after, .tour-dot.next::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; background: rgba(227,116,0,.55); z-index: -1; animation: pulse 2s ease-out infinite; will-change: transform, opacity; }
+.target-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--demand); border: 3px solid #fff; }
+@keyframes pulse { 0% { transform: scale(1); opacity: .8; } 70% { transform: scale(2.4); opacity: 0; } 100% { transform: scale(2.4); opacity: 0; } }
+/* 省電力モードでは脈打たない */
+body.eco .target-dot::after, body.eco .tour-dot.next::after { animation: none; display: none; }
 .tour-dot { width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 3px solid #e37400; color: #8a4500; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: var(--el-1); }
-.tour-dot.next { width: 28px; height: 28px; background: #e37400; border-color: #fff; color: #fff; animation: pulse 2s infinite; }
+.tour-dot.next { width: 28px; height: 28px; background: #e37400; border-color: #fff; color: #fff; }
 
 /* ===== 開始画面 ===== */
 .overlay { position: fixed; inset: 0; z-index: 20; background: var(--md-surface); display: flex; align-items: center; justify-content: center; padding: calc(24px + var(--sat)) 24px calc(24px + var(--sab)); overflow-y: auto; }
