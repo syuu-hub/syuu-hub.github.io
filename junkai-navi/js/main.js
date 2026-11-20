@@ -1,11 +1,11 @@
-import { EndlessNavigator } from './navcore.js?v=17';
-import { ValhallaClient } from './valhalla.js?v=17';
-import { DemandEngine, CAT_JA } from './demand.js?v=17';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=17';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=17';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=17';
-import { profText, manualProf } from './profile.js?v=17';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=17';
+import { EndlessNavigator } from './navcore.js?v=18';
+import { ValhallaClient } from './valhalla.js?v=18';
+import { DemandEngine, CAT_JA } from './demand.js?v=18';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=18';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=18';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=18';
+import { profText, manualProf } from './profile.js?v=18';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=18';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -28,6 +28,7 @@ const cfg = Object.assign(
     revisitMin: 60, // 一度通ったエリアに、また向かうまでの時間（分）
     pickMode: 'nearest', // 行き先の選び方：nearest＝今いる所から近い需要エリア、demand＝需要の高さ優先
     sheetCollapsed: false, // 巡回中の表示エリアをたたんでいるか
+    eco: false, // 省電力モード（平面の地図・解像度を下げる・短いアニメーション）
     spots: [],
     spotsCenter: null,
     events: [],
@@ -114,6 +115,7 @@ function createNullMap(center) {
 }
 const NullMarker = class { constructor() {} setLngLat() { return this; } addTo() { return this; } setRotation() { return this; } remove() {} };
 let map, ML = window.maplibregl, mapError = null;
+function mapPixelRatio() { return Math.min(window.devicePixelRatio || 1, cfg.eco ? 1.5 : 2); }
 try {
   if (!ML) throw new Error('地図ライブラリを読み込めませんでした');
   map = new ML.Map({
@@ -123,6 +125,10 @@ try {
     zoom: 14,
     attributionControl: false,
     pitchWithRotate: true,
+    // 電池の節約：高解像度の画面でも描く細かさは2倍（省電力モードは1.5倍）まで。ラベルのフェード（描き直し）なし
+    pixelRatio: mapPixelRatio(),
+    fadeDuration: 0,
+    refreshExpiredTiles: false,
   });
   map.addControl(new ML.AttributionControl({ compact: true }), 'bottom-right');
 } catch (e) {
@@ -327,7 +333,7 @@ async function requestWakeLock() {
   if (isNative()) { nativeCall('NaviDevice', 'keepAwake', { on: true }).catch(() => {}); return; }
   try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch { /* noop */ }
 }
-document.addEventListener('visibilitychange', () => { if (running && document.visibilityState === 'visible') requestWakeLock(); });
+document.addEventListener('visibilitychange', () => { if (running && document.visibilityState === 'visible') { requestWakeLock(); render.cam = null; render(); } });
 
 async function ensureSpots(center) {
   if (cfg.spots.length && cfg.spotsCenter && haversine(cfg.spotsCenter, center) < cfg.radiusKm * 500) return;
@@ -453,7 +459,14 @@ function setFollow(on) {
 function drawRoute() {
   const src = map.getSource && map.getSource('route');
   if (!src) return;
-  if (!nav.route) { src.setData(empty); drawTourMarkers([]); drawRoute.sig = null; return; }
+  if (!nav.route) { if (drawRoute.key !== 'none') { src.setData(empty); drawTourMarkers([]); drawRoute.sig = null; drawRoute.key = 'none'; drawTurnArrow(); } return; }
+  // 電池の節約：ルート・通るポイントが同じで、進んだ距離が20m未満なら描き直さない
+  if (!drawRoute.ids) drawRoute.ids = new WeakMap();
+  if (!drawRoute.ids.has(nav.route)) drawRoute.ids.set(nav.route, (drawRoute.n = (drawRoute.n || 0) + 1));
+  const key = `${drawRoute.ids.get(nav.route)}|${Math.floor(nav.along / 20)}|${nav.tour.filter((x) => !x.passed).map((x) => x.area.key + '@' + Math.round(x.at)).join(',')}`;
+  drawTurnArrow();
+  if (key === drawRoute.key) return;
+  drawRoute.key = key;
   // 区間ごとに分ける：今いる所 → 次のポイント（leg=0）、その先は次のポイントごとに leg=1,2,…
   const cuts = nav.tour.filter((x) => !x.passed && x.at > nav.along + 5).map((x) => x.at).sort((a, b) => a - b);
   const edges = [nav.along, ...cuts.filter((a) => a < nav.route.length - 5), nav.route.length];
@@ -464,7 +477,6 @@ function drawRoute() {
   }
   // 遠い区間を先に（下に）描く
   src.setData({ type: 'FeatureCollection', features: features.reverse() });
-  drawTurnArrow();
   const upcoming = nav.tourRemaining();
   const sig = upcoming.map((a) => a.key).join('|');
   if (sig !== drawRoute.sig) { drawRoute.sig = sig; drawTourMarkers(upcoming); }
@@ -475,7 +487,11 @@ function drawTurnArrow() {
   const src = map.getSource && map.getSource('turn');
   if (!src) return;
   const next = nav.route && nav.nextActions()[0];
-  if (!next || next.at - nav.along > 600) { src.setData(empty); return; }
+  // 電池の節約：矢印が変わらない時（遠い・10m未満しか進んでいない）は描き直さない
+  const key = !next || next.at - nav.along > 600 ? 'none' : `${next.at}|${Math.floor(nav.along / 10)}`;
+  if (key === drawTurnArrow.key) return;
+  drawTurnArrow.key = key;
+  if (key === 'none') { src.setData(empty); return; }
   const from = Math.max(nav.along, next.at - 40), to = Math.min(nav.route.length, next.at + 30);
   const line = sliceRoute(nav.route, from, to);
   const tip = pointAt(nav.route, to);
@@ -487,19 +503,28 @@ function drawTurnArrow() {
 
 function render() {
   if (!running) return;
+  if (document.visibilityState === 'hidden') return; // 見えていない間は描かない（案内・音声は続ける）
   const fix = lastFix;
   if (fix) {
     puck.setLngLat(fix.point).addTo(map);
     const hd = nav.heading ?? 0;
     puck.setRotation(hd);
-    if (follow) {
+    if (follow && document.visibilityState !== 'hidden') {
       const kmh = (nav.speed || 0) * 3.6;
       const zoom = kmh > 50 ? 15.6 : kmh > 25 ? 16.3 : 17;
-      map.easeTo({
-        center: fix.point, bearing: hd, pitch: 55, zoom,
-        padding: { top: window.innerHeight * 0.38, bottom: cfg.sheetCollapsed ? 60 : 170 },
-        duration: 950, easing: (t) => t,
-      });
+      // 電池の節約：止まっている・ほとんど動いていない時は地図を動かさない（描き直しを止める）。
+      // アニメーションは次の位置が来る前に終わる長さにして、その間は地図を休ませる
+      const c = render.cam;
+      const pitch = cfg.eco ? 0 : 55;
+      const moved = !c || haversine(c.p, fix.point) > 4 || Math.abs(((hd - c.b + 540) % 360) - 180) > 4 || c.z !== zoom || c.pitch !== pitch || c.col !== cfg.sheetCollapsed;
+      if (moved) {
+        render.cam = { p: fix.point, b: hd, z: zoom, pitch, col: cfg.sheetCollapsed };
+        map.easeTo({
+          center: fix.point, bearing: hd, pitch, zoom,
+          padding: { top: window.innerHeight * (cfg.eco ? 0.3 : 0.38), bottom: cfg.sheetCollapsed ? 60 : 170 },
+          duration: cfg.eco ? 300 : 600, easing: (t) => t,
+        });
+      }
     }
   }
   drawRoute();
@@ -626,6 +651,7 @@ function openSettings() {
   $('set-gain').value = cfg.switchGain;
   $('set-tour').value = cfg.tourMax;
   $('set-revisit').value = cfg.revisitMin;
+  $('set-eco').checked = !!cfg.eco;
   document.querySelectorAll('input[name=set-pick]').forEach((r) => (r.checked = r.value === (cfg.pickMode === 'demand' ? 'demand' : 'nearest')));
   $('set-router').value = cfg.routerUrl;
   $('set-sim').value = cfg.simSpeed;
@@ -862,6 +888,13 @@ bind('set-commit', 'commitSec', Number);
 bind('set-replan', 'replanMin', Number);
 bind('set-gain', 'switchGain', Number);
 document.querySelectorAll('input[name=set-pick]').forEach((r) => r.addEventListener('change', () => { cfg.pickMode = r.value; save(); nav.s = { ...nav.s, ...settingsForNav() }; }));
+$('set-eco').addEventListener('change', () => {
+  cfg.eco = $('set-eco').checked; save();
+  document.body.classList.toggle('eco', cfg.eco);
+  try { if (map.setPixelRatio) map.setPixelRatio(mapPixelRatio()); } catch { /* 古い地図ライブラリ */ }
+  render.cam = null; if (running) render();
+});
+document.body.classList.toggle('eco', !!cfg.eco);
 bind('set-revisit', 'revisitMin', (v) => Math.min(180, Math.max(15, Math.round(Number(v)) || 60)));
 bind('set-tour', 'tourMax', (v) => Math.min(4, Math.max(1, Math.round(Number(v)) || 3)));
 bind('set-router', 'routerUrl', (v) => v.trim() || 'https://valhalla1.openstreetmap.de');

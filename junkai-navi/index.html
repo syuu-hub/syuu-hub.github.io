@@ -131,6 +131,8 @@
       <section class="group">
         <h3>案内</h3>
         <label class="check"><input id="set-voice" type="checkbox">音声案内</label>
+        <label class="check"><input id="set-eco" type="checkbox">省電力モード</label>
+        <p class="hint">地図を平面（2D）にし、描く細かさとアニメーションを減らして電池を長持ちさせます。案内と音声はそのままです。</p>
         <label>行き先の選び方</label>
         <div class="seg">
           <label><input type="radio" name="set-pick" value="nearest">最短距離</label>
@@ -224,6 +226,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=17"></script>
+<script type="module" src="js/main.js?v=18"></script>
 </body>
 </html>
