@@ -1,7 +1,7 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・イベント・登録地点・タクシーアナライザの乗車実績から需要エリアを算出
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=20';
-import { profFactor } from './profile.js?v=20';
+import { haversine, bearing, angleDiff } from './geo.js?v=21';
+import { profFactor } from './profile.js?v=21';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -34,12 +34,14 @@ function weatherFactor(cat, weather) {
   return heavy ? 1.7 : 1.4;
 }
 
+// イベントは「終わった後」だけ需要にする（始まる時は駅などから歩いて来るので乗車にならない）。
+// 終了の10分前から上がり（5分先の需要で選ぶので、着くころに終わる）、終了15分後がピーク、60分後まで
 function eventFactor(ev, now) {
   const end = new Date(ev.end).getTime();
   const t = now.getTime();
-  const from = end - 30 * 60e3, to = end + 60 * 60e3;
+  const from = end - 10 * 60e3, to = end + 60 * 60e3;
   if (t < from || t > to) return 0;
-  const peak = end + 10 * 60e3;
+  const peak = end + 15 * 60e3;
   const w = t < peak ? (t - from) / (peak - from) : 1 - (t - peak) / (to - peak);
   return Math.max(0, w) * ({ s: 1, m: 3, l: 6 }[ev.size] || 3);
 }

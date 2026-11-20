@@ -1,13 +1,13 @@
-import { EndlessNavigator } from './navcore.js?v=20';
-import { ValhallaClient } from './valhalla.js?v=20';
-import { DemandEngine, CAT_JA } from './demand.js?v=20';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=20';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=20';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=20';
-import { profText, manualProf } from './profile.js?v=20';
-import { EVENTS_URL, venueEvents } from './venues.js?v=20';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=20';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=20';
+import { EndlessNavigator } from './navcore.js?v=21';
+import { ValhallaClient } from './valhalla.js?v=21';
+import { DemandEngine, CAT_JA } from './demand.js?v=21';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=21';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=21';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=21';
+import { profText, manualProf } from './profile.js?v=21';
+import { EVENTS_URL, venueEvents } from './venues.js?v=21';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=21';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=21';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -401,7 +401,7 @@ async function refreshDemand() {
   announceEvents();
 }
 
-// 近くの会場がまもなく終わる時に一度だけ知らせる（終了の30分前〜終了まで、営業エリアの中）
+// 近くの会場がまもなく終わる時に一度だけ知らせる（終了の20分前〜終了まで、営業エリアの中）
 const announcedEv = new Set();
 function announceEvents() {
   if (!running) return;
@@ -409,7 +409,7 @@ function announceEvents() {
   const now = Date.now();
   for (const e of autoEvents()) {
     const end = new Date(e.end).getTime();
-    if (now < end - 30 * 60e3 || now > end || announcedEv.has(e.id)) continue;
+    if (now < end - 20 * 60e3 || now > end || announcedEv.has(e.id)) continue;
     if (here && haversine(here, [e.lng, e.lat]) > cfg.radiusKm * 1500) continue;
     announcedEv.add(e.id);
     const hm = new Date(end).toLocaleTimeString('ja-JP', { hour: 'numeric', minute: '2-digit' });
