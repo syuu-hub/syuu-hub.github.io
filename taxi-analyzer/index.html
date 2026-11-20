@@ -304,7 +304,7 @@ svg{display:block}
 .btn:disabled{opacity:.4}
 .act-btn #recordLbl{display:flex;flex-direction:column;align-items:center;line-height:1.2}
 .act-btn #recordLbl small{font-size:.62em;font-weight:700;opacity:.8}
-.act-btn.pending{animation:pend 1.6s ease-in-out infinite}
+.act-btn.pending{animation:pend 1.6s ease-in-out 4}
 @keyframes pend{50%{box-shadow:0 0 0 6px rgba(255,176,32,.28)}}
 @media (prefers-reduced-motion:reduce){.act-btn.pending{animation:none;box-shadow:0 0 0 4px rgba(255,176,32,.35)}}
 .act-btn{height:100%;min-height:64px;font-size:clamp(16px,min(2.8vh,4.8vw),24px);white-space:nowrap;padding:0 10px}
@@ -2780,7 +2780,17 @@ function renderGps() {
 }
 
 function renderClock() {
-  $('#clock').textContent = hhmm(Date.now());
+  const c = $('#clock'), v = hhmm(Date.now());
+  if (c.textContent !== v) c.textContent = v;
+  const d = $('#dClock');
+  if (d && !$('#depart').hidden && d.textContent !== v) d.textContent = v;
+}
+// ステータスの経過時間だけを書き換える（毎秒）
+function tickStatus() {
+  const sh = curShift(), b = sh && document.querySelector(`.st-btn[data-st="${sh.status}"]`);
+  if (!b) return;
+  const el = durShort(Date.now() - sh.statusSince), v = PAUSE.includes(sh.status) ? el + '・解除' : el, t = b.querySelector('.t');
+  if (t.textContent !== v) t.textContent = v;
 }
 
 /* ============================================================
@@ -5833,8 +5843,18 @@ if (LOAD_ERR) toast('データを読み込めませんでした。設定の「�
 loadPlaces();
 startGeo();
 queueAddr();
-setInterval(queueAddr, 60000);
-setInterval(() => { renderHome(); renderMini(); renderClock(); renderGps(); }, 1000);
+// 電池の節約：画面が見えていない間は何もしない。毎秒は経過時間と時計の文字だけ（変わった時だけ書き換え）、
+//   売上・目標などの全体の描き直しは15秒ごと（記録や操作の時はその場で描き直す）
+setInterval(() => { if (!document.hidden) queueAddr(); }, 60000);
+let tickN = 0;
+setInterval(() => {
+  if (document.hidden) return;
+  const home = S.settings.tab === 'home' || !S.settings.tab;
+  if (++tickN % 15 === 0) { if (home) renderHome(); renderMini(); renderGps(); }
+  else if (home) tickStatus();
+  renderClock();
+}, 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { tickN = 0; renderHome(); renderMini(); renderClock(); renderGps(); } });
 </script>
 <script>
 // 兵庫県の市区町と町域名（日本郵便 郵便番号データより）。形式：市区町名|よみ|町名,町名,…
