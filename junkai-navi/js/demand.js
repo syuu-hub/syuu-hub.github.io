@@ -1,7 +1,7 @@
-// 需要エンジン：時間帯・曜日・天気・鉄道・イベント・登録地点・タクシーアナライザの乗車実績から需要エリアを算出
+// 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=21';
-import { profFactor } from './profile.js?v=21';
+import { haversine, bearing, angleDiff } from './geo.js?v=22';
+import { profFactor } from './profile.js?v=22';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -34,17 +34,6 @@ function weatherFactor(cat, weather) {
   return heavy ? 1.7 : 1.4;
 }
 
-// イベントは「終わった後」だけ需要にする（始まる時は駅などから歩いて来るので乗車にならない）。
-// 終了の10分前から上がり（5分先の需要で選ぶので、着くころに終わる）、終了15分後がピーク、60分後まで
-function eventFactor(ev, now) {
-  const end = new Date(ev.end).getTime();
-  const t = now.getTime();
-  const from = end - 10 * 60e3, to = end + 60 * 60e3;
-  if (t < from || t > to) return 0;
-  const peak = end + 15 * 60e3;
-  const w = t < peak ? (t - from) / (peak - from) : 1 - (t - peak) / (to - peak);
-  return Math.max(0, w) * ({ s: 1, m: 3, l: 6 }[ev.size] || 3);
-}
 
 const CELL_LAT = 0.004, CELL_LNG = 0.005; // 約450m四方
 const cellKey = (p) => `${Math.floor(p[1] / CELL_LAT)}:${Math.floor(p[0] / CELL_LNG)}`;
@@ -59,7 +48,6 @@ export const nearestUtility = (effM, share) => (0.85 + 0.15 * share) / (effM + 2
 export class DemandEngine {
   constructor() {
     this.spots = []; // {id,name,lng,lat,cat}
-    this.events = []; // {id,name,lng,lat,end,size}
     this.csvRides = []; // タクシーアナライザの乗車実績 {lng,lat,t,name,fare}
     this.weather = 'clear'; // clear | rain | heavy
     this.railDisruption = false;
@@ -85,10 +73,6 @@ export class DemandEngine {
       if (s.rides > 1) v *= Math.min(3, 0.5 + 0.5 * Math.sqrt(s.rides));
       if (s.name) add([s.lng, s.lat], v, s.name, BASE[s.cat] || 0.3);
       else add([s.lng, s.lat], v, s.cat === 'nightlife' ? '繁華街' : CAT_JA[s.cat], 0.01);
-    }
-    for (const ev of this.events) {
-      const v = eventFactor(ev, now);
-      if (v > 0) add([ev.lng, ev.lat], v, ev.name, 10);
     }
     const h = now.getHours();
     const wk = now.getDay() === 0 || now.getDay() === 6;

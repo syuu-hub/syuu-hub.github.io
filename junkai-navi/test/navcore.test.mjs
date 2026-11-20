@@ -74,9 +74,6 @@ for (let step = 0; step < 3600; step++) {
     demand.update(new Date(clock));
   }
   if (step === 1500) {
-    // 大型イベント終了（需要の急増）
-    const ep = destination(nav.pos, 0, 2500);
-    demand.events.push({ id: 'ev', name: 'ドーム', lng: ep[0], lat: ep[1], end: new Date(clock + 15 * 60e3).toISOString(), size: 'l' });
     // 鉄道の運転見合わせで特定駅に需要が集中した想定
     const sp = destination(nav.pos, 180, 1800);
     for (let k = 0; k < 25; k++) demand.spots.push({ id: 'x' + k, name: '振替駅', lng: sp[0], lat: sp[1], cat: 'custom' });
