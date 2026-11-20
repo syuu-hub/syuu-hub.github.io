@@ -76,6 +76,12 @@ Cloudflare Pages や Netlify でも同じように無料で公開できます。
 
 需要の時間帯の傾向や重みは `js/demand.js` の冒頭で変更できます。
 
+## 対象地域：関西圏
+- 地図データ（タイル）は関西圏（大阪・京都・兵庫・奈良・滋賀・和歌山）の範囲だけを読み込みます。地図のスタイルを読み込む時に、タイルの出どころに範囲を付けるので、範囲の外のタイルは通信しません
+- 地図は関西圏の外へは動かせず、日本全体のような引いた地図（ズーム8未満）も読み込みません
+- 住所・施設名の検索も、関西圏の結果だけを使います
+- 現在地が関西圏の外の時はお知らせします。範囲は `js/region.js` で変更できます
+
 ## 電池の節約
 - 地図は、止まっている・ほとんど動いていない時は動かさず（描き直さない）、動く時も次の位置が来る前に終わる短いアニメーションにして、その間は地図を休ませます
 - 高解像度の画面でも、地図を描く細かさは2倍まで（省電力モードは1.5倍）
@@ -101,10 +107,12 @@ Cloudflare Pages や Netlify でも同じように無料で公開できます。
 - `js/csv.js`：タクシーアナライザの営業ログCSVの読み込み
 - `js/places.js`：登録地点（住所からの位置検索、CSVの書き出し・読み込み）
 - `js/profile.js`：登録地点の時間帯・曜日（営業ログの傾向、自分で指定）
+- `js/region.js`：対象地域（関西圏）の範囲、地図データを範囲内だけにするスタイルの書き換え
 - `js/geo.js`：地理計算
 - `sw.js`, `manifest.webmanifest`, `icons/`：PWA
 - `test/navcore.test.mjs`：走行シミュレーションによる検証（`node test/navcore.test.mjs`）
 - `test/csv.test.mjs`：CSV読み込みと需要計算の検証（`TZ=Asia/Tokyo node test/csv.test.mjs`）
 - `test/places.test.mjs`：登録地点の住所検索とCSVの検証（`REAL_CSV=営業ログ.csv` を付けると実データでも確認）
+- `test/region.test.mjs`：地図データ・住所検索を関西圏だけにする処理の検証
 - `test/profile.test.mjs`：時間帯・曜日の傾向と需要の検証（`TZ=Asia/Tokyo node test/profile.test.mjs`）
 - `server/docker-compose.yml`：自前のValhallaサーバー

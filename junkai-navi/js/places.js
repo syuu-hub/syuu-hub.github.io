@@ -1,10 +1,11 @@
 // 登録地点（任意で設定する需要地点・イベント会場）
 // ・住所から緯度経度を調べる（国土地理院の住所検索 → 見つからなければ OpenStreetMap の Nominatim）
 // ・CSV への書き出しと読み込み
-import { fetchT } from './sources.js?v=18';
-import { parseCsv, importAnalyzerCsv, placeKey, rideFilter } from './csv.js?v=18';
-import { haversine } from './geo.js?v=18';
-import { logProf, manualProf, parseHours, parseDays, hoursText, daysText } from './profile.js?v=18';
+import { fetchT } from './sources.js?v=19';
+import { parseCsv, importAnalyzerCsv, placeKey, rideFilter } from './csv.js?v=19';
+import { haversine } from './geo.js?v=19';
+import { inRegion, REGION_BOUNDS } from './region.js?v=19';
+import { logProf, manualProf, parseHours, parseDays, hoursText, daysText } from './profile.js?v=19';
 
 // 日本付近の座標か
 export const inJapan = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng) && lat > 20 && lat < 46 && lng > 122 && lng < 154;
@@ -14,10 +15,12 @@ export const inJapan = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng
 export async function geocode(addr, fetcher = fetchT, { near = null, maxKm = 60 } = {}) {
   const q = String(addr || '').trim();
   if (!q) return null;
-  const okPos = (lat, lng) => inJapan(lat, lng) && (!near || haversine(near, [lng, lat]) <= maxKm * 1000);
+  // 関西圏の外の結果は使わない（同じ名前の他の地域の場所を拾わないように）
+  const okPos = (lat, lng) => inJapan(lat, lng) && inRegion(lng, lat) && (!near || haversine(near, [lng, lat]) <= maxKm * 1000);
   // 施設名だけで探す時に、近くの範囲に絞って OpenStreetMap を検索する
   let reached = false;
-  const box = near ? `&bounded=1&viewbox=${near[0] - 0.6},${near[1] + 0.5},${near[0] + 0.6},${near[1] - 0.5}` : '';
+  const [w, s, e, n] = REGION_BOUNDS;
+  const box = near ? `&bounded=1&viewbox=${near[0] - 0.6},${near[1] + 0.5},${near[0] + 0.6},${near[1] - 0.5}` : `&bounded=1&viewbox=${w},${n},${e},${s}`;
   try {
     const res = await fetcher(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(q)}`, {}, 10000);
     if (res.ok) {
