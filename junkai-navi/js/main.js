@@ -1,12 +1,13 @@
-import { EndlessNavigator } from './navcore.js?v=19';
-import { ValhallaClient } from './valhalla.js?v=19';
-import { DemandEngine, CAT_JA } from './demand.js?v=19';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=19';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=19';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=19';
-import { profText, manualProf } from './profile.js?v=19';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=19';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=19';
+import { EndlessNavigator } from './navcore.js?v=20';
+import { ValhallaClient } from './valhalla.js?v=20';
+import { DemandEngine, CAT_JA } from './demand.js?v=20';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=20';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=20';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=20';
+import { profText, manualProf } from './profile.js?v=20';
+import { EVENTS_URL, venueEvents } from './venues.js?v=20';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=20';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=20';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -30,6 +31,7 @@ const cfg = Object.assign(
     pickMode: 'nearest', // 行き先の選び方：nearest＝今いる所から近い需要エリア、demand＝需要の高さ優先
     sheetCollapsed: false, // 巡回中の表示エリアをたたんでいるか
     eco: false, // 省電力モード（平面の地図・解像度を下げる・短いアニメーション）
+    autoEvents: true, // 神戸の主要会場のイベントを自動で需要に反映
     spots: [],
     spotsCenter: null,
     events: [],
@@ -47,11 +49,36 @@ function save() { try { localStorage.setItem(STORE, JSON.stringify(cfg)); return
 
 // ===== 需要エンジン =====
 const demand = new DemandEngine();
+// 需要は「着くころ」の時刻で見る（エリアまで数分かかるので、少し先の需要で選ぶ）
+const DEMAND_LEAD_MIN = 5;
+const demandTime = () => new Date(Date.now() + DEMAND_LEAD_MIN * 60e3);
+
+// ===== 神戸の主要会場のイベント（タクシーアナライザと共通の events.json を自動で読む） =====
+const EV_KEY = 'endless-navi-venue-events';
+let venueJson = (() => { try { return JSON.parse(localStorage.getItem(EV_KEY)); } catch { return null; } })();
+async function refreshVenueEvents(force = false) {
+  if (!cfg.autoEvents) return;
+  if (!force && refreshVenueEvents.at && Date.now() - refreshVenueEvents.at < 30 * 60e3) return;
+  refreshVenueEvents.at = Date.now();
+  try {
+    const r = await fetch(EVENTS_URL, { cache: 'no-cache' });
+    if (r.ok) { venueJson = await r.json(); try { localStorage.setItem(EV_KEY, JSON.stringify(venueJson)); } catch { /* 容量 */ } }
+  } catch { /* 圏外：前回の内容を使う */ }
+}
+const autoEvents = () => (cfg.autoEvents && venueJson ? venueEvents(venueJson) : []);
+// 今日（と翌朝まで）のイベントの短い説明
+function autoEventsText() {
+  const list = autoEvents().filter((e) => new Date(e.end).getTime() > Date.now());
+  if (!list.length) return cfg.autoEvents ? (venueJson ? '今日はこれからのイベントはありません' : 'イベント情報を読み込めていません') : '';
+  const fmt = (e) => `${e.venue} ${new Date(e.end).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}終了`;
+  return `これから ${list.length} 件（次：${fmt(list[0])}${list.length > 1 ? ' ほか' : ''}）`;
+}
+
 function syncDemand() {
   const manual = cfg.demandSource !== 'csv';
   demand.spots = manual ? cfg.spots.concat(cfg.events.filter((e) => e.kind === 'custom').map((e) => ({ ...e, cat: 'custom' }))) : [];
   demand.csvRides = manual ? [] : cfg.csvRides.filter(rideFilter(cfg.csvKinds));
-  demand.events = cfg.events.filter((e) => e.kind !== 'custom' && new Date(e.end).getTime() > Date.now() - 2 * 3600e3);
+  demand.events = cfg.events.filter((e) => e.kind !== 'custom' && new Date(e.end).getTime() > Date.now() - 2 * 3600e3).concat(autoEvents());
   demand.railDisruption = cfg.railManual || odptDisruption;
   if (cfg.weatherMode !== 'auto') demand.weather = cfg.weatherMode;
 }
@@ -367,9 +394,28 @@ async function refreshDemand() {
     refreshDemand.rAt = Date.now();
     try { odptDisruption = (await fetchRailDisruption(cfg.odptKey)).length > 0; } catch { /* noop */ }
   }
+  await refreshVenueEvents();
   syncDemand();
-  demand.update(new Date());
+  demand.update(demandTime());
   refreshHeat();
+  announceEvents();
+}
+
+// 近くの会場がまもなく終わる時に一度だけ知らせる（終了の30分前〜終了まで、営業エリアの中）
+const announcedEv = new Set();
+function announceEvents() {
+  if (!running) return;
+  const here = lastFix ? lastFix.point : cfg.lastCenter;
+  const now = Date.now();
+  for (const e of autoEvents()) {
+    const end = new Date(e.end).getTime();
+    if (now < end - 30 * 60e3 || now > end || announcedEv.has(e.id)) continue;
+    if (here && haversine(here, [e.lng, e.lat]) > cfg.radiusKm * 1500) continue;
+    announcedEv.add(e.id);
+    const hm = new Date(end).toLocaleTimeString('ja-JP', { hour: 'numeric', minute: '2-digit' });
+    toast(`${e.venue}：${hm}ごろ終了（${e.title}）`, 8000);
+    speak(`${e.venue}が${hm}ごろ終わります`);
+  }
 }
 
 function refreshHeat() {
@@ -394,7 +440,7 @@ async function start(sim) {
   const center = sim ? (cfg.lastCenter || map.getCenter().toArray()) : await firstPosition();
   cfg.lastCenter = center;
   syncDemand();
-  demand.update(new Date(), 1);
+  demand.update(demandTime(), 1);
   nav.serviceCenter = center;
   // 位置の追跡はすぐ始め、需要スポット・天気の取得は裏で行う
   if (sim) startSim(); else startGPS();
@@ -405,7 +451,7 @@ async function start(sim) {
     if (!demand.csvRides.length) toast('タクシーアナライザのCSVが読み込まれていません。設定から読み込んでください', 6000);
     refreshDemand();
   } else {
-    ensureSpots(center).then(() => { syncDemand(); demand.update(new Date(), 1); return refreshDemand(); });
+    ensureSpots(center).then(() => { syncDemand(); demand.update(demandTime(), 1); return refreshDemand(); });
   }
 }
 
@@ -583,12 +629,13 @@ function render() {
 }
 const weatherJa = () => ({ clear: '晴れ', rain: '雨', heavy: '大雨' }[demand.weather] || '') + (demand.railDisruption ? '・鉄道遅延' : '');
 
+const evLine = () => (cfg.autoEvents && autoEventsText() ? `<br>会場イベント：${autoEventsText()}` : '');
 function renderStart() {
   if (cfg.demandSource === 'csv') {
     const n = cfg.csvRides.filter(rideFilter(cfg.csvKinds)).length;
     $('spot-info').innerHTML = cfg.csvRides.length
-      ? `需要エリア：タクシーアナライザのCSV<br>乗車実績 ${n} 件（${kindsLabel(cfg.csvKinds)}）`
-      : '需要エリア：タクシーアナライザのCSV<br>設定からCSVを読み込んでください';
+      ? `需要エリア：タクシーアナライザのCSV<br>乗車実績 ${n} 件（${kindsLabel(cfg.csvKinds)}）${evLine()}`
+      : `需要エリア：タクシーアナライザのCSV<br>設定からCSVを読み込んでください${evLine()}`;
     return;
   }
   const n = cfg.spots.length;
@@ -596,9 +643,9 @@ function renderStart() {
   for (const s of cfg.spots) cats[s.cat] = (cats[s.cat] || 0) + 1;
   const detail = Object.entries(cats).map(([k, c]) => `${CAT_JA[k]} ${c}`).join('・');
   const custom = cfg.events.filter((e) => e.kind === 'custom').length;
-  $('spot-info').innerHTML = n || custom
+  $('spot-info').innerHTML = (n || custom
     ? `需要エリア：任意で設定<br>需要スポット ${n} 件${detail ? `（${detail}）` : ''}${custom ? `・登録地点 ${custom} 件` : ''}`
-    : '需要エリア：任意で設定<br>開始すると現在地の周辺から駅・ホテル・病院・繁華街などを自動で取得します';
+    : '需要エリア：任意で設定<br>開始すると現在地の周辺から駅・ホテル・病院・繁華街などを自動で取得します') + evLine();
 }
 
 // ===== 地図の長押しで地点追加 =====
@@ -641,7 +688,7 @@ $('ap-save').onclick = () => {
   save();
   $('addpoint').classList.add('hidden');
   toast(kind === 'event' ? `「${name}」を追加しました（終了前後に需要が上がります）` : `「${name}」を需要地点に追加しました${cfg.demandSource === 'csv' ? '（「任意で設定」のときに使われます）' : ''}`);
-  syncDemand(); demand.update(new Date()); refreshHeat(); renderEvents();
+  syncDemand(); demand.update(demandTime()); refreshHeat(); renderEvents();
 };
 
 // ===== 設定画面 =====
@@ -661,6 +708,8 @@ function openSettings() {
   $('set-tour').value = cfg.tourMax;
   $('set-revisit').value = cfg.revisitMin;
   $('set-eco').checked = !!cfg.eco;
+  $('set-auto-ev').checked = !!cfg.autoEvents;
+  $('set-auto-ev-info').textContent = autoEventsText();
   document.querySelectorAll('input[name=set-pick]').forEach((r) => (r.checked = r.value === (cfg.pickMode === 'demand' ? 'demand' : 'nearest')));
   $('set-router').value = cfg.routerUrl;
   $('set-sim').value = cfg.simSpeed;
@@ -697,7 +746,7 @@ let plFound = null;     // 住所から見つかった位置 {lat,lng,title,addr
 const plKind = () => document.querySelector('input[name=pl-kind]:checked').value;
 const toLocalInput = (t) => { const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 function placesChanged() {
-  save(); syncDemand(); demand.update(new Date()); refreshHeat(); renderStart(); renderEvents(); renderPlaces();
+  save(); syncDemand(); demand.update(demandTime()); refreshHeat(); renderStart(); renderEvents(); renderPlaces();
 }
 function openPlaces() {
   closePlaceForm();
@@ -897,6 +946,12 @@ bind('set-commit', 'commitSec', Number);
 bind('set-replan', 'replanMin', Number);
 bind('set-gain', 'switchGain', Number);
 document.querySelectorAll('input[name=set-pick]').forEach((r) => r.addEventListener('change', () => { cfg.pickMode = r.value; save(); nav.s = { ...nav.s, ...settingsForNav() }; }));
+$('set-auto-ev').addEventListener('change', async () => {
+  cfg.autoEvents = $('set-auto-ev').checked; save();
+  if (cfg.autoEvents) await refreshVenueEvents(true);
+  $('set-auto-ev-info').textContent = autoEventsText();
+  syncDemand(); demand.update(demandTime()); refreshHeat(); renderStart();
+});
 $('set-eco').addEventListener('change', () => {
   cfg.eco = $('set-eco').checked; save();
   document.body.classList.toggle('eco', cfg.eco);
@@ -920,7 +975,7 @@ function showSourcePanels() {
     : 'まだ読み込まれていません';
 }
 function applyDemandChange() {
-  save(); syncDemand(); demand.areas = new Map(); demand.update(new Date(), 1); refreshHeat(); renderStart();
+  save(); syncDemand(); demand.areas = new Map(); demand.update(demandTime(), 1); refreshHeat(); renderStart();
 }
 document.querySelectorAll('input[name=set-source]').forEach((r) => r.addEventListener('change', () => {
   cfg.demandSource = r.value;
@@ -984,7 +1039,7 @@ $('btn-fetch').onclick = async () => {
   cfg.spotsCenter = null;
   await ensureSpots(c);
   $('set-spots').textContent = `取得済み ${cfg.spots.length} 件`;
-  syncDemand(); demand.update(new Date(), 1); refreshHeat(); renderStart();
+  syncDemand(); demand.update(demandTime(), 1); refreshHeat(); renderStart();
 };
 $('btn-clear-spots').onclick = () => { cfg.spots = []; cfg.spotsCenter = null; save(); $('set-spots').textContent = '取得済み 0 件'; renderStart(); };
 document.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => $(b.dataset.close).classList.add('hidden')));
@@ -1045,8 +1100,9 @@ $('btn-heat').onclick = () => {
 $('recenter').onclick = () => { setFollow(true); render(); };
 
 syncDemand();
-demand.update(new Date(), 1);
+demand.update(demandTime(), 1);
 renderStart();
+refreshVenueEvents(true).then(() => { syncDemand(); demand.update(demandTime(), 1); refreshHeat(); renderStart(); });
 if (mapError) $('spot-info').textContent = `地図を表示できません（${mapError}）。案内と音声は使えます`;
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

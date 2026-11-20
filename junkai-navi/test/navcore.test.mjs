@@ -195,6 +195,39 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   assert(n3.target && n3.target.name === 'A2', `通過後は次のエリアを案内: ${n3.target && n3.target.name}`);
 }
 
+// ===== 実際の走行で起きること =====
+{
+  const o = [135.19, 34.69];
+  const dg = new DemandEngine();
+  [[90, 1500], [0, 2500], [180, 2500]].forEach(([b, m], i) => { const p = destination(o, b, m); dg.spots.push({ id: 'g' + i, name: 'G' + i, lng: p[0], lat: p[1], cat: 'custom' }); });
+  dg.update(new Date(clock), 1);
+  // ビル街・トンネルで精度の悪い位置が跳んでも、再検索しない
+  let badReroutes = 0;
+  const ng = new EndlessNavigator({ router: fakeRouter, demand: dg, now, settings: { tourMax: 1 }, emit: (t, d) => { if (t === 'route' && d.mode === 'reroute') badReroutes++; } });
+  ng.update({ point: o, speed: 0, heading: 90, t: clock });
+  for (let i = 0; i < 30 && !ng.route; i++) await sleep();
+  for (let k = 0; k < 6; k++) { clock += 1000; ng.update({ point: destination(pointAt(ng.route, ng.along + 10).point, 0, 200), speed: 10, heading: null, accuracy: 150, t: clock }); await sleep(); }
+  assert(badReroutes === 0, `精度の悪い位置（150m）が跳んでも再検索しない（${badReroutes} 回）`);
+  // 精度の良い位置で本当に外れたら再検索する。続けて外れても20秒は再検索しない
+  let reroutes2 = 0;
+  const nr = new EndlessNavigator({ router: fakeRouter, demand: dg, now, settings: { tourMax: 1 }, emit: (t, d) => { if (t === 'route' && d.mode === 'reroute') reroutes2++; } });
+  nr.update({ point: o, speed: 0, heading: 90, t: clock });
+  for (let i = 0; i < 30 && !nr.route; i++) await sleep();
+  for (let k = 0; k < 12; k++) { clock += 1000; nr.update({ point: destination(pointAt(nr.route, nr.along + 10).point, 0, 200), speed: 10, heading: null, accuracy: 8, t: clock }); await sleep(); await sleep(); }
+  assert(reroutes2 >= 1 && reroutes2 <= 1, `外れたら再検索、20秒以内は繰り返さない（${reroutes2} 回）`);
+  // ルートサーバーに一時的につながらない：行き先を外さず、待つ時間を延ばし、お知らせは1回
+  let down = true, statuses = [];
+  const flaky = { calls: 0, async route(...a) { this.calls++; if (down) { const e = new Error('ルートサーバーに接続できません'); e.offline = true; throw e; } return fakeRouter.route(...a); } };
+  const nf2 = new EndlessNavigator({ router: flaky, demand: dg, now, settings: { tourMax: 1 }, emit: (t, d) => { if (t === 'status') statuses.push(d); } });
+  for (let k = 0; k < 120; k++) { clock += 1000; nf2.update({ point: o, speed: 0, heading: 90, t: clock }); await sleep(); }
+  assert(flaky.calls >= 3 && flaky.calls <= 8, `つながらない時は待つ時間を延ばす（2分で ${flaky.calls} 回）`);
+  assert(statuses.filter((m) => /つなが|接続/.test(m)).length <= 2, `お知らせを繰り返さない（${statuses.length} 回）`);
+  assert(nf2.badTargets.size === 0, 'つながらない時は行き先を外さない');
+  down = false;
+  for (let k = 0; k < 90 && !nf2.route; k++) { clock += 1000; nf2.update({ point: o, speed: 0, heading: 90, t: clock }); await sleep(); }
+  assert(nf2.route, 'つながったら案内を再開する');
+}
+
 // ===== 最短距離モード =====
 {
   const o = [135.19, 34.69];

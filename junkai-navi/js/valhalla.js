@@ -1,5 +1,5 @@
 // Valhalla ルーティング API クライアント
-import { decodePolyline, cumulative } from './geo.js?v=19';
+import { decodePolyline, cumulative } from './geo.js?v=20';
 
 // Valhalla maneuver type → 日本語と矢印種別
 export const MANEUVER = {
@@ -92,7 +92,9 @@ export class ValhallaClient {
       const timer = setTimeout(() => ctl.abort(), 15000);
       try { res = await fetch(url, { cache: 'no-store', signal: ctl.signal }); } finally { clearTimeout(timer); }
     } catch (e) {
-      throw new RouterError('ルートサーバーに接続できません');
+      const err = new RouterError('ルートサーバーに接続できません');
+      err.offline = true; // 通信の問題（行き先のせいではない）
+      throw err;
     }
     let json = null;
     try { json = await res.json(); } catch { /* noop */ }
