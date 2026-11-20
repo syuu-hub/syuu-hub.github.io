@@ -29,15 +29,14 @@ ok((await geocode('  ', gsi)) === null, '空の住所は null');
 // CSV の書き出し → 読み込み
 const list = [
   { id: 'a', name: '〇〇ホテル', addr: '兵庫県神戸市中央区港島中町6-10-1', kind: 'custom', lat: 34.6656, lng: 135.2089 },
-  { id: 'b', name: 'ワールド記念ホール, "ライブ"', addr: '神戸市中央区港島中町6-12-2', kind: 'event', end: new Date(2026, 10, 20, 21, 0).toISOString(), size: 'l', lat: 34.6649, lng: 135.2069 },
+  { id: 'b', name: 'ホール, "西口"', addr: '神戸市中央区港島中町6-12-2', kind: 'custom', lat: 34.6649, lng: 135.2069 },
   { id: 'c', name: '地図で追加', kind: 'custom', lat: 34.69, lng: 135.19 },
 ];
 const csv = placesToCsv(list);
-ok(csv.startsWith('﻿名前,住所,種類,終了日時,規模,緯度,経度'), 'CSVの見出し（Excel用BOM付き）');
+ok(csv.startsWith('\ufeff名前,住所,緯度,経度,乗車回数,時間帯,曜日'), 'CSVの見出し（Excel用BOM付き・イベントの列なし）');
 const back = csvToPlaces(csv);
 ok(back.items.length === 3 && !back.errors.length, `書き出したCSVを読み込める: ${back.items.length}件`);
-ok(back.items[1].name === 'ワールド記念ホール, "ライブ"' && back.items[1].kind === 'event' && back.items[1].size === 'l', 'カンマ・引用符を含む名前、イベント・規模');
-ok(new Date(back.items[1].end).getHours() === 21 && new Date(back.items[1].end).getDate() === 20, `終了日時: ${back.items[1].end}`);
+ok(back.items[1].name === 'ホール, "西口"' && back.items[1].kind === 'custom', 'カンマ・引用符を含む名前');
 ok(back.items[2].lat === 34.69 && back.items[2].name === '地図で追加', '住所なしでも緯度経度があれば読み込む');
 
 // 名前と住所だけのCSV（緯度経度は後で調べる）、エラー行
@@ -46,8 +45,8 @@ const s2 = csvToPlaces(simple);
 ok(s2.items.length === 2 && s2.items[0].lat == null && s2.items[0].kind === 'custom', '名前・住所だけのCSV');
 ok(s2.items[1].name === '神戸市灘区', '名前が空なら住所を名前に');
 ok(s2.errors.length === 1 && /4行目/.test(s2.errors[0]), `住所のない行はエラー: ${s2.errors[0]}`);
-const s3 = csvToPlaces('名前,住所,種類\r\nX,神戸市,イベント\r\n');
-ok(!s3.items.length && /終了日時/.test(s3.errors[0]), 'イベントに終了日時がなければエラー');
+const s3 = csvToPlaces('名前,住所,種類,終了日時\r\nX,神戸市,イベント,2026/11/20 21:00\r\nY,神戸市,常設,\r\n');
+ok(s3.items.length === 1 && s3.items[0].name === 'Y' && /イベントは使いません/.test(s3.errors[0]), '以前の形式のCSVでもイベントの行は使わない');
 try { csvToPlaces('a,b\r\n1,2'); ok(false, '住所の列がないCSVを拒否'); } catch (e) { ok(/住所/.test(e.message), '住所の列がないCSVを拒否'); }
 
 // 同じ名前・住所は上書き

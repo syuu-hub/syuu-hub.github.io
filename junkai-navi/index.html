@@ -110,10 +110,8 @@
       </section>
 
       <section class="group">
-        <h3>登録地点・イベント</h3>
-        <p class="hint">住所から、得意な地点（常設・時間帯や曜日も指定可）やイベント会場（終了時刻の前後に需要が上がる）を登録します。CSVで読み込み・保存でき、この端末に保存されます。</p>
-        <label class="check"><input id="set-auto-ev" type="checkbox">神戸の会場のイベントを自動で反映</label>
-        <p class="hint">ワールド記念ホール・GLION ARENA KOBE・ノエビアスタジアム・国際会館・文化ホール・国際展示場・客船の入港などを毎日自動で取り込み、終わった後だけ周辺の需要を上げます（始まる時は駅などから歩いて来るので使いません。近くの会場は終わる前にお知らせ）。<span id="set-auto-ev-info"></span></p>
+        <h3>登録地点</h3>
+        <p class="hint">住所から、得意な地点を登録します（需要がある時間帯・曜日も指定可）。CSVで読み込み・保存でき、この端末に保存されます。</p>
         <div class="row"><button id="btn-places" class="btn ghost"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>登録地点の一覧を開く</button></div>
       </section>
 
@@ -171,26 +169,18 @@
         <label class="btn ghost file-btn pl-file"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>CSVで読み込み<input id="pl-csv" type="file" accept=".csv,text/csv" hidden></label>
         <button id="pl-export" class="btn ghost"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>CSVで保存</button>
       </div>
-      <details class="more"><summary>CSVの形式と営業ログの読み込み</summary><p class="hint">CSVの列：名前, 住所, 種類（常設／イベント）, 終了日時（例 2026/11/20 21:00）, 規模（小／中／大）, 緯度, 経度, 乗車回数, 時間帯（例 7-10, 18-24）, 曜日（例 平日、土日、月水金）。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。設定の「タクシーアナライザの乗車で使う種類」に従い、初期は流しだけ（乗り場・アプリ配車等を除く）です。読み込み直すと、対象外になった場所は一覧から消えます）。</p></details>
+      <details class="more"><summary>CSVの形式と営業ログの読み込み</summary><p class="hint">CSVの列：名前, 住所, 緯度, 経度, 乗車回数, 時間帯（例 7-10, 18-24）, 曜日（例 平日、土日、月水金）。種類が「イベント」の行は使いません。名前と住所だけでも読み込めます（緯度・経度が空なら住所から調べます）。同じ名前・住所の地点は上書きします。<br>タクシーアナライザの営業ログCSV（出力・設定 → CSV出力 → 営業ログ）を選ぶと、乗車した場所ごとにまとめて登録します（乗車が多い場所ほど需要を高く見ます。設定の「タクシーアナライザの乗車で使う種類」に従い、初期は流しだけ（乗り場・アプリ配車等を除く）です。読み込み直すと、対象外になった場所は一覧から消えます）。</p></details>
 
       <form id="pl-form" class="pl-form hidden" autocomplete="off">
         <h3 id="pl-form-title">住所から追加</h3>
         <label>名前<input id="pl-name" type="text" placeholder="例：〇〇ホテル"></label>
         <label>住所（施設名でも可）<input id="pl-addr" type="text" placeholder="例：兵庫県神戸市中央区加納町6-5-1"></label>
         <p id="pl-found" class="hint pl-found hidden"></p>
-        <div class="seg">
-          <label><input type="radio" name="pl-kind" value="custom" checked>常設の需要地点</label>
-          <label><input type="radio" name="pl-kind" value="event">イベント</label>
-        </div>
         <div id="pl-time">
           <label>需要がある時間帯（任意）
             <span class="pl-hours"><select id="pl-h1"><option value="">指定なし</option><option value="0">0時</option><option value="1">1時</option><option value="2">2時</option><option value="3">3時</option><option value="4">4時</option><option value="5">5時</option><option value="6">6時</option><option value="7">7時</option><option value="8">8時</option><option value="9">9時</option><option value="10">10時</option><option value="11">11時</option><option value="12">12時</option><option value="13">13時</option><option value="14">14時</option><option value="15">15時</option><option value="16">16時</option><option value="17">17時</option><option value="18">18時</option><option value="19">19時</option><option value="20">20時</option><option value="21">21時</option><option value="22">22時</option><option value="23">23時</option></select><span>〜</span><select id="pl-h2"><option value="1">1時</option><option value="2">2時</option><option value="3">3時</option><option value="4">4時</option><option value="5">5時</option><option value="6">6時</option><option value="7">7時</option><option value="8">8時</option><option value="9">9時</option><option value="10">10時</option><option value="11">11時</option><option value="12">12時</option><option value="13">13時</option><option value="14">14時</option><option value="15">15時</option><option value="16">16時</option><option value="17">17時</option><option value="18">18時</option><option value="19">19時</option><option value="20">20時</option><option value="21">21時</option><option value="22">22時</option><option value="23">23時</option><option value="24">24時</option></select></span></label>
           <div class="pl-days" id="pl-days"><label><input type="checkbox" value="1" checked>月</label><label><input type="checkbox" value="2" checked>火</label><label><input type="checkbox" value="3" checked>水</label><label><input type="checkbox" value="4" checked>木</label><label><input type="checkbox" value="5" checked>金</label><label><input type="checkbox" value="6" checked>土</label><label><input type="checkbox" value="0" checked>日</label></div>
           <p class="hint" id="pl-time-hint">指定した時間帯・曜日だけ需要を高く見ます（日をまたぐ時は 22時〜2時 のように）。営業ログから登録した地点は、乗車した時刻・曜日から自動で決まり、ここで指定すると上書きします。</p>
-        </div>
-        <div id="pl-event" class="hidden">
-          <label>終了日時<input id="pl-end" type="datetime-local"></label>
-          <label>規模<select id="pl-size"><option value="s">小（〜千人）</option><option value="m" selected>中（〜1万人）</option><option value="l">大（1万人〜）</option></select></label>
         </div>
         <div class="row">
           <button id="pl-cancel" type="button" class="btn text">やめる</button>
@@ -208,15 +198,8 @@
   <div class="modal-card small">
     <div class="modal-head"><h2>この地点を追加</h2><button class="close" data-close="addpoint" aria-label="閉じる"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
     <div class="modal-body">
-      <label>名前<input id="ap-name" type="text" placeholder="例：〇〇ホール"></label>
-      <div class="seg">
-        <label><input type="radio" name="ap-kind" value="event" checked>イベント</label>
-        <label><input type="radio" name="ap-kind" value="custom">常設の需要地点</label>
-      </div>
-      <div id="ap-event">
-        <label>終了時刻<input id="ap-end" type="time"></label>
-        <label>規模<select id="ap-size"><option value="s">小（〜千人）</option><option value="m" selected>中（〜1万人）</option><option value="l">大（1万人〜）</option></select></label>
-      </div>
+      <label>名前<input id="ap-name" type="text" placeholder="例：〇〇ホテル"></label>
+      <p class="hint">需要地点として登録します。時間帯・曜日は登録地点の一覧から編集で指定できます。</p>
       <button id="ap-save" class="big primary">追加</button>
     </div>
   </div>
@@ -228,6 +211,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=21"></script>
+<script type="module" src="js/main.js?v=22"></script>
 </body>
 </html>
