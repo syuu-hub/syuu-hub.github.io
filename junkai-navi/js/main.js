@@ -1,15 +1,16 @@
-import { EndlessNavigator } from './navcore.js?v=18';
-import { ValhallaClient } from './valhalla.js?v=18';
-import { DemandEngine, CAT_JA } from './demand.js?v=18';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=18';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=18';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=18';
-import { profText, manualProf } from './profile.js?v=18';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=18';
+import { EndlessNavigator } from './navcore.js?v=19';
+import { ValhallaClient } from './valhalla.js?v=19';
+import { DemandEngine, CAT_JA } from './demand.js?v=19';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=19';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=19';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=19';
+import { profText, manualProf } from './profile.js?v=19';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=19';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=19';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
-const DEFAULT_CENTER = [139.7671, 35.6812]; // 東京駅
+const DEFAULT_CENTER = REGION_CENTER; // 三宮（関西圏の外の位置は使わない）
 
 // ===== 設定の保存 =====
 const cfg = Object.assign(
@@ -115,13 +116,20 @@ function createNullMap(center) {
 }
 const NullMarker = class { constructor() {} setLngLat() { return this; } addTo() { return this; } setRotation() { return this; } remove() {} };
 let map, ML = window.maplibregl, mapError = null;
+// 地図データは関西圏のタイルだけを読み込む（スタイルの読み込みに失敗した時は普通のスタイルで、地図を動かせる範囲だけ関西圏に）
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+let mapStyle = STYLE_URL;
+if (ML) { try { mapStyle = await regionStyle(STYLE_URL); } catch { /* 普通のスタイル */ } }
+const startCenter = cfg.lastCenter && inRegion(cfg.lastCenter[0], cfg.lastCenter[1]) ? cfg.lastCenter : DEFAULT_CENTER;
 function mapPixelRatio() { return Math.min(window.devicePixelRatio || 1, cfg.eco ? 1.5 : 2); }
 try {
   if (!ML) throw new Error('地図ライブラリを読み込めませんでした');
   map = new ML.Map({
     container: 'map',
-    style: 'https://tiles.openfreemap.org/styles/liberty',
-    center: cfg.lastCenter || DEFAULT_CENTER,
+    style: mapStyle,
+    center: startCenter,
+    maxBounds: VIEW_BOUNDS,
+    minZoom: MIN_ZOOM,
     zoom: 14,
     attributionControl: false,
     pitchWithRotate: true,
@@ -288,6 +296,7 @@ let watchId = null, simTimer = null, loopTimer = null, demandTimer = null, wakeL
 let lastFix = null, simPos = null;
 
 function onFix(fix) {
+  if (!onFix.warned && !inRegion(fix.point[0], fix.point[1])) { onFix.warned = true; toast(`現在地が${REGION_NAME}の外です。地図は${REGION_NAME}だけを読み込みます`, 6000); }
   lastFix = fix;
   cfg.lastCenter = fix.point;
   if (!riding) nav.update(fix);
