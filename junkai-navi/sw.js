@@ -1,7 +1,7 @@
 // 同じサイトの他アプリのキャッシュには触れない
 // アプリ本体のみキャッシュ（地図タイル・ルート・需要データは常に最新を取得）
-const CACHE = 'endless-navi-v16';
-const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js?v=16', 'js/navcore.js?v=16', 'js/geo.js?v=16', 'js/valhalla.js?v=16', 'js/demand.js?v=16', 'js/sources.js?v=16', 'js/csv.js?v=16', 'js/places.js?v=16', 'js/profile.js?v=16', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'endless-navi-v17';
+const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js?v=17', 'js/navcore.js?v=17', 'js/geo.js?v=17', 'js/valhalla.js?v=17', 'js/demand.js?v=17', 'js/sources.js?v=17', 'js/csv.js?v=17', 'js/places.js?v=17', 'js/profile.js?v=17', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('endless-navi-') && k !== CACHE).map((k) => caches.delete(k)))));

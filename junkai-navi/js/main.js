@@ -1,11 +1,11 @@
-import { EndlessNavigator } from './navcore.js?v=16';
-import { ValhallaClient } from './valhalla.js?v=16';
-import { DemandEngine, CAT_JA } from './demand.js?v=16';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=16';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=16';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=16';
-import { profText, manualProf } from './profile.js?v=16';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=16';
+import { EndlessNavigator } from './navcore.js?v=17';
+import { ValhallaClient } from './valhalla.js?v=17';
+import { DemandEngine, CAT_JA } from './demand.js?v=17';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=17';
+import { sliceRoute, pointAt, haversine } from './geo.js?v=17';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=17';
+import { profText, manualProf } from './profile.js?v=17';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=17';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -26,6 +26,7 @@ const cfg = Object.assign(
     switchGain: 1.3,
     tourMax: 3, // 1回のルートで通る需要エリアの数
     revisitMin: 60, // 一度通ったエリアに、また向かうまでの時間（分）
+    pickMode: 'nearest', // 行き先の選び方：nearest＝今いる所から近い需要エリア、demand＝需要の高さ優先
     sheetCollapsed: false, // 巡回中の表示エリアをたたんでいるか
     spots: [],
     spotsCenter: null,
@@ -245,7 +246,7 @@ function fmtDist(m) {
 // ===== ナビ =====
 let router = new ValhallaClient(cfg.routerUrl);
 const nav = new EndlessNavigator({
-  router: { route: (...a) => router.route(...a) },
+  router: { route: (...a) => router.route(...a), matrix: (...a) => router.matrix(...a) },
   demand,
   settings: settingsForNav(),
   emit: (type, data) => {
@@ -273,7 +274,7 @@ function tourSpeech(tour) {
   return `${(tour && tour.length ? tour : [null]).map((a) => demand.areaName(a)).join('、')}を通ります`;
 }
 function settingsForNav() {
-  return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000, tourMax: Math.min(4, Math.max(1, +cfg.tourMax || 3)), revisitMin: Math.min(180, Math.max(15, +cfg.revisitMin || 60)) };
+  return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000, tourMax: Math.min(4, Math.max(1, +cfg.tourMax || 3)), revisitMin: Math.min(180, Math.max(15, +cfg.revisitMin || 60)), pickMode: cfg.pickMode === 'demand' ? 'demand' : 'nearest' };
 }
 
 let running = false, riding = false, simulate = false, follow = true;
@@ -625,6 +626,7 @@ function openSettings() {
   $('set-gain').value = cfg.switchGain;
   $('set-tour').value = cfg.tourMax;
   $('set-revisit').value = cfg.revisitMin;
+  document.querySelectorAll('input[name=set-pick]').forEach((r) => (r.checked = r.value === (cfg.pickMode === 'demand' ? 'demand' : 'nearest')));
   $('set-router').value = cfg.routerUrl;
   $('set-sim').value = cfg.simSpeed;
   renderEvents();
@@ -859,6 +861,7 @@ bind('set-voice', 'voice', Boolean, 'checked');
 bind('set-commit', 'commitSec', Number);
 bind('set-replan', 'replanMin', Number);
 bind('set-gain', 'switchGain', Number);
+document.querySelectorAll('input[name=set-pick]').forEach((r) => r.addEventListener('change', () => { cfg.pickMode = r.value; save(); nav.s = { ...nav.s, ...settingsForNav() }; }));
 bind('set-revisit', 'revisitMin', (v) => Math.min(180, Math.max(15, Math.round(Number(v)) || 60)));
 bind('set-tour', 'tourMax', (v) => Math.min(4, Math.max(1, Math.round(Number(v)) || 3)));
 bind('set-router', 'routerUrl', (v) => v.trim() || 'https://valhalla1.openstreetmap.de');

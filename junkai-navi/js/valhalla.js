@@ -1,5 +1,5 @@
 // Valhalla ルーティング API クライアント
-import { decodePolyline, cumulative } from './geo.js?v=16';
+import { decodePolyline, cumulative } from './geo.js?v=17';
 
 // Valhalla maneuver type → 日本語と矢印種別
 export const MANEUVER = {
@@ -41,6 +41,24 @@ export class ValhallaClient {
     const wait = this.lastCall + 1500 - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     this.lastCall = Date.now();
+  }
+
+  // 今いる所から各地点までの道のりの距離（m）。from: {point, heading?}, targets: [[lng,lat], …]
+  async matrix(from, targets) {
+    const src = { lat: from.point[1], lon: from.point[0] };
+    if (from.heading != null) { src.heading = Math.round(from.heading); src.heading_tolerance = 45; }
+    const body = { sources: [src], targets: targets.map((p) => ({ lat: p[1], lon: p[0] })), costing: 'auto', units: 'kilometers',
+      costing_options: { auto: { use_highways: 0.1, use_tolls: 0, use_ferry: 0 } } };
+    await this.throttle();
+    const url = `${this.baseUrl}/sources_to_targets?json=${encodeURIComponent(JSON.stringify(body))}`;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 12000);
+    let json;
+    try { const res = await fetch(url, { cache: 'no-store', signal: ctl.signal }); json = await res.json(); if (!res.ok) throw new Error(); }
+    catch { throw new RouterError('距離の計算に失敗'); }
+    finally { clearTimeout(timer); }
+    const row = (json.sources_to_targets && json.sources_to_targets[0]) || [];
+    return targets.map((_, i) => (row[i] && row[i].distance != null ? row[i].distance * 1000 : null));
   }
 
   // from: {point:[lng,lat], heading?}, to: [lng,lat]
