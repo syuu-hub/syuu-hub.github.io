@@ -422,7 +422,10 @@
       </div>
 
       <div id="readonly-action-buttons" class="pt-4 pb-4 hidden">
-        <button onclick="unlockDay()" class="w-full py-4 rounded-[16px] font-bold bg-app-surface2 text-app-primary border border-app-primary/30 hover:bg-app-border active:scale-[0.97] transition-all flex items-center justify-center shadow-sm text-[15px]">
+        <a id="analyzer-open-btn" href="taxi-analyzer/" class="hidden w-full py-4 rounded-[16px] font-bold bg-app-surface2 text-app-success border border-app-success/30 hover:bg-app-border active:scale-[0.97] transition-all flex items-center justify-center shadow-sm text-[15px]">
+          <span class="material-icons-round text-[20px] mr-2">open_in_new</span>タクシーアナライザーで開く
+        </a>
+        <button id="unlock-btn" onclick="unlockDay()" class="w-full py-4 rounded-[16px] font-bold bg-app-surface2 text-app-primary border border-app-primary/30 hover:bg-app-border active:scale-[0.97] transition-all flex items-center justify-center shadow-sm text-[15px]">
           <span class="material-icons-round text-[20px] mr-2">lock_open</span>編集モードにする
         </button>
       </div>
@@ -441,7 +444,20 @@
       <h2 class="text-2xl font-extrabold text-white mb-2 tracking-wide">設定</h2>
       
       <div class="space-y-7">
-        
+
+        <div class="bg-app-bg p-4 sm:p-5 rounded-[20px] border border-app-border shadow-inner">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-bold text-white flex items-center"><span class="material-icons-round text-[18px] mr-1.5 text-app-success">sync</span>タクシーアナライザーから取得</span>
+            <div class="relative inline-block w-14 h-7 align-middle select-none">
+              <input type="checkbox" id="setting-analyzer-sync" class="toggle-checkbox absolute block w-full h-full opacity-0 cursor-pointer" onchange="updateSettingsRealtime()"/>
+              <label for="setting-analyzer-sync" class="toggle-label block overflow-hidden h-full rounded-full cursor-pointer"></label>
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+          <p class="text-[11px] text-app-muted mt-3 leading-relaxed">営業記録がある日は、出庫・入庫時刻、営業時間、売上を自動で表示します。</p>
+          <p id="analyzer-status" class="text-[11px] text-app-text/80 font-bold mt-1 tabular-nums"></p>
+        </div>
+
         <div class="bg-app-bg p-4 sm:p-5 rounded-[20px] border border-app-border shadow-inner">
           <div class="flex items-center justify-between mb-5">
             <span class="text-sm font-bold text-white">固定休みの自動適用</span>
@@ -514,13 +530,110 @@
     let state = {
       currentYear: new Date().getFullYear(),
       currentMonth: new Date().getMonth() + 1,
-      config: { maxHours: 288, fixedOffEnabled: false, fixedOffDays: [], defaultHours: 11.0, displayMode: 'hours', salesGoal: 500000 },
+      config: { maxHours: 288, fixedOffEnabled: false, fixedOffDays: [], defaultHours: 11.0, displayMode: 'hours', salesGoal: 500000, analyzerSync: true },
       records: {}
     };
 
     let editingDateStr = null;
 
-    function init() { loadData(); renderAll(); }
+    function init() {
+      loadData(); loadAnalyzer(); renderAll();
+      // タクシーアナライザーで記録が増えたら（別タブ・アプリから戻った時）取り込み直す
+      window.addEventListener('storage', e => { if (e.key === ANALYZER_KEY || e.key === null) refreshAnalyzer(); });
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshAnalyzer(); });
+      setInterval(() => { if (document.visibilityState === 'visible' && analyzer.ongoing) refreshAnalyzer(); }, 60000);
+    }
+
+    /* ============================================================
+       タクシーアナライザー（同じサイトの taxi-analyzer/）の記録を取得
+       端末内の localStorage「taxiboard.v2」を読み取り専用で参照し、
+       出庫日ごとに 出庫・入庫時刻／営業時間／売上（営業収入）／乗車件数 をまとめる。
+       アナライザーの記録がある日はそちらを優先して表示する（手入力の記録は消さない）
+       ============================================================ */
+    const ANALYZER_KEY = 'taxiboard.v2';
+    const analyzer = { records: {}, days: 0, shifts: 0, ongoing: false, found: false, error: false, loadedAt: 0, sig: '' };
+
+    const pad2 = n => String(n).padStart(2, '0');
+    const toDateStr = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const toHM = t => { const d = new Date(t); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+
+    function loadAnalyzer() {
+      let raw = null;
+      try { raw = localStorage.getItem(ANALYZER_KEY); } catch (e) {}
+      const sig = (raw ? raw.length : 0) + ':' + (raw ? raw.slice(-64) : '');
+      if (sig === analyzer.sig && analyzer.loadedAt && !analyzer.ongoing) return false;
+      analyzer.sig = sig;
+      analyzer.records = {}; analyzer.days = 0; analyzer.shifts = 0; analyzer.ongoing = false;
+      analyzer.found = !!raw; analyzer.error = false; analyzer.loadedAt = Date.now();
+      if (!raw) return true;
+      let data;
+      try { data = JSON.parse(raw); } catch (e) { analyzer.error = true; return true; }
+      if (!data || data.v !== 2 || !Array.isArray(data.shifts)) { analyzer.error = true; return true; }
+
+      // 乗車の売上（total：アプリ手数料・高速代などの売上外は含まない）を営業ごとに集計
+      const salesBy = new Map(), ridesBy = new Map();
+      for (const r of data.rides || []) {
+        if (!r || r.shiftId == null) continue;
+        salesBy.set(r.shiftId, (salesBy.get(r.shiftId) || 0) + (Number(r.total) || 0));
+        ridesBy.set(r.shiftId, (ridesBy.get(r.shiftId) || 0) + 1);
+      }
+
+      const shifts = data.shifts.filter(sh => sh && Number.isFinite(sh.start)).sort((a, b) => a.start - b.start);
+      for (const sh of shifts) {
+        const dateStr = toDateStr(new Date(sh.start));   // 日付をまたぐ営業は出庫日に記録
+        const ongoing = !sh.end;
+        const end = sh.end || Date.now();
+        const ms = Math.max(0, end - sh.start);
+        const sales = Math.round(salesBy.get(sh.id) || 0);
+        const rides = ridesBy.get(sh.id) || 0;
+        let rec = analyzer.records[dateStr];
+        if (!rec) {
+          rec = analyzer.records[dateStr] = {
+            type: 'work', startTime: toHM(sh.start), endTime: '', hours: 0, sales: 0, rides: 0,
+            isConfirmed: true, fromAnalyzer: true, ongoing: false, shiftCount: 0, _ms: 0
+          };
+          analyzer.days++;
+        }
+        rec._ms += ms;
+        rec.hours = Math.round(rec._ms / 360000) / 10;
+        rec.sales += sales;
+        rec.rides += rides;
+        rec.shiftCount++;
+        rec.endTime = ongoing ? '' : toHM(sh.end);
+        if (ongoing) { rec.ongoing = true; rec.isConfirmed = false; analyzer.ongoing = true; }
+        analyzer.shifts++;
+      }
+      return true;
+    }
+
+    function refreshAnalyzer() {
+      if (loadAnalyzer()) {
+        renderAll();
+        updateAnalyzerStatusUI();
+        // 開いている日の表示も最新にする
+        if (editingDateStr && getRecord(editingDateStr) && getRecord(editingDateStr).fromAnalyzer) {
+          const day = Number(editingDateStr.split('-')[2]);
+          openEditor(editingDateStr, day, getEffectiveRecordsForMonth()[editingDateStr] || getRecord(editingDateStr));
+        }
+      }
+    }
+
+    // 表示に使う記録：アナライザー連携が有効でその日の営業記録があればそれを、なければ手入力の記録
+    function getRecord(dateStr) {
+      if (state.config.analyzerSync !== false && analyzer.records[dateStr]) return analyzer.records[dateStr];
+      return state.records[dateStr];
+    }
+
+    function updateAnalyzerStatusUI() {
+      const el = document.getElementById('analyzer-status');
+      if (!el) return;
+      const tg = document.getElementById('setting-analyzer-sync');
+      if (tg) tg.checked = state.config.analyzerSync !== false;
+      if (state.config.analyzerSync === false) { el.textContent = '連携オフ：手入力の記録だけを表示しています'; return; }
+      if (analyzer.error) { el.textContent = 'タクシーアナライザーの記録を読み込めませんでした'; return; }
+      if (!analyzer.found || !analyzer.shifts) { el.textContent = 'この端末にタクシーアナライザーの営業記録がまだありません'; return; }
+      el.textContent = `${analyzer.days}日分（${analyzer.shifts}営業）を取得${analyzer.ongoing ? '・営業中あり' : ''}　最終確認 ${toHM(analyzer.loadedAt)}`;
+    }
 
     function loadData() {
       const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('taxishift_md3_v39_data'); // マイグレーション対応
@@ -550,6 +663,7 @@
 
       const goalInput = document.getElementById('setting-sales-goal');
       if (goalInput) goalInput.value = state.config.salesGoal || 500000;
+      updateAnalyzerStatusUI();
     }
 
     function openHoursPopup() {
@@ -593,14 +707,14 @@
 
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const record = state.records[dateStr];
+        const record = getRecord(dateStr);
         const dayOfWeek = d.getDay();
         
-        if (record && record.type === 'work' && record.isConfirmed && !record.isVirtual) {
+        if (record && record.type === 'work' && (record.isConfirmed || record.ongoing) && !record.isVirtual) {
           totalSales += Number(record.sales || 0);
         }
 
-        if (d >= today) {
+        if (d >= today && !(record && record.fromAnalyzer && !record.ongoing)) {
           const dayType = getDayTypeStr(dateStr, dayOfWeek, d);
           if (record ? record.type === 'work' : dayType === 'work') {
             remainingWorkDays++;
@@ -667,7 +781,7 @@
     }
 
     function getDayTypeStr(dateStr, dayOfWeek, dateObj) {
-      const realRec = state.records[dateStr];
+      const realRec = getRecord(dateStr);
       if (realRec) return realRec.type;
       const isFixedOff = state.config.fixedOffEnabled && state.config.fixedOffDays.includes(dayOfWeek);
       if (isFixedOff) return 'off';
@@ -688,7 +802,8 @@
         const d = new Date(state.currentYear, state.currentMonth - 1, day);
         const dayType = getDayTypeStr(dateStr, d.getDay(), d);
         
-        let rec = state.records[dateStr] ? { ...state.records[dateStr], isVirtual: false } : null;
+        const src = getRecord(dateStr);
+        let rec = src ? { ...src, isVirtual: false } : null;
         if (!rec) {
           if (dayType === 'off') rec = { type: 'off', hours: 0, isConfirmed: false, isVirtual: true };
           else if (dayType === 'work') rec = { type: 'work', startTime: '', endTime: '', hours: defH, sales: 0, rides: 0, isConfirmed: false, isVirtual: true };
@@ -802,7 +917,7 @@
           
           let displayHtml = '';
           if (state.config.displayMode === 'sales') {
-            if (record.isConfirmed) {
+            if (record.isConfirmed || record.ongoing) {
               let salesText = record.sales >= 10000 
                 ? (record.sales / 10000).toFixed(1).replace('.0', '') + '万' 
                 : record.sales.toLocaleString();
@@ -812,7 +927,7 @@
               displayHtml = `<span class="text-[11px] font-extrabold ${color} tracking-tighter">-</span>`;
             }
           } else {
-            if (record.isConfirmed) {
+            if (record.isConfirmed || record.ongoing) {
               displayHtml = `<span class="text-[12px] font-extrabold ${color} tabular-nums tracking-tighter drop-shadow-sm">${record.hours.toFixed(1)}<span class="text-[9px] opacity-70 ml-[1px]">h</span></span>`;
             } else {
               displayHtml = `<span class="text-[11px] font-extrabold ${color} tracking-tighter">-</span>`;
@@ -820,6 +935,10 @@
           }
 
           content.innerHTML = `${displayHtml}`;
+          if (record.fromAnalyzer) {
+            // タクシーアナライザーから取得した日の印（営業中は点滅）
+            content.innerHTML += `<span class="mt-0.5 w-1 h-1 rounded-full ${record.ongoing ? 'bg-app-warning animate-pulse' : 'bg-app-success/70'}" title="タクシーアナライザー"></span>`;
+          }
 
         } else if (record.type === 'off') {
           const color = record.isConfirmed ? 'text-app-muted' : 'text-app-muted opacity-30';
@@ -854,8 +973,8 @@
       
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const record = state.records[dateStr];
-        if (record && record.type === 'work' && record.isConfirmed && !record.isVirtual) {
+        const record = getRecord(dateStr);
+        if (record && record.type === 'work' && (record.isConfirmed || record.ongoing) && !record.isVirtual) {
           totalSales += Number(record.sales || 0);
         }
       }
@@ -903,6 +1022,14 @@
       updateCalculatedHours();
 
       const statusText = document.getElementById('editor-status-text');
+      if (record.fromAnalyzer) {
+        statusText.innerText = record.ongoing ? 'タクシーアナライザー（営業中）' : 'タクシーアナライザー';
+        statusText.className = `text-[12px] font-extrabold tracking-widest mb-1 uppercase ${record.ongoing ? 'text-app-warning' : 'text-app-success'}`;
+        toggleEditorLock(true, 'work');
+        document.getElementById('editor-backdrop').classList.add('open');
+        document.getElementById('editor-sheet').classList.add('open');
+        return;
+      }
       if (record.isConfirmed) {
         statusText.innerText = record.type === 'off' ? '確定済 (休)' : '確定済 (出勤)';
         statusText.className = record.type === 'off' ? 'text-[12px] font-extrabold tracking-widest mb-1 text-app-muted uppercase' : 'text-[12px] font-extrabold tracking-widest mb-1 text-app-success uppercase';
@@ -998,6 +1125,9 @@
       const actionBtns = document.getElementById('action-buttons');
       const readonlyActionBtns = document.getElementById('readonly-action-buttons');
 
+      const fromAnalyzer = !!(getRecord(editingDateStr) || {}).fromAnalyzer;
+      document.getElementById('unlock-btn').classList.toggle('hidden', fromAnalyzer);
+      document.getElementById('analyzer-open-btn').classList.toggle('hidden', !fromAnalyzer);
       if (isLocked) {
         editContainer.classList.add('hidden');
         readonlyContainer.classList.remove('hidden');
@@ -1015,13 +1145,18 @@
             </div>
           `;
         } else {
-          const record = state.records[editingDateStr] || {};
+          const record = getRecord(editingDateStr) || {};
           const hours = record.hours || 0;
           const sales = record.sales || 0;
           const start = record.startTime || '--:--';
-          const end = record.endTime || '--:--';
+          const end = record.endTime || (record.ongoing ? '営業中' : '--:--');
+          const analyzerNote = record.fromAnalyzer ? `
+            <div class="flex items-center text-[11px] text-app-muted font-bold mb-1 px-1">
+              <span class="material-icons-round text-[15px] mr-1 text-app-success">sync</span>
+              タクシーアナライザーの記録${record.shiftCount > 1 ? `（${record.shiftCount}回の営業の合計）` : ''}
+            </div>` : '';
 
-          readonlyBadgeContainer.innerHTML = `
+          readonlyBadgeContainer.innerHTML = `${analyzerNote}
             <div class="bg-app-bg rounded-[24px] p-6 border border-app-border mb-4 text-left shadow-inner mt-2">
               <div class="text-[12px] text-app-muted font-bold uppercase tracking-widest mb-3 flex items-center">
                 <span class="material-icons-round text-[16px] mr-1 text-app-primary">schedule</span> 労働時間
@@ -1042,6 +1177,7 @@
               </div>
               <div class="flex items-baseline">
                 <span class="text-3xl font-extrabold text-white tabular-nums tracking-tight">¥${sales.toLocaleString()}</span>
+                ${record.fromAnalyzer ? `<span class="text-sm font-bold text-app-muted ml-3 tabular-nums">${record.rides || 0}件</span>` : ''}
               </div>
             </div>
           `;
@@ -1084,7 +1220,7 @@
       saveData(); renderAll(); closeEditor();
     }
 
-    function openSettings() { document.getElementById('settings-backdrop').classList.add('open'); document.getElementById('settings-sheet').classList.add('open'); }
+    function openSettings() { refreshAnalyzer(); updateAnalyzerStatusUI(); document.getElementById('settings-backdrop').classList.add('open'); document.getElementById('settings-sheet').classList.add('open'); }
     function closeSettings() { document.getElementById('settings-backdrop').classList.remove('open'); document.getElementById('settings-sheet').classList.remove('open'); }
 
     function toggleSettingDay(dayIndex) {
@@ -1099,6 +1235,9 @@
       state.config.maxHours = Number(document.getElementById('setting-max-hours').value) || 288;
       state.config.fixedOffEnabled = document.getElementById('setting-fixed-off').checked;
       state.config.defaultHours = Number(document.getElementById('setting-def-hours').value) || 11.0;
+      const syncEl = document.getElementById('setting-analyzer-sync');
+      if (syncEl) state.config.analyzerSync = syncEl.checked;
+      updateAnalyzerStatusUI();
       const goalEl = document.getElementById('setting-sales-goal');
       if (goalEl) state.config.salesGoal = Number(goalEl.value) || 0;
       saveData(); renderAll();
