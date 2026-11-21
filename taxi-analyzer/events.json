@@ -1,8 +1,8 @@
 {
- "updated": "2026-11-21",
+ "updated": "2026-11-22",
  "status": {
   "world": 19,
-  "kih": 23,
+  "kih": 22,
   "bunka": 37,
   "kcc": 41,
   "vissel": 4,
@@ -12,66 +12,6 @@
   "ships": 18
  },
  "events": [
-  {
-   "date": "2026-11-21",
-   "start": "09:40",
-   "end": "12:10",
-   "venue": "神戸文化ホール 中ホール",
-   "cap": 900,
-   "title": "第61回近畿高等学校演劇研究大会",
-   "open": "09:20",
-   "price": "無料・自由席",
-   "contact": "兵庫県高等学校演劇研究会 kinki-soubun-act@hyogo-c.ed.jp",
-   "src": "bunka"
-  },
-  {
-   "date": "2026-11-21",
-   "start": "10:20",
-   "end": "12:50",
-   "venue": "神戸文化ホール 大ホール",
-   "cap": 2000,
-   "title": "第50回兵庫県高等学校総合文化祭『吹奏楽』部門演奏会",
-   "open": "10:00",
-   "price": "無料・自由席",
-   "contact": "近畿高等学校文化連盟吹奏楽部門 fuji_masato@himeji-hyg.ed.jp",
-   "src": "bunka"
-  },
-  {
-   "date": "2026-11-21",
-   "start": "16:00",
-   "end": "18:30",
-   "venue": "神戸国際会館こくさいホール",
-   "cap": 2000,
-   "title": "クレイジーケンバンド CRAZY KEN BAND TOUR？2026-2027 Presented by NISHIHARA SHOKAI",
-   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2189",
-   "performer": "クレイジーケンバンド",
-   "price": "全席指定：前売9,900円(税込) 当日10,500円(税込)",
-   "contact": "●神戸国際会館 078-231-8162（平日9:30～18:00）",
-   "src": "kih"
-  },
-  {
-   "date": "2026-11-21",
-   "start": "17:30",
-   "end": "20:00",
-   "venue": "ワールド記念ホール",
-   "cap": 8000,
-   "title": "日向坂４６",
-   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
-   "url": "https://www.hinatazaka46.com/s/official/page/hinachri2026",
-   "src": "world"
-  },
-  {
-   "date": "2026-11-21",
-   "start": null,
-   "end": "17:00",
-   "venue": "神戸国際展示場",
-   "cap": 5000,
-   "title": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
-   "day": true,
-   "contact": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
-   "url": "https://www.c-linkage.co.jp/jser2026/",
-   "src": "kcc"
-  },
   {
    "date": "2026-11-22",
    "start": "09:30",
@@ -421,6 +361,18 @@
   },
   {
    "date": "2026-11-29",
+   "start": "11:00",
+   "end": "13:30",
+   "venue": "神戸文化ホール 中ホール",
+   "cap": 900,
+   "title": "第5回 MERCI competition",
+   "open": "10:45",
+   "price": "1,000円・自由席",
+   "contact": "MERCI competition 050-1722-2988 ※内容は予告なく変更する場合がございます。 前の月へ 次の月へ カスタマーハラスメント対策方針 プライバシーポリシー リンク･著作権に…",
+   "src": "bunka"
+  },
+  {
+   "date": "2026-11-29",
    "start": "14:00",
    "end": "16:30",
    "venue": "神戸文化ホール 大ホール",
@@ -444,17 +396,6 @@
    "price": "全席指定 ¥8,800",
    "contact": "キョードーインフォメーション 0570-200-888 （11:00～18:00/日祝休業） 神戸国際会館 078-231-8162",
    "src": "kih"
-  },
-  {
-   "date": "2026-11-29",
-   "start": null,
-   "end": null,
-   "venue": "神戸文化ホール 中ホール",
-   "cap": 900,
-   "title": "MERCI competition",
-   "price": "1,000円・自由席",
-   "contact": "MERCI competition 050-1722-2988 ※内容は予告なく変更する場合がございます。 前の月へ 次の月へ カスタマーハラスメント対策方針 プライバシーポリシー リンク･著作権に…",
-   "src": "bunka"
   },
   {
    "date": "2026-11-29",
