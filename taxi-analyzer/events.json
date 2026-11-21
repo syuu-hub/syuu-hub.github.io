@@ -1,8 +1,8 @@
 {
- "updated": "2026-11-20",
+ "updated": "2026-11-21",
  "status": {
   "world": 19,
-  "kih": 25,
+  "kih": 23,
   "bunka": 37,
   "kcc": 41,
   "vissel": 4,
@@ -12,44 +12,6 @@
   "ships": 18
  },
  "events": [
-  {
-   "date": "2026-11-20",
-   "start": "19:00",
-   "end": "21:30",
-   "venue": "神戸国際会館こくさいホール",
-   "cap": 2000,
-   "title": "椎名林檎と彼奴等と試す煩悩菩提",
-   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2033",
-   "performer": "椎名林檎",
-   "price": "指定席 ¥12,500 立見席 ¥12,500",
-   "contact": "YUMEBANCHI 06-6341-3525（平日12:00~17:00 / 土日祝休） https://www.yumebanchi.jp/",
-   "open": "18:00",
-   "src": "kih"
-  },
-  {
-   "date": "2026-11-20",
-   "start": "19:00",
-   "end": "21:00",
-   "venue": "ノエビアスタジアム神戸",
-   "cap": 30000,
-   "title": "ヴィッセル神戸 vs 水戸",
-   "sport": true,
-   "performer": "明治安田Ｊ１リーグ 第15節",
-   "url": "https://www.jleague.jp/match/j1/2026/112003",
-   "src": "vissel"
-  },
-  {
-   "date": "2026-11-20",
-   "start": null,
-   "end": "17:00",
-   "venue": "神戸国際展示場",
-   "cap": 5000,
-   "title": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
-   "day": true,
-   "contact": "第40回日本泌尿器内視鏡・ロボティクス学会総会",
-   "url": "https://www.c-linkage.co.jp/jser2026/",
-   "src": "kcc"
-  },
   {
    "date": "2026-11-21",
    "start": "09:40",
