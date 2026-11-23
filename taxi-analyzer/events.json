@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-22",
+ "updated": "2026-11-23",
  "status": {
   "world": 19,
   "kih": 22,
@@ -12,82 +12,6 @@
   "ships": 18
  },
  "events": [
-  {
-   "date": "2026-11-22",
-   "start": "09:30",
-   "end": "12:00",
-   "venue": "神戸文化ホール 大ホール",
-   "cap": 2000,
-   "title": "第46回近畿高等学校総合文化祭兵庫大会 吹奏楽部門",
-   "open": "09:00",
-   "price": "無料・自由席",
-   "contact": "近畿高等学校文化連盟吹奏楽部門 fuji_masato@himeji-hyg.ed.jp",
-   "src": "bunka"
-  },
-  {
-   "date": "2026-11-22",
-   "start": "09:50",
-   "end": "12:20",
-   "venue": "神戸文化ホール 中ホール",
-   "cap": 900,
-   "title": "第61回近畿高等学校演劇研究大会",
-   "open": "09:20",
-   "price": "無料・自由席",
-   "contact": "兵庫県高等学校演劇研究会 kinki-soubun-act@hyogo-c.ed.jp",
-   "src": "bunka"
-  },
-  {
-   "date": "2026-11-22",
-   "start": "17:00",
-   "end": "19:30",
-   "venue": "GLION ARENA KOBE",
-   "cap": 10000,
-   "title": "NiziU Live with U 2026-2027 \"Who? U! NiziU Fes.”",
-   "url": "https://www.totteikobe.jp/event/article/32052",
-   "performer": "NiziU",
-   "contact": "SOGO OSAKA 06-6344-3326 (平日 14:00～16:00 土日祝除く)",
-   "official": "https://niziu.com/s/n123/page/livewithu2026_2027",
-   "goods": "【グッズ会場販売について】 時間：2026年11月22日(日) 11:00～開演後30分 / 2026年11月23日(月・祝) 11:00～開演後30分 URL https://niziu",
-   "open": "16:00",
-   "src": "glion"
-  },
-  {
-   "date": "2026-11-22",
-   "start": "17:30",
-   "end": "20:00",
-   "venue": "ワールド記念ホール",
-   "cap": 8000,
-   "title": "日向坂４６",
-   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
-   "url": "https://www.hinatazaka46.com/s/official/page/hinachri2026",
-   "src": "world"
-  },
-  {
-   "date": "2026-11-22",
-   "start": "17:30",
-   "end": "20:00",
-   "venue": "神戸国際会館こくさいホール",
-   "cap": 2000,
-   "title": "三浦大知 DAICHI MIURA LIVE TOUR 2026 Raw / Bare",
-   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2136",
-   "performer": "三浦大知",
-   "price": "[全席指定] 9,900円",
-   "contact": "サウンドクリエーター https://www.sound-c.co.jp お電話でのお問い合わせ：06-6357-4400（平日 12:00〜15:00 ※祝日を除く） メールでのお問い合わせ：ht…",
-   "open": "16:30",
-   "src": "kih"
-  },
-  {
-   "date": "2026-11-22",
-   "start": null,
-   "end": "17:00",
-   "venue": "神戸国際会議場",
-   "cap": 3000,
-   "title": "わたしのキャリア研究会 キャリアフォーラム＆企業経営層・人事担当者との座談会",
-   "day": true,
-   "contact": "兵庫県産業労働部労政福祉課",
-   "url": "https://www.comisapo.com/watacaree/menu/schedule",
-   "src": "kcc"
-  },
   {
    "date": "2026-11-23",
    "start": "09:50",
