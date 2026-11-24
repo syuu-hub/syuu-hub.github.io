@@ -1,13 +1,12 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=29';
-import { ValhallaClient } from './valhalla.js?v=29';
-import { DemandEngine, CAT_JA } from './demand.js?v=29';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=29';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=29';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=29';
-import { profText, manualProf } from './profile.js?v=29';
-import { carGeoJSON, metersPerPixel } from './car3d.js?v=29';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=29';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=29';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=30';
+import { ValhallaClient } from './valhalla.js?v=30';
+import { DemandEngine, CAT_JA } from './demand.js?v=30';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=30';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=30';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=30';
+import { profText, manualProf } from './profile.js?v=30';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=30';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=30';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -200,14 +199,6 @@ map.on('load', () => {
   map.addLayer({ id: 'turn-line', type: 'line', source: 'turn', filter: ['==', ['geometry-type'], 'LineString'], layout: lineLayout, paint: { 'line-color': '#ffffff', 'line-width': lw(3, 10) } });
   map.addLayer({ id: 'turn-head', type: 'symbol', source: 'turn', filter: ['==', ['geometry-type'], 'Point'],
     layout: { 'icon-image': 'turn-head', 'icon-size': lw(0.45, 1.2), 'icon-rotate': ['get', 'rot'], 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
-  // 現在地の3Dの車：影（平面）と、立体の車体（地図の傾き・回転と一緒に立体で見える）
-  try {
-    map.addSource('car', { type: 'geojson', data: empty });
-    map.addLayer({ id: 'car-shadow', type: 'fill', source: 'car', filter: ['has', 'shadow'], paint: { 'fill-color': '#000', 'fill-opacity': 0.28 } });
-    map.addLayer({ id: 'car-body', type: 'fill-extrusion', source: 'car', filter: ['!', ['has', 'shadow']],
-      paint: { 'fill-extrusion-color': ['get', 'c'], 'fill-extrusion-base': ['get', 'b'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-opacity': 1, 'fill-extrusion-vertical-gradient': true } });
-    car3d = true;
-  } catch { car3d = false; /* 立体が描けない端末は絵の印 */ }
   refreshHeat();
 });
 map.on('dragstart', () => { if (running) setFollow(false); });
@@ -231,52 +222,12 @@ function addArrowImages() {
 
 const puckEl = document.createElement('div');
 puckEl.className = 'puck';
-// 現在地の印（3Dの車が描けない時だけ使う絵）：後ろ斜め上から見た立体的な黒いセダン
-// 地図に寝かせず画面に向けて立てて出し（pitchAlignment: viewport）、向きは地図に合わせる（進む向きが上の時はまっすぐ）
-puckEl.innerHTML = [
-  '<svg viewBox="0 0 64 80" aria-label="現在地">',
-  '<defs>',
-  '<linearGradient id="car-cb" x1="0" x2="1"><stop offset="0" stop-color="#0d0f12"/><stop offset=".22" stop-color="#2c3139"/><stop offset=".5" stop-color="#3b414b"/><stop offset=".78" stop-color="#2c3139"/><stop offset="1" stop-color="#0d0f12"/></linearGradient>',
-  '<linearGradient id="car-ch" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#454c57"/><stop offset="1" stop-color="#1f2329"/></linearGradient>',
-  '<linearGradient id="car-cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fb3c8"/><stop offset=".55" stop-color="#4d5f73"/><stop offset="1" stop-color="#26313d"/></linearGradient>',
-  '<linearGradient id="car-cr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1d22"/><stop offset="1" stop-color="#08090b"/></linearGradient>',
-  '<radialGradient id="car-cs" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>',
-  '</defs>',
-  '<ellipse cx="32" cy="70" rx="30" ry="8" fill="url(#car-cs)"/>',
-  '<rect x="6" y="60" width="10" height="13" rx="3" fill="#050505"/><rect x="48" y="60" width="10" height="13" rx="3" fill="#050505"/>',
-  '<path d="M17 10 Q32 5 47 10 L52 30 L58 48 L58 66 Q32 71 6 66 L6 48 L12 30 Z" fill="#fff"/>',
-  '<path d="M18.5 12 Q32 7.5 45.5 12 L50.5 30.5 L56 48 L56 64.5 Q32 69 8 64.5 L8 48 L13.5 30.5 Z" fill="url(#car-cb)"/>',
-  '<path d="M19.5 13 Q32 9.5 44.5 13 L46.5 22 Q32 20 17.5 22 Z" fill="url(#car-ch)"/>',
-  '<path d="M17.5 22 Q32 20 46.5 22 L47.5 25 Q32 23.5 16.5 25 Z" fill="#7d90a6"/>',
-  '<path d="M16.5 25 Q32 23.5 47.5 25 L49 34 Q32 33 15 34 Z" fill="url(#car-ch)"/>',
-  '<path d="M15 34 Q32 33 49 34 L53 45 Q32 43.5 11 45 Z" fill="url(#car-cg)"/>',
-  '<path d="M18 35.2 L25 35 L19 43.6 L13.4 44 Z" fill="#fff" opacity=".18"/>',
-  '<path d="M11 45 Q32 43.5 53 45 L55 50 Q32 49 9 50 Z" fill="url(#car-ch)"/>',
-  '<path d="M9 50 Q32 49 55 50 L55.5 64 Q32 68 8.5 64 Z" fill="url(#car-cr)"/>',
-  '<path d="M9.5 52 L20 52.3 L19 56.5 L9.5 56.5 Z" fill="#ff3b30"/><path d="M54.5 52 L44 52.3 L45 56.5 L54.5 56.5 Z" fill="#ff3b30"/>',
-  '<path d="M20 53.6 L44 53.6" stroke="#b3261e" stroke-width="1.4"/>',
-  '<rect x="25" y="58" width="14" height="5" rx="1" fill="#e9eef2"/>',
-  '<path d="M8.6 61 Q32 65.5 55.4 61" stroke="#000" stroke-width="1.2" fill="none" opacity=".6"/>',
-  '<path d="M15.5 23 L8.5 22.5 Q7 24.5 9 26 L16 26 Z" fill="#111418"/><path d="M48.5 23 L55.5 22.5 Q57 24.5 55 26 L48 26 Z" fill="#111418"/>',
-  '</svg>'
-].join('');
-const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'viewport' });
+puckEl.innerHTML = '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="#fff"/><path d="M24 7 37 38 24 31 11 38z" fill="#1a73e8"/></svg>';
+const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
 // 現在地の印：ルートの上を走っている間はルートの線の上に置き、次の位置まで線に沿って動かす
 // （地図の移動と同じ長さ・同じ速さで動かすので、印は画面の同じ所にいて、ルートの線からずれない）
 const puckAnim = { added: false, route: null, along: null, point: null, raf: 0 };
-// 3Dの車の全長（画面で約72ピクセル分のメートル。ルートの線より少し太く見える大きさ）。拡大・縮小しても画面での大きさはほぼ同じ
-const CAR_PX = 72;
-let car3d = false;
-function drawCar(point, brg) {
-  const src = map.getSource && map.getSource('car');
-  if (!src) return false;
-  src.setData(point ? carGeoJSON(point, brg, CAR_PX * metersPerPixel(point[1], map.getZoom ? map.getZoom() : 17)) : empty);
-  return true;
-}
-map.on('zoomend', () => { if (car3d && puckAnim.point) drawCar(puckAnim.point, puckAnim.brg || 0); });
 function placePuck(point, brg) {
-  puckAnim.brg = brg;
-  if (car3d && drawCar(point, brg)) { puckAnim.point = point; return; }
   if (!puckAnim.added) { puck.setLngLat(point).addTo(map); puckAnim.added = true; } else puck.setLngLat(point);
   puck.setRotation(brg);
   puckAnim.point = point;
@@ -307,7 +258,6 @@ function removePuck() {
   if (puckAnim.raf) cancelAnimationFrame(puckAnim.raf);
   Object.assign(puckAnim, { added: false, route: null, along: null, point: null, raf: 0 });
   puck.remove();
-  if (car3d) drawCar(null);
 }
 // これから通るポイントの印（1＝次に通るポイント）。ゴールの印は出さない
 let tourMarkers = [];
