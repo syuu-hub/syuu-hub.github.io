@@ -1017,26 +1017,24 @@ svg{display:block}
 #planSheet .ps-dur b{color:var(--accent)}
 .plan-note{font-size:12px;color:var(--faint);text-align:center;margin:12px 0 2px;min-height:1em}
 /* ポップアップの中身 */
-.pop-card{background:var(--bg);border:1px solid var(--line-2);border-radius:22px;padding:16px 18px;margin-bottom:12px}
-.pop-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;white-space:nowrap}
-.pop-row .k{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
+.pop-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:10px}   /* ほかの画面のカードと同じ */
+.pop-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;white-space:nowrap}
+.pop-row + .pop-row{border-top:1px solid var(--line)}
+.pop-row .k{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--muted)}
 .pop-row .k i{width:10px;height:10px;border-radius:3px;background:var(--c,var(--muted));flex:none}
+.pop-row .k small{display:block;font-size:11px;font-weight:500;color:var(--faint);margin-top:2px}
 .pop-row .v{font-size:20px;font-weight:800}
 .pop-row .v small{font-size:11px;font-weight:600;color:var(--muted);margin-left:3px}
-.pop-row.sum{border-top:1px solid var(--line-2);margin-top:8px;padding-top:12px}
+.pop-row .v.ac{color:var(--accent)}
+.pop-row .v.ok{color:var(--ok)}
+.pop-row.sum{border-top:2px solid var(--line-2);padding-top:12px}
 .pop-row.sum .k{font-size:13px;color:var(--text);font-weight:800;letter-spacing:.1em}
-.pop-row.sum .v{font-size:34px}
+.pop-row.sum .v{font-size:32px}
 .pop-row.sum.warn .v{color:var(--st-wait)}
 .pop-row.sum.over .v{color:var(--danger)}
-.pop-mini{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line-2);border-radius:16px;padding:12px 16px;margin-bottom:10px;white-space:nowrap}
-.pop-mini .k{font-size:12px;font-weight:700;color:var(--muted)}
-.pop-mini .k small{display:block;font-size:11px;font-weight:500;color:var(--faint);margin-top:2px}
-.pop-mini .v{font-size:22px;font-weight:800}
-.pop-mini .v.ac{color:var(--accent)}
-.pop-mini .v.ok{color:var(--ok)}
+.pop-card .cal-cap{background:none;border-radius:0;padding:12px 0 2px;margin:4px 0 0;border-top:1px solid var(--line)}   /* 上限とのバーは同じカードの中に */
 .cap-body{overflow-y:auto;min-height:0}
-.cap-body .cal-cap{margin-bottom:12px}
-.inc-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
+.inc-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:10px}
 .inc-card .row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;white-space:nowrap;font-size:13px;color:var(--muted)}
 .inc-card .row1 b{font-size:clamp(20px,6vw,26px);font-weight:800;color:var(--text)}
 .inc-card .row2{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2);white-space:nowrap}
@@ -3458,16 +3456,17 @@ function hoursPopHtml(c) {
       <div class="pop-row"><span class="k"><i style="--c:var(--ok)"></i>実績（確定）</span><span class="v">${H(c.used)}<small>h</small></span></div>
       <div class="pop-row"><span class="k"><i style="--c:var(--accent)"></i>予定${days ? `（${days}日${same ? ` × ${dayHoursEff()}h` : ''}）` : ''}</span><span class="v">${H(plan)}<small>h</small></span></div>
       <div class="pop-row sum ${cls}"><span class="k">合計</span><span class="v">${H(est)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span></div>
-    </div>
-    ${cap ? capHtml(c.hy, c.hm, c.used, c.pdays) : ''}`;
+      ${cap ? capHtml(c.hy, c.hm, c.used, c.pdays) : ''}
+    </div>`;
 }
 // 売上：期間合計・推定手取り（歩合）・目標まで残り・締め日まで必要/日
 function salesPopHtml(c) {
   const g = dayUnit() ? 0 : S.settings.monthGoal, left = g - c.sales, gd = planDays(c.y, c.m, c.from, c.to).length;
-  return incomeHtml(c.sales, c.from, c.to) +
-    (g ? `<div class="pop-mini num"><span class="k">目標まで残り<small>月の目標 ${yen(g)}</small></span><span class="v ${left <= 0 ? 'ok' : ''}">${left > 0 ? yen(left) : '達成'}</span></div>
-      ${left > 0 ? `<div class="pop-mini num"><span class="k">締め日まで必要/日<small>残り出勤 ${gd}日</small></span><span class="v ac">${gd ? yen(Math.ceil(left / gd)) : '—'}</span></div>` : ''}` : '') +
-    `<div class="pop-mini num"><span class="k">乗車・出勤</span><span class="v">${c.count}<small style="font-size:12px;color:var(--muted)">回</small> ・ ${c.days}<small style="font-size:12px;color:var(--muted)">日</small></span></div>`;
+  return incomeHtml(c.sales, c.from, c.to) + `<div class="pop-card num">
+    ${g ? `<div class="pop-row"><span class="k"><span>目標まで残り<small>月の目標 ${yen(g)}</small></span></span><span class="v ${left <= 0 ? 'ok' : ''}">${left > 0 ? yen(left) : '達成'}</span></div>
+      ${left > 0 ? `<div class="pop-row"><span class="k"><span>締め日まで必要/日<small>残り出勤 ${gd}日</small></span></span><span class="v ac">${gd ? yen(Math.ceil(left / gd)) : '—'}</span></div>` : ''}` : ''}
+    <div class="pop-row"><span class="k">乗車・出勤</span><span class="v">${c.count}<small>回</small> ・ ${c.days}<small>日</small></span></div>
+  </div>`;
 }
 function openCalPop(kind) {
   const c = CAL.pop;
