@@ -1592,7 +1592,7 @@ svg{display:block}
       <input class="text-in" id="appName" placeholder="例：GO" maxlength="16" enterkeyhint="done">
     </div>
     <div class="group">
-      <div class="glabel"><span>アプリ手数料</span><small>アプリ内決済の時は売上に含む</small></div>
+      <div class="glabel"><span>アプリ手数料</span><small>売上に含む</small></div>
       <div class="fields">
         <button class="field" id="appFee"><span class="k">アプリ内決済の時</span><span class="v num">¥0</span></button>
         <button class="field" id="appFeeOther"><span class="k">それ以外の決済の時</span><span class="v num">¥0</span></button>
@@ -1771,7 +1771,7 @@ const KIND = [
 // defaultPay = そのアプリを選んだ時の決済方法（'app' はそのアプリの決済）
 // fee = アプリ決済時の手数料、feeOther = それ以外の決済時の手数料、handle = アプリ決済時の取扱手数料、handleOther = それ以外の決済時の取扱手数料
 //   （GOはGO Pay以外でアプリ手数料¥100＋取扱手数料¥100）
-// アプリ内決済（GO Pay など）の手数料は売上（日報の合計）に含める。それ以外の決済の手数料は売上外
+// アプリ手数料・取扱手数料は決済方法に関係なく売上（日報の合計）に含める（売上外にしない）
 // 迎車料金は会社共通の settings.pickupFee（配車アプリ・無線で付く）。いずれも入力した総額から差し引いて内訳を出す
 // payKey = そのアプリ内の決済にあたる支払い方法（GOなら GO Pay）
 // pickup = そのアプリの迎車料金（null は会社共通の迎車料金）。GO は ¥300
@@ -1782,7 +1782,7 @@ const pickupFor = (cfg, st = S.settings) => cfg && cfg.pickup != null ? cfg.pick
 const appPayKey = cfg => (cfg && cfg.payKey) || 'app';
 const appFeeFor = (cfg, pay) => (pay === appPayKey(cfg) ? cfg.fee : cfg.feeOther) || 0;
 const handleFeeFor = (cfg, pay) => (pay === appPayKey(cfg) ? cfg.handle : cfg.handleOther) || 0;   // 取扱手数料
-const feeInFor = (cfg, pay) => pay === 'gopay' || (!!cfg && pay === appPayKey(cfg));   // GO Pay・アプリ内決済の手数料は売上に含める（売上外にしない）
+const feeInFor = () => true;   // 手数料はいつも売上に含める（売上外にしない）
 const feeOut = r => r.fare && r.fare.feeIn ? 0 : ((r.fare || {}).appFee || 0) + ((r.fare || {}).handleFee || 0);   // 売上外の手数料
 // 待機・休憩は一時的な状態：空車／実車、または同じボタンの再タップで解除して空車へ
 const PAUSE = ['wait'];
@@ -1837,7 +1837,8 @@ function freshState() {
   };
 }
 // 設定の引き継ぎ：機能の変更で設定の形が変わった時は、ここで古い値を新しい設定に移す（消さずに引き継ぐ）
-const SETTINGS_VER = 10;   // 10：GO Pay の手数料は設定に関係なく売上に含める（fixFeeIn をもう一度）
+const SETTINGS_VER = 11;   // 11：手数料は決済方法に関係なく売上に含める（fixFeeIn をもう一度）
+//   // 10：GO Pay の手数料は設定に関係なく売上に含める（fixFeeIn をもう一度）
 //   // 9：アプリ内決済（GO Pay など）の手数料を売上に含める（以前の記録は fixFeeIn で直す）
 //   // 8：迎車料金（配車アプリ・無線）の既定 ¥300。¥0 のまま記録した乗車は fixPickup で直す
 //   // 7：GO の迎車料金 ¥300（以前の記録は fixGoPickup で直す）   // 6：アプリ手数料・取扱手数料を売上外に   // 4：メーターの合計の扱いを直した（以前の記録は fixMeterTotals で直す）
@@ -1896,7 +1897,7 @@ function loadState() {
       if (((s.settings || {}).sv || 0) < 6) fixAppFees(s);
       if (((s.settings || {}).sv || 0) < 7) fixGoPickup(s);
       if (((s.settings || {}).sv || 0) < 8) fixPickup(s);
-      if (((s.settings || {}).sv || 0) < 10) fixFeeIn(s);
+      if (((s.settings || {}).sv || 0) < 11) fixFeeIn(s);
       return { ...base, ...s, settings: { ...base.settings, ...migrateSettings({ ...s.settings }) } };
     }
   } catch (e) { LOAD_ERR = true; try { localStorage.setItem(BROKEN_KEY, raw); } catch (e2) {} }
@@ -4572,7 +4573,7 @@ function entryBreakdown() {
   const pickup = (cfg || E.kind === 'radio') && !E.noPickup ? pickupFor(cfg) : 0;
   const appFee = cfg ? appFeeFor(cfg, E.pay) : 0, handleFee = cfg ? handleFeeFor(cfg, E.pay) : 0;
   const net = gross - pickup - appFee - handleFee - toll;   // 割引後の運賃
-  const feeIn = feeInFor(cfg, E.pay) && !!(appFee || handleFee);   // アプリ内決済の手数料は売上に含める
+  const feeIn = feeInFor(cfg, E.pay) && !!(appFee || handleFee);   // 手数料は売上に含める
   const { fare, long, handi } = solveFare(net, !!E.handi);   // 遠距離割は自動（設定の金額を超えた時だけ効く）
   // total：売上（高速代は売上外。アプリ手数料・取扱手数料はアプリ内決済の時だけ売上、それ以外は売上外）、meter：割引後の運賃、fare：割引前の運賃（メーター運賃）
   return { gross, pickup, appFee, handleFee, feeIn, toll, long, handi, fare, total: gross - toll - (feeIn ? 0 : appFee + handleFee), meter: net };
@@ -4590,7 +4591,7 @@ function fixAppFees(s) {
     if (out) r.total -= out;
   }
 }
-// 以前の記録：アプリ内決済（GO Pay など）の手数料を売上外にしていたのを売上に含める（設定の版 9）
+// 以前の記録：アプリ手数料・取扱手数料を売上外にしていたのを売上に含める（設定の版 11）
 function fixFeeIn(s) {
   const apps = (s.settings || {}).apps || [];
   for (const r of s.rides || []) {
@@ -5092,7 +5093,7 @@ function restore(file) {
       if (((s.settings || {}).sv || 0) < 6) fixAppFees(s);
       if (((s.settings || {}).sv || 0) < 7) fixGoPickup(s);
       if (((s.settings || {}).sv || 0) < 8) fixPickup(s);
-      if (((s.settings || {}).sv || 0) < 10) fixFeeIn(s);
+      if (((s.settings || {}).sv || 0) < 11) fixFeeIn(s);
       S = { ...base, ...s, settings: { ...base.settings, ...migrateSettings({ ...s.settings }) } };
       save(); applySettings(); setView(S.settings.tab);
       toast('復元しました');
@@ -5168,11 +5169,12 @@ function importLogCsv(text) {
       const ticket = tName ? (TICKETS().find(t => t.name === tName) || { id: 't' + uid(), name: tName }) : null;
       const fare = { meter: num(r, '運賃') || 0, pickup: num(r, '迎車料金') || 0, appFee: num(r, 'アプリ手数料') || 0 };
       if (num(r, '取扱手数料')) fare.handleFee = num(r, '取扱手数料');
-      // 運賃合計に手数料が入っていれば売上込み（アプリ内決済）
-      if ((fare.appFee || fare.handleFee) && (num(r, '運賃合計') || 0) === fare.meter + fare.pickup + fare.appFee + (fare.handleFee || 0)) fare.feeIn = true;
+      // 手数料は売上に含める。運賃合計に手数料が入っていない（以前の出力）なら足す
+      const fee0 = (fare.appFee || 0) + (fare.handleFee || 0), feeAdd = fee0 && (num(r, '運賃合計') || 0) !== fare.meter + fare.pickup + fee0 ? fee0 : 0;
+      if (fee0) fare.feeIn = true;
       if (num(r, '遠距離割')) fare.long = num(r, '遠距離割');
       if (num(r, '障害者割')) fare.handi = num(r, '障害者割');
-      const ride = { id: uid(), ts, start: parseStamp(get(r, '乗車時刻')), fare, total: num(r, '運賃合計') || 0, noPickup: get(r, '迎車なし') === '○',
+      const ride = { id: uid(), ts, start: parseStamp(get(r, '乗車時刻')), fare, total: (num(r, '運賃合計') || 0) + feeAdd, noPickup: get(r, '迎車なし') === '○',
         pay: payKey(get(r, '決済方法'), app), kind, app: app ? { id: app.id, name: app.name } : null,
         from: loc(r, '乗車'), to: loc(r, '降車') };
       if (ticket) ride.ticket = { id: ticket.id, name: ticket.name };
