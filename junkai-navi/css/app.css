@@ -187,8 +187,8 @@ body.sheet-collapsed .recenter { bottom: calc(92px + var(--sab)); }
 body.sheet-collapsed .maplibregl-ctrl-bottom-right { bottom: calc(80px + var(--sab)); }
 
 /* ===== 自車・ポイントの印 ===== */
-.puck { width: 32px; height: 58px; }
-.puck svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); }
+.puck { width: 48px; height: 60px; }
+.puck svg { width: 100%; height: 100%; display: block; }
 /* 脈打つ輪：影を動かすと毎フレーム描き直しになるので、拡大と透明度だけで（GPUで合成、電池にやさしい） */
 .target-dot, .tour-dot.next { position: relative; }
 .target-dot::after, .tour-dot.next::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; background: rgba(227,116,0,.55); z-index: -1; animation: pulse 2s ease-out infinite; will-change: transform, opacity; }

@@ -1,12 +1,12 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=27';
-import { ValhallaClient } from './valhalla.js?v=27';
-import { DemandEngine, CAT_JA } from './demand.js?v=27';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=27';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=27';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=27';
-import { profText, manualProf } from './profile.js?v=27';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=27';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=27';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=28';
+import { ValhallaClient } from './valhalla.js?v=28';
+import { DemandEngine, CAT_JA } from './demand.js?v=28';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=28';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=28';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=28';
+import { profText, manualProf } from './profile.js?v=28';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=28';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=28';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -222,19 +222,36 @@ function addArrowImages() {
 
 const puckEl = document.createElement('div');
 puckEl.className = 'puck';
-// 現在地の印：真上から見た黒いセダン（前が進む向き）。印の中心＝車の中心がルートの線の上
-puckEl.innerHTML = '<svg viewBox="0 0 40 72" aria-label="現在地">'
-  + '<path d="M6 21h-4a2 2 0 0 0 0 4h4zM34 21h4a2 2 0 0 1 0 4h-4z" fill="#111418"/>' // ドアミラー
-  + '<rect x="4" y="3" width="32" height="66" rx="12" fill="#fff"/>' // 縁取り
-  + '<rect x="6" y="5" width="28" height="62" rx="10.5" fill="#1b1e23"/>' // 車体
-  + '<path d="M9.5 22q10.5-5 21 0l-2.5 9h-16z" fill="#5f7187"/>' // フロントガラス
-  + '<rect x="11.5" y="31" width="17" height="20" rx="3" fill="#2e333b"/>' // 屋根
-  + '<path d="M12 51h16l2 7q-10 3.5-20 0z" fill="#5f7187"/>' // リアガラス
-  + '<path d="M8.5 24.5l2.5 8v16l-2.5 5zM31.5 24.5l-2.5 8v16l2.5 5z" fill="#5f7187" opacity=".8"/>' // 横の窓
-  + '<rect x="9" y="6.5" width="7" height="3.2" rx="1.6" fill="#fff8d6"/><rect x="24" y="6.5" width="7" height="3.2" rx="1.6" fill="#fff8d6"/>' // ライト
-  + '<rect x="9" y="63" width="6" height="2.4" rx="1.2" fill="#ff5a4e"/><rect x="25" y="63" width="6" height="2.4" rx="1.2" fill="#ff5a4e"/>' // テールランプ
-  + '</svg>';
-const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
+// 現在地の印：後ろ斜め上から見た立体的な黒いセダン（ナビの地図を傾けた視点に合わせた絵）
+// 地図に寝かせず画面に向けて立てて出し（pitchAlignment: viewport）、向きは地図に合わせる（進む向きが上の時はまっすぐ）
+puckEl.innerHTML = [
+  '<svg viewBox="0 0 64 80" aria-label="現在地">',
+  '<defs>',
+  '<linearGradient id="car-cb" x1="0" x2="1"><stop offset="0" stop-color="#0d0f12"/><stop offset=".22" stop-color="#2c3139"/><stop offset=".5" stop-color="#3b414b"/><stop offset=".78" stop-color="#2c3139"/><stop offset="1" stop-color="#0d0f12"/></linearGradient>',
+  '<linearGradient id="car-ch" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#454c57"/><stop offset="1" stop-color="#1f2329"/></linearGradient>',
+  '<linearGradient id="car-cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fb3c8"/><stop offset=".55" stop-color="#4d5f73"/><stop offset="1" stop-color="#26313d"/></linearGradient>',
+  '<linearGradient id="car-cr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1d22"/><stop offset="1" stop-color="#08090b"/></linearGradient>',
+  '<radialGradient id="car-cs" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>',
+  '</defs>',
+  '<ellipse cx="32" cy="70" rx="30" ry="8" fill="url(#car-cs)"/>',
+  '<rect x="6" y="60" width="10" height="13" rx="3" fill="#050505"/><rect x="48" y="60" width="10" height="13" rx="3" fill="#050505"/>',
+  '<path d="M17 10 Q32 5 47 10 L52 30 L58 48 L58 66 Q32 71 6 66 L6 48 L12 30 Z" fill="#fff"/>',
+  '<path d="M18.5 12 Q32 7.5 45.5 12 L50.5 30.5 L56 48 L56 64.5 Q32 69 8 64.5 L8 48 L13.5 30.5 Z" fill="url(#car-cb)"/>',
+  '<path d="M19.5 13 Q32 9.5 44.5 13 L46.5 22 Q32 20 17.5 22 Z" fill="url(#car-ch)"/>',
+  '<path d="M17.5 22 Q32 20 46.5 22 L47.5 25 Q32 23.5 16.5 25 Z" fill="#7d90a6"/>',
+  '<path d="M16.5 25 Q32 23.5 47.5 25 L49 34 Q32 33 15 34 Z" fill="url(#car-ch)"/>',
+  '<path d="M15 34 Q32 33 49 34 L53 45 Q32 43.5 11 45 Z" fill="url(#car-cg)"/>',
+  '<path d="M18 35.2 L25 35 L19 43.6 L13.4 44 Z" fill="#fff" opacity=".18"/>',
+  '<path d="M11 45 Q32 43.5 53 45 L55 50 Q32 49 9 50 Z" fill="url(#car-ch)"/>',
+  '<path d="M9 50 Q32 49 55 50 L55.5 64 Q32 68 8.5 64 Z" fill="url(#car-cr)"/>',
+  '<path d="M9.5 52 L20 52.3 L19 56.5 L9.5 56.5 Z" fill="#ff3b30"/><path d="M54.5 52 L44 52.3 L45 56.5 L54.5 56.5 Z" fill="#ff3b30"/>',
+  '<path d="M20 53.6 L44 53.6" stroke="#b3261e" stroke-width="1.4"/>',
+  '<rect x="25" y="58" width="14" height="5" rx="1" fill="#e9eef2"/>',
+  '<path d="M8.6 61 Q32 65.5 55.4 61" stroke="#000" stroke-width="1.2" fill="none" opacity=".6"/>',
+  '<path d="M15.5 23 L8.5 22.5 Q7 24.5 9 26 L16 26 Z" fill="#111418"/><path d="M48.5 23 L55.5 22.5 Q57 24.5 55 26 L48 26 Z" fill="#111418"/>',
+  '</svg>'
+].join('');
+const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'viewport' });
 // 現在地の印：ルートの上を走っている間はルートの線の上に置き、次の位置まで線に沿って動かす
 // （地図の移動と同じ長さ・同じ速さで動かすので、印は画面の同じ所にいて、ルートの線からずれない）
 const puckAnim = { added: false, route: null, along: null, point: null, raf: 0 };
