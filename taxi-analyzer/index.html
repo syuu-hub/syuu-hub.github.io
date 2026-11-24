@@ -888,30 +888,36 @@ svg{display:block}
 .rd-foot .rd-nav:disabled{opacity:.3}
 .rd-foot .rd-pos{flex:none;min-width:44px;text-align:center;font-size:14px;color:var(--muted);font-weight:700}
 .rd-foot #rdEdit{flex:1}
-.rd-amt{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
-.rd-amt .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1}
-.rd-amt .tags{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);min-width:0;max-width:100%;white-space:nowrap}
-.rd-amt .tags .tag{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rd-amt{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
+.rd-amt .top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px 12px;flex-wrap:wrap}
+.rd-amt .k{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.rd-amt .v{font-size:clamp(34px,10vw,46px);font-weight:800;line-height:1.05;color:var(--accent);letter-spacing:-.01em}
+.rd-amt .tags{display:flex;gap:6px;align-items:center;min-width:0;max-width:100%;white-space:nowrap;padding-bottom:4px}
+.rd-amt .tags .tag{overflow:hidden;text-overflow:ellipsis;min-width:0;margin:0;font-size:13px;padding:4px 9px;border-radius:8px}
+.rd-amt .meta{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2);font-size:15px;font-weight:700;color:var(--text);display:flex;flex-wrap:wrap;align-items:baseline;row-gap:2px}
+.rd-amt .meta i{font-style:normal;color:var(--muted);margin:0 4px}
+.rd-amt .meta .dot{color:var(--faint);margin:0 6px}
 .rd-fare{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
-.rd-fare .fr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 0;font-size:15px;color:var(--muted);white-space:nowrap}
+.rd-fare .fr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;font-size:15px;color:var(--muted);white-space:nowrap}
 .rd-fare .fr + .fr{border-top:1px solid var(--line)}
-.rd-fare .fr b{font-size:18px;font-weight:800;color:var(--text)}
+.rd-fare .fr b{font-size:17px;font-weight:800;color:var(--text)}
+.rd-fare .fr.out b{color:var(--muted);font-weight:700}
 .rd-fare .fr.disc b{color:var(--accent)}
 .rd-fare .fr.zero b{color:var(--faint);font-weight:600;font-size:15px}
 .rd-fare .fr.sum{border-top:2px solid var(--line-2);color:var(--text);font-weight:700;font-size:16px}
-.rd-fare .fr.sum b{font-size:24px;color:var(--accent)}
+.rd-fare .fr.sum b{font-size:22px}
 .rd-fare .fr small{margin-left:8px;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--surface-2);color:var(--faint)}
 .rd-fare .fr.sub{border-top:1px dashed var(--line-2)}
 .rd-fare .fr.sub b{font-weight:700}
 .rd-route{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
-.rd-stop{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr) auto;column-gap:10px;row-gap:2px;align-items:center;padding:12px 0}
+.rd-stop{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr) auto;column-gap:10px;row-gap:2px;align-items:center;padding:10px 0}
 .rd-stop + .rd-stop{border-top:1px solid var(--line)}
 .rd-stop .sk{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;border:2px solid var(--muted);color:var(--muted);background:var(--surface);position:relative;z-index:1}
 .rd-stop.to .sk{border-color:var(--accent);background:var(--accent);color:#1A1200}
-.rd-stop.from::after{content:'';position:absolute;left:11px;top:38px;bottom:-14px;border-left:2px dashed var(--line-2)}
-.rd-stop .tm{font-size:20px;font-weight:800}
-.rd-stop .map{text-decoration:none;display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;font-weight:700;color:var(--accent)}
-.rd-stop .nm{grid-column:2 / -1;font-size:17px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.rd-stop.from::after{content:'';position:absolute;left:11px;top:40px;bottom:-12px;border-left:2px dashed var(--line-2)}
+.rd-stop .tm{font-size:18px;font-weight:800}
+.rd-stop .map{text-decoration:none;display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;font-weight:700;color:var(--accent)}
+.rd-stop .nm{grid-column:2 / -1;font-size:16px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
 .rd-stop .nm.none{color:var(--faint);font-weight:600;font-size:15px}
 .rd-stop .sm{grid-column:2 / -1;font-size:13px;color:var(--muted);line-height:1.45;overflow-wrap:anywhere}   /* 住所は省略せず折り返して全部 */
 .rd-stop .sm em{font-style:normal;color:var(--accent);font-weight:700}
@@ -2552,9 +2558,9 @@ function stepRide(d) {
   if (!r) return;
   const list = dayRides(r), i = list.findIndex(x => x.id === r.id), n = list[i + d];
   if (!n) return;
-  haptic(); openRide(n.id);
+  haptic(); openRide(n.id, d);
 }
-function openRide(id) {
+function openRide(id, dir = 0) {
   const r = S.rides.find(x => x.id === id);
   if (!r) return;
   RD = id;
@@ -2583,17 +2589,20 @@ function openRide(id) {
     </div>`;
   };
   $('#rdDate').textContent = ymd(r.ts);
+  // 上：売上（大きく）・決済・乗車種別・時刻と所要時間 → 料金の内訳 → 乗車・降車 → メモ
+  const paid = r.total + (r.toll || 0) + outFee;   // お支払い金額（売上外を含む）
+  const meta = [r.start ? `${hhmm(r.start)}<i>→</i>${hhmm(r.ts)}` : `降車 ${hhmm(r.ts)}`, r.start && Math.round((r.ts - r.start) / 60000) + '分',
+    paid !== r.total && `お支払い ${yen(paid)}`].filter(Boolean).join('<span class="dot">・</span>');
+  const kl = kindLabel(r.kind, r.app);
   $('#rdBody').innerHTML = `
     <div class="rd-amt">
-      <div class="v num">${yen(r.total)}</div>
-      <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${esc(kindLabel(r.kind, r.app))}</div>
+      <div class="top">
+        <div><div class="k">売上</div><div class="v num">${yen(r.total)}</div></div>
+        <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${kl ? `<span class="tag">${esc(kl)}</span>` : ''}</div>
+      </div>
+      <div class="meta num">${meta}</div>
     </div>
-    <section class="rp-sec">
-      <h3><span>乗車・降車</span><span class="num">${r.start ? Math.round((r.ts - r.start) / 60000) + '分' : '乗車時刻は未記録'}</span></h3>
-      <div class="rd-route">${stop('from', '乗', r.start ? hhmm(r.start) : '--:--', r.from)}${stop('to', '降', hhmm(r.ts), r.to)}</div>
-    </section>
-    ${r.memo ? `<section class="rp-sec"><h3><span>メモ</span></h3><div class="rd-memo">${esc(r.memo)}</div></section>` : ''}
-    <section class="rp-sec">
+    ${adj || r.toll ? `<section class="rp-sec">
       <h3><span>料金</span></h3>
       <div class="rd-fare num">
         ${frow('メーター金額', yen((f.meter || 0) + (f.long || 0) + (f.handi || 0)))}
@@ -2603,12 +2612,19 @@ function openRide(id) {
         ${f.feeIn && f.appFee ? frow('アプリ手数料', '+' + yen(f.appFee)) : ''}
         ${f.feeIn && f.handleFee ? frow('取扱手数料', '+' + yen(f.handleFee)) : ''}
         ${(f.pickup || f.long || f.handi || f.feeIn) && (r.toll || outFee) ? frow('割引適用後合計', yen(r.total), 'sub') : ''}
-        ${!f.feeIn && f.appFee ? `<div class="fr"><span>アプリ手数料<small>売上外</small></span><b>+${yen(f.appFee)}</b></div>` : ''}
-        ${!f.feeIn && f.handleFee ? `<div class="fr"><span>取扱手数料<small>売上外</small></span><b>+${yen(f.handleFee)}</b></div>` : ''}
-        ${r.toll ? `<div class="fr"><span>高速代<small>売上外</small></span><b>+${yen(r.toll)}</b></div>` : ''}
-        ${adj || r.toll ? frow('お支払い金額', yen(r.total + (r.toll || 0) + outFee), 'sum') : ''}
+        ${!f.feeIn && f.appFee ? `<div class="fr out"><span>アプリ手数料<small>売上外</small></span><b>+${yen(f.appFee)}</b></div>` : ''}
+        ${!f.feeIn && f.handleFee ? `<div class="fr out"><span>取扱手数料<small>売上外</small></span><b>+${yen(f.handleFee)}</b></div>` : ''}
+        ${r.toll ? `<div class="fr out"><span>高速代<small>売上外</small></span><b>+${yen(r.toll)}</b></div>` : ''}
+        ${frow('お支払い金額', yen(paid), 'sum')}
       </div>
-    </section>`;
+    </section>` : ''}
+    <section class="rp-sec">
+      <h3><span>乗車・降車</span></h3>
+      <div class="rd-route">${stop('from', '乗', r.start ? hhmm(r.start) : '--:--', r.from)}${stop('to', '降', hhmm(r.ts), r.to)}</div>
+    </section>
+    ${r.memo ? `<section class="rp-sec"><h3><span>メモ</span></h3><div class="rd-memo">${esc(r.memo)}</div></section>` : ''}`;
+  if (dir && !matchMedia('(prefers-reduced-motion: reduce)').matches)   // 前後の乗車へ切り替えた時は、その向きに少しスライド
+    $('#rdBody').animate([{ opacity: 0, transform: `translateX(${dir * 28}px)` }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
   $('#rideSheet .rp-body').scrollTop = 0;
   openSheet($('#rideSheet'));
 }
