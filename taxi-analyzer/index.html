@@ -943,14 +943,14 @@ svg{display:block}
 .cal-dow{font-size:12px;font-weight:700;color:var(--muted);text-align:center;padding:2px 0 4px}
 .cal-dow.sun{color:var(--st-vacant)}
 .cal-dow.sat{color:var(--info)}
-.cal-cell{min-height:clamp(64px,10.5vh,104px);border-radius:10px;border:1px solid var(--line);background:var(--surface);padding:4px 5px;text-align:left;display:flex;flex-direction:column;gap:1px;overflow:hidden;position:relative}
+.cal-cell{min-height:clamp(64px,10.5vh,104px);border-radius:10px;border:1px solid var(--line);background:var(--surface);padding:4px 3px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;overflow:hidden;position:relative}   /* 日付・金額などは中央ぞろえ */
 .cal-cell::before{content:"";position:absolute;inset:0;background:var(--accent);opacity:var(--h,0);pointer-events:none}
 .cal-cell > *{position:relative}
 .cal-cell .d{font-size:12px;font-weight:700;color:var(--muted)}
 .cal-cell.today .d{color:var(--accent)}
 .cal-cell .s{font-size:clamp(11px,3vw,16px);font-weight:800;white-space:nowrap}
 .cal-cell .m{font-size:clamp(9px,2.5vw,12px);color:var(--muted);white-space:nowrap;line-height:1.25}
-.cal-cell[aria-pressed="true"]{border:2px solid var(--accent);padding:3px 4px}
+.cal-cell[aria-pressed="true"]{border:2px solid var(--accent);padding:3px 2px}
 .cal-cell.out{opacity:.5}
 .cal-cell.empty{background:transparent;border-color:transparent}
 .cal-cell.hol{background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 6px,var(--surface-2) 6px,var(--surface-2) 12px)}
@@ -984,6 +984,27 @@ svg{display:block}
 .cal-cell .p{font-size:clamp(9px,2.5vw,12px);color:var(--accent);opacity:.85;white-space:nowrap;line-height:1.25;font-weight:700}
 .cal-cap.over .bar i{background:var(--danger)}
 .cal-cap.over b.used{color:var(--danger)}
+/* 労働時間の見込み（1行）：押すと詳細のポップアップ */
+.cal-capbtn{width:100%;display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;text-align:left;min-height:56px}
+.cal-capbtn:active{background:var(--surface-3)}
+.cal-capbtn .k{font-size:13px;color:var(--muted);white-space:nowrap}
+.cal-capbtn .v{margin-left:auto;font-size:clamp(18px,5.4vw,22px);font-weight:800;white-space:nowrap}
+.cal-capbtn .v small{font-size:12px;font-weight:600;color:var(--muted);margin-left:3px}
+.cal-capbtn.warn .v{color:var(--st-wait)}
+.cal-capbtn.over .v{color:var(--danger)}
+.cal-capbtn svg{flex:none;color:var(--muted)}
+.cap-body{overflow-y:auto;min-height:0}
+.cap-body .cal-cap{margin-bottom:12px}
+.inc-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
+.inc-card .row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;white-space:nowrap;font-size:13px;color:var(--muted)}
+.inc-card .row1 b{font-size:clamp(20px,6vw,26px);font-weight:800;color:var(--text)}
+.inc-card .row2{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2);white-space:nowrap}
+.inc-card .row2 .k{font-size:13px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px}
+.inc-card .row2 .k em{font-style:normal;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--accent);color:var(--accent-ink)}
+.inc-card .row2 b{font-size:clamp(24px,7.4vw,32px);font-weight:800;color:var(--accent)}
+.inc-card .nx{font-size:12px;color:var(--muted);margin-top:6px}
+.inc-card .nx b{color:var(--text)}
+.inc-card .pd{font-size:11px;color:var(--faint);margin-top:2px}
 .hol-setting{flex-wrap:wrap;row-gap:10px;padding:14px 0}
 .seg.hol{flex:1 1 100%;margin:0}
 .seg.hol button{flex:1;min-width:0;padding:0}
@@ -1559,6 +1580,19 @@ svg{display:block}
       <div class="cal-grid" id="calGrid"></div>
       <div class="cal-day" id="calDay"></div>
     </div>
+  </div>
+</div>
+
+<!-- ===== 労働時間・推定手取りの詳細（カレンダーの労働時間の見込みから） ===== -->
+<div class="sheet center" id="capSheet" hidden role="dialog" aria-modal="true" aria-labelledby="capTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="capTitle">見込み</h2>
+    </header>
+    <div class="cap-body" id="capBody"></div>
   </div>
 </div>
 
@@ -3321,6 +3355,38 @@ function goalHtml(sales, pdays, to) {
 }
 // 労働時間のカード：実績＋予定（残りの出勤予定日×1日の予定時間）＝見込みを上限と比べる
 // 労働時間＝出庫〜入庫（待機・休憩を含む）
+// 推定手取り：締め期間の売上に応じた歩合（トップページ index.html の「推定手取り額」と同じ段階）
+const COMMISSION = [[480000, 61], [465000, 60], [450000, 59], [435000, 58], [420000, 57], [405000, 56], [390000, 55], [375000, 53.5], [360000, 52], [340000, 51], [320000, 50], [0, 45]];
+function commission(sales) {
+  const i = COMMISSION.findIndex(([from]) => sales >= from), rate = COMMISSION[i][1], next = COMMISSION[i - 1];
+  return { rate, income: Math.floor(sales * rate / 100), next: next ? { left: next[0] - sales, rate: next[1] } : null };
+}
+function incomeHtml(sales, from, to) {
+  const c = commission(sales), md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  return `<div class="inc-card num">
+    <div class="row1"><span>売上（${md(from)}〜${md(to)}）</span><b>${yen(sales)}</b></div>
+    <div class="row2"><span class="k">推定手取り<em>歩合 ${c.rate}%</em></span><b>${yen(c.income)}</b></div>
+    ${c.next ? `<div class="nx">あと <b>${yen(c.next.left)}</b> で歩合 ${c.next.rate}%</div>` : ''}
+    <div class="pd">売上 × 歩合の目安（税・控除の前）</div>
+  </div>`;
+}
+// 労働時間の見込み（カレンダーに1行）：押すと capSheet に内訳と推定手取り
+function capBtnHtml(y, m, used, pdays) {
+  const cap = capMs(), plan = pdays.length * planMs(), est = used + plan;
+  const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
+  const lbl = (S.settings.closingDay ? `${m + 1}月の` : '') + (plan ? '労働時間の見込み' : '労働時間');
+  return `<button class="cal-capbtn num ${cls}" id="calCapBtn" aria-haspopup="dialog"><span class="k">${lbl}</span>
+    <span class="v">${(Math.max(0, est) / 3600000).toFixed(1)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>`;
+}
+function openCapPop() {
+  const c = CAL.pop;
+  if (!c) return;
+  haptic();
+  $('#capTitle').textContent = `${periodName(CAL)}の見込み`;
+  $('#capBody').innerHTML = incomeHtml(c.sales, c.from, c.to) + capHtml(c.hy, c.hm, c.used, c.pdays);
+  openSheet($('#capSheet'));
+}
 function capHtml(y, m, used, pdays) {
   const cap = capMs(), days = pdays.length, plan = days * planMs(), est = used + plan;
   const lbl = S.settings.closingDay ? `${m + 1}月の労働時間` : '労働時間';   // 締め期間と暦月がずれる時は月を明示
@@ -3351,13 +3417,16 @@ function renderCal() {
     <div><div class="k">売上</div><div class="v num">${tot.sales >= 100000 ? compactYen(tot.sales) : yen(tot.sales)}</div></div>
     <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
     <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
-  $('#calGoal').innerHTML = goalHtml(tot.sales, planDays(y, m, from, to), to);   // 目標は締め期間・固定休を除く（カレンダーの表示は変えない）
+  // 月の目標（月単位の時だけ。日単位の「月の目安」は出さない）。締め期間・固定休を除く
+  $('#calGoal').innerHTML = dayUnit() ? '' : goalHtml(tot.sales, planDays(y, m, from, to), to);
   // 労働時間はカレンダーに連動して暦月（1日〜末日）で計算：今日を含む期間なら今月、それ以外は期間の月。
   // その月のうち締め期間の外にある日も薄く並べ、労働時間に入る日がすべて見えるようにする
   const now = new Date(), cur = now >= from && now < +to + 86400000;
   const hy = cur ? now.getFullYear() : y, hm = cur ? now.getMonth() : m;
   const pdays = planDays(hy, hm);
-  $('#calCap').innerHTML = capHtml(hy, hm, monthWorkMs(hy, hm), pdays);
+  const used = monthWorkMs(hy, hm);
+  CAL.pop = { sales: tot.sales, from, to, hy, hm, used, pdays };   // ポップアップ（労働時間の内訳・推定手取り）用
+  $('#calCap').innerHTML = capBtnHtml(hy, hm, used, pdays);
   const mFrom = new Date(hy, hm, 1), mTo = new Date(hy, hm + 1, 0);
   const first = mFrom < from ? mFrom : from, last = mTo > to ? mTo : to;
   const other = {};   // 期間外の日：その日の記録
@@ -5749,6 +5818,9 @@ $('#calGrid').addEventListener('click', e => {
   $('section[data-view="log"]').scrollTop = 0;
 });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
+$('#calCap').addEventListener('click', e => { if (e.target.closest('#calCapBtn')) openCapPop(); });
+$('#capSheet [data-close]').addEventListener('click', () => closeSheet($('#capSheet')));
+$('#capSheet').addEventListener('click', e => { if (e.target.id === 'capSheet') closeSheet($('#capSheet')); });
 $('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#reportSheet')));
 // 乗車の検索：日をまたいで全記録を曜日・時間帯・金額・文字で絞り込み、並べ替える
 const FD = { q: '', dows: new Set(), blks: new Set(), min: 0, sort: 'new' };
@@ -5987,11 +6059,11 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#stepSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#capSheet', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#stepSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
   if (open.id === 'rideSheet' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); stepRide(e.key === 'ArrowLeft' ? -1 : 1); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet' || open.id === 'stepSheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'capSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet' || open.id === 'stepSheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
