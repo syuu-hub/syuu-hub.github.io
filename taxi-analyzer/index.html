@@ -1614,10 +1614,6 @@ svg{display:block}
       </div>
     </div>
     <div class="group">
-      <div class="glabel"><span>アプリ内決済</span></div>
-      <div class="opts pay" id="appOwnPay"></div>
-    </div>
-    <div class="group">
       <div class="glabel"><span>既定の決済</span></div>
       <div class="opts pay" id="appPay"></div>
     </div>
@@ -1781,6 +1777,8 @@ const DEFAULT_APPS = [['GO', 'cash', 100, 'gopay', 100, null], ['DiDi', 'app', 0
 const isGo = a => a.payKey === 'gopay' || a.name === 'GO';
 const pickupFor = (cfg, st = S.settings) => st.pickupFee || 0;   // 迎車料金は会社共通の金額だけ（アプリ別の設定はやめた）
 const appPayKey = cfg => (cfg && cfg.payKey) || 'app';
+// アプリ内決済は選ばず1つに決まる：GO は GO Pay、ほかのアプリは「アプリ名＋決済」（決済方法の 'app'）
+const ownPayKey = (name, prev) => (/^GO$/i.test((name || '').trim()) || prev === 'gopay') && payDef('gopay') ? 'gopay' : 'app';
 const appFeeFor = (cfg, pay) => (pay === appPayKey(cfg) ? cfg.fee : cfg.feeOther) || 0;
 const handleFeeFor = (cfg, pay) => (pay === appPayKey(cfg) ? cfg.handle : cfg.handleOther) || 0;   // 取扱手数料
 const feeInFor = () => true;   // 手数料はいつも売上に含める（売上外にしない）
@@ -1867,7 +1865,8 @@ function migrateSettings(st) {
     if (!st.pickupFee) st.pickupFee = 300;
     for (const a of st.apps || []) if (a.pickup === st.pickupFee) a.pickup = null;
   }
-  for (const a of st.apps || []) delete a.pickup;   // アプリ別の迎車料金はやめた（会社共通の金額を使う）
+  for (const a of st.apps || []) delete a.pickup;
+  for (const a of st.apps || []) a.payKey = isGo(a) && (st.pays || DEFAULT_PAYS).some(p => p.k === 'gopay') ? 'gopay' : 'app';   // アプリ内決済は1つに固定   // アプリ別の迎車料金はやめた（会社共通の金額を使う）
   st.sv = SETTINGS_VER;
   return st;
 }
@@ -4967,14 +4966,15 @@ function renderAppSheet() {
   $('#appHandleIn .v').textContent = yen(AE.handle);
   const name = $('#appName').value.trim() || 'アプリ';
   const lbl = p => esc(p.k === 'app' ? name + '決済' : p.label);
-  const opts = PAYS().filter(p => p.k !== 'cash');
-  $('#appOwnPay').innerHTML = opts.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${AE.payKey === p.k}">${lbl(p)}</button>`).join('');
+  AE.payKey = ownPayKey($('#appName').value, AE.prevKey);   // アプリ内決済はアプリ名で決まる
+  const own = lbl(payDef(AE.payKey) || payDef('app'));
+  $('#appFee .k').textContent = $('#appHandleIn .k').textContent = `${own}の時`;
   const order = [payDef('cash'), payDef(AE.payKey) || payDef('app'), ...PAYS().filter(p => p.k !== 'cash' && p.k !== AE.payKey && p.k !== 'app')];
   $('#appPay').innerHTML = order.map(p => `<button class="opt" data-pay="${p.k}" aria-pressed="${AE.defaultPay === p.k}">${lbl(p)}</button>`).join('');
 }
 function openAppEditor(id) {
   const a = id ? S.settings.apps.find(x => x.id === id) : null;
-  Object.assign(AE, { id: a ? a.id : null, defaultPay: a ? a.defaultPay : 'app', fee: a ? a.fee : 0, feeOther: a ? a.feeOther : 0, handle: a ? a.handle || 0 : 0, handleOther: a ? a.handleOther || 0 : 0, payKey: a ? appPayKey(a) : 'app' });
+  Object.assign(AE, { id: a ? a.id : null, defaultPay: a ? a.defaultPay : 'app', fee: a ? a.fee : 0, feeOther: a ? a.feeOther : 0, handle: a ? a.handle || 0 : 0, handleOther: a ? a.handleOther || 0 : 0, payKey: a ? appPayKey(a) : 'app', prevKey: a ? appPayKey(a) : null });
   $('#appTitle').textContent = a ? '配車アプリの編集' : '配車アプリの追加';
   $('#appName').value = a ? a.name : '';
   $('#appDelete').hidden = !a;
@@ -4986,7 +4986,7 @@ function saveApp() {
   const name = $('#appName').value.trim();
   if (!name) { toast('アプリ名を入力してください'); $('#appName').focus(); return; }
   const a = AE.id && S.settings.apps.find(x => x.id === AE.id);
-  const cfg = { name, defaultPay: AE.defaultPay, fee: AE.fee, feeOther: AE.feeOther, handle: AE.handle, handleOther: AE.handleOther, payKey: AE.payKey };
+  const cfg = { name, defaultPay: AE.defaultPay, fee: AE.fee, feeOther: AE.feeOther, handle: AE.handle, handleOther: AE.handleOther, payKey: ownPayKey(name, AE.prevKey) };
   if (a) Object.assign(a, cfg);
   else S.settings.apps.push({ id: uid(), ...cfg });
   save(); closeSheet($('#appSheet')); renderData();
@@ -5360,7 +5360,6 @@ $('#closingBtn').addEventListener('click', () => openNumpad('締め日', S.setti
 $('#appList').addEventListener('click', e => { const b = e.target.closest('[data-app-edit]'); if (b) openAppEditor(b.dataset.appEdit); });
 $('#appAddBtn').addEventListener('click', () => openAppEditor(null));
 $('#appOk').addEventListener('click', saveApp);
-$('#appOwnPay').addEventListener('click', e => { const b = e.target.closest('[data-pay]'); if (b) { haptic(); AE.payKey = b.dataset.pay; renderAppSheet(); } });
 $('#longFromBtn').addEventListener('click', () => openNumpad('遠距離割を適用する金額', S.settings.longFrom, v => { S.settings.longFrom = v; save(); renderData(); }, { label: 'この金額を超えた分の1割' }));
 $('#pickupFeeBtn').addEventListener('click', () => openNumpad('迎車料金', S.settings.pickupFee, v => { S.settings.pickupFee = v; save(); renderData(); }, { label: '会社共通・配車アプリと無線' }));
 $('#appFee').addEventListener('click', () => openNumpad('アプリ決済の手数料', AE.fee, v => { AE.fee = v; renderAppSheet(); }));
