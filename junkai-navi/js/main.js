@@ -1,12 +1,13 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=28';
-import { ValhallaClient } from './valhalla.js?v=28';
-import { DemandEngine, CAT_JA } from './demand.js?v=28';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=28';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=28';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=28';
-import { profText, manualProf } from './profile.js?v=28';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=28';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=28';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=29';
+import { ValhallaClient } from './valhalla.js?v=29';
+import { DemandEngine, CAT_JA } from './demand.js?v=29';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=29';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=29';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=29';
+import { profText, manualProf } from './profile.js?v=29';
+import { carGeoJSON, metersPerPixel } from './car3d.js?v=29';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=29';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=29';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -199,6 +200,14 @@ map.on('load', () => {
   map.addLayer({ id: 'turn-line', type: 'line', source: 'turn', filter: ['==', ['geometry-type'], 'LineString'], layout: lineLayout, paint: { 'line-color': '#ffffff', 'line-width': lw(3, 10) } });
   map.addLayer({ id: 'turn-head', type: 'symbol', source: 'turn', filter: ['==', ['geometry-type'], 'Point'],
     layout: { 'icon-image': 'turn-head', 'icon-size': lw(0.45, 1.2), 'icon-rotate': ['get', 'rot'], 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+  // 現在地の3Dの車：影（平面）と、立体の車体（地図の傾き・回転と一緒に立体で見える）
+  try {
+    map.addSource('car', { type: 'geojson', data: empty });
+    map.addLayer({ id: 'car-shadow', type: 'fill', source: 'car', filter: ['has', 'shadow'], paint: { 'fill-color': '#000', 'fill-opacity': 0.28 } });
+    map.addLayer({ id: 'car-body', type: 'fill-extrusion', source: 'car', filter: ['!', ['has', 'shadow']],
+      paint: { 'fill-extrusion-color': ['get', 'c'], 'fill-extrusion-base': ['get', 'b'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-opacity': 1, 'fill-extrusion-vertical-gradient': true } });
+    car3d = true;
+  } catch { car3d = false; /* 立体が描けない端末は絵の印 */ }
   refreshHeat();
 });
 map.on('dragstart', () => { if (running) setFollow(false); });
@@ -222,7 +231,7 @@ function addArrowImages() {
 
 const puckEl = document.createElement('div');
 puckEl.className = 'puck';
-// 現在地の印：後ろ斜め上から見た立体的な黒いセダン（ナビの地図を傾けた視点に合わせた絵）
+// 現在地の印（3Dの車が描けない時だけ使う絵）：後ろ斜め上から見た立体的な黒いセダン
 // 地図に寝かせず画面に向けて立てて出し（pitchAlignment: viewport）、向きは地図に合わせる（進む向きが上の時はまっすぐ）
 puckEl.innerHTML = [
   '<svg viewBox="0 0 64 80" aria-label="現在地">',
@@ -255,7 +264,19 @@ const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAli
 // 現在地の印：ルートの上を走っている間はルートの線の上に置き、次の位置まで線に沿って動かす
 // （地図の移動と同じ長さ・同じ速さで動かすので、印は画面の同じ所にいて、ルートの線からずれない）
 const puckAnim = { added: false, route: null, along: null, point: null, raf: 0 };
+// 3Dの車の全長（画面で約72ピクセル分のメートル。ルートの線より少し太く見える大きさ）。拡大・縮小しても画面での大きさはほぼ同じ
+const CAR_PX = 72;
+let car3d = false;
+function drawCar(point, brg) {
+  const src = map.getSource && map.getSource('car');
+  if (!src) return false;
+  src.setData(point ? carGeoJSON(point, brg, CAR_PX * metersPerPixel(point[1], map.getZoom ? map.getZoom() : 17)) : empty);
+  return true;
+}
+map.on('zoomend', () => { if (car3d && puckAnim.point) drawCar(puckAnim.point, puckAnim.brg || 0); });
 function placePuck(point, brg) {
+  puckAnim.brg = brg;
+  if (car3d && drawCar(point, brg)) { puckAnim.point = point; return; }
   if (!puckAnim.added) { puck.setLngLat(point).addTo(map); puckAnim.added = true; } else puck.setLngLat(point);
   puck.setRotation(brg);
   puckAnim.point = point;
@@ -286,6 +307,7 @@ function removePuck() {
   if (puckAnim.raf) cancelAnimationFrame(puckAnim.raf);
   Object.assign(puckAnim, { added: false, route: null, along: null, point: null, raf: 0 });
   puck.remove();
+  if (car3d) drawCar(null);
 }
 // これから通るポイントの印（1＝次に通るポイント）。ゴールの印は出さない
 let tourMarkers = [];

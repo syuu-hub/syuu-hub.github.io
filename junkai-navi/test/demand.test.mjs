@@ -2,6 +2,7 @@
 import { EndlessNavigator } from '../js/navcore.js';
 import { DemandEngine, rideWeight, trendStrength } from '../js/demand.js';
 import { isHoliday, isOffDay } from '../js/calendar.js';
+import { carGeoJSON, metersPerPixel } from '../js/car3d.js';
 import { cumulative, destination, haversine, snapToRoute } from '../js/geo.js';
 
 let fails = 0;
@@ -36,6 +37,20 @@ const ok = (c, m) => { if (!c) { fails++; console.error('NG:', m); } else consol
   const far = destination(dp.point, 90, 150);
   nav.update({ point: far, speed: 15, heading: 90, accuracy: 10, t: (t += 1000) });
   ok(haversine(nav.displayPos().point, far) < 1 && nav.displayPos().route == null, 'ルートから外れた時は GPS の位置に出す');
+}
+
+// ===== 3Dの車 =====
+{
+  const c = [135.195, 34.695];
+  const len = 72 * metersPerPixel(c[1], 17);
+  const g = carGeoJSON(c, 90, len);
+  const body = g.features.filter((f) => !f.properties.shadow);
+  const xs = body.flatMap((f) => f.geometry.coordinates[0].map((p) => (p[0] - c[0]) * 111320 * Math.cos(c[1] * Math.PI / 180)));
+  const ys = body.flatMap((f) => f.geometry.coordinates[0].map((p) => (p[1] - c[1]) * 110540));
+  const ext = (a) => Math.max(...a) - Math.min(...a);
+  ok(Math.abs(ext(xs) - len * 5.15 / 4.8) < 1 && ext(ys) < len * 0.5, `東向きの車は東西に長い（${ext(xs).toFixed(1)}m × ${ext(ys).toFixed(1)}m）`);
+  ok(Math.max(...body.map((f) => f.properties.h)) > len * 0.25, '高さがある（立体）');
+  ok(Math.abs((Math.max(...xs) + Math.min(...xs)) / 2) < 0.5, '車の中心が現在地');
 }
 
 // ===== 祝日 =====
