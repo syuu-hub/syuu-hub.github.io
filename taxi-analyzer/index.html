@@ -904,13 +904,8 @@ svg{display:block}
 .rd-amt .top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px 12px;flex-wrap:wrap}
 .rd-amt .k{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
 .rd-amt .v{font-size:clamp(34px,10vw,46px);font-weight:800;line-height:1.05;color:var(--accent);letter-spacing:-.01em}
-/* 支払いと乗車種別：項目名を付けて2列に。支払いは色付きの印、乗車種別は文字だけ（同じ見た目にしない） */
-.rd-attr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2)}
-.rd-attr > div{min-width:0}
-.rd-attr dt{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px}
-.rd-attr dd{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rd-attr .tag{margin:0;font-size:14px;padding:3px 10px;border-radius:8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
-.rd-attr .kd{font-size:16px;font-weight:800;line-height:26px}
+.rd-amt .tags{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);min-width:0;max-width:100%;white-space:nowrap;padding-bottom:4px}
+.rd-amt .tags .tag{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .rd-fare{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
 .rd-fare .fr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;font-size:15px;color:var(--muted);white-space:nowrap}
 .rd-fare .fr + .fr{border-top:1px solid var(--line)}
@@ -2605,18 +2600,15 @@ function openRide(id, dir = 0) {
     </div>`;
   };
   $('#rdDate').textContent = ymd(r.ts);
-  // 上：売上（大きく）と、支払い・乗車種別（項目名付きで分けて見せる）→ 料金の内訳 → 乗車・降車 → メモ
+  // 上：売上（大きく）と、支払い（印）・乗車種別（文字）→ 料金の内訳 → 乗車・降車 → メモ
   const paid = r.total + (r.toll || 0) + outFee;   // お支払い金額（売上外を含む）
   const kl = kindLabel(r.kind, r.app);
   $('#rdBody').innerHTML = `
     <div class="rd-amt">
       <div class="top">
         <div><div class="k">売上</div><div class="v num">${yen(r.total)}</div></div>
+        <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${esc(kl)}</div>
       </div>
-      <dl class="rd-attr">
-        <div><dt>支払い</dt><dd><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span></dd></div>
-        ${kl ? `<div><dt>乗車種別</dt><dd class="kd">${esc(kl)}</dd></div>` : ''}
-      </dl>
     </div>
     ${adj || r.toll ? `<section class="rp-sec">
       <h3><span>料金</span></h3>
