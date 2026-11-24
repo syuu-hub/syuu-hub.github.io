@@ -934,27 +934,34 @@ svg{display:block}
 .cal-inner{max-width:960px}
 .cal-nav{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--text)}
 .cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
-.cal-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
-.cal-sum > div{background:var(--surface-2);border-radius:var(--r-md);padding:var(--tile-pad);min-width:0;text-align:center}   /* 売上・乗車・出勤は中央ぞろえ */
-.cal-sum .k{font-size:12px;color:var(--muted)}
-.cal-sum .v{font-size:clamp(16px,4.6vw,24px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-sum .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
-.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-.cal-dow{font-size:12px;font-weight:700;color:var(--muted);text-align:center;padding:2px 0 4px}
+/* カレンダー：1枚のカードに1pxの区切り。曜日の帯・日付（今日は丸）・中央に時間か売上（トップページ index.html に合わせる） */
+.cal-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px}
+.cal-ctl .t{font-size:13px;font-weight:800;color:var(--text);letter-spacing:.06em}
+.cal-sw{position:relative;display:grid;grid-template-columns:1fr 1fr;width:112px;height:36px;padding:3px;border-radius:999px;background:var(--surface);border:1px solid var(--line-2);flex:none}
+.cal-sw button{position:relative;z-index:1;font-size:12px;font-weight:800;color:var(--muted);border-radius:999px;transition:color .25s}
+.cal-sw button[aria-pressed="true"]{color:var(--text)}
+.cal-sw i{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--surface-3);border:1px solid var(--line-2);transition:transform .35s cubic-bezier(.28,.84,.42,1)}
+.cal-sw[data-mode="sales"] i{transform:translateX(100%)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.cal-grid > *{box-shadow:0 0 0 .5px var(--line)}   /* 区切り線：幅が端数でも線が消えないよう、隣と半分ずつ重ねる */
+.cal-dow{font-size:11px;font-weight:800;color:var(--muted);text-align:center;padding:10px 0;background:var(--surface-2);letter-spacing:.1em}
 .cal-dow.sun{color:var(--st-vacant)}
 .cal-dow.sat{color:var(--info)}
-.cal-cell{min-height:clamp(64px,10.5vh,104px);border-radius:10px;border:1px solid var(--line);background:var(--surface);padding:4px 5px;text-align:left;display:flex;flex-direction:column;gap:1px;overflow:hidden;position:relative}
-.cal-cell::before{content:"";position:absolute;inset:0;background:var(--accent);opacity:var(--h,0);pointer-events:none}
-.cal-cell > *{position:relative}
-.cal-cell .d{font-size:12px;font-weight:700;color:var(--muted)}
-.cal-cell.today .d{color:var(--accent)}
-.cal-cell .s{font-size:clamp(11px,3vw,16px);font-weight:800;white-space:nowrap}
-.cal-cell .m{font-size:clamp(9px,2.5vw,12px);color:var(--muted);white-space:nowrap;line-height:1.25}
-.cal-cell[aria-pressed="true"]{border:2px solid var(--accent);padding:3px 4px}
-.cal-cell.out{opacity:.5}
-.cal-cell.empty{background:transparent;border-color:transparent}
-.cal-cell.hol{background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 6px,var(--surface-2) 6px,var(--surface-2) 12px)}
-.cal-cell .hol-tag{font-size:10px;font-weight:700;color:var(--faint)}
+.cal-cell{background:var(--surface);aspect-ratio:4/4.5;min-height:52px;display:flex;flex-direction:column;align-items:center;padding:7px 2px 5px;text-align:center;position:relative;overflow:hidden}
+.cal-cell:active{background:var(--surface-2)}
+.cal-cell .d{font-size:12px;font-weight:600;color:var(--text);line-height:22px;min-width:22px;height:22px;white-space:nowrap}
+.cal-cell.sun .d{color:var(--st-vacant)}
+.cal-cell.sat .d{color:var(--info)}
+.cal-cell.today .d{background:var(--accent);color:var(--accent-ink);border-radius:999px;font-weight:800;padding:0 5px}
+.cal-cell .v{flex:1;display:flex;align-items:center;justify-content:center;font-size:clamp(11px,3.3vw,14px);font-weight:800;white-space:nowrap;letter-spacing:-.02em}
+.cal-cell .v small{font-size:.7em;opacity:.7;margin-left:1px}
+.cal-cell .v.act{color:var(--ok)}
+.cal-cell .v.pl{color:var(--accent);opacity:.85}
+.cal-cell .v.off{color:var(--faint);font-size:12px}
+.cal-cell .v.none{color:var(--faint)}
+.cal-cell[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal-cell.out{opacity:.45}
+.cal-cell.empty{background:var(--surface)}
 .cal-cap{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:14px;font-size:13px;color:var(--muted)}
 .cal-cap .top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;white-space:nowrap}
 .cal-cap .top .v{font-size:clamp(20px,6vw,26px);font-weight:800;color:var(--text)}
@@ -979,11 +986,55 @@ svg{display:block}
 .cap-leg .sw.pl{background:repeating-linear-gradient(135deg,var(--c) 0 2px,transparent 2px 4px);outline:1px solid var(--c);outline-offset:-1px}
 .cal-cap.warn .sw{--c:var(--st-wait)}
 .cal-cap.over .sw{--c:var(--danger)}
-.cal-cell.plan{border:1px dashed var(--accent);background:transparent}
-.cal-cell.plan[aria-pressed="true"]{border:2px dashed var(--accent)}
-.cal-cell .p{font-size:clamp(9px,2.5vw,12px);color:var(--accent);opacity:.85;white-space:nowrap;line-height:1.25;font-weight:700}
 .cal-cap.over .bar i{background:var(--danger)}
 .cal-cap.over b.used{color:var(--danger)}
+/* 予想労働時間・売上の2枚（押すとポップアップ）。トップページ index.html のサマリーに合わせる */
+.cal-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.cal-tile{position:relative;overflow:hidden;min-height:100px;padding:14px 8px;border-radius:22px;border:1px solid var(--line-2);background:linear-gradient(135deg,var(--surface-2),var(--surface-3));display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:transform .2s,border-color .2s}
+.cal-tile:active{transform:scale(.97)}
+.cal-tile::before{content:'';position:absolute;width:72px;height:72px;border-radius:50%;background:var(--g);opacity:.14;filter:blur(18px);pointer-events:none}
+.cal-tile.hrs{--g:var(--accent)}
+.cal-tile.hrs::before{top:-14px;right:-14px}
+.cal-tile.sal{--g:var(--ok)}
+.cal-tile.sal::before{bottom:-14px;left:-14px}
+.cal-tile .k{position:relative;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.06em;margin-bottom:6px;white-space:nowrap}
+.cal-tile .k svg{flex:none;color:var(--g)}
+.cal-tile .v{position:relative;font-size:clamp(24px,7.2vw,32px);font-weight:800;line-height:1;letter-spacing:-.02em;white-space:nowrap}
+.cal-tile.sal .v{font-size:clamp(20px,6vw,28px)}
+.cal-tile .v small{font-size:14px;font-weight:600;color:var(--muted);margin-left:3px}
+.cal-tile .s{position:relative;font-size:11px;color:var(--faint);margin-top:6px;white-space:nowrap}
+.cal-tile.warn .v{color:var(--st-wait)}
+.cal-tile.over .v{color:var(--danger)}
+/* ポップアップの中身 */
+.pop-card{background:var(--bg);border:1px solid var(--line-2);border-radius:22px;padding:16px 18px;margin-bottom:12px}
+.pop-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;white-space:nowrap}
+.pop-row .k{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
+.pop-row .k i{width:10px;height:10px;border-radius:3px;background:var(--c,var(--muted));flex:none}
+.pop-row .v{font-size:20px;font-weight:800}
+.pop-row .v small{font-size:11px;font-weight:600;color:var(--muted);margin-left:3px}
+.pop-row.sum{border-top:1px solid var(--line-2);margin-top:8px;padding-top:12px}
+.pop-row.sum .k{font-size:13px;color:var(--text);font-weight:800;letter-spacing:.1em}
+.pop-row.sum .v{font-size:34px}
+.pop-row.sum.warn .v{color:var(--st-wait)}
+.pop-row.sum.over .v{color:var(--danger)}
+.pop-mini{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line-2);border-radius:16px;padding:12px 16px;margin-bottom:10px;white-space:nowrap}
+.pop-mini .k{font-size:12px;font-weight:700;color:var(--muted)}
+.pop-mini .k small{display:block;font-size:11px;font-weight:500;color:var(--faint);margin-top:2px}
+.pop-mini .v{font-size:22px;font-weight:800}
+.pop-mini .v.ac{color:var(--accent)}
+.pop-mini .v.ok{color:var(--ok)}
+.cap-body{overflow-y:auto;min-height:0}
+.cap-body .cal-cap{margin-bottom:12px}
+.inc-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
+.inc-card .row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;white-space:nowrap;font-size:13px;color:var(--muted)}
+.inc-card .row1 b{font-size:clamp(20px,6vw,26px);font-weight:800;color:var(--text)}
+.inc-card .row2{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2);white-space:nowrap}
+.inc-card .row2 .k{font-size:13px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px}
+.inc-card .row2 .k em{font-style:normal;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--accent);color:var(--accent-ink)}
+.inc-card .row2 b{font-size:clamp(24px,7.4vw,32px);font-weight:800;color:var(--accent)}
+.inc-card .nx{font-size:12px;color:var(--muted);margin-top:6px}
+.inc-card .nx b{color:var(--text)}
+.inc-card .pd{font-size:11px;color:var(--faint);margin-top:2px}
 .hol-setting{flex-wrap:wrap;row-gap:10px;padding:14px 0}
 .seg.hol{flex:1 1 100%;margin:0}
 .seg.hol button{flex:1;min-width:0;padding:0}
@@ -1020,7 +1071,6 @@ svg{display:block}
 #calSheet .close-btn{white-space:nowrap}
 @media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0 10px} }
 @media (max-width:480px){
-  .cal-sum .v{font-size:clamp(16px,5vw,22px)}
   #calTitle{min-width:6.2em;font-size:17px}
   .cal-nav{width:44px;height:44px}
 }
@@ -1553,12 +1603,27 @@ svg{display:block}
       <span></span>
     </header>
     <div class="cal-body">
-      <div class="cal-sum" id="calSum"></div>
-      <div id="calGoal"></div>
-      <div id="calCap"></div>
+      <div class="cal-tiles" id="calTiles"></div>
+      <div class="cal-ctl">
+        <span class="t">カレンダー</span>
+        <div class="cal-sw" id="calMode" role="group" aria-label="カレンダーの表示"><i></i><button data-cm="hours">時間</button><button data-cm="sales">売上</button></div>
+      </div>
       <div class="cal-grid" id="calGrid"></div>
       <div class="cal-day" id="calDay"></div>
     </div>
+  </div>
+</div>
+
+<!-- ===== 労働時間・推定手取りの詳細（カレンダーの労働時間の見込みから） ===== -->
+<div class="sheet center" id="capSheet" hidden role="dialog" aria-modal="true" aria-labelledby="capTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="capTitle">見込み</h2>
+    </header>
+    <div class="cap-body" id="capBody"></div>
   </div>
 </div>
 
@@ -3306,37 +3371,75 @@ function monthGoalFor(daily, now = Date.now()) {
 const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.start); return d.getFullYear() === y && d.getMonth() === m; })
   .reduce((a, sh) => a + shiftStats(sh).elapsed, 0);
 const planMs = () => dayHoursEff() * 3600000;
-// 月の目標金額のカード：締め期間の売上と目標、締め日までの残り出勤日（固定休を除く）で1日いくら必要か
-function goalHtml(sales, pdays, to) {
-  // 日単位の時は「1日の目標 × 締め期間の出勤予定日数」を月の目安として出す
-  const g = dayUnit() ? dayGoalNow() * periodWorkdays(to) : S.settings.monthGoal;
-  if (!g) return '';
-  const r = sales / g, left = g - sales, days = pdays.length;
-  return `<div class="cal-cap num ${r >= 1 ? 'done' : ''}">
-    <div class="top"><span>${dayUnit() ? '月の目安' : '月の目標'}</span><span class="v">${Math.floor(r * 100)}<small>% / ${yen(g)}</small></span></div>
-    <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div>
-    <div class="cr">${left > 0 ? `<span>あと <b>${yen(left)}</b></span>${days ? `<span>1日 <b>${yen(Math.ceil(left / days))}</b> ×${days}日</span>` : ''}` : `<span><b class="ok">達成</b>（＋${yen(-left)}）</span>`}</div>
-    ${left > 0 ? `<div class="cap-note">〜${to.getMonth() + 1}/${to.getDate()}${days ? '' : '・残りの出勤日なし'}</div>` : ''}
+// 労働時間＝出庫〜入庫（待機・休憩を含む）
+// 推定手取り：締め期間の売上に応じた歩合（トップページ index.html の「推定手取り額」と同じ段階）
+const COMMISSION = [[480000, 61], [465000, 60], [450000, 59], [435000, 58], [420000, 57], [405000, 56], [390000, 55], [375000, 53.5], [360000, 52], [340000, 51], [320000, 50], [0, 45]];
+function commission(sales) {
+  const i = COMMISSION.findIndex(([from]) => sales >= from), rate = COMMISSION[i][1], next = COMMISSION[i - 1];
+  return { rate, income: Math.floor(sales * rate / 100), next: next ? { left: next[0] - sales, rate: next[1] } : null };
+}
+function incomeHtml(sales, from, to) {
+  const c = commission(sales), md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  return `<div class="inc-card num">
+    <div class="row1"><span>売上（${md(from)}〜${md(to)}）</span><b>${yen(sales)}</b></div>
+    <div class="row2"><span class="k">推定手取り<em>歩合 ${c.rate}%</em></span><b>${yen(c.income)}</b></div>
+    ${c.next ? `<div class="nx">あと <b>${yen(c.next.left)}</b> で歩合 ${c.next.rate}%</div>` : ''}
+    <div class="pd">売上 × 歩合の目安（税・控除の前）</div>
   </div>`;
 }
-// 労働時間のカード：実績＋予定（残りの出勤予定日×1日の予定時間）＝見込みを上限と比べる
-// 労働時間＝出庫〜入庫（待機・休憩を含む）
+const CLOCK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+const YEN_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>';
+// 上の2枚：予想労働時間（実績＋予定）と売上（締め期間）。押すとポップアップ（トップページ index.html と同じ作り）
+function calTilesHtml(c) {
+  const cap = capMs(), plan = c.pdays.length * planMs(), est = c.used + plan;
+  const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
+  return `<button class="cal-tile hrs num ${cls}" data-pop="hours" aria-haspopup="dialog">
+      <span class="k">${CLOCK_SVG}${S.settings.closingDay ? `${c.hm + 1}月の` : ''}予想労働時間</span>
+      <span class="v">${(Math.max(0, est) / 3600000).toFixed(1)}<small>h</small></span>
+      ${cap ? `<span class="s">上限 ${S.settings.hoursCap}h</span>` : ''}
+    </button>
+    <button class="cal-tile sal num" data-pop="sales" aria-haspopup="dialog">
+      <span class="k">${YEN_SVG}${c.cur ? '現在の売上' : '売上'}</span>
+      <span class="v">${yen(c.sales)}</span>
+      <span class="s">${c.count}回・${c.days}日</span>
+    </button>`;
+}
+// 労働時間内訳：実績・予定・合計（＋上限との比較）
+function hoursPopHtml(c) {
+  const cap = capMs(), days = c.pdays.length, plan = days * planMs(), est = c.used + plan;
+  const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
+  const H = v => (Math.max(0, v) / 3600000).toFixed(1);
+  return `<div class="pop-card num">
+      <div class="pop-row"><span class="k"><i style="--c:var(--ok)"></i>実績（確定）</span><span class="v">${H(c.used)}<small>h</small></span></div>
+      <div class="pop-row"><span class="k"><i style="--c:var(--accent)"></i>予定${days ? `（${days}日 × ${dayHoursEff()}h）` : ''}</span><span class="v">${H(plan)}<small>h</small></span></div>
+      <div class="pop-row sum ${cls}"><span class="k">合計</span><span class="v">${H(est)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span></div>
+    </div>
+    ${cap ? capHtml(c.hy, c.hm, c.used, c.pdays) : ''}`;
+}
+// 売上：期間合計・推定手取り（歩合）・目標まで残り・締め日まで必要/日
+function salesPopHtml(c) {
+  const g = dayUnit() ? 0 : S.settings.monthGoal, left = g - c.sales, gd = planDays(c.y, c.m, c.from, c.to).length;
+  return incomeHtml(c.sales, c.from, c.to) +
+    (g ? `<div class="pop-mini num"><span class="k">目標まで残り<small>月の目標 ${yen(g)}</small></span><span class="v ${left <= 0 ? 'ok' : ''}">${left > 0 ? yen(left) : '達成'}</span></div>
+      ${left > 0 ? `<div class="pop-mini num"><span class="k">締め日まで必要/日<small>残り出勤 ${gd}日</small></span><span class="v ac">${gd ? yen(Math.ceil(left / gd)) : '—'}</span></div>` : ''}` : '') +
+    `<div class="pop-mini num"><span class="k">乗車・出勤</span><span class="v">${c.count}<small style="font-size:12px;color:var(--muted)">回</small> ・ ${c.days}<small style="font-size:12px;color:var(--muted)">日</small></span></div>`;
+}
+function openCalPop(kind) {
+  const c = CAL.pop;
+  if (!c) return;
+  haptic();
+  $('#capTitle').textContent = kind === 'hours' ? '労働時間内訳' : '売上・目標';
+  $('#capBody').innerHTML = kind === 'hours' ? hoursPopHtml(c) : salesPopHtml(c);
+  openSheet($('#capSheet'));
+}
+// 上限との比較（労働時間内訳のポップアップの下）：実績＋予定のバーと、出勤予定・上限まであと
 function capHtml(y, m, used, pdays) {
   const cap = capMs(), days = pdays.length, plan = days * planMs(), est = used + plan;
-  const lbl = S.settings.closingDay ? `${m + 1}月の労働時間` : '労働時間';   // 締め期間と暦月がずれる時は月を明示
-  const H = v => (Math.max(0, v) / 3600000).toFixed(1);
-  if (!cap) return `<div class="cal-cap num"><div class="top"><span>${lbl}</span><span class="v">${hours(used)}${plan ? `<small>＋予定 ${hours(plan)}</small>` : ''}</span></div></div>`;
   const left = cap - est, r = used / cap, rp = Math.min(1, est / cap);
   const cls = est > cap ? 'over' : est >= cap * 0.9 ? 'warn' : '';
   return `<div class="cal-cap num ${cls}">
-    <div class="top"><span>${lbl}</span><span class="v used">${plan ? H(est) : H(used)}<small>${plan ? 'h 見込み' : 'h'} / ${S.settings.hoursCap}h</small></span></div>
-    <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i>${plan ? `<i class="plan" style="width:${Math.max(0, (rp - Math.min(1, r)) * 100).toFixed(1)}%"></i>` : ''}</div>
-    <div class="cap-leg">
-      <span><i class="sw act"></i>実績 <b>${hours(used)}</b></span>
-      ${plan ? `<span><i class="sw pl"></i>予定 <b>${hours(plan)}</b></span>` : ''}
-    </div>
-    <div class="cr">${plan ? `<span>出勤予定 <b>${days}日</b></span>` : ''}${left >= 0 ? `<span>上限まで あと <b>${hours(left)}</b></span>` : `<span><b class="used">${hours(-left)} 超過</b>${plan ? 'の見込み' : ''}</span>`}
-      ${!plan && days && cap - used > 0 ? `<span>${days}日で 1日 <b>${hours((cap - used) / days)}</b>まで</span>` : ''}</div>
+    <div class="bar" style="margin-top:0"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i>${plan ? `<i class="plan" style="width:${Math.max(0, (rp - Math.min(1, r)) * 100).toFixed(1)}%"></i>` : ''}</div>
+    <div class="cr" style="margin-top:10px">${plan ? `<span>出勤予定 <b>${days}日</b></span>` : `<span>出勤予定なし</span>`}${left >= 0 ? `<span>上限まで あと <b>${hours(left)}</b></span>` : `<span><b class="used">${hours(-left)} 超過</b>${plan ? 'の見込み' : ''}</span>`}</div>
   </div>`;
 }
 function renderCal() {
@@ -3347,17 +3450,15 @@ function renderCal() {
   const [from, to] = periodRange(y, m);
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
   $('#calTitle').innerHTML = `${periodName(CAL)}<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">${md(from)}〜${md(to)}</small>`;
-  $('#calSum').innerHTML = `
-    <div><div class="k">売上</div><div class="v num">${tot.sales >= 100000 ? compactYen(tot.sales) : yen(tot.sales)}</div></div>
-    <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
-    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
-  $('#calGoal').innerHTML = goalHtml(tot.sales, planDays(y, m, from, to), to);   // 目標は締め期間・固定休を除く（カレンダーの表示は変えない）
   // 労働時間はカレンダーに連動して暦月（1日〜末日）で計算：今日を含む期間なら今月、それ以外は期間の月。
   // その月のうち締め期間の外にある日も薄く並べ、労働時間に入る日がすべて見えるようにする
   const now = new Date(), cur = now >= from && now < +to + 86400000;
   const hy = cur ? now.getFullYear() : y, hm = cur ? now.getMonth() : m;
   const pdays = planDays(hy, hm);
-  $('#calCap').innerHTML = capHtml(hy, hm, monthWorkMs(hy, hm), pdays);
+  const used = monthWorkMs(hy, hm);
+  // 上の2枚（予想労働時間・売上）とポップアップ用。目標は締め期間・固定休を除く
+  CAL.pop = { sales: tot.sales, count: tot.count, days: list.length, from, to, y, m, hy, hm, used, pdays, cur };
+  $('#calTiles').innerHTML = calTilesHtml(CAL.pop);
   const mFrom = new Date(hy, hm, 1), mTo = new Date(hy, hm + 1, 0);
   const first = mFrom < from ? mFrom : from, last = mTo > to ? mTo : to;
   const other = {};   // 期間外の日：その日の記録
@@ -3369,23 +3470,28 @@ function renderCal() {
     o.sales += st.sales; o.count += st.count; o.ms += st.elapsed;
   }
 
-  const max = Math.max(0, ...list.map(o => o.sales));
+  // 表示：時間（労働時間）か売上を1つだけ。実績は緑、予定はオレンジ、固定休は「休」
+  const mode = S.settings.calMode === 'hours' ? 'hours' : 'sales';
+  $('#calMode').dataset.mode = mode;
+  $$('#calMode [data-cm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.cm === mode));
   const today = dayKey(new Date());
   const plan = new Set(planMs() ? pdays : []);
+  const man = v => v >= 10000 ? (v / 10000).toFixed(1).replace(/\.0$/, '') + '<small>万</small>' : v.toLocaleString();
   let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
   html += '<div class="cal-cell empty"></div>'.repeat(first.getDay());
-  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
+  let n = first.getDay();
+  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1), n++) {
     const out = d < from || d > to, k = dayKey(d), o = out ? other[k] : days[k];
-    const h = o && max ? (0.12 + 0.43 * o.sales / max).toFixed(2) : 0;   // 売上が多いほど濃く
     // 期間が月をまたぐ時は、各月の初日（と期間の初日）に月を付ける
     const label = d.getDate() === 1 || +d === +first ? md(d) : d.getDate();
-    const hol = isHoliday(d);
-    const pl = !o && plan.has(k);
-    html += `<button class="cal-cell ${k === today ? 'today' : ''} ${hol ? 'hol' : ''} ${pl ? 'plan' : ''} ${out ? 'out' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}" style="--h:${h}">
-      <span class="d num">${label}${hol && !o ? ' <span class="hol-tag">休</span>' : ''}</span>
-      ${o ? `<span class="s num">${o.sales >= 10000 ? compactYen(o.sales) : o.sales.toLocaleString()}</span><span class="m num">${o.count}回</span><span class="m num">${hours(o.ms)}</span>` : pl ? `<span class="p num">予定</span><span class="p num">${dayHoursEff()}h</span>` : ''}
-    </button>`;
+    const pl = !o && plan.has(k), hol = !o && !pl && isHoliday(d);
+    const v = o ? (mode === 'hours' ? `<span class="v act num">${(o.ms / 3600000).toFixed(1)}<small>h</small></span>` : `<span class="v act num">${man(o.sales)}</span>`)
+      : pl ? (mode === 'hours' ? `<span class="v pl num">${dayHoursEff()}<small>h</small></span>` : '<span class="v pl">予定</span>')
+      : hol ? '<span class="v off">休</span>' : '<span class="v"></span>';
+    html += `<button class="cal-cell ${k === today ? 'today' : ''} ${d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''} ${out ? 'out' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}">
+      <span class="d num">${label}</span>${v}</button>`;
   }
+  html += '<div class="cal-cell empty"></div>'.repeat((7 - n % 7) % 7);   // 最後の週の残りを埋める
   $('#calGrid').innerHTML = html;
 
   $('#calDay').innerHTML = '';
@@ -5749,6 +5855,10 @@ $('#calGrid').addEventListener('click', e => {
   $('section[data-view="log"]').scrollTop = 0;
 });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
+$('#calMode').addEventListener('click', e => { const b = e.target.closest('[data-cm]'); if (!b || b.dataset.cm === S.settings.calMode) return; haptic(); S.settings.calMode = b.dataset.cm; saveSoon(); renderCal(); });
+$('#calTiles').addEventListener('click', e => { const b = e.target.closest('[data-pop]'); if (b) openCalPop(b.dataset.pop); });
+$('#capSheet [data-close]').addEventListener('click', () => closeSheet($('#capSheet')));
+$('#capSheet').addEventListener('click', e => { if (e.target.id === 'capSheet') closeSheet($('#capSheet')); });
 $('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#reportSheet')));
 // 乗車の検索：日をまたいで全記録を曜日・時間帯・金額・文字で絞り込み、並べ替える
 const FD = { q: '', dows: new Set(), blks: new Set(), min: 0, sort: 'new' };
@@ -5987,11 +6097,11 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#stepSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#capSheet', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#stepSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
   if (open.id === 'rideSheet' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); stepRide(e.key === 'ArrowLeft' ? -1 : 1); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet' || open.id === 'stepSheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'capSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet' || open.id === 'stepSheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
