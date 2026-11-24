@@ -994,7 +994,8 @@ svg{display:block}
 .set-note{flex:1 1 100%;font-size:12px;color:var(--faint);line-height:1.55;word-break:auto-phrase}
 .set-note b{color:var(--text);font-weight:600}
 .set-note .nw{white-space:nowrap}
-.setting .k .k-sub{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:1px}
+.setting .k .k-sub{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:2px;white-space:normal;line-height:1.4}
+.setting .k{min-width:0}
 #monthGoalBtn.auto{border-style:dashed;color:var(--muted)}
 /* アドバイス */
 .adv-top{background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%);border-color:var(--accent)}
@@ -1221,7 +1222,7 @@ svg{display:block}
       <div class="pane-sec">
         <div class="sec-h"><h3>設定</h3></div>
         <div class="fold" id="gWork">
-          <button class="fold-h" aria-expanded="false" aria-controls="gWorkB"><span class="t">営業・勤務</span><span class="s num" id="gWorkSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="fold-h" aria-expanded="false" aria-controls="gWorkB"><span class="t">目標・勤務</span><span class="s num" id="gWorkSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gWorkB" hidden>
           <div class="setting hol-setting">
           <div class="k" id="goalK">月の目標金額</div>
@@ -1231,19 +1232,15 @@ svg{display:block}
           <div class="set-note" id="goalNote" hidden></div>
         </div>
           <div class="setting">
-          <div class="k">高額乗車の基準</div>
-          <button class="btn sm num" id="hiFareBtn">自動</button>
-        </div>
-          <div class="setting">
           <div class="k">締め日</div>
           <button class="btn sm num" id="closingBtn">末日</button>
         </div>
           <div class="setting">
-          <div class="k">月の労働時間の上限</div>
+          <div class="k">月の労働時間の上限<small class="k-sub">残りの時間をホームに表示</small></div>
           <button class="btn sm num" id="hoursCapBtn">288時間</button>
         </div>
           <div class="setting">
-          <div class="k">1日の予定労働時間</div>
+          <div class="k">1日の予定労働時間<small class="k-sub">ステップ目標に使う。未設定なら記録から推定</small></div>
           <button class="btn sm num" id="dayHoursBtn">未設定</button>
         </div>
           <div class="setting hol-setting">
@@ -1255,13 +1252,11 @@ svg{display:block}
         <div class="fold" id="gPay">
           <button class="fold-h" aria-expanded="false" aria-controls="gPayB"><span class="t">料金・決済</span><span class="s num" id="gPaySum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gPayB" hidden>
-          <div class="sub-h">決済方法</div>
-          <ul class="list" id="payList"></ul>
-        <button class="btn sm" style="width:100%;margin-top:10px" id="payAddBtn">＋ 決済方法を追加</button>
-          <div class="sub-h">タクシーチケット</div>
-          <ul class="list" id="ticketList"></ul>
-        <button class="btn sm" style="width:100%;margin-top:10px" id="ticketAddBtn">＋ チケットを追加</button>
-          <div class="sub-h">遠距離割</div>
+          <div class="sub-h">料金</div>
+          <div class="setting">
+          <div class="k">迎車料金<small class="k-sub">配車アプリ・無線</small></div>
+          <button class="btn sm num" id="pickupFeeBtn">¥0</button>
+        </div>
           <div class="setting">
           <div class="k">遠距離割</div>
           <button class="switch" role="switch" aria-checked="true" data-setting="longOn" aria-label="遠距離割"></button>
@@ -1270,58 +1265,64 @@ svg{display:block}
           <div class="k">遠距離割の基準</div>
           <button class="btn sm num" id="longFromBtn">¥9,000</button>
         </div>
-          <div class="setting">
-          <div class="k">迎車料金<small class="k-sub">配車アプリ・無線</small></div>
-          <button class="btn sm num" id="pickupFeeBtn">¥0</button>
-        </div>
+          <div class="sub-h">決済方法</div>
+          <ul class="list" id="payList"></ul>
+        <button class="btn sm" style="width:100%;margin-top:10px" id="payAddBtn">＋ 決済方法を追加</button>
+          <div class="sub-h">タクシーチケット</div>
+          <ul class="list" id="ticketList"></ul>
+        <button class="btn sm" style="width:100%;margin-top:10px" id="ticketAddBtn">＋ チケットを追加</button>
           <div class="sub-h">配車アプリ</div>
         <ul class="list" id="appList"></ul>
         <button class="btn sm" style="width:100%;margin-top:10px" id="appAddBtn">＋ アプリを追加</button>
           </div>
         </div>
         <div class="fold" id="gInput">
-          <button class="fold-h" aria-expanded="false" aria-controls="gInputB"><span class="t">入力・表示</span><span class="s num" id="gInputSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="fold-h" aria-expanded="false" aria-controls="gInputB"><span class="t">記録の入力</span><span class="s num" id="gInputSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
           <div class="fold-b" id="gInputB" hidden>
           <div class="setting">
-          <div class="k">画面を常時点灯</div>
-          <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
+          <div class="k">住所を自動で取得<small class="k-sub">GPSの位置から乗降地の住所を調べる</small></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="住所を自動で取得"></button>
         </div>
-          <div class="setting hol-setting">
-          <div class="k">待機・休憩の表記</div>
-          <div class="seg hol" id="pauseLabelSeg"><button data-pl="both">待機・休憩</button><button data-pl="wait">待機</button><button data-pl="rest">休憩</button></div>
+          <div class="setting">
+          <div class="k">住所を施設名にする<small class="k-sub">近くの駅・施設の名前で記録する</small></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="autoPlace" aria-label="住所を施設名にする"></button>
         </div>
-          <div class="setting hol-setting">
-          <div class="k">履歴の並び順</div>
-          <div class="seg hol" id="histOrderSeg"><button data-ho="asc">古い順</button><button data-ho="desc">新しい順</button></div>
+          <div class="setting">
+          <div class="k">駅で乗車したら「乗り場」<small class="k-sub">乗車種別を自動で「乗り場」に</small></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="stationStand" aria-label="駅で乗車したら乗り場"></button>
         </div>
           <div class="setting hol-setting">
           <div class="k">乗降地の地図</div>
           <div class="seg hol" id="fromMapSeg"><button data-fm="popup">ポップアップ</button><button data-fm="inline">常時表示</button><button data-fm="off">非表示</button></div>
         </div>
           <div class="setting hol-setting">
-          <div class="k">分析の時間帯</div>
-          <div class="seg hol" id="anaBlockSeg"><button data-ab="1">1時間</button><button data-ab="2">2時間</button><button data-ab="3">3時間</button><button data-ab="4">4時間</button><button data-ab="6">6時間</button></div>
+          <div class="k">待機・休憩の表記</div>
+          <div class="seg hol" id="pauseLabelSeg"><button data-pl="both">待機・休憩</button><button data-pl="wait">待機</button><button data-pl="rest">休憩</button></div>
         </div>
           <div class="setting">
-          <div class="k">住所を自動で取得</div>
-          <button class="switch" role="switch" aria-checked="true" data-setting="addr" aria-label="住所を自動で取得"></button>
-        </div>
-          <div class="setting">
-          <div class="k">駅で乗車したら「乗り場」</div>
-          <button class="switch" role="switch" aria-checked="true" data-setting="stationStand" aria-label="駅で乗車したら乗り場"></button>
-        </div>
-          <div class="setting">
-          <div class="k">住所を施設名にする</div>
-          <button class="switch" role="switch" aria-checked="true" data-setting="autoPlace" aria-label="住所を施設名にする"></button>
+          <div class="k">場所データ<small class="k-sub" id="placeDbInfo"></small></div>
+          <button class="btn sm" id="placeDbBtn">検索・編集</button>
         </div>
           </div>
         </div>
-        <div class="fold" id="gPlaces">
-          <button class="fold-h" aria-expanded="false" aria-controls="gPlacesB"><span class="t">場所データ</span><span class="s num" id="gPlacesSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-          <div class="fold-b" id="gPlacesB" hidden>
+        <div class="fold" id="gView">
+          <button class="fold-h" aria-expanded="false" aria-controls="gViewB"><span class="t">表示・分析</span><span class="s num" id="gViewSum"></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="fold-b" id="gViewB" hidden>
           <div class="setting">
-          <div class="k">場所の検索・編集</div>
-          <button class="btn sm" id="placeDbBtn">開く</button>
+          <div class="k">画面を常時点灯<small class="k-sub">営業中に画面を消さない</small></div>
+          <button class="switch" role="switch" aria-checked="true" data-setting="wake" aria-label="画面を常時点灯"></button>
+        </div>
+          <div class="setting hol-setting">
+          <div class="k">履歴の並び順</div>
+          <div class="seg hol" id="histOrderSeg"><button data-ho="asc">古い順</button><button data-ho="desc">新しい順</button></div>
+        </div>
+          <div class="setting hol-setting">
+          <div class="k">分析の時間帯<small class="k-sub">曜日×時間帯の区切り</small></div>
+          <div class="seg hol" id="anaBlockSeg"><button data-ab="1">1時間</button><button data-ab="2">2時間</button><button data-ab="3">3時間</button><button data-ab="4">4時間</button><button data-ab="6">6時間</button></div>
+        </div>
+          <div class="setting">
+          <div class="k">高額乗車の基準<small class="k-sub">分析の「高額」の判定に使う</small></div>
+          <button class="btn sm num" id="hiFareBtn">自動</button>
         </div>
           </div>
         </div>
@@ -4367,7 +4368,7 @@ function renderData() {
       <span class="aside" style="color:var(--accent);font-size:13px;font-weight:700">編集</span>
     </button></li>`).join('') : '<li class="empty">配車アプリが登録されていません。</li>';
   { const mine = S.settings.places.filter(p => !p.base).length, ed = S.settings.places.length - mine;
-    setFoldSum('gPlaces', (PDB.state === 'ok' ? `内蔵${PDB.list.length}件` : PDB.state === 'loading' ? '読み込み中' : '内蔵を読み込めません') + (mine ? `・登録${mine}件` : '') + (ed ? `・変更${ed}件` : '')); }
+    $('#placeDbInfo').textContent = (PDB.state === 'ok' ? `内蔵${PDB.list.length}件` : PDB.state === 'loading' ? '読み込み中' : '内蔵を読み込めません') + (mine ? `・登録${mine}件` : '') + (ed ? `・変更${ed}件` : ''); }
   $$('.switch[data-setting]').forEach(s => s.setAttribute('aria-checked', !!S.settings[s.dataset.setting]));
 
 
@@ -4377,8 +4378,9 @@ function renderData() {
   // 折りたたみの見出しに今の設定を1行で
   setFoldSum('gWork', [dayUnit() ? (dayGoalNow() ? '1日' + compactYen(dayGoalNow()) : '目標なし') : S.settings.monthGoal ? '月' + compactYen(S.settings.monthGoal) : '目標なし', S.settings.closingDay ? S.settings.closingDay + '日締' : '末締', S.settings.hoursCap ? S.settings.hoursCap + 'h' : '上限なし', dayHoursEff() ? '1日' + dayHoursEff() + 'h' : '',
     hl.length ? hl.map(i => WEEKDAYS[i]).join('') + '休' : ''].filter(Boolean).join('・'));
-  setFoldSum('gPay', `決済${PAYS().length}・チケット${TICKETS().length}・アプリ${S.settings.apps.length}`);
-  setFoldSum('gInput', [S.settings.wake ? '常時点灯' : '', S.settings.addr ? '住所変換' : '', S.settings.stationStand ? '駅→乗り場' : '', S.settings.histOrder === 'desc' ? '履歴は新しい順' : '履歴は古い順'].filter(Boolean).join(' ・ '));
+  setFoldSum('gPay', [`迎車${yen(S.settings.pickupFee)}`, S.settings.longOn ? `遠距離割${compactYen(S.settings.longFrom)}超` : '遠距離割なし', `決済${PAYS().length}`, `アプリ${S.settings.apps.length}`].join('・'));
+  setFoldSum('gInput', [S.settings.addr ? '住所を取得' : '住所なし', S.settings.autoPlace ? '施設名' : '', S.settings.stationStand ? '駅→乗り場' : ''].filter(Boolean).join('・'));
+  setFoldSum('gView', [S.settings.wake ? '常時点灯' : '', S.settings.histOrder === 'desc' ? '新しい順' : '古い順', `${blockH()}時間ごと`, S.settings.hiFare ? `高額${compactYen(S.settings.hiFare)}〜` : '高額は自動'].filter(Boolean).join('・'));
   setFoldSum('gData', (bytes / 1024).toFixed(0) + ' KB');
 }
 
