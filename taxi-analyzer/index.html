@@ -935,20 +935,8 @@ svg{display:block}
 .cal-nav{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--text)}
 .cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
 /* カレンダー：1枚のカードに1pxの区切り。曜日の帯・日付（今日は丸）・中央に時間か売上（トップページ index.html に合わせる） */
-.cal-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px}
-.cal-leg{display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;min-width:0;overflow:hidden}
-.cal-leg span{display:flex;align-items:center;gap:5px}
-.cal-leg i{width:8px;height:8px;border-radius:50%;flex:none}
-.cal-leg i.act{background:var(--ok)}
-.cal-leg i.pl{background:var(--accent)}
-.cal-leg b{font-size:11px;color:var(--faint);font-weight:800}
-/* カレンダーの下：1日あたり（表示中の時間／売上に合わせる） */
-.cal-avg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
-.cal-avg > div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-width:0}
-.cal-avg .k{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
-.cal-avg .v{font-size:18px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-avg .v small{font-size:11px;font-weight:600;color:var(--muted);margin-left:2px}
-.cal-swipe{font-size:11px;color:var(--faint);text-align:center;margin-top:10px}
+.cal-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 4px 10px}
+.cal-ctl .t{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.08em}
 .cal-sw{position:relative;display:grid;grid-template-columns:1fr 1fr;width:112px;height:36px;padding:3px;border-radius:999px;background:var(--surface);border:1px solid var(--line-2);flex:none}
 .cal-sw button{position:relative;z-index:1;font-size:12px;font-weight:800;color:var(--muted);border-radius:999px;transition:color .25s}
 .cal-sw button[aria-pressed="true"]{color:var(--text)}
@@ -956,16 +944,16 @@ svg{display:block}
 .cal-sw[data-mode="sales"] i{transform:translateX(100%)}
 .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden}
 .cal-grid > *{box-shadow:0 0 0 .5px var(--line)}   /* 区切り線：幅が端数でも線が消えないよう、隣と半分ずつ重ねる */
-.cal-dow{font-size:11px;font-weight:800;color:var(--muted);text-align:center;padding:10px 0;background:var(--surface-2);letter-spacing:.1em}
+.cal-dow{font-size:11px;font-weight:800;color:var(--muted);text-align:center;padding:8px 0;background:var(--surface-2);letter-spacing:.1em}
 .cal-dow.sun{color:var(--st-vacant)}
 .cal-dow.sat{color:var(--info)}
-.cal-cell{background:var(--surface);aspect-ratio:4/4.5;min-height:52px;display:flex;flex-direction:column;align-items:center;padding:7px 2px 5px;text-align:center;position:relative;overflow:hidden}
+.cal-cell{background:var(--surface);aspect-ratio:1/1.08;min-height:50px;display:flex;flex-direction:column;align-items:center;padding:6px 2px 4px;text-align:center;position:relative;overflow:hidden}
 .cal-cell:active{background:var(--surface-2)}
-.cal-cell .d{font-size:12px;font-weight:600;color:var(--text);line-height:22px;min-width:22px;height:22px;white-space:nowrap}
+.cal-cell .d{font-size:12px;font-weight:700;color:var(--muted);line-height:22px;min-width:22px;height:22px;white-space:nowrap}   /* 日付は控えめ、値を目立たせる */
 .cal-cell.sun .d{color:var(--st-vacant)}
 .cal-cell.sat .d{color:var(--info)}
 .cal-cell.today .d{background:var(--accent);color:var(--accent-ink);border-radius:999px;font-weight:800;padding:0 5px}
-.cal-cell .v{flex:1;display:flex;align-items:center;justify-content:center;font-size:clamp(11px,3.3vw,14px);font-weight:800;white-space:nowrap;letter-spacing:-.02em}
+.cal-cell .v{flex:1;display:flex;align-items:center;justify-content:center;font-size:clamp(12px,3.6vw,15px);font-weight:800;white-space:nowrap;letter-spacing:-.02em}
 .cal-cell .v small{font-size:.7em;opacity:.7;margin-left:1px}
 .cal-cell .v.act{color:var(--ok)}
 .cal-cell .v.pl{color:var(--accent);opacity:.85}
@@ -1001,8 +989,8 @@ svg{display:block}
 .cal-cap.over .bar i{background:var(--danger)}
 .cal-cap.over b.used{color:var(--danger)}
 /* 予想労働時間・売上の2枚（押すとポップアップ）。トップページ index.html のサマリーに合わせる */
-.cal-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
-.cal-tile{position:relative;overflow:hidden;min-height:100px;padding:14px 8px;border-radius:22px;border:1px solid var(--line-2);background:linear-gradient(135deg,var(--surface-2),var(--surface-3));display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:transform .2s,border-color .2s}
+.cal-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:4px 0 18px}
+.cal-tile{position:relative;overflow:hidden;min-height:92px;padding:12px 8px;border-radius:20px;border:1px solid var(--line-2);background:linear-gradient(135deg,var(--surface-2),var(--surface-3));display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:transform .2s,border-color .2s}
 .cal-tile:active{transform:scale(.97)}
 .cal-tile::before{content:'';position:absolute;width:72px;height:72px;border-radius:50%;background:var(--g);opacity:.14;filter:blur(18px);pointer-events:none}
 .cal-tile.hrs{--g:var(--accent)}
@@ -1075,16 +1063,18 @@ svg{display:block}
 .tips li small{display:block;font-size:12px;color:var(--faint)}
 .cal-day{margin-top:12px}
 .cal-hint{font-size:13px;color:var(--faint);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#calTitle{white-space:nowrap;text-align:center;min-width:7em}
+#calTitle{white-space:nowrap;text-align:center;min-width:7em;line-height:1.2}
+#calSheet .cal-nav{width:42px;height:42px}
 /* 閉じる｜‹ 年月 ›（中央）｜空き：月の切り替えを画面の中央に */
 .cal-head{display:grid;grid-template-columns:1fr auto 1fr;gap:8px}
 .cal-head .close-btn{justify-self:start}
-.cal-headnav{display:flex;align-items:center;gap:10px}
+.cal-headnav{display:flex;align-items:center;gap:14px}
 #calSheet .close-btn{white-space:nowrap}
 @media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0 10px} }
 @media (max-width:480px){
   #calTitle{min-width:6.2em;font-size:17px}
   .cal-nav{width:44px;height:44px}
+  #calSheet .cal-nav{width:40px;height:40px}
 }
 
 /* トースト */
@@ -1617,7 +1607,7 @@ svg{display:block}
     <div class="cal-body">
       <div class="cal-tiles" id="calTiles"></div>
       <div class="cal-ctl">
-        <span class="cal-leg"><span><i class="act"></i>実績</span><span><i class="pl"></i>予定</span><span><b>休</b>固定休</span></span>
+        <span class="t">カレンダー</span>
         <div class="cal-sw" id="calMode" role="group" aria-label="カレンダーの表示"><i></i><button data-cm="hours">時間</button><button data-cm="sales">売上</button></div>
       </div>
       <div class="cal-grid" id="calGrid"></div>
@@ -3506,14 +3496,6 @@ function renderCal() {
   html += '<div class="cal-cell empty"></div>'.repeat((7 - n % 7) % 7);   // 最後の週の残りを埋める
   $('#calGrid').innerHTML = html;
 
-  // 1日あたり（出勤した日の平均）。時間表示なら時間と時間あたり、売上表示なら売上と1回あたり
-  const nd = list.length;
-  $('#calDay').innerHTML = !nd ? '<div class="cal-swipe">記録がありません・左右にスワイプで月を切り替え</div>' : `<div class="cal-avg num">${mode === 'hours'
-    ? `<div><div class="k">1日あたりの時間</div><div class="v">${(tot.ms / nd / 3600000).toFixed(1)}<small>h</small></div></div>
-       <div><div class="k">時間あたりの売上</div><div class="v">${tot.ms ? yen(Math.round(tot.sales / (tot.ms / 3600000))) : '—'}</div></div>`
-    : `<div><div class="k">1日あたりの売上</div><div class="v">${yen(Math.round(tot.sales / nd))}</div></div>
-       <div><div class="k">1回あたりの売上</div><div class="v">${tot.count ? yen(Math.round(tot.sales / tot.count)) : '—'}</div></div>`}</div>
-    <div class="cal-swipe">左右にスワイプで月を切り替え</div>`;
 }
 
 function openCal(t = Date.now()) {
