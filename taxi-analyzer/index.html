@@ -3443,7 +3443,6 @@ function calTilesHtml(c) {
   return `<button class="cal-tile hrs num ${cls}" data-pop="hours" aria-haspopup="dialog">
       <span class="k">${CLOCK_SVG}${S.settings.closingDay ? `${c.hm + 1}月の` : ''}予想労働時間</span>
       <span class="v">${(Math.max(0, est) / 3600000).toFixed(1)}<small>h</small></span>
-      ${cap ? `<span class="s">上限 ${S.settings.hoursCap}h</span>` : ''}
     </button>
     <button class="cal-tile sal num" data-pop="sales" aria-haspopup="dialog">
       <span class="k">${YEN_SVG}${c.cur ? '現在の売上' : '売上'}</span>
