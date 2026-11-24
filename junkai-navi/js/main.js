@@ -1,12 +1,12 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=23';
-import { ValhallaClient } from './valhalla.js?v=23';
-import { DemandEngine, CAT_JA } from './demand.js?v=23';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=23';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=23';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=23';
-import { profText, manualProf } from './profile.js?v=23';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=23';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=23';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=24';
+import { ValhallaClient } from './valhalla.js?v=24';
+import { DemandEngine, CAT_JA } from './demand.js?v=24';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=24';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=24';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=24';
+import { profText, manualProf } from './profile.js?v=24';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=24';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=24';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -184,7 +184,7 @@ map.on('load', () => {
     },
   }, firstSymbol);
   // ルートは区間ごとに分けて描く：次のポイントまで（leg=0）は濃い青で太く上に、その先（leg>=1）は細く淡く下に。
-  // 同じ交差点を2回通る時も、今進む線が上に見え、線上の矢印で向きがわかる。次の右左折は白い矢印で示す
+  // 同じ交差点を2回通る時も、今進む線が上に見える。線の上には矢印を付けない。次の右左折は白い矢印で示す
   addArrowImages();
   map.addSource('route', { type: 'geojson', data: empty });
   map.addSource('turn', { type: 'geojson', data: empty });
@@ -192,12 +192,8 @@ map.on('load', () => {
   const lineLayout = { 'line-join': 'round', 'line-cap': 'round' };
   map.addLayer({ id: 'route-later-casing', type: 'line', source: 'route', filter: ['>=', ['get', 'leg'], 1], layout: lineLayout, paint: { 'line-color': '#5b6f99', 'line-width': lw(5, 14), 'line-opacity': 0.55 } }, firstSymbol);
   map.addLayer({ id: 'route-later-line', type: 'line', source: 'route', filter: ['>=', ['get', 'leg'], 1], layout: lineLayout, paint: { 'line-color': '#a8c3f5', 'line-width': lw(3, 9), 'line-opacity': 0.85 } }, firstSymbol);
-  map.addLayer({ id: 'route-later-arrows', type: 'symbol', source: 'route', filter: ['>=', ['get', 'leg'], 1],
-    layout: { 'symbol-placement': 'line', 'symbol-spacing': 70, 'icon-image': 'chev-later', 'icon-size': lw(0.35, 0.8), 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map' } });
   map.addLayer({ id: 'route-casing', type: 'line', source: 'route', filter: ['==', ['get', 'leg'], 0], layout: lineLayout, paint: { 'line-color': '#0b57d0', 'line-width': lw(7, 22) } });
   map.addLayer({ id: 'route-line', type: 'line', source: 'route', filter: ['==', ['get', 'leg'], 0], layout: lineLayout, paint: { 'line-color': '#4c8df6', 'line-width': lw(4.5, 16) } });
-  map.addLayer({ id: 'route-arrows', type: 'symbol', source: 'route', filter: ['==', ['get', 'leg'], 0],
-    layout: { 'symbol-placement': 'line', 'symbol-spacing': 60, 'icon-image': 'chev-now', 'icon-size': lw(0.45, 1.1), 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map' } });
   // 次の右左折：交差点の手前から曲がった先までの白い矢印
   map.addLayer({ id: 'turn-casing', type: 'line', source: 'turn', filter: ['==', ['geometry-type'], 'LineString'], layout: lineLayout, paint: { 'line-color': '#0b3d91', 'line-width': lw(6, 18) } });
   map.addLayer({ id: 'turn-line', type: 'line', source: 'turn', filter: ['==', ['geometry-type'], 'LineString'], layout: lineLayout, paint: { 'line-color': '#ffffff', 'line-width': lw(3, 10) } });
@@ -207,28 +203,19 @@ map.on('load', () => {
 });
 map.on('dragstart', () => { if (running) setFollow(false); });
 
-// 線の上の矢印（シェブロン）と、右左折の矢じりの画像
+// 右左折の矢じりの画像
 function addArrowImages() {
   const make = (draw, size = 48) => {
     const c = document.createElement('canvas'); c.width = c.height = size;
     const x = c.getContext('2d'); draw(x, size);
     return x.getImageData(0, 0, size, size);
   };
-  // 右向き（線の進む向き）のシェブロン
-  const chev = (fill, stroke) => make((x, s) => {
-    x.lineJoin = 'round'; x.lineCap = 'round';
-    x.beginPath(); x.moveTo(s * 0.32, s * 0.2); x.lineTo(s * 0.68, s * 0.5); x.lineTo(s * 0.32, s * 0.8);
-    x.strokeStyle = stroke; x.lineWidth = s * 0.2; x.stroke();
-    x.strokeStyle = fill; x.lineWidth = s * 0.1; x.stroke();
-  });
   // 上向き（進む向き）の矢じり
   const head = make((x, s) => {
     x.beginPath(); x.moveTo(s * 0.5, s * 0.08); x.lineTo(s * 0.92, s * 0.72); x.lineTo(s * 0.08, s * 0.72); x.closePath();
     x.lineJoin = 'round'; x.strokeStyle = '#0b3d91'; x.lineWidth = s * 0.1; x.stroke(); x.fillStyle = '#fff'; x.fill();
   }, 64);
   try {
-    map.addImage('chev-now', chev('#ffffff', '#0b57d0'), { pixelRatio: 2 });
-    map.addImage('chev-later', chev('#5b6f99', '#ffffff'), { pixelRatio: 2 });
     map.addImage('turn-head', head, { pixelRatio: 2 });
   } catch { /* 地図が使えない端末 */ }
 }
