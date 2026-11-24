@@ -1,12 +1,12 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=24';
-import { ValhallaClient } from './valhalla.js?v=24';
-import { DemandEngine, CAT_JA } from './demand.js?v=24';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=24';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=24';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=24';
-import { profText, manualProf } from './profile.js?v=24';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=24';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=24';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=25';
+import { ValhallaClient } from './valhalla.js?v=25';
+import { DemandEngine, CAT_JA } from './demand.js?v=25';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=25';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=25';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=25';
+import { profText, manualProf } from './profile.js?v=25';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=25';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=25';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -249,6 +249,7 @@ function movePuck(dp, dur) {
   const step = (now) => {
     const k = Math.min(1, (now - t0) / dur);
     puckAt(dp.route, from + (to - from) * k);
+    drawRoute(); // 線の始まりを印に合わせて進める（通り過ぎた線を残さない）
     puckAnim.raf = k < 1 ? requestAnimationFrame(step) : 0;
   };
   puckAnim.raf = requestAnimationFrame(step);
@@ -504,17 +505,19 @@ function drawRoute() {
   const src = map.getSource && map.getSource('route');
   if (!src) return;
   if (!nav.route) { if (drawRoute.key !== 'none') { src.setData(empty); drawTourMarkers([]); drawRoute.sig = null; drawRoute.key = 'none'; drawTurnArrow(); } return; }
-  // 電池の節約：ルート・通るポイントが同じで、進んだ距離が20m未満なら描き直さない
+  // 電池の節約：ルート・通るポイントが同じで、進んだ距離が4m未満なら描き直さない
   if (!drawRoute.ids) drawRoute.ids = new WeakMap();
   if (!drawRoute.ids.has(nav.route)) drawRoute.ids.set(nav.route, (drawRoute.n = (drawRoute.n || 0) + 1));
-  const key = `${drawRoute.ids.get(nav.route)}|${Math.floor(nav.along / 20)}|${nav.tour.filter((x) => !x.passed).map((x) => x.area.key + '@' + Math.round(x.at)).join(',')}`;
+  // 線は現在地の印の位置から描く（印が線に沿って動いている間は、その位置）。印の後ろに通り過ぎた線を残さない
+  const startAt = puckAnim.route === nav.route && puckAnim.along != null ? Math.min(puckAnim.along, nav.along) : nav.along;
+  // 電池の節約：描き直しは4m進むごと（印の下に隠れる長さ）
+  const key = `${drawRoute.ids.get(nav.route)}|${Math.floor(startAt / 4)}|${nav.tour.filter((x) => !x.passed).map((x) => x.area.key + '@' + Math.round(x.at)).join(',')}`;
   drawTurnArrow();
   if (key === drawRoute.key) return;
   drawRoute.key = key;
   // 区間ごとに分ける：今いる所 → 次のポイント（leg=0）、その先は次のポイントごとに leg=1,2,…
   const cuts = nav.tour.filter((x) => !x.passed && x.at > nav.along + 5).map((x) => x.at).sort((a, b) => a - b);
-  // 線は今いる所の少し後ろ（20〜40m）から描く：現在地の印は次の位置まで線に沿って動くので、印の前に線の切れ目が出ないように
-  const edges = [Math.max(0, Math.floor(nav.along / 20) * 20 - 20), ...cuts.filter((a) => a < nav.route.length - 5), nav.route.length];
+  const edges = [Math.max(0, startAt), ...cuts.filter((a) => a < nav.route.length - 5), nav.route.length];
   const features = [];
   for (let i = 0; i < edges.length - 1; i++) {
     const c = sliceRoute(nav.route, edges[i], edges[i + 1]);
