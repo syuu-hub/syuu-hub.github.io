@@ -326,12 +326,16 @@ svg{display:block}
 .ld-body:active{background:var(--surface)}
 .ld-date{font-size:18px;font-weight:800;white-space:nowrap}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
-.log-total .k{font-size:13px;color:var(--muted)}
+.log-total .k{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px;white-space:nowrap}
+.log-total .k b{font-size:15px;color:var(--text);font-weight:800}
+.log-total .k b:empty{display:none}
 .log-total .v{font-size:clamp(30px,9vw,38px);font-weight:800;line-height:1.1}
 .log-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
 .log-card .log-total{margin-bottom:0}
-.log-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-.log-acts .wide{grid-column:1 / -1}
+.log-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin-top:12px}
+.log-acts .btn{font-size:14px}
+.log-acts .btn[hidden]{display:none}
+#logReport{background:var(--accent-soft);border-color:rgba(255,176,32,.45);color:var(--accent)}
 .log-times{display:flex;align-items:flex-end;gap:10px}
 .log-times .tm{min-width:0}
 .log-times .k{display:block;font-size:12px;color:var(--muted);font-weight:700}
@@ -339,9 +343,10 @@ svg{display:block}
 .log-times .v.ongoing{font-size:clamp(17px,5vw,20px);color:var(--ok);line-height:1.6}
 .log-times .ar{color:var(--faint);font-size:16px;padding-bottom:3px}
 .log-times .btn{margin-left:auto;align-self:center;flex:none}
-.log-card .log-times{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.log-card .log-times{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2)}
 .log-card .log-total{align-items:center}
 .log-acts .btn{min-width:0;padding:0 8px;gap:6px}
+@media (max-width:380px){ .log-acts .btn{font-size:13px;padding:0 4px;gap:2px} }
 .log-acts svg{color:var(--accent);flex:none}
 .chips-row{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
 .chips-row b{color:var(--text);font-weight:600;margin-left:4px}
@@ -363,13 +368,15 @@ svg{display:block}
 .tag.pause{background:rgba(244,114,182,.16);color:var(--st-wait)}
 /* 履歴：乗車1件＝カード1枚。①時刻・金額（大）②経路（中）③決済・種別（小） */
 #rideList{display:grid;gap:8px}
-.rcard{width:100%;display:grid;gap:8px;text-align:left;padding:12px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line)}
+.rcard{width:100%;display:grid;gap:6px;text-align:left;padding:10px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line)}
 .rcard:active{background:var(--surface-2)}
 .rcard.pause{border-left:3px solid var(--st-wait)}
 .rc-top{display:flex;align-items:baseline;gap:8px;min-width:0}
 .rc-time{font-size:17px;font-weight:800;white-space:nowrap}
+.rc-no{flex:none;min-width:1.6em;height:20px;padding:0 5px;border-radius:6px;background:var(--surface-3);color:var(--muted);font-size:11px;font-weight:800;display:inline-grid;place-items:center;align-self:center}
 .rc-time i{font-style:normal;font-weight:400;color:var(--faint);margin:0 4px}
 .rc-amt{margin-left:auto;flex:none;font-size:20px;font-weight:800;white-space:nowrap}
+.rc-no.p{background:rgba(244,114,182,.16);color:var(--st-wait)}
 .rc-amt.dur{color:var(--st-wait)}
 .rc-route{position:relative;display:grid;gap:3px;min-width:0}
 .rc-pl{position:relative;padding-left:16px;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -382,7 +389,7 @@ svg{display:block}
 .rc-kind{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .rc-flag{flex:none;font-size:11px;font-weight:700;line-height:18px;padding:0 6px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
 .rc-kind+.rc-flag{margin-left:auto}
-.rc-memo{font-size:12px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-memo{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:5px 8px;border-radius:6px;background:var(--surface-2)}
 .text-in[type="time"]{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;padding:0 10px}
 .ps-dur{text-align:center;color:var(--muted);font-size:14px;margin-top:14px}
 .ps-dur b{color:var(--st-wait);font-size:22px;margin-left:6px}
@@ -1163,7 +1170,7 @@ svg{display:block}
           <button class="cal-nav" id="logNext" aria-label="次の営業日"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
         <div class="log-card">
-          <div class="log-total"><span class="k">営業収入</span><span class="v num" id="logTotal">¥0</span></div>
+          <div class="log-total"><span class="k">営業収入<b class="num" id="logCount"></b></span><span class="v num" id="logTotal">¥0</span></div>
           <div class="log-times" id="logTimes">
             <div class="tm"><span class="k">出庫</span><span class="v num" id="logOut">--:--</span></div>
             <span class="ar">→</span>
@@ -1171,7 +1178,7 @@ svg{display:block}
             <button class="btn sm" id="logShiftEdit">修正</button>
           </div>
           <div class="log-acts">
-            <button class="btn sm wide" id="logReport">日報</button>
+            <button class="btn sm" id="logReport">日報</button>
             <button class="btn sm" id="logAddRide">＋ 乗車</button>
             <button class="btn sm" id="logAddPause">＋ <span class="pl-name">待機・休憩</span></button>
           </div>
@@ -3548,6 +3555,7 @@ function renderLog() {
     $('#logIn').classList.toggle('ongoing', !sh.end);
   }
   $('#logTotal').textContent = yen(st ? st.sales : 0);
+  $('#logCount').textContent = st ? st.count + '件' : '';
   $('#logReport').hidden = !st;
   $('#logShiftEdit').hidden = !sh;
   $('#logAddRide').hidden = $('#logAddPause').hidden = !sh;
@@ -3564,17 +3572,19 @@ function renderLog() {
   const items = [...st.rides.map(r => ({ t: r.ts, r })), ...(showPause ? st.pauses.map(p => ({ t: p.start, p })) : [])].sort((a, b) => (a.t - b.t) * dir);
   if (!items.length) { list.innerHTML = '<li class="empty">乗車なし</li>'; return; }
   // 1件＝1カード。情報の順位：①時刻と金額 ②乗車地→降車地 ③決済・種別
-  const top = (t1, t2, amt, cls) => `<div class="rc-top"><span class="rc-time num">${t1}<i>→</i>${t2}</span><span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
+  // 乗車には時刻の順の番号（乗車詳細の「2/10」と同じ並び）を付ける
+  const no = new Map(st.rides.slice().sort((a, b) => (a.start || a.ts) - (b.start || b.ts)).map((r, i) => [r.id, i + 1]));
+  const top = (t1, t2, amt, cls, n) => `<div class="rc-top">${n ? `<span class="rc-no num ${n === '‖' ? 'p' : ''}">${n}</span>` : ''}<span class="rc-time num">${t1}<i>→</i>${t2}</span><span class="rc-amt num ${cls || ''}">${amt}</span></div>`;
   const route = (a, b) => `<div class="rc-route"><div class="rc-pl from">${esc(a)}</div><div class="rc-pl to">${esc(b)}</div></div>`;
   list.innerHTML = items.map(({ r, p }) => p ? `
     <li><button class="rcard pause" data-pause="${p.ev.id}">
-      ${top(hhmm(p.start), p.end ? hhmm(p.end) : '継続中', dur(p.ms), 'dur')}
+      ${top(hhmm(p.start), p.end ? hhmm(p.end) : '継続中', dur(p.ms), 'dur', '‖')}
       <div class="rc-meta"><span class="tag pause">${PL()}</span></div>
     </button></li>` : `
     <li><button class="rcard" data-ride="${r.id}">
-      ${top(r.start ? hhmm(r.start) : '--:--', hhmm(r.ts), yen(r.total))}
+      ${top(r.start ? hhmm(r.start) : '--:--', hhmm(r.ts), yen(r.total), '', no.get(r.id))}
       ${route(placeText(r.from), placeText(r.to))}
-      <div class="rc-meta"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span><span class="rc-kind">${esc(kindLabel(r.kind, r.app))}</span>${[r.fare.long || r.fare.handi ? '割引' : '', r.toll ? '高速代' : ''].filter(Boolean).map(x => `<span class="rc-flag">${x}</span>`).join('')}</div>
+      <div class="rc-meta"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(payLabel(r.pay, r.app))}</span><span class="rc-kind">${esc(kindLabel(r.kind, r.app))}</span>${[r.fare.long || r.fare.handi ? '割引' : '', r.toll ? '高速 ' + yen(r.toll) : ''].filter(Boolean).map(x => `<span class="rc-flag">${x}</span>`).join('')}</div>
       ${r.memo ? `<div class="rc-memo">${esc(r.memo)}</div>` : ''}
     </button></li>`).join('');
 }
