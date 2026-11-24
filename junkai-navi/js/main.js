@@ -1,12 +1,12 @@
-import { EndlessNavigator } from './navcore.js?v=22';
-import { ValhallaClient } from './valhalla.js?v=22';
-import { DemandEngine, CAT_JA } from './demand.js?v=22';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=22';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=22';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=22';
-import { profText, manualProf } from './profile.js?v=22';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=22';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=22';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=23';
+import { ValhallaClient } from './valhalla.js?v=23';
+import { DemandEngine, CAT_JA } from './demand.js?v=23';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=23';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=23';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=23';
+import { profText, manualProf } from './profile.js?v=23';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=23';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=23';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -237,6 +237,40 @@ const puckEl = document.createElement('div');
 puckEl.className = 'puck';
 puckEl.innerHTML = '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="#fff"/><path d="M24 7 37 38 24 31 11 38z" fill="#1a73e8"/></svg>';
 const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
+// 現在地の印：ルートの上を走っている間はルートの線の上に置き、次の位置まで線に沿って動かす
+// （地図の移動と同じ長さ・同じ速さで動かすので、印は画面の同じ所にいて、ルートの線からずれない）
+const puckAnim = { added: false, route: null, along: null, point: null, raf: 0 };
+function placePuck(point, brg) {
+  if (!puckAnim.added) { puck.setLngLat(point).addTo(map); puckAnim.added = true; } else puck.setLngLat(point);
+  puck.setRotation(brg);
+  puckAnim.point = point;
+}
+function puckAt(route, along) {
+  puckAnim.route = route; puckAnim.along = along;
+  placePuck(pointAt(route, along).point, routeBearing(route, along));
+}
+function movePuck(dp, dur) {
+  if (puckAnim.raf) { cancelAnimationFrame(puckAnim.raf); puckAnim.raf = 0; }
+  if (!dp.route) { puckAnim.route = null; puckAnim.along = null; placePuck(dp.point, dp.bearing); return; }
+  // 動き始める位置：同じルートなら今の along、ルートがつなぎ替わったら今の印の位置を新しいルートに合わせ直す
+  let from = null;
+  if (puckAnim.route === dp.route && puckAnim.along != null) from = puckAnim.along;
+  else if (puckAnim.point) { const sn = snapToRoute(dp.route, puckAnim.point, dp.along); if (sn.dist < 25) from = sn.along; }
+  const to = dp.along;
+  if (from == null || dur <= 0 || Math.abs(to - from) < 0.5 || to - from > 250 || from - to > 30 || typeof requestAnimationFrame !== 'function') { puckAt(dp.route, to); return; }
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / dur);
+    puckAt(dp.route, from + (to - from) * k);
+    puckAnim.raf = k < 1 ? requestAnimationFrame(step) : 0;
+  };
+  puckAnim.raf = requestAnimationFrame(step);
+}
+function removePuck() {
+  if (puckAnim.raf) cancelAnimationFrame(puckAnim.raf);
+  Object.assign(puckAnim, { added: false, route: null, along: null, point: null, raf: 0 });
+  puck.remove();
+}
 // これから通るポイントの印（1＝次に通るポイント）。ゴールの印は出さない
 let tourMarkers = [];
 function drawTourMarkers(areas) {
@@ -445,7 +479,7 @@ function stop() {
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   nav.reset();
   drawRoute();
-  puck.remove(); drawTourMarkers([]); drawRoute.sig = null;
+  removePuck(); drawTourMarkers([]); drawRoute.sig = null;
   ['banner', 'sheet', 'recenter'].forEach((id) => $(id).classList.add('hidden'));
   $('start').classList.remove('hidden');
   map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, bottom: 0 } });
@@ -492,7 +526,8 @@ function drawRoute() {
   drawRoute.key = key;
   // 区間ごとに分ける：今いる所 → 次のポイント（leg=0）、その先は次のポイントごとに leg=1,2,…
   const cuts = nav.tour.filter((x) => !x.passed && x.at > nav.along + 5).map((x) => x.at).sort((a, b) => a - b);
-  const edges = [nav.along, ...cuts.filter((a) => a < nav.route.length - 5), nav.route.length];
+  // 線は今いる所の少し後ろ（20〜40m）から描く：現在地の印は次の位置まで線に沿って動くので、印の前に線の切れ目が出ないように
+  const edges = [Math.max(0, Math.floor(nav.along / 20) * 20 - 20), ...cuts.filter((a) => a < nav.route.length - 5), nav.route.length];
   const features = [];
   for (let i = 0; i < edges.length - 1; i++) {
     const c = sliceRoute(nav.route, edges[i], edges[i + 1]);
@@ -528,10 +563,12 @@ function render() {
   if (!running) return;
   if (document.visibilityState === 'hidden') return; // 見えていない間は描かない（案内・音声は続ける）
   const fix = lastFix;
-  if (fix) {
-    puck.setLngLat(fix.point).addTo(map);
-    const hd = nav.heading ?? 0;
-    puck.setRotation(hd);
+  // 休止中はルートに合わせず GPS の位置
+  const dp = fix && (riding ? { point: fix.point, bearing: nav.heading ?? 0, route: null } : nav.displayPos() || { point: fix.point, bearing: nav.heading ?? 0, route: null });
+  if (dp) {
+    const hd = dp.bearing;
+    const dur = cfg.eco ? 300 : 600;
+    movePuck(dp, dur);
     if (follow && document.visibilityState !== 'hidden') {
       const kmh = (nav.speed || 0) * 3.6;
       const zoom = kmh > 50 ? 15.6 : kmh > 25 ? 16.3 : 17;
@@ -539,13 +576,13 @@ function render() {
       // アニメーションは次の位置が来る前に終わる長さにして、その間は地図を休ませる
       const c = render.cam;
       const pitch = cfg.eco ? 0 : 55;
-      const moved = !c || haversine(c.p, fix.point) > 4 || Math.abs(((hd - c.b + 540) % 360) - 180) > 4 || c.z !== zoom || c.pitch !== pitch || c.col !== cfg.sheetCollapsed;
+      const moved = !c || haversine(c.p, dp.point) > 4 || Math.abs(((hd - c.b + 540) % 360) - 180) > 4 || c.z !== zoom || c.pitch !== pitch || c.col !== cfg.sheetCollapsed;
       if (moved) {
-        render.cam = { p: fix.point, b: hd, z: zoom, pitch, col: cfg.sheetCollapsed };
+        render.cam = { p: dp.point, b: hd, z: zoom, pitch, col: cfg.sheetCollapsed };
         map.easeTo({
-          center: fix.point, bearing: hd, pitch, zoom,
+          center: dp.point, bearing: hd, pitch, zoom,
           padding: { top: window.innerHeight * (cfg.eco ? 0.3 : 0.38), bottom: cfg.sheetCollapsed ? 60 : 170 },
-          duration: cfg.eco ? 300 : 600, easing: (t) => t,
+          duration: dur, easing: (t) => t,
         });
       }
     }

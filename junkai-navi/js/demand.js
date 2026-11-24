@@ -1,7 +1,8 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=22';
-import { profFactor } from './profile.js?v=22';
+import { haversine, bearing, angleDiff } from './geo.js?v=23';
+import { profFactor } from './profile.js?v=23';
+import { isOffDay } from './calendar.js?v=23';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -17,7 +18,7 @@ export const CAT_JA = { station: '駅', hotel: 'ホテル', hospital: '病院', 
 function timeFactor(cat, date, spot = null) {
   const h = date.getHours();
   const dow = date.getDay(); // 0=日
-  const weekend = dow === 0 || dow === 6;
+  const weekend = isOffDay(date); // 祝日・年末年始も休日の傾向
   let f = (P[cat] || P.station)[h];
   if (cat === 'hospital' && weekend) f *= 0.3;
   if (cat === 'nightlife' && (dow === 5 || dow === 6) && (h >= 20 || h <= 3)) f *= 1.3; // 金土の夜
@@ -37,6 +38,37 @@ function weatherFactor(cat, weather) {
 
 const CELL_LAT = 0.004, CELL_LNG = 0.005; // 約450m四方
 const cellKey = (p) => `${Math.floor(p[1] / CELL_LAT)}:${Math.floor(p[0] / CELL_LNG)}`;
+// 隣のエリアの需要も少し足す（辺で接する隣は3割、斜めは2割）。乗車が続けて見つかる「面」の需要を高く見て、
+// エリアの区切りの線をまたいだだけで需要が分かれて低く見えないように
+const NEIGHBOR_W = [[-1, 0, 0.3], [1, 0, 0.3], [0, -1, 0.3], [0, 1, 0.3], [-1, -1, 0.2], [-1, 1, 0.2], [1, -1, 0.2], [1, 1, 0.2]];
+
+// ===== タクシーアナライザの乗車実績の重み =====
+const DAY_MIN = 1440;
+const TIME_SIGMA_MIN = 60; // 時刻の近さ：前後60分で6割、2時間で1割5分ほど
+const TREND_K = 8; // エリアの乗車がこの件数あると、時刻・曜日の傾向を半分の強さで使う
+const KERNEL_MEAN = (TIME_SIGMA_MIN * Math.sqrt(2 * Math.PI)) / DAY_MIN; // 時刻の重みの1日の平均
+// 時刻・曜日の傾向をどれだけ信じるか（0〜1）。エリアの乗車が少ないうちは弱く、多くなるほど強く
+// 実際の営業ログで「他の日の乗車から、その日の乗車場所を当てる」検証をすると、1回だけの乗車の時刻で強く重み付けすると
+// 偶然の時刻を拾って外れやすく、乗車が何回もある場所だけ時刻の傾向を強く使う方がよく当たった
+export const trendStrength = (n) => n / (n + TREND_K);
+// 傾向の強さ c で、時刻の重みの1日の平均が1になるようにする（乗車が多いエリアの需要が、時刻の重みで全体に下がらないように）
+export const trendNorm = (c) => 1 / (1 - c + c * KERNEL_MEAN);
+// 1件の乗車の、時刻 now の需要への重み
+// ・時刻：分単位でなめらかに（10:50の乗車は11:10にもよく効く）
+// ・曜日：同じ曜日 1、平日／休日（土日・祝日・年末年始）が同じなら少し下げ、違えばもっと下げる
+// ・新しい乗車ほど重く（200日で約4割）、運賃が高いほど少し重く
+export function rideWeight(p, now, c = 0.5) {
+  const d = new Date(p.t);
+  const md = ((d.getHours() * 60 + d.getMinutes()) - (now.getHours() * 60 + now.getMinutes()) + DAY_MIN * 2) % DAY_MIN;
+  const dm = Math.min(md, DAY_MIN - md);
+  const tw = 1 - c + c * Math.exp(-(dm * dm) / (2 * TIME_SIGMA_MIN * TIME_SIGMA_MIN));
+  const offR = isOffDay(d), offN = isOffDay(now);
+  const dw = offR !== offN ? 1 - 0.5 * c : d.getDay() === now.getDay() ? 1 : 1 - 0.15 * c;
+  const ageDays = Math.max(0, (now - d) / 864e5);
+  const fareW = 1 + 0.4 * Math.min(2, (p.fare || 0) / 3000);
+  return tw * dw * Math.exp(-ageDays / 200) * fareW;
+}
+
 const cellCenter = (key) => {
   const [a, b] = key.split(':').map(Number);
   return [(b + 0.5) * CELL_LNG, (a + 0.5) * CELL_LAT];
@@ -74,18 +106,19 @@ export class DemandEngine {
       if (s.name) add([s.lng, s.lat], v, s.name, BASE[s.cat] || 0.3);
       else add([s.lng, s.lat], v, s.cat === 'nightlife' ? '繁華街' : CAT_JA[s.cat], 0.01);
     }
-    const h = now.getHours();
-    const wk = now.getDay() === 0 || now.getDay() === 6;
-    // タクシーアナライザの乗車実績：同じ時間帯・曜日タイプほど重く、運賃が高いほど少し重く
+    // タクシーアナライザの乗車実績：乗車の多い場所を基本に、時刻・曜日が近い乗車ほど重く（傾向の強さは件数しだい）
+    const perCell = new Map();
+    for (const p of this.csvRides) { const k = cellKey([p.lng, p.lat]); perCell.set(k, (perCell.get(k) || 0) + 1); }
     for (const p of this.csvRides) {
-      const d = new Date(p.t);
-      const dh = Math.min(Math.abs(d.getHours() - h), 24 - Math.abs(d.getHours() - h));
-      const tw = dh === 0 ? 1 : dh === 1 ? 0.5 : dh === 2 ? 0.2 : 0.03; // 時間帯外も少しだけ残す
-      const sameType = (d.getDay() === 0 || d.getDay() === 6) === wk;
-      const ageDays = Math.max(0, (now - d) / 864e5);
-      const fareW = 1 + 0.4 * Math.min(2, (p.fare || 0) / 3000);
-      const v = tw * (sameType ? 1 : 0.5) * Math.exp(-ageDays / 365) * fareW;
+      const c = trendStrength(perCell.get(cellKey([p.lng, p.lat])));
+      const v = rideWeight(p, now, c) * trendNorm(c);
       add([p.lng, p.lat], v, p.name || '乗車実績', p.name ? 0.5 + v : 0.005);
+    }
+    // 隣のエリアの需要を少し足す（需要のあるエリアだけ。何もない所を行き先にはしない）
+    const own = new Map([...raw].map(([k, a]) => [k, a.score]));
+    for (const [k, a] of raw) {
+      const [y, x] = k.split(':').map(Number);
+      for (const [dy, dx, w] of NEIGHBOR_W) { const o = own.get(`${y + dy}:${x + dx}`); if (o) a.score += w * o; }
     }
 
     const next = new Map();
