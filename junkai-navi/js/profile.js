@@ -4,6 +4,8 @@
 //   manual … 自分で指定した時間帯・曜日（1＝対象、0＝対象外）
 // d は 0＝日曜 … 6＝土曜（Date#getDay と同じ）
 
+import { isOffDay } from './calendar.js?v=24';
+
 export const DAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
 const isWeekend = (dow) => dow === 0 || dow === 6;
 
@@ -22,10 +24,10 @@ export function profFactor(prof, date) {
   if (maxD > 0) {
     if (prof.src === 'manual') dw = prof.d[dow] ? 1 : 0;
     else {
-      // 曜日そのものと、平日／土日の傾向を半分ずつ
+      // 曜日そのものと、平日／休日（土日・祝日）の傾向を半分ずつ
       const avg = (we) => { const ds = [0, 1, 2, 3, 4, 5, 6].filter((x) => isWeekend(x) === we); return ds.reduce((s, x) => s + prof.d[x], 0) / ds.length; };
       const typeMax = Math.max(avg(true), avg(false)) || 1;
-      dw = 0.5 * (prof.d[dow] / maxD) + 0.5 * (avg(isWeekend(dow)) / typeMax);
+      dw = 0.5 * (prof.d[dow] / maxD) + 0.5 * (avg(isOffDay(date)) / typeMax); // 祝日は休日の傾向
     }
   }
   let f = hw * dw;

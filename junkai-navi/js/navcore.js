@@ -5,8 +5,8 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=22';
-import { nearestUtility } from './demand.js?v=22';
+import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=24';
+import { nearestUtility } from './demand.js?v=24';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -31,6 +31,12 @@ export const DEFAULTS = {
   poorAccuracyM: 60, // これより精度の悪いGPS（ビル街・トンネル）は、ルートから外れた判定に使わない
   rerouteCooldownMs: 20000, // 再検索の間隔の下限（GPSの乱れで再検索を繰り返さない）
 };
+
+// ルート上の向き：前後数十メートルの2点から測る（細かい折れ線の向きの揺れで印や地図がぶれないように）
+export function routeBearing(route, along) {
+  const a = pointAt(route, Math.max(0, along - 8)).point, b = pointAt(route, Math.min(route.length, along + 15)).point;
+  return haversine(a, b) > 1 ? bearing(a, b) : pointAt(route, along).bearing;
+}
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -64,6 +70,7 @@ export class EndlessNavigator {
     this.failCount = 0; // ルートの計算に続けて失敗した回数（待つ時間を延ばす）
     this.lastRerouteAt = 0;
     this.offCount = 0;
+    this.onRoute = false; // 今の位置がルートの上か（現在地の印をルートの線に合わせて出す）
     this.track = [];
     this.badTargets = new Map();
     this.serviceCenter = null;
@@ -91,7 +98,8 @@ export class EndlessNavigator {
       if (snap.dist > Math.max(this.s.offRouteM, acc * 1.2)) {
         // 精度の悪い位置（ビル街・トンネル）では「外れた」と数えない（位置が跳んでも再検索しない）
         if (acc <= this.s.poorAccuracyM) this.offCount++;
-      } else { this.offCount = 0; this.along = Math.max(this.along - 20, snap.along); }
+        this.onRoute = false;
+      } else { this.offCount = 0; this.onRoute = true; this.along = Math.max(this.along - 20, snap.along); }
       this.snapDist = snap.dist;
       this.checkPassed();
       if (this.offCount >= 3 && !this.planning && t - this.lastRerouteAt > this.s.rerouteCooldownMs) {
@@ -104,6 +112,17 @@ export class EndlessNavigator {
       this.announce();
     }
     this.tick();
+  }
+
+  // 現在地の印を出す位置：ルートの上を走っている間は、GPSの位置ではなくルート上の位置（along）に合わせる
+  // （GPSの誤差で印が道の横にずれたり、ルートの線から離れたりしないように）。向きもルートの向き
+  // 外れている時・ルートが無い時は GPS の位置と進行方位
+  displayPos() {
+    if (this.route && this.onRoute) {
+      const at = pointAt(this.route, this.along);
+      return { point: at.point, bearing: routeBearing(this.route, this.along), along: this.along, route: this.route };
+    }
+    return this.pos ? { point: this.pos, bearing: this.heading ?? 0, along: null, route: null } : null;
   }
 
   // ツアーに入っていなくても、近くを通った需要エリアは「回った」扱い（すぐ戻ってこないように）
@@ -395,7 +414,8 @@ export class EndlessNavigator {
     if (commit == null) {
       this.route = newRoute;
       this.along = 0;
-      if (this.pos) this.along = snapToRoute(newRoute, this.pos).along;
+      this.onRoute = false;
+      if (this.pos) { const sn = snapToRoute(newRoute, this.pos); this.along = sn.along; this.onRoute = sn.dist <= this.s.offRouteM; }
       newFrom = this.along;
     } else {
       const keepFrom = Math.max(0, this.along - 300);

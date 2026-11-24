@@ -1,12 +1,12 @@
-import { EndlessNavigator } from './navcore.js?v=22';
-import { ValhallaClient } from './valhalla.js?v=22';
-import { DemandEngine, CAT_JA } from './demand.js?v=22';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=22';
-import { sliceRoute, pointAt, haversine } from './geo.js?v=22';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=22';
-import { profText, manualProf } from './profile.js?v=22';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=22';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=22';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=24';
+import { ValhallaClient } from './valhalla.js?v=24';
+import { DemandEngine, CAT_JA } from './demand.js?v=24';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=24';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=24';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=24';
+import { profText, manualProf } from './profile.js?v=24';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=24';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=24';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -184,7 +184,7 @@ map.on('load', () => {
     },
   }, firstSymbol);
   // ルートは区間ごとに分けて描く：次のポイントまで（leg=0）は濃い青で太く上に、その先（leg>=1）は細く淡く下に。
-  // 同じ交差点を2回通る時も、今進む線が上に見え、線上の矢印で向きがわかる。次の右左折は白い矢印で示す
+  // 同じ交差点を2回通る時も、今進む線が上に見える。線の上には矢印を付けない。次の右左折は白い矢印で示す
   addArrowImages();
   map.addSource('route', { type: 'geojson', data: empty });
   map.addSource('turn', { type: 'geojson', data: empty });
@@ -192,12 +192,8 @@ map.on('load', () => {
   const lineLayout = { 'line-join': 'round', 'line-cap': 'round' };
   map.addLayer({ id: 'route-later-casing', type: 'line', source: 'route', filter: ['>=', ['get', 'leg'], 1], layout: lineLayout, paint: { 'line-color': '#5b6f99', 'line-width': lw(5, 14), 'line-opacity': 0.55 } }, firstSymbol);
   map.addLayer({ id: 'route-later-line', type: 'line', source: 'route', filter: ['>=', ['get', 'leg'], 1], layout: lineLayout, paint: { 'line-color': '#a8c3f5', 'line-width': lw(3, 9), 'line-opacity': 0.85 } }, firstSymbol);
-  map.addLayer({ id: 'route-later-arrows', type: 'symbol', source: 'route', filter: ['>=', ['get', 'leg'], 1],
-    layout: { 'symbol-placement': 'line', 'symbol-spacing': 70, 'icon-image': 'chev-later', 'icon-size': lw(0.35, 0.8), 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map' } });
   map.addLayer({ id: 'route-casing', type: 'line', source: 'route', filter: ['==', ['get', 'leg'], 0], layout: lineLayout, paint: { 'line-color': '#0b57d0', 'line-width': lw(7, 22) } });
   map.addLayer({ id: 'route-line', type: 'line', source: 'route', filter: ['==', ['get', 'leg'], 0], layout: lineLayout, paint: { 'line-color': '#4c8df6', 'line-width': lw(4.5, 16) } });
-  map.addLayer({ id: 'route-arrows', type: 'symbol', source: 'route', filter: ['==', ['get', 'leg'], 0],
-    layout: { 'symbol-placement': 'line', 'symbol-spacing': 60, 'icon-image': 'chev-now', 'icon-size': lw(0.45, 1.1), 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map' } });
   // 次の右左折：交差点の手前から曲がった先までの白い矢印
   map.addLayer({ id: 'turn-casing', type: 'line', source: 'turn', filter: ['==', ['geometry-type'], 'LineString'], layout: lineLayout, paint: { 'line-color': '#0b3d91', 'line-width': lw(6, 18) } });
   map.addLayer({ id: 'turn-line', type: 'line', source: 'turn', filter: ['==', ['geometry-type'], 'LineString'], layout: lineLayout, paint: { 'line-color': '#ffffff', 'line-width': lw(3, 10) } });
@@ -207,28 +203,19 @@ map.on('load', () => {
 });
 map.on('dragstart', () => { if (running) setFollow(false); });
 
-// 線の上の矢印（シェブロン）と、右左折の矢じりの画像
+// 右左折の矢じりの画像
 function addArrowImages() {
   const make = (draw, size = 48) => {
     const c = document.createElement('canvas'); c.width = c.height = size;
     const x = c.getContext('2d'); draw(x, size);
     return x.getImageData(0, 0, size, size);
   };
-  // 右向き（線の進む向き）のシェブロン
-  const chev = (fill, stroke) => make((x, s) => {
-    x.lineJoin = 'round'; x.lineCap = 'round';
-    x.beginPath(); x.moveTo(s * 0.32, s * 0.2); x.lineTo(s * 0.68, s * 0.5); x.lineTo(s * 0.32, s * 0.8);
-    x.strokeStyle = stroke; x.lineWidth = s * 0.2; x.stroke();
-    x.strokeStyle = fill; x.lineWidth = s * 0.1; x.stroke();
-  });
   // 上向き（進む向き）の矢じり
   const head = make((x, s) => {
     x.beginPath(); x.moveTo(s * 0.5, s * 0.08); x.lineTo(s * 0.92, s * 0.72); x.lineTo(s * 0.08, s * 0.72); x.closePath();
     x.lineJoin = 'round'; x.strokeStyle = '#0b3d91'; x.lineWidth = s * 0.1; x.stroke(); x.fillStyle = '#fff'; x.fill();
   }, 64);
   try {
-    map.addImage('chev-now', chev('#ffffff', '#0b57d0'), { pixelRatio: 2 });
-    map.addImage('chev-later', chev('#5b6f99', '#ffffff'), { pixelRatio: 2 });
     map.addImage('turn-head', head, { pixelRatio: 2 });
   } catch { /* 地図が使えない端末 */ }
 }
@@ -237,6 +224,40 @@ const puckEl = document.createElement('div');
 puckEl.className = 'puck';
 puckEl.innerHTML = '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="#fff"/><path d="M24 7 37 38 24 31 11 38z" fill="#1a73e8"/></svg>';
 const puck = new ML.Marker({ element: puckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
+// 現在地の印：ルートの上を走っている間はルートの線の上に置き、次の位置まで線に沿って動かす
+// （地図の移動と同じ長さ・同じ速さで動かすので、印は画面の同じ所にいて、ルートの線からずれない）
+const puckAnim = { added: false, route: null, along: null, point: null, raf: 0 };
+function placePuck(point, brg) {
+  if (!puckAnim.added) { puck.setLngLat(point).addTo(map); puckAnim.added = true; } else puck.setLngLat(point);
+  puck.setRotation(brg);
+  puckAnim.point = point;
+}
+function puckAt(route, along) {
+  puckAnim.route = route; puckAnim.along = along;
+  placePuck(pointAt(route, along).point, routeBearing(route, along));
+}
+function movePuck(dp, dur) {
+  if (puckAnim.raf) { cancelAnimationFrame(puckAnim.raf); puckAnim.raf = 0; }
+  if (!dp.route) { puckAnim.route = null; puckAnim.along = null; placePuck(dp.point, dp.bearing); return; }
+  // 動き始める位置：同じルートなら今の along、ルートがつなぎ替わったら今の印の位置を新しいルートに合わせ直す
+  let from = null;
+  if (puckAnim.route === dp.route && puckAnim.along != null) from = puckAnim.along;
+  else if (puckAnim.point) { const sn = snapToRoute(dp.route, puckAnim.point, dp.along); if (sn.dist < 25) from = sn.along; }
+  const to = dp.along;
+  if (from == null || dur <= 0 || Math.abs(to - from) < 0.5 || to - from > 250 || from - to > 30 || typeof requestAnimationFrame !== 'function') { puckAt(dp.route, to); return; }
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / dur);
+    puckAt(dp.route, from + (to - from) * k);
+    puckAnim.raf = k < 1 ? requestAnimationFrame(step) : 0;
+  };
+  puckAnim.raf = requestAnimationFrame(step);
+}
+function removePuck() {
+  if (puckAnim.raf) cancelAnimationFrame(puckAnim.raf);
+  Object.assign(puckAnim, { added: false, route: null, along: null, point: null, raf: 0 });
+  puck.remove();
+}
 // これから通るポイントの印（1＝次に通るポイント）。ゴールの印は出さない
 let tourMarkers = [];
 function drawTourMarkers(areas) {
@@ -445,7 +466,7 @@ function stop() {
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   nav.reset();
   drawRoute();
-  puck.remove(); drawTourMarkers([]); drawRoute.sig = null;
+  removePuck(); drawTourMarkers([]); drawRoute.sig = null;
   ['banner', 'sheet', 'recenter'].forEach((id) => $(id).classList.add('hidden'));
   $('start').classList.remove('hidden');
   map.easeTo({ pitch: 0, bearing: 0, padding: { top: 0, bottom: 0 } });
@@ -492,7 +513,8 @@ function drawRoute() {
   drawRoute.key = key;
   // 区間ごとに分ける：今いる所 → 次のポイント（leg=0）、その先は次のポイントごとに leg=1,2,…
   const cuts = nav.tour.filter((x) => !x.passed && x.at > nav.along + 5).map((x) => x.at).sort((a, b) => a - b);
-  const edges = [nav.along, ...cuts.filter((a) => a < nav.route.length - 5), nav.route.length];
+  // 線は今いる所の少し後ろ（20〜40m）から描く：現在地の印は次の位置まで線に沿って動くので、印の前に線の切れ目が出ないように
+  const edges = [Math.max(0, Math.floor(nav.along / 20) * 20 - 20), ...cuts.filter((a) => a < nav.route.length - 5), nav.route.length];
   const features = [];
   for (let i = 0; i < edges.length - 1; i++) {
     const c = sliceRoute(nav.route, edges[i], edges[i + 1]);
@@ -528,10 +550,12 @@ function render() {
   if (!running) return;
   if (document.visibilityState === 'hidden') return; // 見えていない間は描かない（案内・音声は続ける）
   const fix = lastFix;
-  if (fix) {
-    puck.setLngLat(fix.point).addTo(map);
-    const hd = nav.heading ?? 0;
-    puck.setRotation(hd);
+  // 休止中はルートに合わせず GPS の位置
+  const dp = fix && (riding ? { point: fix.point, bearing: nav.heading ?? 0, route: null } : nav.displayPos() || { point: fix.point, bearing: nav.heading ?? 0, route: null });
+  if (dp) {
+    const hd = dp.bearing;
+    const dur = cfg.eco ? 300 : 600;
+    movePuck(dp, dur);
     if (follow && document.visibilityState !== 'hidden') {
       const kmh = (nav.speed || 0) * 3.6;
       const zoom = kmh > 50 ? 15.6 : kmh > 25 ? 16.3 : 17;
@@ -539,13 +563,13 @@ function render() {
       // アニメーションは次の位置が来る前に終わる長さにして、その間は地図を休ませる
       const c = render.cam;
       const pitch = cfg.eco ? 0 : 55;
-      const moved = !c || haversine(c.p, fix.point) > 4 || Math.abs(((hd - c.b + 540) % 360) - 180) > 4 || c.z !== zoom || c.pitch !== pitch || c.col !== cfg.sheetCollapsed;
+      const moved = !c || haversine(c.p, dp.point) > 4 || Math.abs(((hd - c.b + 540) % 360) - 180) > 4 || c.z !== zoom || c.pitch !== pitch || c.col !== cfg.sheetCollapsed;
       if (moved) {
-        render.cam = { p: fix.point, b: hd, z: zoom, pitch, col: cfg.sheetCollapsed };
+        render.cam = { p: dp.point, b: hd, z: zoom, pitch, col: cfg.sheetCollapsed };
         map.easeTo({
-          center: fix.point, bearing: hd, pitch, zoom,
+          center: dp.point, bearing: hd, pitch, zoom,
           padding: { top: window.innerHeight * (cfg.eco ? 0.3 : 0.38), bottom: cfg.sheetCollapsed ? 60 : 170 },
-          duration: cfg.eco ? 300 : 600, easing: (t) => t,
+          duration: dur, easing: (t) => t,
         });
       }
     }
