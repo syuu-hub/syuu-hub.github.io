@@ -811,10 +811,6 @@ svg{display:block}
 .rp-sum .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1;color:var(--accent)}
 .rp-sum .c{font-size:14px;color:var(--muted);white-space:nowrap}
 .rp-sum .c b{font-size:22px;color:var(--text);margin-right:2px}
-.rp-kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
-.rp-kpi > div{background:var(--surface);border-radius:var(--r-sm);padding:8px 10px;min-width:0}
-.rp-kpi .k{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
-.rp-kpi .v{font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rp-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px;overflow:hidden}
 .rr{display:grid;grid-template-columns:minmax(0,1fr) 3.2em 6.6em 12px;align-items:center;column-gap:8px;padding:10px 0}   /* 件数・金額の列を全行でそろえる（右端は開閉の印の列） */
 .rr + .rr{border-top:1px solid var(--line)}
@@ -908,11 +904,13 @@ svg{display:block}
 .rd-amt .top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px 12px;flex-wrap:wrap}
 .rd-amt .k{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
 .rd-amt .v{font-size:clamp(34px,10vw,46px);font-weight:800;line-height:1.05;color:var(--accent);letter-spacing:-.01em}
-.rd-amt .tags{display:flex;gap:6px;align-items:center;min-width:0;max-width:100%;white-space:nowrap;padding-bottom:4px}
-.rd-amt .tags .tag{overflow:hidden;text-overflow:ellipsis;min-width:0;margin:0;font-size:13px;padding:4px 9px;border-radius:8px}
-.rd-amt .meta{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2);font-size:15px;font-weight:700;color:var(--text);display:flex;flex-wrap:wrap;align-items:baseline;row-gap:2px}
-.rd-amt .meta i{font-style:normal;color:var(--muted);margin:0 4px}
-.rd-amt .meta .dot{color:var(--faint);margin:0 6px}
+/* 支払いと乗車種別：項目名を付けて2列に。支払いは色付きの印、乗車種別は文字だけ（同じ見た目にしない） */
+.rd-attr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2)}
+.rd-attr > div{min-width:0}
+.rd-attr dt{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.rd-attr dd{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-attr .tag{margin:0;font-size:14px;padding:3px 10px;border-radius:8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.rd-attr .kd{font-size:16px;font-weight:800;line-height:26px}
 .rd-fare{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px}
 .rd-fare .fr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;font-size:15px;color:var(--muted);white-space:nowrap}
 .rd-fare .fr + .fr{border-top:1px solid var(--line)}
@@ -2607,18 +2605,18 @@ function openRide(id, dir = 0) {
     </div>`;
   };
   $('#rdDate').textContent = ymd(r.ts);
-  // 上：売上（大きく）・決済・乗車種別・時刻と所要時間 → 料金の内訳 → 乗車・降車 → メモ
+  // 上：売上（大きく）と、支払い・乗車種別（項目名付きで分けて見せる）→ 料金の内訳 → 乗車・降車 → メモ
   const paid = r.total + (r.toll || 0) + outFee;   // お支払い金額（売上外を含む）
-  const meta = [r.start ? `${hhmm(r.start)}<i>→</i>${hhmm(r.ts)}` : `降車 ${hhmm(r.ts)}`, r.start && Math.round((r.ts - r.start) / 60000) + '分',
-    paid !== r.total && `お支払い ${yen(paid)}`].filter(Boolean).join('<span class="dot">・</span>');
   const kl = kindLabel(r.kind, r.app);
   $('#rdBody').innerHTML = `
     <div class="rd-amt">
       <div class="top">
         <div><div class="k">売上</div><div class="v num">${yen(r.total)}</div></div>
-        <div class="tags"><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span>${kl ? `<span class="tag">${esc(kl)}</span>` : ''}</div>
       </div>
-      <div class="meta num">${meta}</div>
+      <dl class="rd-attr">
+        <div><dt>支払い</dt><dd><span class="tag ${r.pay === 'cash' ? 'cash' : ''}">${esc(rideLabel(r.pay, r.app, r.ticket))}</span></dd></div>
+        ${kl ? `<div><dt>乗車種別</dt><dd class="kd">${esc(kl)}</dd></div>` : ''}
+      </dl>
     </div>
     ${adj || r.toll ? `<section class="rp-sec">
       <h3><span>料金</span></h3>
@@ -2637,7 +2635,7 @@ function openRide(id, dir = 0) {
       </div>
     </section>` : ''}
     <section class="rp-sec">
-      <h3><span>乗車・降車</span></h3>
+      <h3><span>乗車・降車</span><span class="num">${r.start ? Math.round((r.ts - r.start) / 60000) + '分' : ''}</span></h3>
       <div class="rd-route">${stop('from', '乗', r.start ? hhmm(r.start) : '--:--', r.from)}${stop('to', '降', hhmm(r.ts), r.to)}</div>
     </section>
     ${r.memo ? `<section class="rp-sec"><h3><span>メモ</span></h3><div class="rd-memo">${esc(r.memo)}</div></section>` : ''}`;
@@ -2732,11 +2730,6 @@ function openReport(id, keep) {
         <div><div class="k">合計金額（営業収入）</div><div class="v num">${yen(st.sales)}</div></div>
         <div class="c num"><b>${st.count}</b>件</div>
       </div>
-      ${st.count ? `<div class="rp-kpi num">
-        <div><div class="k">平均単価</div><div class="v">${yen(st.avg)}</div></div>
-        ${st.hourly != null ? `<div><div class="k">時間あたり</div><div class="v">${yen(st.hourly)}</div></div>` : ''}
-        ${st.occRate != null ? `<div><div class="k">実車率</div><div class="v">${Math.round(st.occRate * 100)}%</div></div>` : ''}
-      </div>` : ''}
     </div>
     <section class="rp-sec">
       <h3><span>支払い種別</span><span>件数・金額</span></h3>
