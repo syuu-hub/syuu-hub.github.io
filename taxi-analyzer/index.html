@@ -935,9 +935,6 @@ svg{display:block}
 .cal-nav{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--text)}
 .cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px;display:flex;flex-direction:column}
 .cal-body > *{flex:none}
-/* 高さが余る時は全体を縦の中央に（上に寄せない・カレンダーは伸ばさない）。足りない時はふつうにスクロール */
-.cal-body > :first-child{margin-top:auto}
-.cal-body > :last-child{margin-bottom:auto}
 /* カレンダー：1枚のカードに1pxの区切り。曜日の帯・日付（今日は丸）・中央に時間か売上（トップページ index.html に合わせる） */
 .cal-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 4px 10px}
 .cal-ctl .t{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.08em}
@@ -993,7 +990,7 @@ svg{display:block}
 .cal-cap.over .bar i{background:var(--danger)}
 .cal-cap.over b.used{color:var(--danger)}
 /* 予想労働時間・売上の2枚（押すとポップアップ）。トップページ index.html のサマリーに合わせる */
-.cal-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:4px 0 18px}
+.cal-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0 16px}   /* 月の切り替えのすぐ下。カレンダーとの間と近い余白に */
 .cal-tile{position:relative;overflow:hidden;min-height:92px;padding:12px 8px;border-radius:20px;border:1px solid var(--line-2);background:linear-gradient(135deg,var(--surface-2),var(--surface-3));display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:transform .2s,border-color .2s}
 .cal-tile:active{transform:scale(.97)}
 .cal-tile::before{content:'';position:absolute;width:72px;height:72px;border-radius:50%;background:var(--g);opacity:.14;filter:blur(18px);pointer-events:none}
