@@ -933,8 +933,11 @@ svg{display:block}
 .cal-btn svg{color:var(--accent)}
 .cal-inner{max-width:960px}
 .cal-nav{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--text)}
-.cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px;display:flex;flex-direction:column}   /* カレンダーが残りの高さを使う */
+.cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px;display:flex;flex-direction:column}
 .cal-body > *{flex:none}
+/* 高さが余る時は全体を縦の中央に（上に寄せない・カレンダーは伸ばさない）。足りない時はふつうにスクロール */
+.cal-body > :first-child{margin-top:auto}
+.cal-body > :last-child{margin-bottom:auto}
 /* カレンダー：1枚のカードに1pxの区切り。曜日の帯・日付（今日は丸）・中央に時間か売上（トップページ index.html に合わせる） */
 .cal-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 4px 10px}
 .cal-ctl .t{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.08em}
@@ -943,12 +946,12 @@ svg{display:block}
 .cal-sw button[aria-pressed="true"]{color:var(--text)}
 .cal-sw i{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--surface-3);border:1px solid var(--line-2);transition:transform .35s cubic-bezier(.28,.84,.42,1)}
 .cal-sw[data-mode="sales"] i{transform:translateX(100%)}
-.cal-grid{flex:1 0 auto !important;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:auto;grid-auto-rows:minmax(56px,1fr);background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden}
 .cal-grid > *{box-shadow:0 0 0 .5px var(--line)}   /* 区切り線：幅が端数でも線が消えないよう、隣と半分ずつ重ねる */
 .cal-dow{font-size:11px;font-weight:800;color:var(--muted);text-align:center;padding:8px 0;background:var(--surface-2);letter-spacing:.1em}
 .cal-dow.sun{color:var(--st-vacant)}
 .cal-dow.sat{color:var(--info)}
-.cal-cell{background:var(--surface);min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px 2px;text-align:center;position:relative;overflow:hidden}
+.cal-cell{background:var(--surface);height:clamp(52px,calc((100vw - 34px) / 7 * 1.05),80px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px 2px;text-align:center;position:relative;overflow:hidden}
 .cal-cell:active{background:var(--surface-2)}
 .cal-cell .d{font-size:12px;font-weight:700;color:var(--muted);line-height:22px;min-width:22px;height:22px;white-space:nowrap}   /* 日付は控えめ、値を目立たせる */
 .cal-cell.sun .d{color:var(--st-vacant)}
