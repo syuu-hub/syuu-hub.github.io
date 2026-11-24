@@ -1006,6 +1006,14 @@ svg{display:block}
 .cal-tile .s{position:relative;font-size:11px;color:var(--faint);margin-top:6px;white-space:nowrap}
 .cal-tile.warn .v{color:var(--st-wait)}
 .cal-tile.over .v{color:var(--danger)}
+/* 日ごとの予定の編集 */
+.plan-seg{flex-wrap:nowrap;margin:4px 0 12px}
+.plan-seg button{flex:1;height:48px;font-size:15px}
+.plan-seg.sm button{height:40px;font-size:13px}
+.plan-hours{width:100%}
+#planSheet .ps-dur{margin-top:10px}
+#planSheet .ps-dur b{color:var(--accent)}
+.plan-note{font-size:12px;color:var(--faint);text-align:center;margin:12px 0 2px;min-height:1em}
 /* ポップアップの中身 */
 .pop-card{background:var(--bg);border:1px solid var(--line-2);border-radius:22px;padding:16px 18px;margin-bottom:12px}
 .pop-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;white-space:nowrap}
@@ -1497,6 +1505,33 @@ svg{display:block}
     <footer class="e-foot">
       <button class="btn danger" id="psDelete">削除</button>
       <button class="btn primary" id="psSave">保存</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ===== 日ごとの予定（カレンダーの日付から）：公休／出勤（開始〜終了 または ○時間） ===== -->
+<div class="sheet center" id="planSheet" hidden role="dialog" aria-modal="true" aria-labelledby="planTitle">
+  <div class="sheet-inner np-inner">
+    <header class="sheet-head">
+      <button class="close-btn" data-close>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>閉じる
+      </button>
+      <h2 id="planTitle">予定</h2>
+    </header>
+    <div class="seg plan-seg" id="planKind"><button data-pk="work">出勤</button><button data-pk="off">公休</button></div>
+    <div id="planWork">
+      <div class="seg plan-seg sm" id="planMode"><button data-pm="hours">時間で入れる</button><button data-pm="time">開始〜終了で入れる</button></div>
+      <div id="planHoursG"><button class="field plan-hours" id="planHoursBtn"><span class="k">予定労働時間</span><span class="v num" id="planHoursV">10時間</span></button></div>
+      <div class="fields" id="planTimeG">
+        <label class="group" style="margin:0"><div class="glabel">開始</div><input class="text-in num" type="time" id="planStart"></label>
+        <label class="group" style="margin:0"><div class="glabel">終了</div><input class="text-in num" type="time" id="planEnd"></label>
+      </div>
+      <div class="ps-dur num" id="planDur"></div>
+    </div>
+    <div class="plan-note" id="planNote"></div>
+    <footer class="e-foot">
+      <button class="btn" id="planReset">既定に戻す</button>
+      <button class="btn primary" id="planSave">保存</button>
     </footer>
   </div>
 </div>
@@ -3014,7 +3049,10 @@ function estWork() {
 }
 const holidayList = () => S.settings.holidays || [];
 const dayHoursEff = () => S.settings.dayHours || estWork().hours;   // 0（未設定）なら自動推定
-const isHoliday = d => holidayList().includes(d.getDay());
+// 日ごとの予定（カレンダーで入れる）：settings.dayPlans['y-m-d'] = { off:true } または { hours, start?, end? }。固定休より優先
+const dayPlan = d => (S.settings.dayPlans || {})[typeof d === 'string' ? d : dayKey(d)] || null;
+const fixedHoliday = d => holidayList().includes(d.getDay());
+const isHoliday = d => { const p = dayPlan(d); return p ? !!p.off : fixedHoliday(d); };   // 休み（公休の予定・固定休）
 // 出勤予定日：実績のある最後の日の翌日（今日より前なら今日）から月末まで、固定休日を除く
 function planDays(y, m, from = new Date(y, m, 1), to = new Date(y, m + 1, 0)) {   // 既定は暦月（労働時間用）。売上目標は締め期間で
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -3044,7 +3082,7 @@ function dailyNeed(t = Date.now()) {
   if (dayUnit()) return dayGoalNow();   // 日単位：1日の目標そのもの（前の日の過不足は持ち越さない）
   const g = S.settings.monthGoal;
   if (!g) return 0;
-  const dk = dayKey(new Date(t)), ck = [dk, g, S.settings.closingDay, holidayList().join(), S.shifts.length, S.rides.length, S.rides.reduce((a, r) => a + r.total, 0)].join('|');
+  const dk = dayKey(new Date(t)), ck = [dk, g, S.settings.closingDay, holidayList().join(), JSON.stringify(S.settings.dayPlans || {}), S.shifts.length, S.rides.length, S.rides.reduce((a, r) => a + r.total, 0)].join('|');
   if (NEED.k === ck) return NEED.v;
   const v = calcNeed(t, g);
   NEED = { k: ck, v };
@@ -3374,6 +3412,9 @@ function monthGoalFor(daily, now = Date.now()) {
 const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.start); return d.getFullYear() === y && d.getMonth() === m; })
   .reduce((a, sh) => a + shiftStats(sh).elapsed, 0);
 const planMs = () => dayHoursEff() * 3600000;
+// その日の予定労働時間（日ごとの予定があればその時間、なければ1日の予定労働時間）
+const planMsOf = k => { const p = dayPlan(k); return (p && !p.off && p.hours != null ? p.hours : dayHoursEff()) * 3600000; };
+const planTotal = pdays => pdays.reduce((a, k) => a + planMsOf(k), 0);
 // 労働時間＝出庫〜入庫（待機・休憩を含む）
 // 推定手取り：締め期間の売上に応じた歩合（トップページ index.html の「推定手取り額」と同じ段階）
 const COMMISSION = [[480000, 61], [465000, 60], [450000, 59], [435000, 58], [420000, 57], [405000, 56], [390000, 55], [375000, 53.5], [360000, 52], [340000, 51], [320000, 50], [0, 45]];
@@ -3394,7 +3435,7 @@ const CLOCK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" s
 const YEN_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>';
 // 上の2枚：予想労働時間（実績＋予定）と売上（締め期間）。押すとポップアップ（トップページ index.html と同じ作り）
 function calTilesHtml(c) {
-  const cap = capMs(), plan = c.pdays.length * planMs(), est = c.used + plan;
+  const cap = capMs(), plan = planTotal(c.pdays), est = c.used + plan;
   const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
   return `<button class="cal-tile hrs num ${cls}" data-pop="hours" aria-haspopup="dialog">
       <span class="k">${CLOCK_SVG}${S.settings.closingDay ? `${c.hm + 1}月の` : ''}予想労働時間</span>
@@ -3408,12 +3449,13 @@ function calTilesHtml(c) {
 }
 // 労働時間内訳：実績・予定・合計（＋上限との比較）
 function hoursPopHtml(c) {
-  const cap = capMs(), days = c.pdays.length, plan = days * planMs(), est = c.used + plan;
+  const cap = capMs(), days = c.pdays.length, plan = planTotal(c.pdays), est = c.used + plan;
+  const same = c.pdays.every(k => planMsOf(k) === planMs());   // どの日も同じ時間なら「○日 × ○h」
   const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
   const H = v => (Math.max(0, v) / 3600000).toFixed(1);
   return `<div class="pop-card num">
       <div class="pop-row"><span class="k"><i style="--c:var(--ok)"></i>実績（確定）</span><span class="v">${H(c.used)}<small>h</small></span></div>
-      <div class="pop-row"><span class="k"><i style="--c:var(--accent)"></i>予定${days ? `（${days}日 × ${dayHoursEff()}h）` : ''}</span><span class="v">${H(plan)}<small>h</small></span></div>
+      <div class="pop-row"><span class="k"><i style="--c:var(--accent)"></i>予定${days ? `（${days}日${same ? ` × ${dayHoursEff()}h` : ''}）` : ''}</span><span class="v">${H(plan)}<small>h</small></span></div>
       <div class="pop-row sum ${cls}"><span class="k">合計</span><span class="v">${H(est)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span></div>
     </div>
     ${cap ? capHtml(c.hy, c.hm, c.used, c.pdays) : ''}`;
@@ -3436,7 +3478,7 @@ function openCalPop(kind) {
 }
 // 上限との比較（労働時間内訳のポップアップの下）：実績＋予定のバーと、出勤予定・上限まであと
 function capHtml(y, m, used, pdays) {
-  const cap = capMs(), days = pdays.length, plan = days * planMs(), est = used + plan;
+  const cap = capMs(), days = pdays.length, plan = planTotal(pdays), est = used + plan;
   const left = cap - est, r = used / cap, rp = Math.min(1, est / cap);
   const cls = est > cap ? 'over' : est >= cap * 0.9 ? 'warn' : '';
   return `<div class="cal-cap num ${cls}">
@@ -3477,7 +3519,7 @@ function renderCal() {
   $('#calMode').dataset.mode = mode;
   $$('#calMode [data-cm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.cm === mode));
   const today = dayKey(new Date());
-  const plan = new Set(planMs() ? pdays : []);
+  const plan = new Set(pdays.filter(k => planMsOf(k) > 0));
   const man = v => v >= 10000 ? (v / 10000).toFixed(1).replace(/\.0$/, '') + '<small>万</small>' : v.toLocaleString();
   let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
   html += '<div class="cal-cell empty"></div>'.repeat(first.getDay());
@@ -3488,7 +3530,7 @@ function renderCal() {
     const label = d.getDate() === 1 || +d === +first ? md(d) : d.getDate();
     const pl = !o && plan.has(k), hol = !o && !pl && isHoliday(d);
     const v = o ? (mode === 'hours' ? `<span class="v act num">${(o.ms / 3600000).toFixed(1)}<small>h</small></span>` : `<span class="v act num">${man(o.sales)}</span>`)
-      : pl ? (mode === 'hours' ? `<span class="v pl num">${dayHoursEff()}<small>h</small></span>` : '<span class="v pl">予定</span>')
+      : pl ? (mode === 'hours' ? `<span class="v pl num">${+(planMsOf(k) / 3600000).toFixed(1)}<small>h</small></span>` : '<span class="v pl">予定</span>')
       : hol ? '<span class="v off">休</span>' : '<span class="v"></span>';
     html += `<button class="cal-cell ${k === today ? 'today' : ''} ${d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''} ${out ? 'out' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}">
       <span class="d num">${label}</span>${v}</button>`;
@@ -3498,6 +3540,49 @@ function renderCal() {
 
 }
 
+// 日ごとの予定の編集（今日以降で、まだ営業の記録がない日）
+const PLN = { k: null, kind: 'work', mode: 'hours', hours: 0 };
+const hmToMin = v => { const [h, m] = (v || '').split(':').map(Number); return h * 60 + m; };
+const spanH = (a, b) => { if (!a || !b) return null; let d = hmToMin(b) - hmToMin(a); if (d <= 0) d += 1440; return Math.round(d / 60 * 10) / 10; };   // 終了が開始より前なら翌日
+function openPlan(k) {
+  const [y, m, d] = k.split('-').map(Number), dt = new Date(y, m - 1, d), p = dayPlan(k);
+  Object.assign(PLN, { k, kind: p ? (p.off ? 'off' : 'work') : fixedHoliday(dt) ? 'off' : 'work', mode: p && p.start ? 'time' : 'hours', hours: p && p.hours != null ? p.hours : dayHoursEff() });
+  $('#planTitle').textContent = `${m}/${d}（${WEEKDAYS[dt.getDay()]}）の予定`;
+  $('#planStart').value = p && p.start || ''; $('#planEnd').value = p && p.end || '';
+  $('#planReset').hidden = !p;
+  renderPlan();
+  openSheet($('#planSheet'));
+}
+function renderPlan() {
+  $$('#planKind [data-pk]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pk === PLN.kind));
+  $$('#planMode [data-pm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pm === PLN.mode));
+  $('#planWork').hidden = PLN.kind !== 'work';
+  $('#planHoursG').hidden = PLN.mode !== 'hours';
+  $('#planTimeG').hidden = PLN.mode !== 'time';
+  $('#planHoursV').textContent = `${+PLN.hours.toFixed(1)}時間`;
+  const h = spanH($('#planStart').value, $('#planEnd').value);
+  $('#planDur').innerHTML = PLN.mode === 'time' ? (h != null ? `予定労働時間<b>${h}時間</b>` : '開始と終了を入れてください') : '';
+  const [y, m, d] = PLN.k.split('-').map(Number);
+  $('#planNote').textContent = dayPlan(PLN.k) ? '' : `既定：${fixedHoliday(new Date(y, m - 1, d)) ? '固定休' : `出勤 ${dayHoursEff()}時間`}`;
+}
+function savePlan() {
+  let v;
+  if (PLN.kind === 'off') v = { off: true };
+  else if (PLN.mode === 'time') {
+    const st = $('#planStart').value, en = $('#planEnd').value, h = spanH(st, en);
+    if (h == null) { toast('開始と終了を入れてください'); return; }
+    v = { hours: h, start: st, end: en };
+  } else v = { hours: Math.min(24, Math.max(0, PLN.hours)) };
+  const dp = S.settings.dayPlans = { ...(S.settings.dayPlans || {}) };
+  dp[PLN.k] = v;
+  const old = Date.now() - 90 * 86400e3;   // 90日より前の予定は残さない
+  for (const k of Object.keys(dp)) { const [y, m, d] = k.split('-').map(Number); if (new Date(y, m - 1, d) < old) delete dp[k]; }
+  save(); haptic(); closeSheet($('#planSheet')); renderCal(); renderAll();
+}
+function resetPlan() {
+  const dp = { ...(S.settings.dayPlans || {}) }; delete dp[PLN.k]; S.settings.dayPlans = dp;
+  save(); haptic(); closeSheet($('#planSheet')); renderCal(); renderAll();
+}
 function openCal(t = Date.now()) {
   // 履歴で見ていた日を枠で示す（今日はオレンジの丸があるので枠は付けない）
   const k0 = dayKey(new Date(t));
@@ -4353,7 +4438,7 @@ function adviceList() {
   // 8) 労働時間の上限
   const cap = capMs();
   if (cap) {
-    const d = new Date(), used = monthWorkMs(d.getFullYear(), d.getMonth()), plan = planDays(d.getFullYear(), d.getMonth()).length * planMs();
+    const d = new Date(), used = monthWorkMs(d.getFullYear(), d.getMonth()), plan = planTotal(planDays(d.getFullYear(), d.getMonth()));
     if (plan && used + plan > cap) items.push({ cat: '安全', gain: Infinity,
       t: `今月の労働時間が上限を超える見込み`,
       why: `実績 ${hours(used)}＋予定 ${hours(plan)} ＝ ${hours(used + plan)}（上限 ${S.settings.hoursCap}時間）`,
@@ -5850,7 +5935,11 @@ $('#calGrid').addEventListener('click', e => {
   const b = e.target.closest('[data-day]'); if (!b) return;
   haptic();
   const sh = logShifts().find(x => dayKey(new Date(x.start)) === b.dataset.day);
-  if (!sh) { CAL.sel = b.dataset.day; renderCal(); toast('この日の営業記録はありません'); return; }
+  if (!sh) {
+    const [y, m, d] = b.dataset.day.split('-').map(Number), today = new Date(); today.setHours(0, 0, 0, 0);
+    if (new Date(y, m - 1, d) >= today) { openPlan(b.dataset.day); return; }   // 今日以降：予定（公休・出勤の時間）を入れる
+    CAL.sel = b.dataset.day; renderCal(); toast('この日の営業記録はありません'); return;
+  }
   LOG_SH = sh.id;
   closeSheet($('#calSheet'));
   setView('log');
@@ -5858,6 +5947,15 @@ $('#calGrid').addEventListener('click', e => {
   $('section[data-view="log"]').scrollTop = 0;
 });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
+$('#planSheet [data-close]').addEventListener('click', () => closeSheet($('#planSheet')));
+$('#planSheet').addEventListener('click', e => { if (e.target.id === 'planSheet') closeSheet($('#planSheet')); });
+$('#planKind').addEventListener('click', e => { const b = e.target.closest('[data-pk]'); if (b) { haptic(); PLN.kind = b.dataset.pk; renderPlan(); } });
+$('#planMode').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (b) { haptic(); PLN.mode = b.dataset.pm; renderPlan(); } });
+$('#planHoursBtn').addEventListener('click', () => openNumpad('予定労働時間', PLN.hours || '', v => { PLN.hours = Math.min(24, v); renderPlan(); }, { unit: '時間', label: '時間', digits: 2 }));
+$('#planStart').addEventListener('input', renderPlan);
+$('#planEnd').addEventListener('input', renderPlan);
+$('#planSave').addEventListener('click', savePlan);
+$('#planReset').addEventListener('click', resetPlan);
 { // カレンダーを左右にスワイプ → 前後の月
   let sx = null, sy = 0;
   const el = $('#calSheet .cal-body');
@@ -6114,11 +6212,11 @@ $('#numpad [data-close]').addEventListener('click', () => closeSheet($('#numpad'
 $('#numpad').addEventListener('click', e => { if (e.target.id === 'numpad') closeSheet($('#numpad')); });
 
 document.addEventListener('keydown', e => {
-  const open = ['#numpad', '#capSheet', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#stepSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
+  const open = ['#numpad', '#planSheet', '#capSheet', '#placeSheet', '#placeDbSheet', '#pauseSheet', '#paySheet', '#appSheet', '#calSheet', '#findSheet', '#reportSheet', '#rideSheet', '#shiftSheet', '#stepSheet', '#entry'].map(s => $(s)).find(el => !el.hidden);
   if (!open) return;
   if (e.key === 'Escape') { if (open.id === 'entry') E = null; closeSheet(open); return; }
   if (open.id === 'rideSheet' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); stepRide(e.key === 'ArrowLeft' ? -1 : 1); return; }
-  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'capSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet' || open.id === 'stepSheet') return;
+  if (e.target.tagName === 'INPUT' || open.id === 'placeSheet' || open.id === 'placeDbSheet' || open.id === 'appSheet' || open.id === 'calSheet' || open.id === 'capSheet' || open.id === 'planSheet' || open.id === 'findSheet' || open.id === 'reportSheet' || open.id === 'rideSheet' || open.id === 'shiftSheet' || open.id === 'pauseSheet' || open.id === 'paySheet' || open.id === 'stepSheet') return;
   const k = /^[0-9]$/.test(e.key) ? e.key : e.key === 'Backspace' ? 'del' : null;
   if (!k) { if (e.key === 'Enter') (open.id === 'entry' ? $('#eSave') : $('#npOk')).click(); return; }
   e.preventDefault();
