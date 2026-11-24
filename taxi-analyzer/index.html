@@ -1782,7 +1782,7 @@ const pickupFor = (cfg, st = S.settings) => cfg && cfg.pickup != null ? cfg.pick
 const appPayKey = cfg => (cfg && cfg.payKey) || 'app';
 const appFeeFor = (cfg, pay) => (pay === appPayKey(cfg) ? cfg.fee : cfg.feeOther) || 0;
 const handleFeeFor = (cfg, pay) => (pay === appPayKey(cfg) ? cfg.handle : cfg.handleOther) || 0;   // 取扱手数料
-const feeInFor = (cfg, pay) => !!cfg && pay === appPayKey(cfg);   // アプリ内決済の手数料は売上に含める
+const feeInFor = (cfg, pay) => pay === 'gopay' || (!!cfg && pay === appPayKey(cfg));   // GO Pay・アプリ内決済の手数料は売上に含める（売上外にしない）
 const feeOut = r => r.fare && r.fare.feeIn ? 0 : ((r.fare || {}).appFee || 0) + ((r.fare || {}).handleFee || 0);   // 売上外の手数料
 // 待機・休憩は一時的な状態：空車／実車、または同じボタンの再タップで解除して空車へ
 const PAUSE = ['wait'];
@@ -1837,7 +1837,8 @@ function freshState() {
   };
 }
 // 設定の引き継ぎ：機能の変更で設定の形が変わった時は、ここで古い値を新しい設定に移す（消さずに引き継ぐ）
-const SETTINGS_VER = 9;   // 9：アプリ内決済（GO Pay など）の手数料を売上に含める（以前の記録は fixFeeIn で直す）
+const SETTINGS_VER = 10;   // 10：GO Pay の手数料は設定に関係なく売上に含める（fixFeeIn をもう一度）
+//   // 9：アプリ内決済（GO Pay など）の手数料を売上に含める（以前の記録は fixFeeIn で直す）
 //   // 8：迎車料金（配車アプリ・無線）の既定 ¥300。¥0 のまま記録した乗車は fixPickup で直す
 //   // 7：GO の迎車料金 ¥300（以前の記録は fixGoPickup で直す）   // 6：アプリ手数料・取扱手数料を売上外に   // 4：メーターの合計の扱いを直した（以前の記録は fixMeterTotals で直す）
 function migrateSettings(st) {
@@ -1895,7 +1896,7 @@ function loadState() {
       if (((s.settings || {}).sv || 0) < 6) fixAppFees(s);
       if (((s.settings || {}).sv || 0) < 7) fixGoPickup(s);
       if (((s.settings || {}).sv || 0) < 8) fixPickup(s);
-      if (((s.settings || {}).sv || 0) < 9) fixFeeIn(s);
+      if (((s.settings || {}).sv || 0) < 10) fixFeeIn(s);
       return { ...base, ...s, settings: { ...base.settings, ...migrateSettings({ ...s.settings }) } };
     }
   } catch (e) { LOAD_ERR = true; try { localStorage.setItem(BROKEN_KEY, raw); } catch (e2) {} }
@@ -4593,7 +4594,7 @@ function fixAppFees(s) {
 function fixFeeIn(s) {
   const apps = (s.settings || {}).apps || [];
   for (const r of s.rides || []) {
-    const f = r.fare, a = r.kind === 'app' && r.app && apps.find(x => x.id === r.app.id);
+    const f = r.fare, a = r.app && apps.find(x => x.id === r.app.id);
     if (!f || f.feeIn || !feeInFor(a, r.pay)) continue;
     const fee = (f.appFee || 0) + (f.handleFee || 0);
     if (!fee) continue;
@@ -5091,7 +5092,7 @@ function restore(file) {
       if (((s.settings || {}).sv || 0) < 6) fixAppFees(s);
       if (((s.settings || {}).sv || 0) < 7) fixGoPickup(s);
       if (((s.settings || {}).sv || 0) < 8) fixPickup(s);
-      if (((s.settings || {}).sv || 0) < 9) fixFeeIn(s);
+      if (((s.settings || {}).sv || 0) < 10) fixFeeIn(s);
       S = { ...base, ...s, settings: { ...base.settings, ...migrateSettings({ ...s.settings }) } };
       save(); applySettings(); setView(S.settings.tab);
       toast('復元しました');
