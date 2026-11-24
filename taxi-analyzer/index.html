@@ -494,19 +494,20 @@ svg{display:block}
 .kpi.main{background:var(--accent-soft);border:1px solid rgba(255,176,32,.35)}
 .kpi.main .v{color:var(--accent)}
 .pl-sort{margin:0 0 6px}
-.pl-sort button{flex:1}
+.pl-sort button{flex:1;height:34px;font-size:12px}
 .prank{list-style:none}
-.prank li{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;column-gap:10px;align-items:center;padding:10px 0}
+.prank li{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;column-gap:10px;align-items:start;padding:10px 0}   /* 名前が2行になっても順位・値は1行目にそろえる */
 .prank li + li{border-top:1px solid var(--line)}
-.prank .n{font-size:13px;font-weight:800;color:var(--muted);text-align:center}
-.prank .b{display:grid;gap:4px;min-width:0}
-.prank .nm{font-size:15px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
-.prank .bar{display:block;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.prank .n{font-size:12px;font-weight:800;color:var(--muted);text-align:center;background:var(--surface-2);border-radius:6px;line-height:20px}
+.prank li:first-child .n{background:var(--accent-soft);color:var(--accent)}
+.prank .b{display:grid;gap:5px;min-width:0;align-content:start}
+.prank .nm{font-size:15px;font-weight:700;line-height:20px;overflow-wrap:anywhere}
+.prank .bar{display:block;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin:2px 0 0}   /* 共通の .bar の余白は使わない */
 .prank .bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
 .prank li:not(:first-child) .bar i{background:#6B7584}
 .prank .sb{font-size:12px;color:var(--faint);line-height:1.4}
 .prank .sb span{white-space:nowrap}   /* 「待ち22分」などの途中で折り返さない */
-.prank .a{font-size:18px;font-weight:800;white-space:nowrap;text-align:right}
+.prank .a{font-size:17px;font-weight:800;white-space:nowrap;text-align:right;line-height:20px}
 .prank li{cursor:pointer;border-radius:6px}
 .prank li.open{background:var(--surface-2);margin:0 -8px;padding:10px 8px}
 .prank .pdet{display:none;grid-column:1 / -1;margin-top:10px}
@@ -553,7 +554,7 @@ svg{display:block}
 /* くわしく見る：見出しと要点の1行、その下にグラフ */
 .ana-fold{padding:0}
 .ana-fold .af-h{display:flex;flex-direction:column;gap:2px;padding:12px 16px 10px}
-.ana-fold .t{font-size:14px;font-weight:700}
+.ana-fold .t{font-size:15px;font-weight:800}
 .ana-fold .tk{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-fold .tk .dl{margin-left:4px;font-weight:700}
 .ana-fold .tk .dl.up{color:var(--ok)}
@@ -604,7 +605,7 @@ svg{display:block}
 .heat-legend .avg{flex-basis:100%;color:var(--faint)}
 .heat-legend i.na{border:1px dashed var(--line-2)}
 .trend svg{display:block;width:100%;height:140px;overflow:visible}
-.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:6px;white-space:nowrap}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin-top:6px;white-space:nowrap}
 .legend i.dash{width:16px;height:2px;border-radius:0;background:repeating-linear-gradient(90deg,var(--text) 0 4px,transparent 4px 7px);opacity:.7}
 .legend i{display:inline-block;width:12px;height:4px;border-radius:2px;margin-right:5px;vertical-align:2px}
 .trend rect.tb[aria-pressed="true"]{fill:var(--text)}
@@ -845,8 +846,9 @@ svg{display:block}
 .rp-rides + .rr{border-top:1px solid var(--line)}
 .rp-sec{margin-bottom:18px}
 .find-btn{margin-left:auto}
-.view-sw{margin:0 0 10px}
-.view-sw button{flex:1;min-width:0}
+.view-sw{margin:0 0 10px;gap:0;padding:3px;border-radius:999px;background:var(--surface-2);flex-wrap:nowrap}   /* 表示の切り替え：1本のスイッチ（並べ替えのボタンと見分ける） */
+.view-sw button{flex:1;min-width:0;height:34px;border:0;color:var(--muted)}
+.view-sw button[aria-pressed="true"]{background:var(--surface-3);color:var(--text);border:0}
 .map-f{margin:0 0 6px}
 .map-f button{flex:1;min-width:0;padding:0 2px;font-size:12px}
 .map-f2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
@@ -2124,6 +2126,8 @@ function hyogoSuggest(q) {
    ============================================================ */
 let STA = null;
 function stations() {
+  // 駅の一覧は後ろの <script> にある。分析の画面で起動した時は、まだ読み込まれていないので空で返す（読み込み後に描き直す）
+  if (typeof HYOGO_STATIONS === 'undefined') return [];
   if (!STA) STA = HYOGO_STATIONS.split('\n').map(l => {
     const [n, lines, lat, lng] = l.split('|');
     return { name: n + '駅', base: n, kind: '駅', info: lines, lat: +lat, lng: +lng };
@@ -3603,6 +3607,7 @@ const pinCenter = c => c.fn ? { lat: c.flat / c.fn, lng: c.flng / c.fn } : { lat
 let KNOWN_POS = null;
 function knownPos(name) {
   if (!KNOWN_POS) {
+    if (typeof HYOGO_STATIONS === 'undefined') return null;   // 駅の一覧の読み込み前は覚えない
     KNOWN_POS = new Map();
     for (const pl of [...stations(), ...PDB.list]) if (pl.lat != null) KNOWN_POS.set(normName(pl.name), { lat: pl.lat, lng: pl.lng });
   }
@@ -6420,6 +6425,8 @@ const HYOGO_DATA = `神戸市東灘区|こうべしひがしなだく|住吉南�
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {}));
 }
+// 分析の画面で起動した時は、駅の一覧を読み込んだので描き直す（乗車地の位置に駅を使う）
+if (S.settings.tab === 'ana') { KNOWN_POS = null; renderAnalysis(); }
 </script>
 </body>
 </html>
