@@ -934,11 +934,6 @@ svg{display:block}
 .cal-inner{max-width:960px}
 .cal-nav{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);color:var(--text)}
 .cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
-.cal-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
-.cal-sum > div{background:var(--surface-2);border-radius:var(--r-md);padding:var(--tile-pad);min-width:0;text-align:center}   /* 売上・乗車・出勤は中央ぞろえ */
-.cal-sum .k{font-size:12px;color:var(--muted)}
-.cal-sum .v{font-size:clamp(16px,4.6vw,24px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-sum .v small{font-size:.6em;font-weight:600;color:var(--muted);margin-left:1px}
 /* カレンダー：1枚のカードに1pxの区切り。曜日の帯・日付（今日は丸）・中央に時間か売上（トップページ index.html に合わせる） */
 .cal-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px}
 .cal-ctl .t{font-size:13px;font-weight:800;color:var(--text);letter-spacing:.06em}
@@ -993,15 +988,41 @@ svg{display:block}
 .cal-cap.over .sw{--c:var(--danger)}
 .cal-cap.over .bar i{background:var(--danger)}
 .cal-cap.over b.used{color:var(--danger)}
-/* 労働時間の見込み（1行）：押すと詳細のポップアップ */
-.cal-capbtn{width:100%;display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;text-align:left;min-height:56px}
-.cal-capbtn:active{background:var(--surface-3)}
-.cal-capbtn .k{font-size:13px;color:var(--muted);white-space:nowrap}
-.cal-capbtn .v{margin-left:auto;font-size:clamp(18px,5.4vw,22px);font-weight:800;white-space:nowrap}
-.cal-capbtn .v small{font-size:12px;font-weight:600;color:var(--muted);margin-left:3px}
-.cal-capbtn.warn .v{color:var(--st-wait)}
-.cal-capbtn.over .v{color:var(--danger)}
-.cal-capbtn svg{flex:none;color:var(--muted)}
+/* 予想労働時間・売上の2枚（押すとポップアップ）。トップページ index.html のサマリーに合わせる */
+.cal-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.cal-tile{position:relative;overflow:hidden;min-height:100px;padding:14px 8px;border-radius:22px;border:1px solid var(--line-2);background:linear-gradient(135deg,var(--surface-2),var(--surface-3));display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:transform .2s,border-color .2s}
+.cal-tile:active{transform:scale(.97)}
+.cal-tile::before{content:'';position:absolute;width:72px;height:72px;border-radius:50%;background:var(--g);opacity:.14;filter:blur(18px);pointer-events:none}
+.cal-tile.hrs{--g:var(--accent)}
+.cal-tile.hrs::before{top:-14px;right:-14px}
+.cal-tile.sal{--g:var(--ok)}
+.cal-tile.sal::before{bottom:-14px;left:-14px}
+.cal-tile .k{position:relative;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.06em;margin-bottom:6px;white-space:nowrap}
+.cal-tile .k svg{flex:none;color:var(--g)}
+.cal-tile .v{position:relative;font-size:clamp(24px,7.2vw,32px);font-weight:800;line-height:1;letter-spacing:-.02em;white-space:nowrap}
+.cal-tile.sal .v{font-size:clamp(20px,6vw,28px)}
+.cal-tile .v small{font-size:14px;font-weight:600;color:var(--muted);margin-left:3px}
+.cal-tile .s{position:relative;font-size:11px;color:var(--faint);margin-top:6px;white-space:nowrap}
+.cal-tile.warn .v{color:var(--st-wait)}
+.cal-tile.over .v{color:var(--danger)}
+/* ポップアップの中身 */
+.pop-card{background:var(--bg);border:1px solid var(--line-2);border-radius:22px;padding:16px 18px;margin-bottom:12px}
+.pop-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;white-space:nowrap}
+.pop-row .k{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
+.pop-row .k i{width:10px;height:10px;border-radius:3px;background:var(--c,var(--muted));flex:none}
+.pop-row .v{font-size:20px;font-weight:800}
+.pop-row .v small{font-size:11px;font-weight:600;color:var(--muted);margin-left:3px}
+.pop-row.sum{border-top:1px solid var(--line-2);margin-top:8px;padding-top:12px}
+.pop-row.sum .k{font-size:13px;color:var(--text);font-weight:800;letter-spacing:.1em}
+.pop-row.sum .v{font-size:34px}
+.pop-row.sum.warn .v{color:var(--st-wait)}
+.pop-row.sum.over .v{color:var(--danger)}
+.pop-mini{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line-2);border-radius:16px;padding:12px 16px;margin-bottom:10px;white-space:nowrap}
+.pop-mini .k{font-size:12px;font-weight:700;color:var(--muted)}
+.pop-mini .k small{display:block;font-size:11px;font-weight:500;color:var(--faint);margin-top:2px}
+.pop-mini .v{font-size:22px;font-weight:800}
+.pop-mini .v.ac{color:var(--accent)}
+.pop-mini .v.ok{color:var(--ok)}
 .cap-body{overflow-y:auto;min-height:0}
 .cap-body .cal-cap{margin-bottom:12px}
 .inc-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
@@ -1050,7 +1071,6 @@ svg{display:block}
 #calSheet .close-btn{white-space:nowrap}
 @media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0 10px} }
 @media (max-width:480px){
-  .cal-sum .v{font-size:clamp(16px,5vw,22px)}
   #calTitle{min-width:6.2em;font-size:17px}
   .cal-nav{width:44px;height:44px}
 }
@@ -1583,9 +1603,7 @@ svg{display:block}
       <span></span>
     </header>
     <div class="cal-body">
-      <div class="cal-sum" id="calSum"></div>
-      <div id="calGoal"></div>
-      <div id="calCap"></div>
+      <div class="cal-tiles" id="calTiles"></div>
       <div class="cal-ctl">
         <span class="t">カレンダー</span>
         <div class="cal-sw" id="calMode" role="group" aria-label="カレンダーの表示"><i></i><button data-cm="hours">時間</button><button data-cm="sales">売上</button></div>
@@ -3353,20 +3371,6 @@ function monthGoalFor(daily, now = Date.now()) {
 const monthWorkMs = (y, m) => S.shifts.filter(sh => { const d = new Date(sh.start); return d.getFullYear() === y && d.getMonth() === m; })
   .reduce((a, sh) => a + shiftStats(sh).elapsed, 0);
 const planMs = () => dayHoursEff() * 3600000;
-// 月の目標金額のカード：締め期間の売上と目標、締め日までの残り出勤日（固定休を除く）で1日いくら必要か
-function goalHtml(sales, pdays, to) {
-  // 日単位の時は「1日の目標 × 締め期間の出勤予定日数」を月の目安として出す
-  const g = dayUnit() ? dayGoalNow() * periodWorkdays(to) : S.settings.monthGoal;
-  if (!g) return '';
-  const r = sales / g, left = g - sales, days = pdays.length;
-  return `<div class="cal-cap num ${r >= 1 ? 'done' : ''}">
-    <div class="top"><span>${dayUnit() ? '月の目安' : '月の目標'}</span><span class="v">${Math.floor(r * 100)}<small>% / ${yen(g)}</small></span></div>
-    <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div>
-    <div class="cr">${left > 0 ? `<span>あと <b>${yen(left)}</b></span>${days ? `<span>1日 <b>${yen(Math.ceil(left / days))}</b> ×${days}日</span>` : ''}` : `<span><b class="ok">達成</b>（＋${yen(-left)}）</span>`}</div>
-    ${left > 0 ? `<div class="cap-note">〜${to.getMonth() + 1}/${to.getDate()}${days ? '' : '・残りの出勤日なし'}</div>` : ''}
-  </div>`;
-}
-// 労働時間のカード：実績＋予定（残りの出勤予定日×1日の予定時間）＝見込みを上限と比べる
 // 労働時間＝出庫〜入庫（待機・休憩を含む）
 // 推定手取り：締め期間の売上に応じた歩合（トップページ index.html の「推定手取り額」と同じ段階）
 const COMMISSION = [[480000, 61], [465000, 60], [450000, 59], [435000, 58], [420000, 57], [405000, 56], [390000, 55], [375000, 53.5], [360000, 52], [340000, 51], [320000, 50], [0, 45]];
@@ -3383,39 +3387,59 @@ function incomeHtml(sales, from, to) {
     <div class="pd">売上 × 歩合の目安（税・控除の前）</div>
   </div>`;
 }
-// 労働時間の見込み（カレンダーに1行）：押すと capSheet に内訳と推定手取り
-function capBtnHtml(y, m, used, pdays) {
-  const cap = capMs(), plan = pdays.length * planMs(), est = used + plan;
+const CLOCK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+const YEN_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>';
+// 上の2枚：予想労働時間（実績＋予定）と売上（締め期間）。押すとポップアップ（トップページ index.html と同じ作り）
+function calTilesHtml(c) {
+  const cap = capMs(), plan = c.pdays.length * planMs(), est = c.used + plan;
   const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
-  const lbl = (S.settings.closingDay ? `${m + 1}月の` : '') + (plan ? '労働時間の見込み' : '労働時間');
-  return `<button class="cal-capbtn num ${cls}" id="calCapBtn" aria-haspopup="dialog"><span class="k">${lbl}</span>
-    <span class="v">${(Math.max(0, est) / 3600000).toFixed(1)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>`;
+  return `<button class="cal-tile hrs num ${cls}" data-pop="hours" aria-haspopup="dialog">
+      <span class="k">${CLOCK_SVG}${S.settings.closingDay ? `${c.hm + 1}月の` : ''}予想労働時間</span>
+      <span class="v">${(Math.max(0, est) / 3600000).toFixed(1)}<small>h</small></span>
+      ${cap ? `<span class="s">上限 ${S.settings.hoursCap}h</span>` : ''}
+    </button>
+    <button class="cal-tile sal num" data-pop="sales" aria-haspopup="dialog">
+      <span class="k">${YEN_SVG}${c.cur ? '現在の売上' : '売上'}</span>
+      <span class="v">${yen(c.sales)}</span>
+      <span class="s">${c.count}回・${c.days}日</span>
+    </button>`;
 }
-function openCapPop() {
+// 労働時間内訳：実績・予定・合計（＋上限との比較）
+function hoursPopHtml(c) {
+  const cap = capMs(), days = c.pdays.length, plan = days * planMs(), est = c.used + plan;
+  const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
+  const H = v => (Math.max(0, v) / 3600000).toFixed(1);
+  return `<div class="pop-card num">
+      <div class="pop-row"><span class="k"><i style="--c:var(--ok)"></i>実績（確定）</span><span class="v">${H(c.used)}<small>h</small></span></div>
+      <div class="pop-row"><span class="k"><i style="--c:var(--accent)"></i>予定${days ? `（${days}日 × ${dayHoursEff()}h）` : ''}</span><span class="v">${H(plan)}<small>h</small></span></div>
+      <div class="pop-row sum ${cls}"><span class="k">合計</span><span class="v">${H(est)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span></div>
+    </div>
+    ${cap ? capHtml(c.hy, c.hm, c.used, c.pdays) : ''}`;
+}
+// 売上：期間合計・推定手取り（歩合）・目標まで残り・締め日まで必要/日
+function salesPopHtml(c) {
+  const g = dayUnit() ? 0 : S.settings.monthGoal, left = g - c.sales, gd = planDays(c.y, c.m, c.from, c.to).length;
+  return incomeHtml(c.sales, c.from, c.to) +
+    (g ? `<div class="pop-mini num"><span class="k">目標まで残り<small>月の目標 ${yen(g)}</small></span><span class="v ${left <= 0 ? 'ok' : ''}">${left > 0 ? yen(left) : '達成'}</span></div>
+      ${left > 0 ? `<div class="pop-mini num"><span class="k">締め日まで必要/日<small>残り出勤 ${gd}日</small></span><span class="v ac">${gd ? yen(Math.ceil(left / gd)) : '—'}</span></div>` : ''}` : '') +
+    `<div class="pop-mini num"><span class="k">乗車・出勤</span><span class="v">${c.count}<small style="font-size:12px;color:var(--muted)">回</small> ・ ${c.days}<small style="font-size:12px;color:var(--muted)">日</small></span></div>`;
+}
+function openCalPop(kind) {
   const c = CAL.pop;
   if (!c) return;
   haptic();
-  $('#capTitle').textContent = `${periodName(CAL)}の見込み`;
-  $('#capBody').innerHTML = incomeHtml(c.sales, c.from, c.to) + capHtml(c.hy, c.hm, c.used, c.pdays);
+  $('#capTitle').textContent = kind === 'hours' ? '労働時間内訳' : '売上・目標';
+  $('#capBody').innerHTML = kind === 'hours' ? hoursPopHtml(c) : salesPopHtml(c);
   openSheet($('#capSheet'));
 }
+// 上限との比較（労働時間内訳のポップアップの下）：実績＋予定のバーと、出勤予定・上限まであと
 function capHtml(y, m, used, pdays) {
   const cap = capMs(), days = pdays.length, plan = days * planMs(), est = used + plan;
-  const lbl = S.settings.closingDay ? `${m + 1}月の労働時間` : '労働時間';   // 締め期間と暦月がずれる時は月を明示
-  const H = v => (Math.max(0, v) / 3600000).toFixed(1);
-  if (!cap) return `<div class="cal-cap num"><div class="top"><span>${lbl}</span><span class="v">${hours(used)}${plan ? `<small>＋予定 ${hours(plan)}</small>` : ''}</span></div></div>`;
   const left = cap - est, r = used / cap, rp = Math.min(1, est / cap);
   const cls = est > cap ? 'over' : est >= cap * 0.9 ? 'warn' : '';
   return `<div class="cal-cap num ${cls}">
-    <div class="top"><span>${lbl}</span><span class="v used">${plan ? H(est) : H(used)}<small>${plan ? 'h 見込み' : 'h'} / ${S.settings.hoursCap}h</small></span></div>
-    <div class="bar"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i>${plan ? `<i class="plan" style="width:${Math.max(0, (rp - Math.min(1, r)) * 100).toFixed(1)}%"></i>` : ''}</div>
-    <div class="cap-leg">
-      <span><i class="sw act"></i>実績 <b>${hours(used)}</b></span>
-      ${plan ? `<span><i class="sw pl"></i>予定 <b>${hours(plan)}</b></span>` : ''}
-    </div>
-    <div class="cr">${plan ? `<span>出勤予定 <b>${days}日</b></span>` : ''}${left >= 0 ? `<span>上限まで あと <b>${hours(left)}</b></span>` : `<span><b class="used">${hours(-left)} 超過</b>${plan ? 'の見込み' : ''}</span>`}
-      ${!plan && days && cap - used > 0 ? `<span>${days}日で 1日 <b>${hours((cap - used) / days)}</b>まで</span>` : ''}</div>
+    <div class="bar" style="margin-top:0"><i style="width:${Math.min(100, r * 100).toFixed(1)}%"></i>${plan ? `<i class="plan" style="width:${Math.max(0, (rp - Math.min(1, r)) * 100).toFixed(1)}%"></i>` : ''}</div>
+    <div class="cr" style="margin-top:10px">${plan ? `<span>出勤予定 <b>${days}日</b></span>` : `<span>出勤予定なし</span>`}${left >= 0 ? `<span>上限まで あと <b>${hours(left)}</b></span>` : `<span><b class="used">${hours(-left)} 超過</b>${plan ? 'の見込み' : ''}</span>`}</div>
   </div>`;
 }
 function renderCal() {
@@ -3426,20 +3450,15 @@ function renderCal() {
   const [from, to] = periodRange(y, m);
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
   $('#calTitle').innerHTML = `${periodName(CAL)}<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">${md(from)}〜${md(to)}</small>`;
-  $('#calSum').innerHTML = `
-    <div><div class="k">売上</div><div class="v num">${tot.sales >= 100000 ? compactYen(tot.sales) : yen(tot.sales)}</div></div>
-    <div><div class="k">乗車</div><div class="v num">${tot.count}<small>回</small></div></div>
-    <div><div class="k">出勤</div><div class="v num">${list.length}<small>日</small></div></div>`;
-  // 月の目標（月単位の時だけ。日単位の「月の目安」は出さない）。締め期間・固定休を除く
-  $('#calGoal').innerHTML = dayUnit() ? '' : goalHtml(tot.sales, planDays(y, m, from, to), to);
   // 労働時間はカレンダーに連動して暦月（1日〜末日）で計算：今日を含む期間なら今月、それ以外は期間の月。
   // その月のうち締め期間の外にある日も薄く並べ、労働時間に入る日がすべて見えるようにする
   const now = new Date(), cur = now >= from && now < +to + 86400000;
   const hy = cur ? now.getFullYear() : y, hm = cur ? now.getMonth() : m;
   const pdays = planDays(hy, hm);
   const used = monthWorkMs(hy, hm);
-  CAL.pop = { sales: tot.sales, from, to, hy, hm, used, pdays };   // ポップアップ（労働時間の内訳・推定手取り）用
-  $('#calCap').innerHTML = capBtnHtml(hy, hm, used, pdays);
+  // 上の2枚（予想労働時間・売上）とポップアップ用。目標は締め期間・固定休を除く
+  CAL.pop = { sales: tot.sales, count: tot.count, days: list.length, from, to, y, m, hy, hm, used, pdays, cur };
+  $('#calTiles').innerHTML = calTilesHtml(CAL.pop);
   const mFrom = new Date(hy, hm, 1), mTo = new Date(hy, hm + 1, 0);
   const first = mFrom < from ? mFrom : from, last = mTo > to ? mTo : to;
   const other = {};   // 期間外の日：その日の記録
@@ -5837,7 +5856,7 @@ $('#calGrid').addEventListener('click', e => {
 });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
 $('#calMode').addEventListener('click', e => { const b = e.target.closest('[data-cm]'); if (!b || b.dataset.cm === S.settings.calMode) return; haptic(); S.settings.calMode = b.dataset.cm; saveSoon(); renderCal(); });
-$('#calCap').addEventListener('click', e => { if (e.target.closest('#calCapBtn')) openCapPop(); });
+$('#calTiles').addEventListener('click', e => { const b = e.target.closest('[data-pop]'); if (b) openCalPop(b.dataset.pop); });
 $('#capSheet [data-close]').addEventListener('click', () => closeSheet($('#capSheet')));
 $('#capSheet').addEventListener('click', e => { if (e.target.id === 'capSheet') closeSheet($('#capSheet')); });
 $('#reportSheet [data-close]').addEventListener('click', () => closeSheet($('#reportSheet')));
