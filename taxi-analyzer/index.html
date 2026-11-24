@@ -794,29 +794,35 @@ svg{display:block}
 .rp-inner{max-width:720px}
 .rp-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
 .rp-head{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
-.rp-times{display:flex;align-items:baseline;gap:10px;font-size:22px;font-weight:800;white-space:nowrap;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.rp-times{display:flex;align-items:baseline;gap:10px;font-size:22px;font-weight:800;white-space:nowrap;padding-bottom:10px;border-bottom:1px solid var(--line-2)}
 .rp-times small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:2px}
 .rp-times i{font-style:normal;color:var(--faint);font-size:16px;font-weight:400}
-.rp-times .du{margin-left:auto;text-align:right;font-size:18px;color:var(--muted)}
+.rp-times .du{margin-left:auto;text-align:right;font-size:20px}
 .rp-sum{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-top:10px}
 .rp-sum .k{font-size:13px;color:var(--muted)}
 .rp-sum .v{font-size:clamp(32px,9vw,44px);font-weight:800;line-height:1.1;color:var(--accent)}
 .rp-sum .c{font-size:14px;color:var(--muted);white-space:nowrap}
-.rp-sum .c b{font-size:20px;color:var(--text);margin-right:2px}
+.rp-sum .c b{font-size:22px;color:var(--text);margin-right:2px}
+.rp-kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.rp-kpi > div{background:var(--surface);border-radius:var(--r-sm);padding:8px 10px;min-width:0}
+.rp-kpi .k{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+.rp-kpi .v{font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rp-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:2px 14px;margin-top:6px;overflow:hidden}
-.rr{display:grid;grid-template-columns:minmax(0,1fr) 3em 6.6em;align-items:center;column-gap:8px;padding:12px 0}   /* 件数・金額の列を全行でそろえる */
+.rr{display:grid;grid-template-columns:minmax(0,1fr) 3.2em 6.6em 12px;align-items:center;column-gap:8px;padding:10px 0}   /* 件数・金額の列を全行でそろえる（右端は開閉の印の列） */
 .rr + .rr{border-top:1px solid var(--line)}
 .rr .l{font-size:15px;font-weight:600;min-width:0;line-height:1.35;overflow-wrap:anywhere}   /* 名前・注記は省略せず折り返す */
 .rr .l small{display:block;font-size:12px;color:var(--muted);font-weight:500}
 .rr .n,.rr b{white-space:nowrap}
 .rr .n{text-align:right;font-size:16px;font-weight:700}
 .rr .n i{font-style:normal;font-size:12px;color:var(--muted);margin-left:1px}
-.rr b{text-align:right;font-size:19px;font-weight:800}
+.rr b{text-align:right;font-size:18px;font-weight:800}
+.rr.out b{color:var(--muted);font-weight:700}
 .rr.disc b{color:var(--accent)}
 .rr.sum{border-top:2px solid var(--line-2)}
+.rr.sum b{font-size:20px}
 .rr.sum .l{font-weight:800}
 .rr.zero .l{color:var(--faint)}
-.rr.pay-fold{cursor:pointer;grid-template-columns:minmax(0,1fr) 3em 6.6em 12px;margin:0 -14px;padding:12px 14px;transition:background .15s}
+.rr.pay-fold{cursor:pointer;margin:0 -14px;padding:10px 14px;transition:background .15s}
 .rr.pay-fold[aria-expanded="true"]{background:var(--surface-2)}
 .rr.pay-fold::after{content:'';width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);justify-self:end;margin-bottom:3px;transition:transform .15s}
 .rr.pay-fold[aria-expanded="true"]::after{transform:rotate(-135deg);margin:3px 0 0}
@@ -828,6 +834,7 @@ svg{display:block}
 .rp-ride .t .to{margin:0 8px}   /* 乗車〜降車の間をあける */
 .rp-ride .a{font-weight:700;text-align:right;white-space:nowrap;font-size:15px}
 .rp-ride .a small{font-size:10px;color:var(--faint);font-weight:500;margin-left:4px}
+.rp-ride .t em{font-style:normal;font-size:11px;font-weight:700;color:var(--muted);background:var(--surface-3);border-radius:5px;padding:1px 6px;margin-left:8px;vertical-align:1px}
 .rp-rides + .rr{border-top:1px solid var(--line)}
 .rp-sec{margin-bottom:18px}
 .find-btn{margin-left:auto}
@@ -2701,7 +2708,7 @@ function openReport(id, keep) {
   const row = (label, n, amt, cls = '', note = '') => `<div class="rr ${cls}"><span class="l">${esc(label)}${note ? `<small>${esc(note)}</small>` : ''}</span><span class="n">${n != null ? n + '<i>件</i>' : ''}</span><b>${yen(amt)}</b></div>`;
   const cnt = f => rides.filter(f).length;
   const extras = [
-    st.toll && row('高速代', st.tollN, st.toll, '', '売上外'),
+    st.toll && row('高速代', st.tollN, st.toll, 'out', '売上外'),
     st.fare.long && row('遠距離割', cnt(r => r.fare.long), st.fare.long, 'disc', '差引済'),
     st.fare.handi && row('障害者割', cnt(r => r.fare.handi), st.fare.handi, 'disc', '差引済'),
   ].filter(Boolean);
@@ -2714,6 +2721,11 @@ function openReport(id, keep) {
         <div><div class="k">合計金額（営業収入）</div><div class="v num">${yen(st.sales)}</div></div>
         <div class="c num"><b>${st.count}</b>件</div>
       </div>
+      ${st.count ? `<div class="rp-kpi num">
+        <div><div class="k">平均単価</div><div class="v">${yen(st.avg)}</div></div>
+        ${st.hourly != null ? `<div><div class="k">時間あたり</div><div class="v">${yen(st.hourly)}</div></div>` : ''}
+        ${st.occRate != null ? `<div><div class="k">実車率</div><div class="v">${Math.round(st.occRate * 100)}%</div></div>` : ''}
+      </div>` : ''}
     </div>
     <section class="rp-sec">
       <h3><span>支払い種別</span><span>件数・金額</span></h3>
@@ -2722,7 +2734,7 @@ function openReport(id, keep) {
           // 行をタップすると、その支払い種別の乗車（時刻・金額）が開く（乗車をタップで詳細）
           return row(tk ? 'チケット' : p.label, p.n, p.amt, 'pay-fold', [tk, p.toll && `うち高速代 ${yen(p.toll)}`].filter(Boolean).join(' ・ ')).replace('<div class="rr pay-fold', `<div data-pf="${esc(p.k)}" role="button" tabindex="0" aria-expanded="${openPf.includes(p.k)}" class="rr pay-fold`) +
             `<div class="rp-rides"${openPf.includes(p.k) ? '' : ' hidden'}>${p.rides.map((r, i) => `<button class="rp-ride" data-rd="${r.id}">
-              <span class="i num">${i + 1}</span><span class="t num">${r.start ? hhmm(r.start) : '<i class="nil">--:--</i>'}<i class="to">–</i>${hhmm(r.ts)}</span>
+              <span class="i num">${i + 1}</span><span class="t num">${r.start ? hhmm(r.start) : '<i class="nil">--:--</i>'}<i class="to">–</i>${hhmm(r.ts)}${r.kind !== 'street' ? `<em>${esc(kindLabel(r.kind, r.app))}</em>` : ''}</span>
               <span class="a num">${yen(r.total)}${r.toll ? `<small>＋高速${yen(r.toll)}</small>` : ''}</span></button>`).join('')}</div>`; }).join('') || '<div class="rr zero"><span class="l">乗車記録なし</span></div>'}
         ${st.toll && pays.length ? row('計', pn, pa, 'sum', '高速代込み') : ''}
       </div>
