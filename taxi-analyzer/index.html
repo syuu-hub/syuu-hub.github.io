@@ -991,7 +991,7 @@ svg{display:block}
 .cal-cap.over b.used{color:var(--danger)}
 /* 予想労働時間・売上の2枚（押すとポップアップ）。トップページ index.html のサマリーに合わせる */
 .cal-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0 16px}   /* 月の切り替えのすぐ下。カレンダーとの間と近い余白に */
-.cal-tile{position:relative;overflow:hidden;min-height:92px;padding:12px 8px;border-radius:12px;border:1px solid var(--line-2);background:linear-gradient(135deg,var(--surface-2),var(--surface-3));display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:transform .2s,border-color .2s}
+.cal-tile{position:relative;overflow:hidden;min-height:92px;padding:12px 8px;border-radius:20px;border:1px solid var(--line-2);background:linear-gradient(135deg,var(--surface-2),var(--surface-3));display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:transform .2s,border-color .2s}
 .cal-tile:active{transform:scale(.97)}
 .cal-tile::before{content:'';position:absolute;width:72px;height:72px;border-radius:50%;background:var(--g);opacity:.14;filter:blur(18px);pointer-events:none}
 .cal-tile.hrs{--g:var(--accent)}
