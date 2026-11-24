@@ -936,7 +936,19 @@ svg{display:block}
 .cal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
 /* カレンダー：1枚のカードに1pxの区切り。曜日の帯・日付（今日は丸）・中央に時間か売上（トップページ index.html に合わせる） */
 .cal-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px}
-.cal-ctl .t{font-size:13px;font-weight:800;color:var(--text);letter-spacing:.06em}
+.cal-leg{display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;min-width:0;overflow:hidden}
+.cal-leg span{display:flex;align-items:center;gap:5px}
+.cal-leg i{width:8px;height:8px;border-radius:50%;flex:none}
+.cal-leg i.act{background:var(--ok)}
+.cal-leg i.pl{background:var(--accent)}
+.cal-leg b{font-size:11px;color:var(--faint);font-weight:800}
+/* カレンダーの下：1日あたり（表示中の時間／売上に合わせる） */
+.cal-avg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.cal-avg > div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-width:0}
+.cal-avg .k{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+.cal-avg .v{font-size:18px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-avg .v small{font-size:11px;font-weight:600;color:var(--muted);margin-left:2px}
+.cal-swipe{font-size:11px;color:var(--faint);text-align:center;margin-top:10px}
 .cal-sw{position:relative;display:grid;grid-template-columns:1fr 1fr;width:112px;height:36px;padding:3px;border-radius:999px;background:var(--surface);border:1px solid var(--line-2);flex:none}
 .cal-sw button{position:relative;z-index:1;font-size:12px;font-weight:800;color:var(--muted);border-radius:999px;transition:color .25s}
 .cal-sw button[aria-pressed="true"]{color:var(--text)}
@@ -1605,7 +1617,7 @@ svg{display:block}
     <div class="cal-body">
       <div class="cal-tiles" id="calTiles"></div>
       <div class="cal-ctl">
-        <span class="t">カレンダー</span>
+        <span class="cal-leg"><span><i class="act"></i>実績</span><span><i class="pl"></i>予定</span><span><b>休</b>固定休</span></span>
         <div class="cal-sw" id="calMode" role="group" aria-label="カレンダーの表示"><i></i><button data-cm="hours">時間</button><button data-cm="sales">売上</button></div>
       </div>
       <div class="cal-grid" id="calGrid"></div>
@@ -3494,11 +3506,20 @@ function renderCal() {
   html += '<div class="cal-cell empty"></div>'.repeat((7 - n % 7) % 7);   // 最後の週の残りを埋める
   $('#calGrid').innerHTML = html;
 
-  $('#calDay').innerHTML = '';
+  // 1日あたり（出勤した日の平均）。時間表示なら時間と時間あたり、売上表示なら売上と1回あたり
+  const nd = list.length;
+  $('#calDay').innerHTML = !nd ? '<div class="cal-swipe">記録がありません・左右にスワイプで月を切り替え</div>' : `<div class="cal-avg num">${mode === 'hours'
+    ? `<div><div class="k">1日あたりの時間</div><div class="v">${(tot.ms / nd / 3600000).toFixed(1)}<small>h</small></div></div>
+       <div><div class="k">時間あたりの売上</div><div class="v">${tot.ms ? yen(Math.round(tot.sales / (tot.ms / 3600000))) : '—'}</div></div>`
+    : `<div><div class="k">1日あたりの売上</div><div class="v">${yen(Math.round(tot.sales / nd))}</div></div>
+       <div><div class="k">1回あたりの売上</div><div class="v">${tot.count ? yen(Math.round(tot.sales / tot.count)) : '—'}</div></div>`}</div>
+    <div class="cal-swipe">左右にスワイプで月を切り替え</div>`;
 }
 
 function openCal(t = Date.now()) {
-  Object.assign(CAL, { ...periodOf(t), sel: dayKey(new Date(t)) });
+  // 履歴で見ていた日を枠で示す（今日はオレンジの丸があるので枠は付けない）
+  const k0 = dayKey(new Date(t));
+  Object.assign(CAL, { ...periodOf(t), sel: k0 === dayKey(new Date()) ? null : k0 });
   renderCal();
   $('#calSheet .cal-body').scrollTop = 0;
   openSheet($('#calSheet'));
@@ -5855,6 +5876,20 @@ $('#calGrid').addEventListener('click', e => {
   $('section[data-view="log"]').scrollTop = 0;
 });
 $('#calSheet [data-close]').addEventListener('click', () => closeSheet($('#calSheet')));
+{ // カレンダーを左右にスワイプ → 前後の月
+  let sx = null, sy = 0;
+  const el = $('#calSheet .cal-body');
+  el.addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (sx == null) return;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      shiftCal(dx < 0 ? 1 : -1);
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches)
+        $('#calGrid').animate([{ opacity: 0, transform: `translateX(${dx < 0 ? 28 : -28}px)` }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
+    }
+  }, { passive: true });
+}
 $('#calMode').addEventListener('click', e => { const b = e.target.closest('[data-cm]'); if (!b || b.dataset.cm === S.settings.calMode) return; haptic(); S.settings.calMode = b.dataset.cm; saveSoon(); renderCal(); });
 $('#calTiles').addEventListener('click', e => { const b = e.target.closest('[data-pop]'); if (b) openCalPop(b.dataset.pop); });
 $('#capSheet [data-close]').addEventListener('click', () => closeSheet($('#capSheet')));
