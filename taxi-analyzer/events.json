@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-24",
+ "updated": "2026-11-25",
  "status": {
   "world": 19,
   "kih": 20,
@@ -12,18 +12,6 @@
   "ships": 18
  },
  "events": [
-  {
-   "date": "2026-11-24",
-   "start": null,
-   "end": "17:00",
-   "venue": "神戸国際会議場",
-   "cap": 3000,
-   "title": "第4回 日本化粧品技術者会学術大会",
-   "day": true,
-   "contact": "日本化粧品技術者会",
-   "url": "https://conference.wdc-jp.com/sccj/2026/",
-   "src": "kcc"
-  },
   {
    "date": "2026-11-25",
    "start": "10:30",
