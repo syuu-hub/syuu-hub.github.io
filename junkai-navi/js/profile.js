@@ -4,7 +4,7 @@
 //   manual … 自分で指定した時間帯・曜日（1＝対象、0＝対象外）
 // d は 0＝日曜 … 6＝土曜（Date#getDay と同じ）
 
-import { isOffDay } from './calendar.js?v=34';
+import { isOffDay } from './calendar.js?v=35';
 
 export const DAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
 const isWeekend = (dow) => dow === 0 || dow === 6;

@@ -1,13 +1,13 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=34';
-import { ValhallaClient } from './valhalla.js?v=34';
-import { DemandEngine, CAT_JA } from './demand.js?v=34';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=34';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=34';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=34';
-import { profText, manualProf } from './profile.js?v=34';
-import { fitModel, pickupRate } from './model.js?v=34';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=34';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=34';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=35';
+import { ValhallaClient } from './valhalla.js?v=35';
+import { DemandEngine, CAT_JA } from './demand.js?v=35';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=35';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=35';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=35';
+import { profText, manualProf } from './profile.js?v=35';
+import { fitModel, pickupRate } from './model.js?v=35';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=35';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=35';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
