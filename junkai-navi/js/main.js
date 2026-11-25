@@ -1,13 +1,13 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=33';
-import { ValhallaClient } from './valhalla.js?v=33';
-import { DemandEngine, CAT_JA } from './demand.js?v=33';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=33';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=33';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=33';
-import { profText, manualProf } from './profile.js?v=33';
-import { fitModel, pickupRate } from './model.js?v=33';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=33';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=33';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=35';
+import { ValhallaClient } from './valhalla.js?v=35';
+import { DemandEngine, CAT_JA } from './demand.js?v=35';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=35';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=35';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=35';
+import { profText, manualProf } from './profile.js?v=35';
+import { fitModel, pickupRate } from './model.js?v=35';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=35';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=35';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -305,10 +305,22 @@ function arrowSVG(kind) {
   const flip = left ? ' transform="translate(48 0) scale(-1 1)"' : '';
   return `<svg viewBox="0 0 48 48"><g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"${flip}>${body.replace(/<polygon/g, '<polygon fill="#fff" stroke="none"')}</g></svg>`;
 }
-function fmtDist(m) {
-  if (m >= 1000) return `${(m / 1000).toFixed(1)} km`;
-  if (m >= 100) return `${Math.round(m / 50) * 50} m`;
-  return `${Math.max(10, Math.round(m / 10) * 10)} m`;
+// 距離：数字と単位の間はあけない（300m・1.2km）
+function distParts(m) {
+  if (m >= 1000) return [(m / 1000).toFixed(1), 'km'];
+  if (m >= 100) return [String(Math.round(m / 50) * 50), 'm'];
+  return [String(Math.max(10, Math.round(m / 10) * 10)), 'm'];
+}
+function fmtDist(m) { return distParts(m).join(''); }
+// 上のバナーの大きな距離：単位は少し小さく、数字にくっつけて出す
+function setBannerDist(m) {
+  const [n, u] = distParts(m);
+  const el = $('b-dist');
+  el.textContent = n;
+  const s = document.createElement('span');
+  s.className = 'b-unit';
+  s.textContent = u;
+  el.appendChild(s);
 }
 
 // ===== ナビ =====
@@ -633,11 +645,11 @@ function render() {
   }
   if (v.next) {
     $('b-icon').innerHTML = arrowSVG(v.next.kind);
-    $('b-dist').textContent = fmtDist(v.nextDist);
+    setBannerDist(v.nextDist);
     $('b-street').textContent = v.next.street ? `${v.next.ja}・${v.next.street}` : v.next.ja;
   } else {
     $('b-icon').innerHTML = arrowSVG('straight');
-    $('b-dist').textContent = fmtDist(v.nextDist);
+    setBannerDist(v.nextDist);
     $('b-street').textContent = '道なりに進む';
   }
   if (v.then) { $('b-then').classList.remove('hidden'); $('b-then-icon').innerHTML = arrowSVG(v.then.kind); }

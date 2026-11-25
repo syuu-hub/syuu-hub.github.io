@@ -135,14 +135,18 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: 0 0 auto; }
 .icon-btn { position: relative; width: 40px; height: 40px; border: 0; border-radius: var(--r-full); background: transparent; color: var(--md-on-surface-variant); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; }
 
 /* ===== 案内バナー（対比：距離を一番大きく） ===== */
-#banner { position: fixed; left: 12px; right: 12px; top: calc(12px + var(--sat)); z-index: 10; border-radius: var(--r-xl); overflow: hidden; box-shadow: var(--el-3); }
-.banner-main { display: flex; align-items: center; gap: 16px; background: #0f5132; color: #fff; padding: 16px 20px; min-height: 96px; }
+/* 影は見えている部分の形に沿わせる（「その先」の右の何もない所に影や角が出ないように） */
+#banner { position: fixed; left: 12px; right: 12px; top: calc(12px + var(--sat)); z-index: 10; filter: drop-shadow(0 4px 6px rgba(0,0,0,.18)) drop-shadow(0 1px 2px rgba(0,0,0,.3)); }
+.banner-main { display: flex; align-items: center; gap: 16px; background: #0f5132; color: #fff; padding: 16px 20px; min-height: 96px; border-radius: var(--r-xl); }
+/* 「その先」を出している時は、左下の角を「その先」とつなげる */
+.banner-main:has(+ .b-then:not(.hidden)) { border-bottom-left-radius: 0; }
 .b-icon { width: 60px; height: 60px; flex: 0 0 60px; }
 .b-icon svg, .b-then-icon svg { width: 100%; height: 100%; }
 .b-text { min-width: 0; }
 .b-dist { font-size: 36px; line-height: 44px; font-weight: 600; }
+.b-unit { font-size: 0.7em; margin-left: 1px; letter-spacing: 0; }
 .b-street { font-size: 18px; line-height: 24px; font-weight: 500; opacity: .92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.b-then { display: flex; align-items: center; gap: 8px; background: #0a3b24; color: #fff; padding: 8px 20px; font-size: 14px; font-weight: 600; width: max-content; border-bottom-right-radius: var(--r-l); }
+.b-then { display: flex; align-items: center; gap: 8px; background: #0a3b24; color: #fff; padding: 8px 20px; font-size: 14px; font-weight: 600; width: max-content; border-radius: 0 0 var(--r-l) var(--r-l); }
 .b-then-icon { width: 24px; height: 24px; display: inline-block; }
 
 /* スナックバー */
