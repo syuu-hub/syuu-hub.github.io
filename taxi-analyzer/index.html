@@ -2192,9 +2192,9 @@ async function fillAddr(o) {
 function setLL(o, p) { o.lat = p.lat; o.lng = p.lng; delete o.acc; delete o.addr; }   // GPSの精度は記録しない
 
 /* ============================================================
-   関西2府4県（大阪・京都・兵庫・奈良・滋賀・和歌山）の住所補完（市区町村 → 町名）。郵便番号データの町域名を内蔵（kansai.js）
+   関西3府県（大阪・京都・兵庫）の住所補完（市区町村 → 町名）。郵便番号データの町域名を内蔵（kansai.js）
    ============================================================ */
-const KANSAI_PREFS = ['兵庫県', '大阪府', '京都府', '奈良県', '滋賀県', '和歌山県'];
+const KANSAI_PREFS = ['兵庫県', '大阪府', '京都府'];
 const PREF_RE = new RegExp('^(' + KANSAI_PREFS.join('|') + ')');
 let HY = null;
 function hyogo() {
@@ -2307,7 +2307,7 @@ async function loadPlaces() {
 //   ・住所が場所データの施設1つだけと同じ記録 → 施設名にする（設定「住所を施設名にする」。オフにすると自動で付けた分を外す）
 const KANJI_NUM = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
 // 住所を比べやすくする（府県名・空白を除き、全角数字・漢数字の丁目・番地の書き方をそろえる）
-const normAddr = a => toHira(String(a || '')).replace(/^(兵庫県|大阪府|京都府|奈良県|滋賀県|和歌山県)/, '').replace(/\s/g, '')
+const normAddr = a => toHira(String(a || '')).replace(PREF_RE, '').replace(/\s/g, '')
   .replace(/([一二三四五六七八九十])丁目/, (_, k) => KANJI_NUM[k] + '丁目')
   .replace(/(\d)[‐－ー―−](?=\d)/g, '$1-').replace(/(\d)(番地?|号)/g, '$1-').replace(/-+$/, '');
 // 記録の中の乗車地・降車地（履歴・実車中・未記録の乗車）
@@ -2397,7 +2397,7 @@ const OSM_KIND = {
 };
 const osmKind = (k, v) => OSM_KIND[k + ':' + v] || { amenity: '施設', shop: '店舗', tourism: '観光', leisure: 'レジャー施設', office: '事業所', building: '建物', railway: '鉄道', aeroway: '空港', healthcare: '医療機関' }[k] || '';
 const PHOTON = 'https://photon.komoot.io/api/';
-const KANSAI_BBOX = '134.2,33.4,136.5,35.8';   // 関西2府4県を囲む範囲（西,南,東,北）
+const KANSAI_BBOX = '134.2,34.1,136.1,35.8';   // 大阪・京都・兵庫を囲む範囲（西,南,東,北）
 const placeCache = new Map();   // 検索語 → 候補（null は検索中）
 let placeTimer = null, placeRetryAt = 0;
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
