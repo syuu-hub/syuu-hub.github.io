@@ -210,8 +210,30 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   const nr = new EndlessNavigator({ router: fakeRouter, demand: dg, now, settings: { tourMax: 1 }, emit: (t, d) => { if (t === 'route' && d.mode === 'reroute') reroutes2++; } });
   nr.update({ point: o, speed: 0, heading: 90, t: clock });
   for (let i = 0; i < 30 && !nr.route; i++) await sleep();
-  for (let k = 0; k < 12; k++) { clock += 1000; nr.update({ point: destination(pointAt(nr.route, nr.along + 10).point, 0, 200), speed: 10, heading: null, accuracy: 8, t: clock }); await sleep(); await sleep(); }
-  assert(reroutes2 >= 1 && reroutes2 <= 1, `外れたら再検索、20秒以内は繰り返さない（${reroutes2} 回）`);
+  for (let k = 0; k < 8; k++) { clock += 1000; nr.update({ point: destination(pointAt(nr.route, nr.along + 10).point, 0, 200), speed: 10, heading: null, accuracy: 8, t: clock }); await sleep(); await sleep(); }
+  assert(reroutes2 >= 1 && reroutes2 <= 1, `外れたら計算し直す、12秒以内は繰り返さない（${reroutes2} 回）`);
+  // 別の道へ曲がって外れたら、元の行き先へ戻すのではなく、今いる所・進む向きから行き先を選び直す
+  {
+    const dv = new DemandEngine();
+    const P = (b, m, name) => { const p = destination(o, b, m); for (let k = 0; k < 3; k++) dv.spots.push({ id: name + k, name, lng: p[0], lat: p[1], cat: 'custom' }); };
+    P(90, 2500, '東'); P(0, 2600, '北');
+    dv.update(new Date(clock), 1);
+    let rr = 0, voice = '';
+    const nd = new EndlessNavigator({ router: fakeRouter, demand: dv, now, settings: { tourMax: 1 }, emit: (t, d) => { if (t === 'route' && d.mode === 'reroute') rr++; if (t === 'voice') voice = d; } });
+    nd.update({ point: o, speed: 0, heading: 90, t: clock });
+    for (let i = 0; i < 30 && !nd.route; i++) await sleep();
+    assert(nd.target && nd.target.name === '東', `最初は進む向き（東）の行き先（${nd.target && nd.target.name}）`);
+    // 東へ300m走ってから、北の道へ曲がって走る
+    let p = o;
+    for (let k = 0; k < 25; k++) { clock += 1000; p = pointAt(nd.route, Math.min(nd.along + 12, nd.route.length)).point; nd.update({ point: p, speed: 12, heading: 90, accuracy: 5, t: clock }); await sleep(); }
+    const turnAt = p;
+    let offSeen = false;
+    for (let k = 1; k <= 8 && rr === 0; k++) { clock += 1000; nd.update({ point: destination(turnAt, 0, 12 * k), speed: 12, heading: 0, accuracy: 5, t: clock }); if (!nd.onRoute) offSeen = true; await sleep(); await sleep(); }
+    assert(offSeen && rr === 1, `別の道へ曲がったらすぐ計算し直す（${rr} 回）`);
+    for (let i = 0; i < 30 && nd.planning; i++) await sleep();
+    assert(nd.target && nd.target.name === '北', `今の向き（北）から行き先を選び直す（${nd.target && nd.target.name}）`);
+    assert(/外れました/.test(voice), `読み上げ：${voice}`);
+  }
   // ルートサーバーに一時的につながらない：行き先を外さず、待つ時間を延ばし、お知らせは1回
   let down = true, statuses = [];
   const flaky = { calls: 0, async route(...a) { this.calls++; if (down) { const e = new Error('ルートサーバーに接続できません'); e.offline = true; throw e; } return fakeRouter.route(...a); } };

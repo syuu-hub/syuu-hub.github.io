@@ -1,13 +1,13 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=32';
-import { ValhallaClient } from './valhalla.js?v=32';
-import { DemandEngine, CAT_JA } from './demand.js?v=32';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=32';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=32';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=32';
-import { profText, manualProf } from './profile.js?v=32';
-import { fitModel, pickupRate } from './model.js?v=32';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=32';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=32';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=33';
+import { ValhallaClient } from './valhalla.js?v=33';
+import { DemandEngine, CAT_JA } from './demand.js?v=33';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=33';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=33';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=33';
+import { profText, manualProf } from './profile.js?v=33';
+import { fitModel, pickupRate } from './model.js?v=33';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=33';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=33';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -621,6 +621,14 @@ function render() {
     $('s-target').textContent = '需要エリアを計算中…';
     $('s-meta').textContent = '';
     $('s-level').textContent = '';
+    return;
+  }
+  // ルートを外れている間は、元のルートの右左折は出さない（今いる所から計算し直す）
+  if (!nav.onRoute) {
+    $('b-icon').innerHTML = arrowSVG('straight');
+    $('b-dist').textContent = 'ルートを外れました';
+    $('b-street').textContent = '今いる所から新しいルートを計算します';
+    $('b-then').classList.add('hidden');
     return;
   }
   if (v.next) {
