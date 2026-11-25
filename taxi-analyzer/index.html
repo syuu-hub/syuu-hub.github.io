@@ -2253,12 +2253,25 @@ let STA = null;
 function stations() {
   // 駅の一覧は kansai.js にある。分析の画面で起動した時は、まだ読み込まれていないので空で返す（読み込み後に描き直す）
   if (typeof KANSAI_STATIONS === 'undefined') return [];
-  if (!STA) STA = KANSAI_STATIONS.split('\n').map(l => {
-    const [n, lines, lat, lng] = l.split('|');
-    return { name: n + '駅', base: n, kind: '駅', info: lines, lat: +lat, lng: +lng };
-  });
+  if (!STA) {
+    STA = KANSAI_STATIONS.split('\n').map(l => {
+      const [n, lines, lat, lng] = l.split('|');
+      return { name: n + '駅', plain: n + '駅', base: n, kind: '駅', info: lines, lat: +lat, lng: +lng, hyogo: !/^(大阪府|京都府)$/.test(lines) };
+    });
+    // 同じ名前の駅（JR尼崎と阪神尼崎、大阪の住吉と神戸の住吉など）は、呼び方で見分けられる名前にする
+    const hy = new Map();
+    for (const st of STA) if (st.hyogo) hy.set(st.base, (hy.get(st.base) || []).concat(st));
+    for (const list of hy.values()) if (list.length > 1) {
+      const names = list.map(st => stationOp(st.info) + st.base + '駅');
+      list.forEach((st, i) => { st.name = names.indexOf(names[i]) === i ? names[i] : st.info.split('・')[0] + ' ' + st.base + '駅'; });
+    }
+    for (const st of STA) if (!st.hyogo && hy.has(st.base)) st.name = `${st.base}駅（${st.info.replace(/[府県]$/, '')}）`;   // 兵庫県にも同じ名前の駅がある大阪・京都の駅
+  }
   return STA;
 }
+// 路線名 → 会社の呼び方（JR尼崎駅・阪神尼崎駅 のように駅名の前に付ける）
+const STATION_OPS = [['JR', 'JR'], ['阪急', '阪急'], ['阪神', '阪神'], ['山陽', '山陽'], ['神戸電鉄', '神鉄'], ['地下鉄', '地下鉄'], ['神戸高速', '高速'], ['北神', '北神'], ['能勢', '能勢電'], ['北条', '北条'], ['ポートライナー', 'ポートライナー'], ['六甲ライナー', '六甲ライナー']];
+const stationOp = info => { const f = String(info || '').split('・')[0]; const o = STATION_OPS.find(([k]) => f.startsWith(k)); return o ? o[1] : f; };
 // 名前を比べやすくする（全角半角・大小文字・カタカナ／ひらがな・空白や記号の違いを無視）
 const normName = s => toHira(s).toLowerCase().replace(/[\s・･\-ー‐_.,、。'’"()（）|｜]/g, '');
 function stationSuggest(q) {
@@ -2272,12 +2285,17 @@ function stationSuggest(q) {
     const r = placeRank(pl, kq, words);
     if (r >= 0) hit.push([r, pl]);
   }
+  // 登録済みの場所（内蔵・自分で登録）と同じ駅は出さない：名前が同じ、または近く（300m以内）に登録済みの駅がある
+  const got = hit.map(h => h[1]), names = new Set(got.flatMap(pl => [pl.name, ...pl.alias].map(normName)));
   for (const st of stations()) {
     const b = normName(st.base);
     const r = b === k ? 0 : b.startsWith(k) ? 1 : k.length >= 2 && b.includes(k) ? 3 : -1;
-    if (r >= 0) hit.push([r, st]);
+    if (r < 0) continue;
+    if (names.has(normName(st.name)) || names.has(normName(st.plain)) || got.some(pl => pl.kind === '駅' && pl.lat != null && haversine(pl, st) < 300)) continue;
+    hit.push([r, st]);
   }
-  return hit.sort((a, b) => a[0] - b[0]).slice(0, 6).map(h => placeOpt(h[1]));
+  const seen = new Set();   // 同じ名前の候補は1つだけ
+  return hit.sort((a, b) => a[0] - b[0]).filter(h => { const n = normName(h[1].name); if (seen.has(n)) return false; seen.add(n); return true; }).slice(0, 6).map(h => placeOpt(h[1]));
 }
 // 名前・別名との一致の度合い（0が最も近い・-1は一致なし）
 function placeRank(pl, kq, words) {
@@ -2473,7 +2491,12 @@ function placeSuggest(raw, w) {
     // 同じ施設、または内蔵の施設名を含むだけの長い名前（例：「神戸国際展示場低侵襲…」）は出さない
     // 内蔵施設の名前を含むだけの別名（例：「umie ノースモール」「神戸国際展示場低侵襲…」）は内蔵の1件にまとめる
     if (db.some(x => normName(pl.name) !== normName(x.name) && normName(pl.name).includes(normName(x.name)))) continue;
-    if (!list.some(x => x.place.name === pl.name && haversine(x.place, pl) < 800)) list.push(placeOpt(pl));
+    // 登録済み（内蔵・自分で登録した場所の名前・別名）と同じ名前、または候補にある場所と同じ所（名前が同じ・片方がもう片方を含んで300m以内・どちらも駅で300m以内）は出さない
+    const nn = normName(pl.name);
+    if (db.some(x => [x.name, ...x.alias].some(n => normName(n) === nn))) continue;
+    if (list.some(x => { const o = x.place, on = normName(o.name), near = o.lat != null && haversine(o, pl) < 300;
+      return on === nn || (o.plain && normName(o.plain) === nn) || (near && (on.includes(nn) || nn.includes(on) || (o.kind === '駅' && pl.kind === '駅'))); })) continue;
+    list.push(placeOpt(pl));
   } else placeSearch(sq, () => { if (E && addrInput(w).value.trim().replace(/\s+/g, ' ') === sq) renderSug(w); });
   return { list, loading: online === null || (online === undefined && q.length >= 2 && navigator.onLine !== false && Date.now() >= placeRetryAt) };
 }
@@ -3821,7 +3844,7 @@ function knownPos(name) {
   if (!KNOWN_POS) {
     if (typeof KANSAI_STATIONS === 'undefined') return null;   // 駅の一覧の読み込み前は覚えない
     KNOWN_POS = new Map();
-    for (const pl of [...stations(), ...PDB.list]) if (pl.lat != null) KNOWN_POS.set(normName(pl.name), { lat: pl.lat, lng: pl.lng });
+    for (const pl of [...stations(), ...PDB.list]) if (pl.lat != null) for (const n of new Set([pl.name, pl.plain || pl.name])) KNOWN_POS.set(normName(n), { lat: pl.lat, lng: pl.lng });
   }
   return KNOWN_POS.get(normName(name)) || null;
 }
