@@ -3419,9 +3419,11 @@ const planTotal = pdays => pdays.reduce((a, k) => a + planMsOf(k), 0);
 // 労働時間＝出庫〜入庫（待機・休憩を含む）
 // 推定手取り：締め期間の売上に応じた歩合（トップページ index.html の「推定手取り額」と同じ段階）
 const COMMISSION = [[480000, 61], [465000, 60], [450000, 59], [435000, 58], [420000, 57], [405000, 56], [390000, 55], [375000, 53.5], [360000, 52], [340000, 51], [320000, 50], [0, 45]];
+// 歩合の段階は売上（税込）で決め、手取りは消費税（10%）を引いた売上 × 歩合
+const exTax = v => Math.floor(v / 1.1);   // 税込 → 税抜（消費税10%）
 function commission(sales) {
-  const i = COMMISSION.findIndex(([from]) => sales >= from), rate = COMMISSION[i][1], next = COMMISSION[i - 1];
-  return { rate, income: Math.floor(sales * rate / 100), next: next ? { left: next[0] - sales, rate: next[1] } : null };
+  const i = COMMISSION.findIndex(([from]) => sales >= from), rate = COMMISSION[i][1], next = COMMISSION[i - 1], base = exTax(sales);
+  return { rate, base, income: Math.floor(base * rate / 100), next: next ? { left: next[0] - sales, rate: next[1] } : null };
 }
 function incomeHtml(sales, from, to) {
   const c = commission(sales), md = d => `${d.getMonth() + 1}/${d.getDate()}`;
@@ -3429,7 +3431,7 @@ function incomeHtml(sales, from, to) {
     <div class="row1"><span>売上（${md(from)}〜${md(to)}）</span><b>${yen(sales)}</b></div>
     <div class="row2"><span class="k">推定手取り<em>歩合 ${c.rate}%</em></span><b>${yen(c.income)}</b></div>
     ${c.next ? `<div class="nx">あと <b>${yen(c.next.left)}</b> で歩合 ${c.next.rate}%</div>` : ''}
-    <div class="pd">売上 × 歩合の目安（税・控除の前）</div>
+    <div class="pd">税抜の売上 ${yen(c.base)}（消費税 ${yen(sales - c.base)} を引いた額）× 歩合</div>
   </div>`;
 }
 const CLOCK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
