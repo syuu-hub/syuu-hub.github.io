@@ -1,13 +1,14 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=35';
-import { ValhallaClient } from './valhalla.js?v=35';
-import { DemandEngine, CAT_JA } from './demand.js?v=35';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=35';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=35';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=35';
-import { profText, manualProf } from './profile.js?v=35';
-import { fitModel, pickupRate } from './model.js?v=35';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=35';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=35';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=36';
+import { ValhallaClient } from './valhalla.js?v=36';
+import { DemandEngine, CAT_JA } from './demand.js?v=36';
+import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=36';
+import { venueKey, VENUES } from './events.js?v=36';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=36';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=36';
+import { profText, manualProf } from './profile.js?v=36';
+import { fitModel, pickupRate } from './model.js?v=36';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=36';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=36';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -40,7 +41,8 @@ const cfg = Object.assign(
     csvKinds: { ...DEFAULT_KINDS }, // 使う乗車の種類（初期は流しだけ。乗り場は除く）
     csvInfo: null,
     csvEmptyMin: 0, // 営業ログの、空車で走っていた時間の合計（分）
-    csvModel: null, // 営業ログの交差検証で選んだ需要モデル（使う乗車の種類が変わったら選び直す）
+    csvModel: null,
+    eventFeed: null, // イベント情報（taxi-analyzer/events.json。今日から3日分だけ保存） // 営業ログの交差検証で選んだ需要モデル（使う乗車の種類が変わったら選び直す）
     geoCache: {}, // 住所・施設名 → 位置（調べた結果を端末に残し、同じ場所を何度も調べない）
   },
   load()
@@ -75,10 +77,42 @@ function syncDemand() {
   // 需要が中くらいのエリアで乗車が見つかるまでの時間：空車の時間 ÷ 乗車数（営業ログから。無ければ30分）
   const rate = manual ? null : pickupRate(demand.csvRides, cfg.csvEmptyMin);
   demand.searchMin = rate ? Math.min(300, Math.max(3, 60 / rate)) : 30;
+  // イベントの前の需要：営業ログで降車地がイベント会場だった乗車（乗り場からの乗車は除く。使う乗車の種類の設定とは別）
+  demand.eventRides = venueRides();
+  demand.eventFeed = (cfg.eventFeed && cfg.eventFeed.events) || [];
   demand.railDisruption = cfg.railManual || odptDisruption;
   if (cfg.weatherMode !== 'auto') demand.weather = cfg.weatherMode;
 }
 let odptDisruption = false;
+// 営業ログで降車地がイベント会場だった乗車（乗り場からの乗車は除く）
+const venueRides = () => cfg.csvRides.filter((r) => r.venue && r.lat != null && rideType(r) !== 'stand');
+// イベント情報を取り込む（同じサイトの taxi-analyzer/events.json。6時間ごと）
+async function loadEventFeed(force = false) {
+  if (!force && cfg.eventFeed && Date.now() - (cfg.eventFeed.at || 0) < 6 * 3600e3) return false;
+  for (const url of ['../taxi-analyzer/events.json', 'https://syuu-hub.github.io/taxi-analyzer/events.json']) {
+    try {
+      const res = await fetchT(url, { cache: 'no-cache' }, 10000);
+      if (!res.ok) continue;
+      const j = await res.json();
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const until = new Date(today.getTime() + 3 * 864e5);
+      const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const events = (j.events || []).filter((e) => e.date >= iso(today) && e.date < iso(until) && venueKey(e.venue))
+        .map((e) => ({ date: e.date, start: e.start || null, open: e.open || null, venue: e.venue, cap: e.cap || null, title: e.title || '' }));
+      cfg.eventFeed = { at: Date.now(), updated: j.updated || null, events };
+      save();
+      return true;
+    } catch { /* 次のURLへ */ }
+  }
+  return false;
+}
+// 今日のイベントのうち、営業ログに会場まで乗せた乗車がある会場のもの
+function todaysVenueEvents() {
+  const now = new Date();
+  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const have = new Set(venueRides().map((r) => r.venue));
+  return ((cfg.eventFeed && cfg.eventFeed.events) || []).filter((e) => e.date === iso && have.has(venueKey(e.venue)));
+}
 // 使う乗車の需要モデル：営業ログの交差検証で設定を選ぶ（乗車・種類が同じなら保存した結果を使う）
 function rideModel(rides) {
   if (!rides.length) return null;
@@ -424,6 +458,7 @@ async function ensureSpots(center) {
 }
 
 async function refreshDemand() {
+  await loadEventFeed().catch(() => {});
   const c = lastFix ? lastFix.point : cfg.lastCenter;
   if (cfg.weatherMode === 'auto' && c && (!refreshDemand.wAt || Date.now() - refreshDemand.wAt > 10 * 60e3)) {
     refreshDemand.wAt = Date.now();
@@ -666,7 +701,7 @@ function renderStart() {
   if (cfg.demandSource === 'csv') {
     const n = cfg.csvRides.filter(rideFilter(cfg.csvKinds)).length;
     $('spot-info').innerHTML = cfg.csvRides.length
-      ? `需要エリア：タクシーアナライザのCSV<br>乗車実績 ${n} 件（${kindsLabel(cfg.csvKinds)}）`
+      ? `需要エリア：タクシーアナライザのCSV<br>乗車実績 ${n} 件（${kindsLabel(cfg.csvKinds)}）${eventInfo()}`
       : '需要エリア：タクシーアナライザのCSV<br>設定からCSVを読み込んでください';
     return;
   }
@@ -677,7 +712,16 @@ function renderStart() {
   const custom = cfg.events.filter((e) => e.kind === 'custom').length;
   $('spot-info').innerHTML = (n || custom
     ? `需要エリア：任意で設定<br>需要スポット ${n} 件${detail ? `（${detail}）` : ''}${custom ? `・登録地点 ${custom} 件` : ''}`
-    : '需要エリア：任意で設定<br>開始すると現在地の周辺から駅・ホテル・病院・繁華街などを自動で取得します');
+    : '需要エリア：任意で設定<br>開始すると現在地の周辺から駅・ホテル・病院・繁華街などを自動で取得します') + eventInfo();
+}
+// 開始画面：今日のイベントで、イベントの前に会場へ向かうお客様を見込む会場
+function eventInfo() {
+  const n = venueRides().length;
+  if (!n) return '';
+  const evs = todaysVenueEvents();
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const list = evs.slice(0, 3).map((e) => `${esc(VENUES[venueKey(e.venue)].name)} ${e.start ? `${e.start}開演` : ''}`).join('・');
+  return `<br>イベント会場まで乗せた乗車 ${n} 件（乗り場を除く）${evs.length ? `<br>今日のイベント：${list}${evs.length > 3 ? ` ほか${evs.length - 3}` : ''} → 開演前は、会場まで乗せた乗車が多い場所を需要に` : ''}`;
 }
 
 // ===== 地図の長押しで地点追加 =====
@@ -1016,7 +1060,7 @@ $('csv-file').addEventListener('change', async () => {
       if (!rides.length) throw new Error(`乗車した場所の位置を調べられませんでした（${missed.length}か所）。通信を確認してください`);
     }
     const d = (t) => new Date(t).toLocaleDateString('ja-JP');
-    cfg.csvRides = rides.map((r) => ({ lng: +r.lng.toFixed(6), lat: +r.lat.toFixed(6), t: r.t, name: r.name, fare: r.fare, kind: r.kind, app: r.app }));
+    cfg.csvRides = rides.map((r) => ({ lng: +r.lng.toFixed(6), lat: +r.lat.toFixed(6), t: r.t, name: r.name, fare: r.fare, kind: r.kind, app: r.app, venue: venueKey(r.dropFac, r.dropAddr) || undefined }));
     cfg.csvInfo = { file: f.name, from: d(rides[0].t), to: d(rides[rides.length - 1].t), skipped };
     cfg.csvEmptyMin = parsed.emptyMin || 0;
     cfg.csvModel = null; // 読み込み直したら設定を選び直す
@@ -1103,6 +1147,7 @@ $('recenter').onclick = () => { setFollow(true); render(); };
 syncDemand();
 demand.update(demandTime(), 1);
 renderStart();
+loadEventFeed().then((got) => { if (got) { syncDemand(); demand.update(demandTime()); refreshHeat(); renderStart(); } });
 if (mapError) $('spot-info').textContent = `地図を表示できません（${mapError}）。案内と音声は使えます`;
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

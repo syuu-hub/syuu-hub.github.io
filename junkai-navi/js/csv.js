@@ -79,6 +79,7 @@ export function importAnalyzerCsv(text) {
       fare: +get(r, '運賃合計') || 0,
       kind: get(r, '乗車種別'),
       app: get(r, '配車アプリ'),
+      dropFac: placeName(get(r, '降車施設')), dropAddr: get(r, '降車住所'), // 降車地（イベント会場へ向かった乗車を見つけるのに使う）
     });
   }
   rides.sort((a, b) => a.t - b.t);

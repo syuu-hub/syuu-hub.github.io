@@ -1,6 +1,8 @@
 // TZ=Asia/Tokyo node test/demand.test.mjs — 現在地の印をルートに合わせる・祝日・乗車実績の重み付け
 import { EndlessNavigator } from '../js/navcore.js';
 import { DemandEngine, expectedRevenueRate } from '../js/demand.js';
+import { venueKey, eventWindow, activeVenues } from '../js/events.js';
+import { rideType } from '../js/csv.js';
 import { fitModel, timeWeight, nowInfo, prep, pickupRate } from '../js/model.js';
 import { isHoliday, isOffDay } from '../js/calendar.js';
 import { cumulative, destination, haversine, snapToRoute } from '../js/geo.js';
@@ -106,6 +108,36 @@ const now = new Date('2026-11-24T10:00:00+09:00');
   ok(expectedRevenueRate(dense, 3000, 120, 1) > expectedRevenueRate(mid, 500, 120, 1), '乗車がまれな時（探す時間が長い）は、少し遠くても需要が4倍の方');
   ok(expectedRevenueRate(mid, 500, 2, 1) > expectedRevenueRate(dense, 6000, 2, 1), '乗車がすぐ見つかる時は、遠い高需要より近い方');
   ok(expectedRevenueRate(rich, 1000, 30, 1) > expectedRevenueRate(mid, 1000, 30, 1), '運賃の高いエリアを高く');
+}
+
+// ===== イベント：会場まで乗せた乗車の乗車地を、開演前に需要に =====
+{
+  ok(venueKey('GLION ARENA KOBE', '兵庫県神戸市中央区新港町130-2') === 'glion' && venueKey('ジーライオンアリーナ神戸', '') === 'glion', '会場名の表記ゆれ（GLION ARENA KOBE／ジーライオンアリーナ神戸）');
+  ok(venueKey('国際会館', '京都府京都市左京区岩倉大鷺町') == null && venueKey('コストコ ホールセール 神戸倉庫店', '兵庫県神戸市垂水区') == null, '会場ではない所（京都の国際会館・コストコ）は除く');
+  ok(venueKey('神戸国際会館こくさいホール') === 'kih' && venueKey('神戸文化ホール 中ホール') === 'bunka', 'イベント情報の会場名');
+  const ev = { date: '2026-11-25', start: '17:00', venue: 'GLION ARENA KOBE', cap: 10000, title: 'ライブ' };
+  const at = (hm, d = '2026-11-25') => new Date(`${d}T${hm}:00+09:00`);
+  ok(eventWindow(ev, at('15:30')) === 1 && eventWindow(ev, at('12:00')) === 0 && eventWindow(ev, at('15:30', '2026-11-26')) === 0, '開演の2時間半前〜10分前だけ（別の日・早すぎる時間は0）');
+  ok(eventWindow(ev, at('14:20')) > 0 && eventWindow(ev, at('14:20')) < 1 && eventWindow(ev, at('17:20')) === 0, '前後はなめらかに・開演後は0');
+  ok(Math.abs(activeVenues([ev], at('15:30')).glion.w - Math.sqrt(2)) < 1e-9, '会場の大きさ（1万人は√2倍）');
+
+  // 乗り場からの乗車は使わない（アプリ配車・無線・流しは使う）
+  const kinds = [{ kind: '乗り場', app: '' }, { kind: '流し', app: '' }, { kind: '無線', app: '' }, { kind: 'Uber', app: 'Uber' }].map(rideType);
+  ok(kinds.join() === 'stand,street,app,app', `乗車の種類：${kinds.join()}`);
+
+  const dm = new DemandEngine();
+  const hotel = [135.1935, 34.6935], other = [135.20, 34.70];
+  const t0 = T('2026-11-10T15:00:00+09:00');
+  dm.csvRides = [{ lng: other[0], lat: other[1], t: t0, name: 'いつもの所' }, { lng: other[0], lat: other[1], t: t0 + 864e5, name: 'いつもの所' }];
+  dm.eventRides = [{ lng: hotel[0], lat: hotel[1], name: 'ホテルA', venue: 'glion' }, { lng: hotel[0], lat: hotel[1], name: 'ホテルA', venue: 'glion' }];
+  dm.eventFeed = [ev];
+  const sc = (when) => { dm.areas = new Map(); dm.update(when, 1); return [...dm.areas.values()].find((a) => a.name === 'ホテルA'); };
+  const during = sc(at('15:30')), before = sc(at('11:00'));
+  ok(during && during.score > 0 && !before, `開演前はホテルAが需要エリアに（${during && during.score.toFixed(2)}）、イベントの時間でなければ出ない`);
+  ok(during && /GLION ARENA KOBEのイベント前/.test(dm.areaName(during)), `案内の名前：${during && dm.areaName(during)}`);
+  dm.eventFeed = [{ ...ev, venue: '神戸文化ホール 大ホール' }];
+  const otherVenue = sc(at('15:30'));
+  ok(otherVenue && otherVenue.score < during.score, '別の会場のイベントでは弱く（3割）');
 }
 
 console.log(fails ? `FAILED ${fails}` : 'ALL PASS');
