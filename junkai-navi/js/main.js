@@ -1,14 +1,14 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=37';
-import { ValhallaClient } from './valhalla.js?v=37';
-import { DemandEngine, CAT_JA } from './demand.js?v=37';
-import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=37';
-import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=37';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=37';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=37';
-import { profText, manualProf } from './profile.js?v=37';
-import { fitModel, pickupRate } from './model.js?v=37';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=37';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=37';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=38';
+import { ValhallaClient } from './valhalla.js?v=38';
+import { DemandEngine, CAT_JA } from './demand.js?v=38';
+import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=38';
+import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=38';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=38';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=38';
+import { profText, manualProf } from './profile.js?v=38';
+import { fitModel, pickupRate } from './model.js?v=38';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=38';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=38';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -584,7 +584,7 @@ function toggleRide() {
   if (!riding) {
     riding = true;
     if (nav.target) demand.markVisited(nav.target.key);
-    nav.route = null; nav.target = null; nav.tour = [];
+    nav.pause(); // 計算中のルートが後から届いても使わない
     drawRoute();
     speak('案内を休止します');
   } else {
