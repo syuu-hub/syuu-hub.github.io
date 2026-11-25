@@ -141,6 +141,7 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: 0 0 auto; }
 .b-icon svg, .b-then-icon svg { width: 100%; height: 100%; }
 .b-text { min-width: 0; }
 .b-dist { font-size: 36px; line-height: 44px; font-weight: 600; }
+.b-unit { font-size: 0.7em; margin-left: 1px; letter-spacing: 0; }
 .b-street { font-size: 18px; line-height: 24px; font-weight: 500; opacity: .92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .b-then { display: flex; align-items: center; gap: 8px; background: #0a3b24; color: #fff; padding: 8px 20px; font-size: 14px; font-weight: 600; width: max-content; border-bottom-right-radius: var(--r-l); }
 .b-then-icon { width: 24px; height: 24px; display: inline-block; }
