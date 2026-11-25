@@ -1,9 +1,9 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=31';
-import { profFactor } from './profile.js?v=31';
-import { isOffDay } from './calendar.js?v=31';
-import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=31';
+import { haversine, bearing, angleDiff } from './geo.js?v=32';
+import { profFactor } from './profile.js?v=32';
+import { isOffDay } from './calendar.js?v=32';
+import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=32';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -168,6 +168,12 @@ export class DemandEngine {
     return this._rc;
   }
 
+  // 需要が中くらいのエリアの密度（乗車が見つかるまでの時間の目盛り）
+  refDens() {
+    const ds = [...this.areas.values()].map((a) => a.dens || a.score * a.score).sort((x, y) => x - y);
+    return ds.length ? ds[ds.length >> 1] : 1;
+  }
+
   markVisited(key, now = Date.now(), center = null) {
     if (!key) return;
     const c = center || (this.areas.get(key) && this.areas.get(key).center) || (this.visited.get(key) && this.visited.get(key).c) || null;
@@ -195,9 +201,7 @@ export class DemandEngine {
     const recent = this.recentVisited(now, revisitMin);
     let maxScore = 0;
     for (const a of this.areas.values()) maxScore = Math.max(maxScore, a.score);
-    // 需要が中くらいのエリアの密度（乗車が見つかるまでの時間の目盛り）
-    const ds = [...this.areas.values()].map((a) => a.dens || a.score * a.score).sort((x, y) => x - y);
-    const refDens = ds.length ? ds[ds.length >> 1] : 1;
+    const refDens = this.refDens();
     for (const a of this.areas.values()) {
       if (pick === 'nearest' && a.score < maxScore * minShare) continue; // 需要が小さいエリアは行き先にしない
       if (exclude.has(a.key)) continue;
