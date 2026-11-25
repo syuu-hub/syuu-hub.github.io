@@ -1032,6 +1032,8 @@ svg{display:block}
 .pop-row.sum .v{font-size:32px}
 .pop-row.sum.warn .v{color:var(--st-wait)}
 .pop-row.sum.over .v{color:var(--danger)}
+.pop-row.sum.first{border-top:0;padding-top:2px;border-bottom:2px solid var(--line-2);padding-bottom:12px}   /* 合計を一番上に */
+.pop-row.sum.first + .pop-row{border-top:0}
 .pop-card .cal-cap{background:none;border-radius:0;padding:12px 0 2px;margin:4px 0 0;border-top:1px solid var(--line)}   /* 上限とのバーは同じカードの中に */
 .cap-body{overflow-y:auto;min-height:0}
 .inc-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:10px}
@@ -3455,10 +3457,11 @@ function hoursPopHtml(c) {
   const same = c.pdays.every(k => planMsOf(k) === planMs());   // どの日も同じ時間なら「○日 × ○h」
   const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
   const H = v => (Math.max(0, v) / 3600000).toFixed(1);
+  // 合計を最初に、その内訳（実績・予定）、上限とのバー
   return `<div class="pop-card num">
+      <div class="pop-row sum first ${cls}"><span class="k">合計</span><span class="v">${H(est)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span></div>
       <div class="pop-row"><span class="k"><i style="--c:var(--ok)"></i>実績（確定）</span><span class="v">${H(c.used)}<small>h</small></span></div>
       <div class="pop-row"><span class="k"><i style="--c:var(--accent)"></i>予定${days ? `（${days}日${same ? ` × ${dayHoursEff()}h` : ''}）` : ''}</span><span class="v">${H(plan)}<small>h</small></span></div>
-      <div class="pop-row sum ${cls}"><span class="k">合計</span><span class="v">${H(est)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span></div>
       ${cap ? capHtml(c.hy, c.hm, c.used, c.pdays) : ''}
     </div>`;
 }
