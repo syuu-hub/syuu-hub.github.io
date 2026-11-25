@@ -91,6 +91,7 @@
         <div id="src-csv" class="hidden">
           <p class="hint" style="margin-top:12px">タクシーアナライザの「出力・設定 → CSV出力 → 営業ログ（全期間）」で保存したCSVを選んでください。乗車した場所と時刻から、今の時間帯に乗車が多いエリアを需要エリアにします。</p>
           <p class="hint" id="set-csv"></p>
+          <p class="hint" id="set-csv-model"></p>
           <div class="row">
             <label class="btn file-btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>CSVを選択<input id="csv-file" type="file" accept=".csv,text/csv" hidden></label>
             <button id="btn-clear-csv" class="btn danger">消去</button>
@@ -138,7 +139,7 @@
           <label><input type="radio" name="set-pick" value="nearest">最短距離</label>
           <label><input type="radio" name="set-pick" value="demand">需要の高さ優先</label>
         </div>
-        <p class="hint">最短距離：需要のあるエリア（一番高いエリアの4分の1以上）のうち、今いる所から道のりで一番近いエリアへ（後ろのエリアは遠い扱い）。走っている位置に合わせて、もっと近いエリアが出てきたら切り替えます。需要の高さ優先：需要が高ければ少し遠くても選びます。</p>
+        <p class="hint">最短距離：需要のあるエリア（一番高いエリアの4分の1以上）のうち、今いる所から道のりで一番近いエリアへ（後ろのエリアは遠い扱い）。走っている位置に合わせて、もっと近いエリアが出てきたら切り替えます。需要の高さ優先：空車の時間あたりの期待収入（運賃 ÷（行き先までの時間＋そこで乗車が見つかるまでの時間））が一番高いエリアへ。乗車がまれな時ほど、少し遠くても需要の高いエリアを選びます。</p>
         <label>1回のルートで通る需要エリアの数（1〜4）<input id="set-tour" type="number" min="1" max="4" step="1"></label>
         <p class="hint">候補のエリアが近くに複数あるときは、それらを順に通り抜けるルートにします（1つ先まで2.5km以内・全体8km以内）。1にすると1か所ずつ向かいます。</p>
         <label>一度通ったエリアに、また向かうまでの時間（分）<input id="set-revisit" type="number" min="15" max="180" step="5"></label>
@@ -211,6 +212,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=30"></script>
+<script type="module" src="js/main.js?v=31"></script>
 </body>
 </html>
