@@ -1,8 +1,9 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=30';
-import { profFactor } from './profile.js?v=30';
-import { isOffDay } from './calendar.js?v=30';
+import { haversine, bearing, angleDiff } from './geo.js?v=31';
+import { profFactor } from './profile.js?v=31';
+import { isOffDay } from './calendar.js?v=31';
+import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=31';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -38,36 +39,25 @@ function weatherFactor(cat, weather) {
 
 const CELL_LAT = 0.004, CELL_LNG = 0.005; // 約450m四方
 const cellKey = (p) => `${Math.floor(p[1] / CELL_LAT)}:${Math.floor(p[0] / CELL_LNG)}`;
-// 隣のエリアの需要も少し足す（辺で接する隣は3割、斜めは2割）。乗車が続けて見つかる「面」の需要を高く見て、
-// エリアの区切りの線をまたいだだけで需要が分かれて低く見えないように
-const NEIGHBOR_W = [[-1, 0, 0.3], [1, 0, 0.3], [0, -1, 0.3], [0, 1, 0.3], [-1, -1, 0.2], [-1, 1, 0.2], [1, -1, 0.2], [1, 1, 0.2]];
 
-// ===== タクシーアナライザの乗車実績の重み =====
-const DAY_MIN = 1440;
-const TIME_SIGMA_MIN = 60; // 時刻の近さ：前後60分で6割、2時間で1割5分ほど
-const TREND_K = 8; // エリアの乗車がこの件数あると、時刻・曜日の傾向を半分の強さで使う
-const KERNEL_MEAN = (TIME_SIGMA_MIN * Math.sqrt(2 * Math.PI)) / DAY_MIN; // 時刻の重みの1日の平均
-// 時刻・曜日の傾向をどれだけ信じるか（0〜1）。エリアの乗車が少ないうちは弱く、多くなるほど強く
-// 実際の営業ログで「他の日の乗車から、その日の乗車場所を当てる」検証をすると、1回だけの乗車の時刻で強く重み付けすると
-// 偶然の時刻を拾って外れやすく、乗車が何回もある場所だけ時刻の傾向を強く使う方がよく当たった
-export const trendStrength = (n) => n / (n + TREND_K);
-// 傾向の強さ c で、時刻の重みの1日の平均が1になるようにする（乗車が多いエリアの需要が、時刻の重みで全体に下がらないように）
-export const trendNorm = (c) => 1 / (1 - c + c * KERNEL_MEAN);
-// 1件の乗車の、時刻 now の需要への重み
-// ・時刻：分単位でなめらかに（10:50の乗車は11:10にもよく効く）
-// ・曜日：同じ曜日 1、平日／休日（土日・祝日・年末年始）が同じなら少し下げ、違えばもっと下げる
-// ・新しい乗車ほど重く（200日で約4割）、運賃が高いほど少し重く
-export function rideWeight(p, now, c = 0.5) {
-  const d = new Date(p.t);
-  const md = ((d.getHours() * 60 + d.getMinutes()) - (now.getHours() * 60 + now.getMinutes()) + DAY_MIN * 2) % DAY_MIN;
-  const dm = Math.min(md, DAY_MIN - md);
-  const tw = 1 - c + c * Math.exp(-(dm * dm) / (2 * TIME_SIGMA_MIN * TIME_SIGMA_MIN));
-  const offR = isOffDay(d), offN = isOffDay(now);
-  const dw = offR !== offN ? 1 - 0.5 * c : d.getDay() === now.getDay() ? 1 : 1 - 0.15 * c;
-  const ageDays = Math.max(0, (now - d) / 864e5);
-  const fareW = 1 + 0.4 * Math.min(2, (p.fare || 0) / 3000);
-  return tw * dw * Math.exp(-ageDays / 200) * fareW;
+// ===== 行き先の選び方（需要の高さ優先）の根拠 =====
+// 空車の目的は「次のお客様を早く・高い運賃で乗せる」こと。タクシーの巡回先の推薦の研究では、
+// 行き先までの移動の手間と、そこで乗車が見つかる見込みを合わせて、空車の時間・距離あたりの期待収入が最大の所を選ぶ
+// （Ge ほか KDD 2010、Yuan ほか UbiComp 2011「T-Finder」、Powell ほか SSTD 2011、Qu ほか KDD 2014）。
+// ここでは 期待収入 ÷（行き先までの時間 ＋ そこで乗車が見つかるまでの時間）で比べる
+//   ・行き先までの時間：直線距離 × 道路の迂回係数1.3（Ballou ほか 2002）÷ 市街地の平均速度 20km/h。後ろの行き先はUターンの分だけ遠い扱い
+//   ・乗車が見つかるまでの時間：乗車をポアソン過程とみなすと平均 1/λ。λ は需要の密度に比例するとして、
+//     営業ログの「空車の時間あたりの乗車数」で目盛りを合わせる（需要が中くらいのエリアで 1/その数）
+//   ・期待収入：そのエリアで乗せた時の運賃の平均（件数が少ない所は全体の平均に寄せる）
+export const CIRCUITY = 1.3;
+export const SPEED_KMH = 20;
+// エリア a へ effM（m）走って向かう時の、空車の時間あたりの期待収入（運賃は平均を1とした比）
+export function expectedRevenueRate(a, effM, searchMin, refDens) {
+  const dens = Math.max(1e-9, a.dens || a.score * a.score);
+  const search = Math.min(600, searchMin * (refDens / dens));
+  return (a.fare || 1) / (travelMinutes(effM) + search);
 }
+export const travelMinutes = (effM) => (effM * CIRCUITY) / ((SPEED_KMH * 1000) / 60);
 
 const cellCenter = (key) => {
   const [a, b] = key.split(':').map(Number);
@@ -81,6 +71,8 @@ export class DemandEngine {
   constructor() {
     this.spots = []; // {id,name,lng,lat,cat}
     this.csvRides = []; // タクシーアナライザの乗車実績 {lng,lat,t,name,fare}
+    this.model = null; // 営業ログの交差検証で選んだ需要モデルの設定（js/model.js の fitModel）
+    this.searchMin = 30; // 需要が中くらいのエリアで、乗車が見つかるまでの平均の時間（分）。営業ログの空車の時間から
     this.weather = 'clear'; // clear | rain | heavy
     this.railDisruption = false;
     this.areas = new Map(); // key -> {key, center, name, score, raw}
@@ -106,19 +98,42 @@ export class DemandEngine {
       if (s.name) add([s.lng, s.lat], v, s.name, BASE[s.cat] || 0.3);
       else add([s.lng, s.lat], v, s.cat === 'nightlife' ? '繁華街' : CAT_JA[s.cat], 0.01);
     }
-    // タクシーアナライザの乗車実績：乗車の多い場所を基本に、時刻・曜日が近い乗車ほど重く（傾向の強さは件数しだい）
-    const perCell = new Map();
-    for (const p of this.csvRides) { const k = cellKey([p.lng, p.lat]); perCell.set(k, (perCell.get(k) || 0) + 1); }
-    for (const p of this.csvRides) {
-      const c = trendStrength(perCell.get(cellKey([p.lng, p.lat])));
-      const v = rideWeight(p, now, c) * trendNorm(c);
-      add([p.lng, p.lat], v, p.name || '乗車実績', p.name ? 0.5 + v : 0.005);
-    }
-    // 隣のエリアの需要を少し足す（需要のあるエリアだけ。何もない所を行き先にはしない）
-    const own = new Map([...raw].map(([k, a]) => [k, a.score]));
-    for (const [k, a] of raw) {
-      const [y, x] = k.split(':').map(Number);
-      for (const [dy, dx, w] of NEIGHBOR_W) { const o = own.get(`${y + dy}:${x + dx}`); if (o) a.score += w * o; }
+    // タクシーアナライザの乗車実績：カーネル密度推定（場所・時刻、経験ベイズの縮小つき。js/model.js）
+    // 設定は営業ログの交差検証で選んだもの（読み込んでいなければ初期値）。乗車のあった場所だけを行き先の候補にし、
+    // その場所の需要は、まわり（幅 hs）の乗車も含めた密度で見る
+    if (this.csvRides.length) {
+      const prm = (this.model && this.model.params) || DEFAULT_PARAMS;
+      const { P, nLoc, origin } = this.rideCache(prm.hs);
+      const nw = nowInfo(now);
+      const w = P.map((r, i) => timeWeight(r, nw, prm.st, nLoc[i] / (nLoc[i] + prm.K), prm.dayPen) * Math.exp(-Math.max(0, (now - this.csvRides[i].t) / 864e5) / 200));
+      const cells = new Map();
+      this.csvRides.forEach((p, i) => {
+        const k = cellKey([p.lng, p.lat]);
+        let c = cells.get(k);
+        if (!c) { c = { x: 0, y: 0, sw: 0, name: null, nameW: -1 }; cells.set(k, c); }
+        const v = w[i] + 1e-6;
+        c.x += P[i].x * v; c.y += P[i].y * v; c.sw += v;
+        if (p.name && v > c.nameW) { c.name = p.name; c.nameW = v; }
+      });
+      const fares = P.filter((r) => r.fare > 0).map((r) => r.fare);
+      const meanFare = fares.length ? fares.reduce((x, y) => x + y, 0) / fares.length : 0;
+      const hs = prm.hs, lim = (4 * hs) ** 2;
+      for (const [k, c] of cells) {
+        const cx = c.x / c.sw, cy = c.y / c.sw;
+        let dens = 0, fw = 0, fs = 0;
+        for (let j = 0; j < P.length; j++) {
+          const dx = cx - P[j].x, dy = cy - P[j].y, d2 = dx * dx + dy * dy;
+          if (d2 >= lim) continue;
+          const kw = w[j] * Math.exp(-d2 / (2 * hs * hs));
+          dens += kw;
+          if (P[j].fare > 0) { fw += kw; fs += kw * P[j].fare; }
+        }
+        const center = [origin[0] + cx / (111320 * Math.cos((origin[1] * Math.PI) / 180)), origin[1] + cy / 110540];
+        add(center, dens, c.name || '乗車実績', c.name ? 0.5 + dens : 0.005);
+        // 期待運賃：件数が少ない所は全体の平均に寄せる（乗車2件分）
+        const ra = raw.get(k) || raw.get(cellKey(center));
+        if (ra && meanFare > 0) ra.fare = (fs + 2 * meanFare) / (fw + 2) / meanFare;
+      }
     }
 
     const next = new Map();
@@ -136,10 +151,21 @@ export class DemandEngine {
         for (const [p, v] of r.pts) { x += p[0] * v; y += p[1] * v; sw += v; }
         if (sw > 0) center = [x / sw, y / sw];
       }
-      next.set(k, { key: k, center, score, name: (r && r.name) || (prev && prev.name) || null });
+      const dens = r ? r.score : prev && prev.dens ? prev.dens * (1 - alpha) : score * score;
+      next.set(k, { key: k, center, score, dens, fare: (r && r.fare) || (prev && prev.fare) || 1, name: (r && r.name) || (prev && prev.name) || null });
     }
     this.areas = next;
     return next;
+  }
+
+  // 乗車実績の計算用の値（乗車が変わった時・場所の幅が変わった時だけ計算し直す）
+  rideCache(hs) {
+    const c = this._rc;
+    if (c && c.rides === this.csvRides && c.n === this.csvRides.length && c.hs === hs) return c;
+    const origin = [this.csvRides[0].lng, this.csvRides[0].lat];
+    const P = prep(this.csvRides, origin);
+    this._rc = { rides: this.csvRides, n: this.csvRides.length, hs, P, origin, nLoc: localCounts(P, hs) };
+    return this._rc;
   }
 
   markVisited(key, now = Date.now(), center = null) {
@@ -169,6 +195,9 @@ export class DemandEngine {
     const recent = this.recentVisited(now, revisitMin);
     let maxScore = 0;
     for (const a of this.areas.values()) maxScore = Math.max(maxScore, a.score);
+    // 需要が中くらいのエリアの密度（乗車が見つかるまでの時間の目盛り）
+    const ds = [...this.areas.values()].map((a) => a.dens || a.score * a.score).sort((x, y) => x - y);
+    const refDens = ds.length ? ds[ds.length >> 1] : 1;
     for (const a of this.areas.values()) {
       if (pick === 'nearest' && a.score < maxScore * minShare) continue; // 需要が小さいエリアは行き先にしない
       if (exclude.has(a.key)) continue;
@@ -181,8 +210,8 @@ export class DemandEngine {
         // 走る距離が短いほど良い。後ろのエリアはUターン・回り込みが要るので遠い扱い。需要は同じくらいの近さの時の決め手に少しだけ
         u = nearestUtility(d * (1 + 0.6 * (diff / 180)), a.score / (maxScore || 1));
       } else {
-        u = a.score / (1 + d / 2500);
-        u *= 1 - 0.4 * (diff / 180); // 前方を優先（Uターンを減らす）
+        // 空車の時間あたりの期待収入（上の「行き先の選び方の根拠」）。後ろの行き先はUターン・回り込みの分だけ遠い扱い
+        u = expectedRevenueRate(a, d * (1 + 0.6 * (diff / 180)), this.searchMin, refDens);
       }
       // 直近に回ったエリア（そのものか、すぐ近く）
       let last = null;

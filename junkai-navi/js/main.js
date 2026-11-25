@@ -1,12 +1,13 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=30';
-import { ValhallaClient } from './valhalla.js?v=30';
-import { DemandEngine, CAT_JA } from './demand.js?v=30';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=30';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=30';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=30';
-import { profText, manualProf } from './profile.js?v=30';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=30';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=30';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=31';
+import { ValhallaClient } from './valhalla.js?v=31';
+import { DemandEngine, CAT_JA } from './demand.js?v=31';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=31';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=31';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=31';
+import { profText, manualProf } from './profile.js?v=31';
+import { fitModel, pickupRate } from './model.js?v=31';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=31';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=31';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -38,6 +39,8 @@ const cfg = Object.assign(
     csvRides: [],
     csvKinds: { ...DEFAULT_KINDS }, // 使う乗車の種類（初期は流しだけ。乗り場は除く）
     csvInfo: null,
+    csvEmptyMin: 0, // 営業ログの、空車で走っていた時間の合計（分）
+    csvModel: null, // 営業ログの交差検証で選んだ需要モデル（使う乗車の種類が変わったら選び直す）
     geoCache: {}, // 住所・施設名 → 位置（調べた結果を端末に残し、同じ場所を何度も調べない）
   },
   load()
@@ -66,10 +69,23 @@ function syncDemand() {
   const manual = cfg.demandSource !== 'csv';
   demand.spots = manual ? cfg.spots.concat(cfg.events.filter((e) => e.kind === 'custom').map((e) => ({ ...e, cat: 'custom' }))) : [];
   demand.csvRides = manual ? [] : cfg.csvRides.filter(rideFilter(cfg.csvKinds));
+  demand.model = manual ? null : rideModel(demand.csvRides);
+  // 需要が中くらいのエリアで乗車が見つかるまでの時間：空車の時間 ÷ 乗車数（営業ログから。無ければ30分）
+  const rate = manual ? null : pickupRate(demand.csvRides, cfg.csvEmptyMin);
+  demand.searchMin = rate ? Math.min(300, Math.max(3, 60 / rate)) : 30;
   demand.railDisruption = cfg.railManual || odptDisruption;
   if (cfg.weatherMode !== 'auto') demand.weather = cfg.weatherMode;
 }
 let odptDisruption = false;
+// 使う乗車の需要モデル：営業ログの交差検証で設定を選ぶ（乗車・種類が同じなら保存した結果を使う）
+function rideModel(rides) {
+  if (!rides.length) return null;
+  const key = `${JSON.stringify(cfg.csvKinds)}|${rides.length}|${rides[0].t}|${rides[rides.length - 1].t}`;
+  if (cfg.csvModel && cfg.csvModel.key === key) return cfg.csvModel;
+  try { cfg.csvModel = { ...fitModel(rides), key }; } catch { cfg.csvModel = null; }
+  save();
+  return cfg.csvModel;
+}
 
 // ===== Android アプリ（Capacitor）の中か =====
 // WebView では読み上げ・画面点灯維持・リンクでの保存が使えないので、本体側のプラグイン（NaviDevice 等）で行う
@@ -925,6 +941,15 @@ function showSourcePanels() {
   $('set-csv').textContent = cfg.csvRides.length && info
     ? `読み込み済み：乗車 ${cfg.csvRides.length} 件（${info.from}〜${info.to}）・内訳 ${kindCounts()}・使う乗車 ${cfg.csvRides.filter(rideFilter(cfg.csvKinds)).length} 件${info.skipped ? `・場所がわからない ${info.skipped} 件は除外` : ''}`
     : 'まだ読み込まれていません';
+  $('set-csv-model').textContent = cfg.csvRides.length ? modelText() : '';
+}
+// 需要モデルの検証結果（日ごとに1日ずつ抜いて当てる交差検証）
+function modelText() {
+  const m = cfg.csvModel, rate = pickupRate(cfg.csvRides.filter(rideFilter(cfg.csvKinds)), cfg.csvEmptyMin);
+  const r = rate ? `空車1時間あたりの乗車 ${rate.toFixed(2)} 件（乗車まで平均 約${Math.round(60 / rate)}分）。` : '';
+  if (!m || !m.fitted) return `${r}乗車の日数が少ないので、需要の見方は初期の設定です（4日分・12件以上で、営業ログに合わせて選びます）`;
+  const t = m.gainTime >= 1.05 ? `時刻・曜日の傾向を使うと、実際に乗せた場所に付く確率が ${m.gainTime.toFixed(2)} 倍` : '時刻・曜日の傾向ははっきりせず、場所の傾向を中心に見ます';
+  return `${r}営業ログ ${m.days} 日分で検証：${t}。乗車のまわり ${m.params.hs}m・時刻の前後 ${m.params.st}分で見ます`;
 }
 function applyDemandChange() {
   save(); syncDemand(); demand.areas = new Map(); demand.update(demandTime(), 1); refreshHeat(); renderStart();
@@ -971,6 +996,8 @@ $('csv-file').addEventListener('change', async () => {
     const d = (t) => new Date(t).toLocaleDateString('ja-JP');
     cfg.csvRides = rides.map((r) => ({ lng: +r.lng.toFixed(6), lat: +r.lat.toFixed(6), t: r.t, name: r.name, fare: r.fare, kind: r.kind, app: r.app }));
     cfg.csvInfo = { file: f.name, from: d(rides[0].t), to: d(rides[rides.length - 1].t), skipped };
+    cfg.csvEmptyMin = parsed.emptyMin || 0;
+    cfg.csvModel = null; // 読み込み直したら設定を選び直す
     cfg.demandSource = 'csv';
     document.querySelectorAll('input[name=set-source]').forEach((x) => (x.checked = x.value === 'csv'));
     applyDemandChange();
@@ -983,7 +1010,7 @@ $('csv-file').addEventListener('change', async () => {
 let clearCsvArmed = 0;
 $('btn-clear-csv').onclick = () => {
   if (Date.now() - clearCsvArmed > 4000) { clearCsvArmed = Date.now(); toast('もう一度押すと読み込んだCSVを消去します'); return; }
-  cfg.csvRides = []; cfg.csvInfo = null; applyDemandChange(); showSourcePanels(); toast('CSVのデータを消去しました');
+  cfg.csvRides = []; cfg.csvInfo = null; cfg.csvModel = null; cfg.csvEmptyMin = 0; applyDemandChange(); showSourcePanels(); toast('CSVのデータを消去しました');
 };
 
 $('btn-fetch').onclick = async () => {

@@ -39,7 +39,18 @@ const placeName = (v) => (v ? v.replace(/（[^（）]*）$/, '').trim() : '');
 // 住所は番地を落として短く
 const shortAddr = (v) => (v ? v.replace(/^日本[、,\s]*/, '').replace(/〒?\d{3}-?\d{4}\s*/, '').replace(/^(東京都|北海道|京都府|大阪府|.{2,3}県)/, '').replace(/[0-9０-９].*$/, '').replace(/[、,\s\-－]+$/, '').slice(0, 14) : '');
 
-// 戻り値：{ rides: [{lng,lat,t,name,fac,addr,fare,kind,app}], total, skipped }
+// ステータスの記録から、空車で走っていた時間（分）の合計。次の記録まで4時間を超える区間（入庫の記録漏れなど）は数えない
+export function emptyMinutes(stamps) {
+  const list = stamps.filter((x) => x.t != null).sort((a, b) => a.t - b.t);
+  let min = 0;
+  for (let i = 0; i < list.length - 1; i++) {
+    const dt = list[i + 1].t - list[i].t;
+    if (list[i].status === '空車' && dt < 4 * 3600e3) min += dt / 60e3;
+  }
+  return Math.round(min);
+}
+
+// 戻り値：{ rides: [{lng,lat,t,name,fac,addr,fare,kind,app}], total, skipped, emptyMin }
 // 施設や手入力で記録した乗車は緯度・経度が空なので lat/lng は null（施設名・住所から位置を調べて使う）
 export function importAnalyzerCsv(text) {
   const rows = parseCsv(text);
@@ -49,10 +60,12 @@ export function importAnalyzerCsv(text) {
     throw new Error('タクシーアナライザの「営業ログ」CSVではありません（乗車緯度・乗車経度の列がありません）');
   }
   const get = (r, name) => { const i = ci(name); return i < 0 ? '' : (r[i] || '').trim(); };
-  const rides = [];
+  const rides = [], stamps = [];
   let total = 0, skipped = 0;
   for (const r of rows) {
-    if (get(r, '種別') !== '乗車記録') continue;
+    const type = get(r, '種別');
+    if (type === 'ステータス') { stamps.push({ t: parseStamp(get(r, '日時')), status: get(r, 'ステータス') }); continue; }
+    if (type !== '乗車記録') continue;
     total++;
     const lat = parseFloat(get(r, '乗車緯度')), lng = parseFloat(get(r, '乗車経度'));
     const t = parseStamp(get(r, '乗車時刻')) ?? parseStamp(get(r, '日時'));
@@ -69,7 +82,7 @@ export function importAnalyzerCsv(text) {
     });
   }
   rides.sort((a, b) => a.t - b.t);
-  return { rides, total, skipped };
+  return { rides, total, skipped, emptyMin: emptyMinutes(stamps) };
 }
 
 // 流し・乗り場（その場で拾えた需要）だけに絞る。アプリ・無線・予約は呼ばれた場所なので除く
