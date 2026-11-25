@@ -1032,11 +1032,13 @@ svg{display:block}
 .pop-row.sum .v{font-size:32px}
 .pop-row.sum.warn .v{color:var(--st-wait)}
 .pop-row.sum.over .v{color:var(--danger)}
+.pop-row.sum.first{border-top:0;padding-top:2px;border-bottom:2px solid var(--line-2);padding-bottom:12px}   /* 合計を一番上に */
+.pop-row.sum.first + .pop-row{border-top:0}
 .pop-card .cal-cap{background:none;border-radius:0;padding:12px 0 2px;margin:4px 0 0;border-top:1px solid var(--line)}   /* 上限とのバーは同じカードの中に */
 .cap-body{overflow-y:auto;min-height:0}
 .inc-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:10px}
 .inc-card .row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;white-space:nowrap;font-size:13px;color:var(--muted)}
-.inc-card .row1 b{font-size:clamp(20px,6vw,26px);font-weight:800;color:var(--text)}
+.inc-card .row1 b{font-size:clamp(24px,7.4vw,32px);font-weight:800;color:var(--text)}   /* 推定手取りと同じ大きさ */
 .inc-card .row2{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2);white-space:nowrap}
 .inc-card .row2 .k{font-size:13px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px}
 .inc-card .row2 .k em{font-style:normal;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--accent);color:var(--accent-ink)}
@@ -1044,6 +1046,7 @@ svg{display:block}
 .inc-card .nx{font-size:12px;color:var(--muted);margin-top:6px}
 .inc-card .nx b{color:var(--text)}
 .inc-card .pd{font-size:11px;color:var(--faint);margin-top:2px}
+.inc-card .pd span{white-space:nowrap}   /* 折り返す時は2つの区切りで */
 .hol-setting{flex-wrap:wrap;row-gap:10px;padding:14px 0}
 .seg.hol{flex:1 1 100%;margin:0}
 .seg.hol button{flex:1;min-width:0;padding:0}
@@ -3431,7 +3434,7 @@ function incomeHtml(sales, from, to) {
     <div class="row1"><span>売上（${md(from)}〜${md(to)}）</span><b>${yen(sales)}</b></div>
     <div class="row2"><span class="k">推定手取り<em>歩合 ${c.rate}%</em></span><b>${yen(c.income)}</b></div>
     ${c.next ? `<div class="nx">あと <b>${yen(c.next.left)}</b> で歩合 ${c.next.rate}%</div>` : ''}
-    <div class="pd">税抜の売上 ${yen(c.base)}（消費税 ${yen(sales - c.base)} を引いた額）× 歩合</div>
+    <div class="pd"><span>税抜の売上 ${yen(c.base)} × 歩合</span> <span>（消費税 ${yen(sales - c.base)} を除く）</span></div>
   </div>`;
 }
 const CLOCK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
@@ -3455,10 +3458,11 @@ function hoursPopHtml(c) {
   const same = c.pdays.every(k => planMsOf(k) === planMs());   // どの日も同じ時間なら「○日 × ○h」
   const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
   const H = v => (Math.max(0, v) / 3600000).toFixed(1);
+  // 合計を最初に、その内訳（実績・予定）、上限とのバー
   return `<div class="pop-card num">
+      <div class="pop-row sum first ${cls}"><span class="k">合計</span><span class="v">${H(est)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span></div>
       <div class="pop-row"><span class="k"><i style="--c:var(--ok)"></i>実績（確定）</span><span class="v">${H(c.used)}<small>h</small></span></div>
       <div class="pop-row"><span class="k"><i style="--c:var(--accent)"></i>予定${days ? `（${days}日${same ? ` × ${dayHoursEff()}h` : ''}）` : ''}</span><span class="v">${H(plan)}<small>h</small></span></div>
-      <div class="pop-row sum ${cls}"><span class="k">合計</span><span class="v">${H(est)}<small>h${cap ? ' / ' + S.settings.hoursCap + 'h' : ''}</small></span></div>
       ${cap ? capHtml(c.hy, c.hm, c.used, c.pdays) : ''}
     </div>`;
 }
