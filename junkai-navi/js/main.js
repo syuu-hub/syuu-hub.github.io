@@ -1,13 +1,13 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=31';
-import { ValhallaClient } from './valhalla.js?v=31';
-import { DemandEngine, CAT_JA } from './demand.js?v=31';
-import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=31';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=31';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=31';
-import { profText, manualProf } from './profile.js?v=31';
-import { fitModel, pickupRate } from './model.js?v=31';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=31';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=31';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=32';
+import { ValhallaClient } from './valhalla.js?v=32';
+import { DemandEngine, CAT_JA } from './demand.js?v=32';
+import { fetchSpots, fetchWeather, fetchRailDisruption } from './sources.js?v=32';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=32';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=32';
+import { profText, manualProf } from './profile.js?v=32';
+import { fitModel, pickupRate } from './model.js?v=32';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=32';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=32';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -28,7 +28,7 @@ const cfg = Object.assign(
     switchGain: 1.3,
     tourMax: 3, // 1回のルートで通る需要エリアの数
     revisitMin: 60, // 一度通ったエリアに、また向かうまでの時間（分）
-    pickMode: 'nearest', // 行き先の選び方：nearest＝今いる所から近い需要エリア、demand＝需要の高さ優先
+    pickMode: 'demand', // 行き先の選び方：demand＝需要の高さ優先（初期設定）、nearest＝今いる所から近い需要エリア
     sheetCollapsed: false, // 巡回中の表示エリアをたたんでいるか
     eco: false, // 省電力モード（平面の地図・解像度を下げる・短いアニメーション）
     spots: [],
@@ -50,6 +50,8 @@ function load() {
   try {
     const c = JSON.parse(localStorage.getItem(STORE)) || {};
     delete c.csvStreetOnly; delete c.autoEvents;
+    // 行き先の選び方の初期設定を「需要の高さ優先」に変えた（一度だけ切り替える。その後に選んだ設定はそのまま）
+    if (!c.pickDefault2) { c.pickMode = 'demand'; c.pickDefault2 = true; }
     if (Array.isArray(c.events) && c.events.some((e) => e.kind === 'event')) {
       c.oldEvents = (c.oldEvents || []).concat(c.events.filter((e) => e.kind === 'event'));
       c.events = c.events.filter((e) => e.kind !== 'event');
@@ -340,7 +342,7 @@ function tourSpeech(tour) {
   return `${(tour && tour.length ? tour : [null]).map((a) => demand.areaName(a)).join('、')}を通ります`;
 }
 function settingsForNav() {
-  return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000, tourMax: Math.min(4, Math.max(1, +cfg.tourMax || 3)), revisitMin: Math.min(180, Math.max(15, +cfg.revisitMin || 60)), pickMode: cfg.pickMode === 'demand' ? 'demand' : 'nearest' };
+  return { commitSec: +cfg.commitSec, replanMs: cfg.replanMin * 60e3, switchGain: +cfg.switchGain, radiusM: cfg.radiusKm * 1000, tourMax: Math.min(4, Math.max(1, +cfg.tourMax || 3)), revisitMin: Math.min(180, Math.max(15, +cfg.revisitMin || 60)), pickMode: cfg.pickMode === 'nearest' ? 'nearest' : 'demand' };
 }
 
 let running = false, riding = false, simulate = false, follow = true;
@@ -704,7 +706,7 @@ function openSettings() {
   $('set-tour').value = cfg.tourMax;
   $('set-revisit').value = cfg.revisitMin;
   $('set-eco').checked = !!cfg.eco;
-  document.querySelectorAll('input[name=set-pick]').forEach((r) => (r.checked = r.value === (cfg.pickMode === 'demand' ? 'demand' : 'nearest')));
+  document.querySelectorAll('input[name=set-pick]').forEach((r) => (r.checked = r.value === (cfg.pickMode === 'nearest' ? 'nearest' : 'demand')));
   $('set-router').value = cfg.routerUrl;
   $('set-sim').value = cfg.simSpeed;
   renderEvents();

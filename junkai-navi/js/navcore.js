@@ -5,8 +5,8 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=31';
-import { nearestUtility } from './demand.js?v=31';
+import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=32';
+import { nearestUtility, expectedRevenueRate, CIRCUITY } from './demand.js?v=32';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -24,7 +24,7 @@ export const DEFAULTS = {
   tourMaxM: 8000, // ツアー全体の直線距離の上限
   tourMinRatio: 0.3, // 2か所目以降は、1か所目の価値のこの割合以上のエリアだけ
   passM: 250, // エリアの中心からこの距離以内を通ったら「通過」
-  pickMode: 'nearest', // 行き先の選び方：'nearest'＝今いる所から近い需要エリア順、'demand'＝需要の高さ優先
+  pickMode: 'demand', // 行き先の選び方：'demand'＝需要の高さ優先（空車の時間あたりの期待収入。初期設定）、'nearest'＝今いる所から近い需要エリア順
   revisitMin: 60, // 回ったエリア（とその近く）は、この時間は行き先にしない
   trackMin: 45, // 走った道を覚えておく時間（同じ道を何度も通らないように）
   maxOverlap: 0.4, // 新しい区間のうち、最近走った道と重なる割合がこれを超えるルートは使わない（他の案があれば）
@@ -270,17 +270,22 @@ export class EndlessNavigator {
     return tour;
   }
 
-  // 最短距離モード：直線で近い候補を、道のりの距離（ルートサーバーの距離の行列）で並べ直す。
+  // 直線で選んだ上位の候補を、道のりの距離（ルートサーバーの距離の行列）で並べ直す。
   // 川・線路・一方通行で直線より遠回りになるエリアを後ろへ。使えない時は直線のまま
+  // 需要の高さ優先：行き先までの時間を、直線×迂回係数ではなく実際の道のりで見て、空車の時間あたりの期待収入を計算し直す
   async roadRerank(start, ranked) {
-    if (this.s.pickMode !== 'nearest' || !this.router.matrix || ranked.length < 2) return ranked;
+    if (!this.router.matrix || ranked.length < 2) return ranked;
     const top = ranked.slice(0, 6);
     let dist;
     try { dist = await this.router.matrix({ point: start.point, heading: start.bearing }, top.map((x) => x.area.center)); }
     catch { return ranked; }
     let maxScore = 0;
     for (const a of this.demand.areas.values()) maxScore = Math.max(maxScore, a.score);
-    const re = top.map((x, i) => (dist[i] == null ? { ...x, utility: x.utility * 0.5 } : { ...x, road: dist[i], utility: nearestUtility(dist[i], x.area.score / (maxScore || 1)) }));
+    const refDens = this.demand.refDens();
+    const util = (x, road) => (this.s.pickMode === 'nearest'
+      ? nearestUtility(road, x.area.score / (maxScore || 1))
+      : expectedRevenueRate(x.area, road / CIRCUITY, this.demand.searchMin, refDens)); // 道のりなので迂回係数は掛けない
+    const re = top.map((x, i) => (dist[i] == null ? { ...x, utility: x.utility * 0.5 } : { ...x, road: dist[i], utility: util(x, dist[i]) }));
     re.sort((a, b) => b.utility - a.utility);
     return re.concat(ranked.slice(6));
   }

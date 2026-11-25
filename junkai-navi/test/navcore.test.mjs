@@ -230,7 +230,7 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   const o = [135.19, 34.69];
   const mk = (list) => { const d = new DemandEngine(); list.forEach(([name, b, m, n], i) => { const p = destination(o, b, m); for (let k = 0; k < n; k++) d.spots.push({ id: `${name}${k}`, name, lng: p[0], lat: p[1], cat: 'custom' }); }); d.update(new Date(clock), 1); return d; };
   const first = async (dm, settings = {}, router = fakeRouter) => {
-    const n = new EndlessNavigator({ router, demand: dm, now, settings: { tourMax: 1, ...settings }, emit: () => {} });
+    const n = new EndlessNavigator({ router, demand: dm, now, settings: { tourMax: 1, pickMode: 'nearest', ...settings }, emit: () => {} });
     n.update({ point: o, speed: 0, heading: 90, t: clock });
     for (let i = 0; i < 30 && !n.route; i++) await sleep();
     return n;
@@ -244,9 +244,10 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   // 道のりの距離：直線では近いが川の向こう（道のりは遠い）エリアより、道のりが近いエリア
   const matrixRouter = { ...fakeRouter, route: fakeRouter.route.bind(fakeRouter), async matrix(from, targets) { return targets.map((p) => (haversine(o, p) < 1000 ? 5000 : haversine(o, p) * 1.2)); } };
   assert((await first(mk([['川向こう', 90, 800, 3], ['橋のこちら', 80, 1500, 3]]), {}, matrixRouter)).target.name === '橋のこちら', '最短距離：道のりの距離で選ぶ');
+  assert((await first(mk([['川向こう', 90, 800, 3], ['橋のこちら', 80, 1500, 3]]), { pickMode: 'demand' }, matrixRouter)).target.name === '橋のこちら', '需要の高さ優先：行き先までの時間も道のりで見る');
   // 走っている位置に合わせて、もっと近い需要エリアが出てきたら切り替える
   const dmS = mk([['先のエリア', 90, 3500, 3]]);
-  const ns = new EndlessNavigator({ router: fakeRouter, demand: dmS, now, settings: { tourMax: 1, replanMs: 60000 }, emit: () => {} });
+  const ns = new EndlessNavigator({ router: fakeRouter, demand: dmS, now, settings: { tourMax: 1, replanMs: 60000, pickMode: 'nearest' }, emit: () => {} });
   ns.update({ point: o, speed: 0, heading: 90, t: clock });
   for (let i = 0; i < 30 && !ns.route; i++) await sleep();
   const near = destination(destination(o, 90, 1100), 0, 900); // ルートから900m横（今の行き先より近い）
