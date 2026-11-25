@@ -1,14 +1,14 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=36';
-import { ValhallaClient } from './valhalla.js?v=36';
-import { DemandEngine, CAT_JA } from './demand.js?v=36';
-import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=36';
-import { venueKey, VENUES } from './events.js?v=36';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=36';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=36';
-import { profText, manualProf } from './profile.js?v=36';
-import { fitModel, pickupRate } from './model.js?v=36';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=36';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=36';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=37';
+import { ValhallaClient } from './valhalla.js?v=37';
+import { DemandEngine, CAT_JA } from './demand.js?v=37';
+import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=37';
+import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=37';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=37';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=37';
+import { profText, manualProf } from './profile.js?v=37';
+import { fitModel, pickupRate } from './model.js?v=37';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=37';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=37';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -42,7 +42,9 @@ const cfg = Object.assign(
     csvInfo: null,
     csvEmptyMin: 0, // 営業ログの、空車で走っていた時間の合計（分）
     csvModel: null,
-    eventFeed: null, // イベント情報（taxi-analyzer/events.json。今日から3日分だけ保存） // 営業ログの交差検証で選んだ需要モデル（使う乗車の種類が変わったら選び直す）
+    eventsOn: true, // イベントの前の需要を使うか（設定でオン・オフ）
+    eventFeed: null, // イベント情報（taxi-analyzer/events.json。今日から3日分だけ保存）
+    eventLearn: null, // 営業ログから求めた、会場へ向かうお客様を乗せる時間帯（events-history.json と照らし合わせて） // 営業ログの交差検証で選んだ需要モデル（使う乗車の種類が変わったら選び直す）
     geoCache: {}, // 住所・施設名 → 位置（調べた結果を端末に残し、同じ場所を何度も調べない）
   },
   load()
@@ -78,8 +80,9 @@ function syncDemand() {
   const rate = manual ? null : pickupRate(demand.csvRides, cfg.csvEmptyMin);
   demand.searchMin = rate ? Math.min(300, Math.max(3, 60 / rate)) : 30;
   // イベントの前の需要：営業ログで降車地がイベント会場だった乗車（乗り場からの乗車は除く。使う乗車の種類の設定とは別）
-  demand.eventRides = venueRides();
-  demand.eventFeed = (cfg.eventFeed && cfg.eventFeed.events) || [];
+  demand.eventRides = cfg.eventsOn ? venueRides() : [];
+  demand.eventFeed = cfg.eventsOn ? (cfg.eventFeed && cfg.eventFeed.events) || [] : [];
+  demand.eventWin = (cfg.eventLearn && cfg.eventLearn.win) || null;
   demand.railDisruption = cfg.railManual || odptDisruption;
   if (cfg.weatherMode !== 'auto') demand.weather = cfg.weatherMode;
 }
@@ -88,7 +91,12 @@ let odptDisruption = false;
 const venueRides = () => cfg.csvRides.filter((r) => r.venue && r.lat != null && rideType(r) !== 'stand');
 // イベント情報を取り込む（同じサイトの taxi-analyzer/events.json。6時間ごと）
 async function loadEventFeed(force = false) {
-  if (!force && cfg.eventFeed && Date.now() - (cfg.eventFeed.at || 0) < 6 * 3600e3) return false;
+  if (!cfg.eventsOn) return false;
+  // つながらない時に何度も試さない（10分あける）
+  if (!force && loadEventFeed.tryAt && Date.now() - loadEventFeed.tryAt < 10 * 60e3) return false;
+  loadEventFeed.tryAt = Date.now();
+  const learned = await learnEventWindow().catch(() => false);
+  if (!force && cfg.eventFeed && Date.now() - (cfg.eventFeed.at || 0) < 6 * 3600e3) return learned;
   for (const url of ['../taxi-analyzer/events.json', 'https://syuu-hub.github.io/taxi-analyzer/events.json']) {
     try {
       const res = await fetchT(url, { cache: 'no-cache' }, 10000);
@@ -105,6 +113,35 @@ async function loadEventFeed(force = false) {
     } catch { /* 次のURLへ */ }
   }
   return false;
+}
+// 過去のイベント（events-history.json）と営業ログの「会場まで乗せた乗車」を照らし合わせ、乗せた時間帯を求める（1日1回・乗車が変わった時）
+async function learnEventWindow() {
+  const rides = venueRides();
+  const key = `${rides.length}|${rides.length ? rides[rides.length - 1].t : 0}`;
+  if (cfg.eventLearn && cfg.eventLearn.key === key && Date.now() - (cfg.eventLearn.at || 0) < 24 * 3600e3) return false;
+  if (!rides.length) { cfg.eventLearn = null; return false; }
+  for (const url of ['../taxi-analyzer/events-history.json', 'https://syuu-hub.github.io/taxi-analyzer/events-history.json']) {
+    try {
+      const res = await fetchT(url, { cache: 'no-cache' }, 10000);
+      if (!res.ok) continue;
+      const j = await res.json();
+      cfg.eventLearn = { ...learnWindow(rides, j.events || []), key, at: Date.now() };
+      save();
+      return true;
+    } catch { /* 次のURLへ */ }
+  }
+  return false;
+}
+const hm = (min) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, '0')}`;
+// 設定画面：イベントの前の需要の説明（営業ログから求めた時間帯）
+function eventSettingText() {
+  if (!cfg.eventsOn) return '使っていません';
+  const n = venueRides().length;
+  if (!n) return '営業ログに、降車地がイベント会場の乗車（乗り場を除く）がまだありません。営業ログCSVを読み込むと使います';
+  const L = cfg.eventLearn, w = (L && L.win) || DEFAULT_WIN;
+  const src = L && L.n ? `開演時刻がわかる ${L.n} 件から（開演の${L.median}分前に乗せたのが真ん中）` : '開演時刻がわかる乗車がまだないので初期値';
+  const src2 = L && L.m ? `開演時刻のないイベント（展示会など）の日の ${L.m} 件から` : '初期値';
+  return `会場まで乗せた乗車 ${n} 件（乗り場を除く）。乗せる時間帯：開演の${w.lead}分前〜${w.last}分前（${src}）。開演時刻のないイベントは ${hm(w.dayFrom)}〜${hm(w.dayTo)}（${src2}）。乗車が増えるほど営業ログに合わせます`;
 }
 // 今日のイベントのうち、営業ログに会場まで乗せた乗車がある会場のもの
 function todaysVenueEvents() {
@@ -458,7 +495,8 @@ async function ensureSpots(center) {
 }
 
 async function refreshDemand() {
-  await loadEventFeed().catch(() => {});
+  // イベント情報は裏で取り込む（天気・需要の更新を待たせない）
+  loadEventFeed().then((got) => { if (got) { syncDemand(); demand.update(demandTime()); refreshHeat(); } }).catch(() => {});
   const c = lastFix ? lastFix.point : cfg.lastCenter;
   if (cfg.weatherMode === 'auto' && c && (!refreshDemand.wAt || Date.now() - refreshDemand.wAt > 10 * 60e3)) {
     refreshDemand.wAt = Date.now();
@@ -716,6 +754,7 @@ function renderStart() {
 }
 // 開始画面：今日のイベントで、イベントの前に会場へ向かうお客様を見込む会場
 function eventInfo() {
+  if (!cfg.eventsOn) return '';
   const n = venueRides().length;
   if (!n) return '';
   const evs = todaysVenueEvents();
@@ -771,6 +810,8 @@ function openSettings() {
   $('set-revisit').value = cfg.revisitMin;
   $('set-eco').checked = !!cfg.eco;
   document.querySelectorAll('input[name=set-pick]').forEach((r) => (r.checked = r.value === (cfg.pickMode === 'nearest' ? 'nearest' : 'demand')));
+  $('set-events').checked = !!cfg.eventsOn;
+  $('set-event-info').textContent = eventSettingText();
   $('set-router').value = cfg.routerUrl;
   $('set-sim').value = cfg.simSpeed;
   renderEvents();
@@ -985,6 +1026,12 @@ bind('set-voice', 'voice', Boolean, 'checked');
 bind('set-commit', 'commitSec', Number);
 bind('set-replan', 'replanMin', Number);
 bind('set-gain', 'switchGain', Number);
+$('set-events').addEventListener('change', async () => {
+  cfg.eventsOn = $('set-events').checked;
+  applyDemandChange();
+  $('set-event-info').textContent = eventSettingText();
+  if (cfg.eventsOn && (await loadEventFeed(true))) { applyDemandChange(); $('set-event-info').textContent = eventSettingText(); }
+});
 document.querySelectorAll('input[name=set-pick]').forEach((r) => r.addEventListener('change', () => { cfg.pickMode = r.value; save(); nav.s = { ...nav.s, ...settingsForNav() }; }));
 $('set-eco').addEventListener('change', () => {
   cfg.eco = $('set-eco').checked; save();
@@ -1064,6 +1111,7 @@ $('csv-file').addEventListener('change', async () => {
     cfg.csvInfo = { file: f.name, from: d(rides[0].t), to: d(rides[rides.length - 1].t), skipped };
     cfg.csvEmptyMin = parsed.emptyMin || 0;
     cfg.csvModel = null; // 読み込み直したら設定を選び直す
+    cfg.eventLearn = null; // 会場まで乗せた乗車の時間帯も求め直す
     cfg.demandSource = 'csv';
     document.querySelectorAll('input[name=set-source]').forEach((x) => (x.checked = x.value === 'csv'));
     applyDemandChange();

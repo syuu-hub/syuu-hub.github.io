@@ -1,10 +1,10 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=36';
-import { profFactor } from './profile.js?v=36';
-import { isOffDay } from './calendar.js?v=36';
-import { activeVenues, VENUES } from './events.js?v=36';
-import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=36';
+import { haversine, bearing, angleDiff } from './geo.js?v=37';
+import { profFactor } from './profile.js?v=37';
+import { isOffDay } from './calendar.js?v=37';
+import { activeVenues, VENUES } from './events.js?v=37';
+import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=37';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -80,6 +80,7 @@ export class DemandEngine {
     this.eventRides = []; // 営業ログで降車地がイベント会場だった乗車（乗り場からの乗車は除く）{lng,lat,name,venue}
     this.eventFeed = []; // イベント情報（taxi-analyzer/events.json の events）
     this.activeEvents = {}; // 今イベントの前の需要がある会場 { key: { w, events } }
+    this.eventWin = null; // 会場へ向かうお客様を乗せる時間帯（営業ログから。js/events.js の learnWindow）
     this.searchMin = 30; // 需要が中くらいのエリアで、乗車が見つかるまでの平均の時間（分）。営業ログの空車の時間から
     this.weather = 'clear'; // clear | rain | heavy
     this.railDisruption = false;
@@ -146,7 +147,7 @@ export class DemandEngine {
 
     // イベントの前：会場へ向かうお客様を、営業ログで実際に会場まで乗せた乗車の乗車地（よく乗せた場所）で見込む
     // 1件の乗車を EVENT_W 件分として数える（会場の大きさ・開演までの時間帯で増減）。同じ会場への乗車を重く、別の会場への乗車も3割
-    this.activeEvents = activeVenues(this.eventFeed, now);
+    this.activeEvents = activeVenues(this.eventFeed, now, this.eventWin || undefined);
     if (this.eventRides.length && Object.keys(this.activeEvents).length) {
       const keys = Object.keys(this.activeEvents);
       for (const r of this.eventRides) {

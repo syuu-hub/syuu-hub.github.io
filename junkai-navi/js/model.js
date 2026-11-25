@@ -10,7 +10,7 @@
 // ■ 設定（hs, st, K, dayPen）は決め打ちせず、営業ログで「1日ずつ抜いて、その日の乗車場所を他の日から当てる」
 //   交差検証をして、対数予測スコア（正しい確率予報ほど高くなる、厳密に適正なスコア。Gneiting & Raftery 2007）が
 //   一番高い組み合わせを選ぶ
-import { isOffDay } from './calendar.js?v=36';
+import { isOffDay } from './calendar.js?v=37';
 
 export const DEFAULT_PARAMS = { hs: 250, st: 60, K: 8, dayPen: 0.5 };
 export const GRID = { hs: [120, 200, 300, 450, 700], st: [30, 60, 120, 240], K: [1, 3, 8, 20, 60], dayPen: [0, 0.4, 0.8] };
