@@ -1076,6 +1076,7 @@ svg{display:block}
 #calSheet .cal-nav{width:42px;height:42px}
 /* 閉じる｜‹ 年月 ›（中央）｜空き：月の切り替えを画面の中央に */
 .cal-head{display:grid;grid-template-columns:1fr auto 1fr;gap:8px}
+#calSheet .cal-inner{padding-top:max(30px,calc(env(safe-area-inset-top) + 18px))}   /* 月の切り替え・閉じるを少し下げて押しやすく */
 .cal-head .close-btn{justify-self:start}
 .cal-headnav{display:flex;align-items:center;gap:14px}
 #calSheet .close-btn{white-space:nowrap}
