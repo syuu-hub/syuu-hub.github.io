@@ -1190,9 +1190,9 @@ svg{display:block}
     <button class="goal-row step-row" id="stepRow" hidden aria-label="1時間ごとのステップ目標を開く"></button>
     <div class="stats">
       <div class="stat"><div class="k">乗車</div><div class="v num" id="stCount">0<small>回</small></div></div>
-      <div class="stat"><div class="k">平均単価</div><div class="v num" id="stAvg">—</div></div>
+      <div class="stat"><div class="k">1回あたり</div><div class="v num" id="stAvg">—</div></div>
       <div class="stat"><div class="k">実車率</div><div class="v num" id="stOcc">—</div></div>
-      <div class="stat"><div class="k">時間単価</div><div class="v num" id="stHourly">—</div></div>
+      <div class="stat"><div class="k">1時間あたり</div><div class="v num" id="stHourly">—</div></div>
       <div class="stat"><div class="k">営業時間</div><div class="v num" id="stTime">0:00</div></div>
     </div>
   </header>
@@ -2927,7 +2927,7 @@ function renderHud() {
   sr.hidden = !(sp && sp.next);
   if (sp && sp.next) {
     const n = sp.next, left = n.target - sales;
-    const html = `<span class="goal-line">次は <b class="num">${hhmm(n.t)}</b>までに <b class="num">${yen(n.target)}</b></span>`
+    const html = `<span class="goal-line"><b class="num">${hhmm(n.t)}</b>までに 累計 <b class="num">${yen(n.target)}</b></span>`
       + `<span class="remain num ${left <= 0 ? 'clear' : ''}">${left > 0 ? `あと <b>${yen(left)}</b>` : 'クリア'}<i class="chev" aria-hidden="true">›</i></span>`;
     if (sr.dataset.h !== html) { sr.dataset.h = html; sr.innerHTML = html; }
     if (!$('#stepSheet').hidden) { const lh = stepListHtml(sp), el = $('#stepList'); if (el.dataset.h !== lh) { el.dataset.h = lh; el.innerHTML = lh; } }
@@ -4610,7 +4610,7 @@ function renderDepart() {
   $('#dDate').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
   $('#dClock').textContent = hhmm(d);
   $('#dGoal .k').textContent = dayUnit() ? '本日の目標' : '本日の必要額';
-  $('#dGoalVal').textContent = hasGoal() ? (dailyNeed() ? yen(dailyNeed()) : '達成') : goalAuto() ? `記録あと${autoGoalCalc().need || 0}日で自動` : '未設定';
+  $('#dGoalVal').textContent = hasGoal() ? (dailyNeed() ? yen(dailyNeed()) : '達成') : goalAuto() ? `あと${autoGoalCalc().need || 0}日の記録で自動` : '未設定';
   // ステップ目標：いま出庫したら、何時までにいくら（累計）を1時間ごとに
   const ds = $('#dSteps'), sp = stepPlan(null, Date.now(), dailyNeed());
   ds.hidden = !sp;
@@ -4961,7 +4961,8 @@ function renderEntry() {
   $('#eKind').innerHTML = KIND.map(p => `<button class="opt" data-kind="${p.k}" aria-pressed="${E.kind === p.k}">${p.label}</button>`).join('') +
     apps.map(a => {
       const fin = (a.fee || 0) + (a.handle || 0);
-      const sub = [fin && '手数料' + yen(fin), (a.feeOther || 0) + (a.handleOther || 0) !== fin && '他決済' + yen((a.feeOther || 0) + (a.handleOther || 0))].filter(Boolean).join(' ');
+      const oth = (a.feeOther || 0) + (a.handleOther || 0), lo = Math.min(fin, oth), hi = Math.max(fin, oth);
+      const sub = !hi ? '' : lo === hi ? '手数料' + yen(hi) : `手数料${yen(lo)}〜${yen(hi)}`;   // 決済方法で変わる時は範囲で
       return `<button class="opt app-opt" data-app="${esc(a.id)}" aria-pressed="${E.kind === 'app' && !!E.app && E.app.id === a.id}"><span class="ell">${esc(a.name)}</span>${sub ? `<small class="num">${sub}</small>` : ''}</button>`;
     }).join('');
   const save = $('#eSave');
