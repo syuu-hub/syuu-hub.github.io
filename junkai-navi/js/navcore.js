@@ -5,8 +5,8 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, angleDiff, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=37';
-import { nearestUtility, expectedRevenueRate, CIRCUITY } from './demand.js?v=37';
+import { haversine, bearing, angleDiff, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=38';
+import { nearestUtility, expectedRevenueRate, CIRCUITY } from './demand.js?v=38';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -59,6 +59,8 @@ export class EndlessNavigator {
   }
 
   reset() {
+    this.gen = (this.gen || 0) + 1; // 計算中のルートを古いものとして捨てる目印（休止・再開・開始し直し）
+    this.planning = false;
     this.route = null;
     this.along = 0;
     this.pos = null;
@@ -324,8 +326,19 @@ export class EndlessNavigator {
     return plans;
   }
 
+  // 休止：案内を止め、計算中のルートは届いても使わない
+  pause() {
+    this.gen = (this.gen || 0) + 1;
+    this.planning = false;
+    this.route = null; this.target = null; this.tour = []; this.onRoute = false;
+  }
+
   async plan(mode, preferred = null) {
     if (this.planning) return;
+    // 今のルートの先へつなぐ・切り替える計算は、ルートが無ければしない
+    if (mode !== 'initial' && mode !== 'reroute' && !this.route) mode = 'initial';
+    if ((mode === 'initial' || mode === 'reroute') && !this.pos) return;
+    const gen = this.gen;
     this.planning = true;
     this.planMode = mode;
     try {
@@ -342,6 +355,7 @@ export class EndlessNavigator {
         start = pointAt(this.route, commit);
       }
       const plans = await this.candidatePlans(mode, start, preferred);
+      if (gen !== this.gen) return; // 行き先を選んでいる間に休止・再開した
       if (!plans.length) {
         this.emit('status', '周辺に需要エリアがありません。設定で需要スポットを取得してください');
         this.nextTryAt = this.now() + 15000;
@@ -361,6 +375,8 @@ export class EndlessNavigator {
           if (e.offline) break; // つながらない時は他の案も試さない（無駄に待たない）
           continue;
         }
+        // 応答待ちの間に休止・再開・開始し直しがあったら、このルートは使わない
+        if (gen !== this.gen || (commit != null && !this.route)) return;
         // 応答待ちの間に確定区間の終点（先へつなぐ時はルートの終わり）を通り過ぎていたら破棄
         if (commit != null && this.along > commit - 30) break;
         const remaining = this.route ? this.route.length - this.along : Infinity;
@@ -377,8 +393,12 @@ export class EndlessNavigator {
       this.failCount++;
       this.nextTryAt = this.now() + Math.min(60000, 5000 * 2 ** (this.failCount - 1));
       if (lastErr && (this.failCount === 1 || this.failCount % 5 === 0)) this.emit('status', `${lastErr.message}。少し待って再試行します`);
+    } catch (e) {
+      // 思わぬ不具合でも案内は止めない（少し待ってからもう一度計算する）
+      if (gen === this.gen) { this.nextTryAt = this.now() + 10000; this.emit('status', 'ルートの計算に失敗しました。少し待って再試行します'); }
+      if (typeof console !== 'undefined') console.warn('plan', e);
     } finally {
-      this.planning = false;
+      if (gen === this.gen) this.planning = false;
     }
   }
 

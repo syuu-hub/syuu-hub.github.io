@@ -316,6 +316,44 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   assert(gaps < 5 && nf.route, `エリアが3か所だけでも案内が途切れない（途切れ ${gaps}）`);
 }
 
+// ===== 計算中に休止・再開しても止まらない（「Cannot destructure property 'coords' of 'route' as it is null」の再発防止） =====
+{
+  const unhandled = [];
+  const onRej = (e) => unhandled.push(e && e.message);
+  process.on('unhandledRejection', onRej);
+  const o = [135.19, 34.69];
+  const dp = new DemandEngine();
+  [[90, 2500], [0, 2500], [180, 2500]].forEach(([b, m], i) => { const p = destination(o, b, m); dp.spots.push({ id: 'p' + i, name: 'P' + i, lng: p[0], lat: p[1], cat: 'custom' }); });
+  dp.update(new Date(clock), 1);
+  let slow = 0;
+  const slowRouter = { ...fakeRouter, route: async (...a) => { for (let i = 0; i < slow; i++) await sleep(); return fakeRouter.route(...a); } };
+  const run = async (interrupt) => {
+    const n = new EndlessNavigator({ router: slowRouter, demand: dp, now, settings: { tourMax: 1 }, emit: () => {} });
+    slow = 0;
+    n.update({ point: o, speed: 0, heading: 90, t: clock });
+    for (let i = 0; i < 30 && !n.route; i++) await sleep();
+    slow = 20;
+    n.along = n.route.length - 100; // ルートの終わり近く → 先へつなぐ計算が始まる
+    n.update({ point: pointAt(n.route, n.along).point, speed: 10, heading: 90, accuracy: 5, t: (clock += 1000) });
+    const planning = n.planning;
+    interrupt(n);
+    for (let i = 0; i < 60; i++) await sleep();
+    return { n, planning };
+  };
+  // 休止
+  const a = await run((n) => n.pause());
+  assert(a.planning && a.n.route == null, '先へつなぐ計算中に休止したら、届いたルートは使わない');
+  // 休止してすぐ再開（reset して今いる所から計算し直す）
+  slow = 0;
+  const b = await run((n) => { n.pause(); n.reset(); slow = 0; n.update({ point: o, speed: 0, heading: 90, t: (clock += 1000) }); });
+  for (let i = 0; i < 30 && !b.n.route; i++) await sleep();
+  assert(b.n.route && !b.n.planning, '計算中に再開しても、新しいルートで案内を続ける');
+  // 以前の休止のしかた（ルートを直接消す）でも落ちない
+  await run((n) => { n.route = null; n.target = null; n.tour = []; });
+  assert(unhandled.length === 0, `計算中に休止・再開してもエラーにならない（${unhandled.join(' / ') || 'エラーなし'}）`);
+  process.off('unhandledRejection', onRej);
+}
+
 console.log(`走行 3600秒 / 接続 ${extends_} 回 / 需要変化による切替 ${switches} 回 / 逸脱リルート ${reroutes} 回 / API呼び出し ${fakeRouter.calls} 回 / 音声 ${voices.length} 件`);
 console.log('音声例:', voices.slice(0, 4));
 console.log(fails ? `FAILED: ${fails}` : 'ALL PASS');
