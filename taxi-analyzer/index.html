@@ -4960,10 +4960,8 @@ function renderEntry() {
   if (E.app && !apps.some(a => a.id === E.app.id)) apps.push({ ...E.app });
   $('#eKind').innerHTML = KIND.map(p => `<button class="opt" data-kind="${p.k}" aria-pressed="${E.kind === p.k}">${p.label}</button>`).join('') +
     apps.map(a => {
-      const fin = (a.fee || 0) + (a.handle || 0);
-      const oth = (a.feeOther || 0) + (a.handleOther || 0), lo = Math.min(fin, oth), hi = Math.max(fin, oth);
-      const sub = !hi ? '' : lo === hi ? '手数料' + yen(hi) : `手数料${yen(lo)}〜${yen(hi)}`;   // 決済方法で変わる時は範囲で
-      return `<button class="opt app-opt" data-app="${esc(a.id)}" aria-pressed="${E.kind === 'app' && !!E.app && E.app.id === a.id}"><span class="ell">${esc(a.name)}</span>${sub ? `<small class="num">${sub}</small>` : ''}</button>`;
+      // 配車アプリはアプリ名だけ（手数料は金額の下の内訳に出る）
+      return `<button class="opt app-opt" data-app="${esc(a.id)}" aria-pressed="${E.kind === 'app' && !!E.app && E.app.id === a.id}"><span class="ell">${esc(a.name)}</span></button>`;
     }).join('');
   const save = $('#eSave');
   save.disabled = total <= 0;
