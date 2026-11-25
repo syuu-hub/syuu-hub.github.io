@@ -1,9 +1,10 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=35';
-import { profFactor } from './profile.js?v=35';
-import { isOffDay } from './calendar.js?v=35';
-import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=35';
+import { haversine, bearing, angleDiff } from './geo.js?v=37';
+import { profFactor } from './profile.js?v=37';
+import { isOffDay } from './calendar.js?v=37';
+import { activeVenues, VENUES } from './events.js?v=37';
+import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=37';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -49,6 +50,10 @@ const cellKey = (p) => `${Math.floor(p[1] / CELL_LAT)}:${Math.floor(p[0] / CELL_
 //   ・乗車が見つかるまでの時間：乗車をポアソン過程とみなすと平均 1/λ。λ は需要の密度に比例するとして、
 //     営業ログの「空車の時間あたりの乗車数」で目盛りを合わせる（需要が中くらいのエリアで 1/その数）
 //   ・期待収入：そのエリアで乗せた時の運賃の平均（件数が少ない所は全体の平均に寄せる）
+// イベントの前に、会場まで乗せた乗車1件を何件分の需要と見るか（仮の値。会場まで乗せた乗車がイベントのある日にどれだけ増えるかは、
+// 過去のイベント情報が残っていないので、まだ営業ログからは推定できない）
+export const EVENT_W = 2;
+const VENUE_NAME = (k) => (VENUES[k] ? VENUES[k].name : k);
 export const CIRCUITY = 1.3;
 export const SPEED_KMH = 20;
 // エリア a へ effM（m）走って向かう時の、空車の時間あたりの期待収入（運賃は平均を1とした比）
@@ -72,6 +77,10 @@ export class DemandEngine {
     this.spots = []; // {id,name,lng,lat,cat}
     this.csvRides = []; // タクシーアナライザの乗車実績 {lng,lat,t,name,fare}
     this.model = null; // 営業ログの交差検証で選んだ需要モデルの設定（js/model.js の fitModel）
+    this.eventRides = []; // 営業ログで降車地がイベント会場だった乗車（乗り場からの乗車は除く）{lng,lat,name,venue}
+    this.eventFeed = []; // イベント情報（taxi-analyzer/events.json の events）
+    this.activeEvents = {}; // 今イベントの前の需要がある会場 { key: { w, events } }
+    this.eventWin = null; // 会場へ向かうお客様を乗せる時間帯（営業ログから。js/events.js の learnWindow）
     this.searchMin = 30; // 需要が中くらいのエリアで、乗車が見つかるまでの平均の時間（分）。営業ログの空車の時間から
     this.weather = 'clear'; // clear | rain | heavy
     this.railDisruption = false;
@@ -136,6 +145,22 @@ export class DemandEngine {
       }
     }
 
+    // イベントの前：会場へ向かうお客様を、営業ログで実際に会場まで乗せた乗車の乗車地（よく乗せた場所）で見込む
+    // 1件の乗車を EVENT_W 件分として数える（会場の大きさ・開演までの時間帯で増減）。同じ会場への乗車を重く、別の会場への乗車も3割
+    this.activeEvents = activeVenues(this.eventFeed, now, this.eventWin || undefined);
+    if (this.eventRides.length && Object.keys(this.activeEvents).length) {
+      const keys = Object.keys(this.activeEvents);
+      for (const r of this.eventRides) {
+        let v = 0;
+        for (const k of keys) v = Math.max(v, this.activeEvents[k].w * (r.venue === k ? 1 : 0.3));
+        if (v <= 0) continue;
+        add([r.lng, r.lat], EVENT_W * v, r.name || 'イベント前の乗車地', 1 + v);
+        const a = raw.get(cellKey([r.lng, r.lat]));
+        if (a && r.venue in this.activeEvents) a.event = VENUE_NAME(r.venue);
+        else if (a && !a.event) a.event = VENUE_NAME(keys[0]);
+      }
+    }
+
     const next = new Map();
     const keys = new Set([...raw.keys(), ...this.areas.keys()]);
     for (const k of keys) {
@@ -152,7 +177,7 @@ export class DemandEngine {
         if (sw > 0) center = [x / sw, y / sw];
       }
       const dens = r ? r.score : prev && prev.dens ? prev.dens * (1 - alpha) : score * score;
-      next.set(k, { key: k, center, score, dens, fare: (r && r.fare) || (prev && prev.fare) || 1, name: (r && r.name) || (prev && prev.name) || null });
+      next.set(k, { key: k, center, score, dens, event: r && r.event ? r.event : null, fare: (r && r.fare) || (prev && prev.fare) || 1, name: (r && r.name) || (prev && prev.name) || null });
     }
     this.areas = next;
     return next;
@@ -236,7 +261,7 @@ export class DemandEngine {
   }
 
   areaName(a) {
-    return a && a.name ? `${a.name}周辺` : '需要エリア';
+    return a && a.name ? `${a.name}周辺${a.event ? `（${a.event}のイベント前）` : ''}` : '需要エリア';
   }
 
   level(a) {

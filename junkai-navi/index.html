@@ -111,6 +111,13 @@
       </section>
 
       <section class="group">
+        <h3>イベント</h3>
+        <label class="check"><input id="set-events" type="checkbox">イベントの前の需要を使う</label>
+        <p class="hint">神戸の主要会場のイベント情報と営業ログを照らし合わせ、降車地がイベント会場だった乗車（乗り場を除く）の乗車地を、その会場のイベントの前の需要にします。乗せる時間帯（開演の何分前か）も営業ログから求めます。</p>
+        <p class="hint" id="set-event-info"></p>
+      </section>
+
+      <section class="group">
         <h3>登録地点</h3>
         <p class="hint">住所から、得意な地点を登録します（需要がある時間帯・曜日も指定可）。CSVで読み込み・保存でき、この端末に保存されます。</p>
         <div class="row"><button id="btn-places" class="btn ghost"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>登録地点の一覧を開く</button></div>
@@ -212,6 +219,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=35"></script>
+<script type="module" src="js/main.js?v=37"></script>
 </body>
 </html>

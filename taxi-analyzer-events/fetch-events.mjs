@@ -309,4 +309,22 @@ const events = [...all, ...keep]
 // 同じ会場・日・時刻・名前の重複を消す
 const uniq = [...new Map(events.map(e => [e.date + e.venue + e.start + e.title, e])).values()];
 writeFileSync(OUT, JSON.stringify({ updated: TODAY, status, events: uniq }, null, 1) + '\n');   // 日付だけ（同じ日に何度動かしても、内容が同じなら変わらない）
+
+// ── 過去のイベントを残す（taxi-analyzer/events-history.json）
+//   events.json は今日以降だけなので、終わったイベントの日時・会場をここに残す。
+//   巡回ナビが、営業ログの「会場まで乗せた乗車」が開演の何分前だったかを調べるのに使う（2年分）
+const HIST = join(root, 'taxi-analyzer/events-history.json');
+const hist = existsSync(HIST) ? JSON.parse(readFileSync(HIST, 'utf8')).events || [] : [];
+const since = new Date(jstNow.getTime() - 730 * 864e5).toISOString().slice(0, 10);
+const slim = e => info({ date: e.date, start: e.start || null, open: e.open, venue: e.venue, cap: e.cap, title: e.title, src: e.src });
+// 同じ日・会場・名前は1件に（開演時刻がわかる方を残す）
+const hmap = new Map();
+for (const e of [...hist, ...(prev.events || []), ...uniq]) {
+  if (!e.date || e.date > TODAY || e.date < since) continue;
+  const k = e.date + '|' + e.venue + '|' + e.title, o = hmap.get(k);
+  if (!o || (!o.start && e.start)) hmap.set(k, slim(e));
+}
+const hevents = [...hmap.values()].sort((a, b) => (a.date + (a.start || '99') + a.venue).localeCompare(b.date + (b.start || '99') + b.venue));
+writeFileSync(HIST, JSON.stringify({ events: hevents }, null, 0).replace(/},{/g, '},\n{') + '\n');
+console.log(hevents.length, 'history events');
 console.log(JSON.stringify(status), uniq.length, 'events');
