@@ -5,8 +5,8 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=32';
-import { nearestUtility, expectedRevenueRate, CIRCUITY } from './demand.js?v=32';
+import { haversine, bearing, angleDiff, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=33';
+import { nearestUtility, expectedRevenueRate, CIRCUITY } from './demand.js?v=33';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -17,7 +17,8 @@ export const DEFAULTS = {
   lookAheadSec: 180,
   replanMs: 180000, // 需要変化による切替の最小間隔
   switchGain: 1.3, // 切替に必要な需要の改善倍率
-  offRouteM: 45,
+  offRouteM: 40, // ルートからこれ以上離れたら「外れた」
+  offRouteTurnM: 20, // これ以上離れて、進む向きがルートと50度以上違えば「外れた」（別の道へ曲がった）
   radiusM: 6000,
   tourMax: 3, // 1回のルートで通るエリアの数（1なら1か所ずつ）
   tourHopM: 2500, // ツアーで次のエリアまでの直線距離の上限
@@ -29,7 +30,8 @@ export const DEFAULTS = {
   trackMin: 45, // 走った道を覚えておく時間（同じ道を何度も通らないように）
   maxOverlap: 0.4, // 新しい区間のうち、最近走った道と重なる割合がこれを超えるルートは使わない（他の案があれば）
   poorAccuracyM: 60, // これより精度の悪いGPS（ビル街・トンネル）は、ルートから外れた判定に使わない
-  rerouteCooldownMs: 20000, // 再検索の間隔の下限（GPSの乱れで再検索を繰り返さない）
+  rerouteCooldownMs: 12000, // 計算し直す間隔の下限（GPSの乱れで繰り返さない）
+  offRouteCount: 2, // 続けてこの回数「外れた」ら計算し直す
 };
 
 // ルート上の向き：前後数十メートルの2点から測る（細かい折れ線の向きの揺れで印や地図がぶれないように）
@@ -95,21 +97,25 @@ export class EndlessNavigator {
     if (this.route) {
       const snap = snapToRoute(this.route, fix.point, this.along);
       const acc = fix.accuracy == null ? 10 : fix.accuracy;
-      if (snap.dist > Math.max(this.s.offRouteM, acc * 1.2)) {
-        // 精度の悪い位置（ビル街・トンネル）では「外れた」と数えない（位置が跳んでも再検索しない）
+      // 外れた：ルートから離れた、または別の道へ曲がった（少し離れて、進む向きがルートと大きく違う）
+      const routeDir = pointAt(this.route, snap.along).bearing;
+      const turnedAway = this.speed > 3 && this.heading != null && snap.dist > Math.max(this.s.offRouteTurnM, acc) && angleDiff(this.heading, routeDir) > 50;
+      if (snap.dist > Math.max(this.s.offRouteM, acc * 1.2) || turnedAway) {
+        // 精度の悪い位置（ビル街・トンネル）では「外れた」と数えない（位置が跳んでも計算し直さない）
         if (acc <= this.s.poorAccuracyM) this.offCount++;
         this.onRoute = false;
       } else { this.offCount = 0; this.onRoute = true; this.along = Math.max(this.along - 20, snap.along); }
       this.snapDist = snap.dist;
       this.checkPassed();
-      if (this.offCount >= 3 && !this.planning && t - this.lastRerouteAt > this.s.rerouteCooldownMs) {
+      // 外れたら、元のルートへ戻す案内はせず、今いる所・進んでいる向きから行き先を選び直して計算し直す
+      if (this.offCount >= this.s.offRouteCount && !this.planning && t - this.lastRerouteAt > this.s.rerouteCooldownMs) {
         this.offCount = 0;
         this.lastRerouteAt = t;
-        this.emit('voice', 'ルートを再検索します');
+        this.emit('voice', 'ルートを外れました。新しいルートを計算します');
         this.plan('reroute');
         return;
       }
-      this.announce();
+      if (this.onRoute) this.announce(); // 外れている間は、元のルートの右左折を読み上げない
     }
     this.tick();
   }
@@ -308,13 +314,11 @@ export class EndlessNavigator {
       if (!fresh.length) fresh = ranked; // 他に無ければ止まらないことを優先
       fresh = await this.roadRerank(start, fresh);
       firsts = fresh.slice(0, 2).map((x) => x.area);
-      if (mode === 'reroute' && this.target) firsts = [this.target, ...firsts.filter((a) => a.key !== this.target.key)];
     }
     if (!firsts.length) return [];
     const plans = [];
-    // 逸脱のリルートは、まだ通っていないエリアをそのまま回る
-    const max = Math.max(1, Math.round(this.s.tourMax || 1));
-    const tour = mode === 'reroute' && preferred && preferred.length > 1 ? preferred.slice(0, max) : this.buildTour(start, firsts[0], mode === 'extend' ? old : new Set(), planned);
+    // 外れた時も、元の行き先にこだわらず今いる所から選び直す（元の行き先が今も一番良ければ、それが選ばれる）
+    const tour = this.buildTour(start, firsts[0], mode === 'extend' ? old : new Set(), planned);
     if (tour.length > 1) plans.push(tour);
     for (const a of firsts.slice(0, 2)) plans.push([a]);
     return plans;
@@ -337,7 +341,6 @@ export class EndlessNavigator {
         commit = this.commitAlong();
         start = pointAt(this.route, commit);
       }
-      if (mode === 'reroute' && !preferred && this.tourRemaining().length) preferred = this.tourRemaining();
       const plans = await this.candidatePlans(mode, start, preferred);
       if (!plans.length) {
         this.emit('status', '周辺に需要エリアがありません。設定で需要スポットを取得してください');
