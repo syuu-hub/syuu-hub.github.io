@@ -947,7 +947,7 @@ svg{display:block}
 .cal-dow{font-size:11px;font-weight:800;color:var(--muted);text-align:center;padding:0 0 2px;letter-spacing:.1em}
 .cal-dow.sun{color:var(--st-vacant)}
 .cal-dow.sat{color:var(--info)}
-.cal-cell{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);height:clamp(52px,calc((100vw - 64px) / 7 * 1.05),80px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px;text-align:center;position:relative;overflow:hidden;transition:background .15s,transform .15s}
+.cal-cell{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);height:clamp(48px,calc((100vw - 96px) / 7 * 1.05),80px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px;text-align:center;position:relative;overflow:hidden;transition:background .15s,transform .15s}
 .cal-cell:active{transform:scale(.96)}
 .cal-cell.has{background:var(--surface-2);border-color:var(--line-2)}   /* 記録のある日は一段明るく */
 .cal-cell.pln{background:var(--accent-soft);border-color:rgba(255,176,32,.28)}   /* 予定の日はオレンジを薄く */
@@ -1099,6 +1099,15 @@ svg{display:block}
 #calSheet .cal-grid{gap:6px}
 #calSheet .cal-dow{font-size:12px;padding:0 0 4px}
 #calSheet .cal-cell{border-radius:12px}   /* 日のタイルの角丸を1つに */
+/* カレンダー部分（見出し・切り替え・曜日・日）を1枚のカードにまとめる */
+#calSheet .cal-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 12px 12px}
+#calSheet .cal-card .cal-ctl{margin:0 4px 12px}
+#calSheet .cal-card .cal-cell{background:var(--bg)}   /* カードの上では日のタイルを一段暗く */
+#calSheet .cal-card .cal-cell.has,#calSheet .cal-card .cal-cell.offa{background:var(--surface-2)}
+#calSheet .cal-card .cal-cell.pln{background:var(--accent-soft)}
+#calSheet .cal-card .cal-cell.off,#calSheet .cal-card .cal-cell.empty{background:transparent}
+#calSheet .cal-card .cal-sw{background:var(--bg)}
+#calSheet .cal-card .cal-cell .v{font-size:clamp(11px,3.4vw,15px)}   /* カードの内側でも「10.6h」が収まる大きさ */
 @media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0;width:40px;height:40px;min-height:40px;justify-content:center;border-radius:50%;background:var(--surface-2)} }   /* 狭い画面は閉じるも同じ丸いボタン */
 @media (max-width:480px){
   #calTitle{min-width:6.2em;font-size:17px}
@@ -1662,11 +1671,13 @@ svg{display:block}
     </header>
     <div class="cal-body">
       <div class="cal-tiles" id="calTiles"></div>
+      <section class="cal-card">
       <div class="cal-ctl">
         <span class="t">カレンダー</span>
         <div class="cal-sw" id="calMode" role="group" aria-label="カレンダーの表示"><i></i><button data-cm="hours">時間</button><button data-cm="sales">売上</button></div>
       </div>
       <div class="cal-grid" id="calGrid"></div>
+      </section>
       <div class="cal-day" id="calDay"></div>
     </div>
   </div>
