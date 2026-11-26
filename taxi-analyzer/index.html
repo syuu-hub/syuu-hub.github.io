@@ -951,7 +951,8 @@ svg{display:block}
 .cal-cell:active{transform:scale(.96)}
 .cal-cell.has{background:var(--surface-2);border-color:var(--line-2)}   /* 記録のある日は一段明るく */
 .cal-cell.pln{background:var(--accent-soft);border-color:rgba(255,176,32,.28)}   /* 予定の日はオレンジを薄く */
-.cal-cell.off{background:transparent}   /* 休みは面なし */
+.cal-cell.off{background:transparent;border-style:dashed}   /* 予定の休み（固定休・今日以降の公休）：面なし・点線 */
+.cal-cell.offa{background:var(--surface-2);border-color:var(--line-2)}   /* 実績の公休（過去の日）：面あり */
 .cal-cell .d{font-size:12px;font-weight:700;color:var(--muted);line-height:22px;min-width:22px;height:22px;white-space:nowrap}   /* 日付は控えめ、値を目立たせる */
 .cal-cell.sun .d{color:var(--st-vacant)}
 .cal-cell.sat .d{color:var(--info)}
@@ -961,6 +962,7 @@ svg{display:block}
 .cal-cell .v.act{color:var(--ok)}
 .cal-cell .v.pl{color:var(--accent);opacity:.85}
 .cal-cell .v.off{color:var(--faint);font-size:12px}
+.cal-cell .v.offa{color:var(--muted);font-size:12px;font-weight:800}
 .cal-cell .v.none{color:var(--faint)}
 .cal-cell[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .cal-cell.out{opacity:.45}
@@ -3556,7 +3558,7 @@ function renderCal() {
   const mode = S.settings.calMode === 'hours' ? 'hours' : 'sales';
   $('#calMode').dataset.mode = mode;
   $$('#calMode [data-cm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.cm === mode));
-  const today = dayKey(new Date());
+  const today = dayKey(new Date()), today0 = new Date(); today0.setHours(0, 0, 0, 0);
   const plan = new Set(pdays.filter(k => planMsOf(k) > 0));
   const man = v => v >= 10000 ? (v / 10000).toFixed(1).replace(/\.0$/, '') + '<small>万</small>' : v.toLocaleString();
   let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
@@ -3566,11 +3568,13 @@ function renderCal() {
     const out = d < from || d > to, k = dayKey(d), o = out ? other[k] : days[k];
     // 期間が月をまたぐ時は、各月の初日（と期間の初日）に月を付ける
     const label = d.getDate() === 1 || +d === +first ? md(d) : d.getDate();
-    const pl = !o && plan.has(k), hol = !o && !pl && isHoliday(d);
+    const pl = !o && plan.has(k);
+    const offAct = !o && d < today0 && !!(dayPlan(k) || {}).off;   // 過去の日に入れた公休＝実績
+    const hol = !o && !pl && !offAct && isHoliday(d);                // 固定休・今日以降の公休＝予定
     const v = o ? (mode === 'hours' ? `<span class="v act num">${(o.ms / 3600000).toFixed(1)}<small>h</small></span>` : `<span class="v act num">${man(o.sales)}</span>`)
       : pl ? (mode === 'hours' ? `<span class="v pl num">${+(planMsOf(k) / 3600000).toFixed(1)}<small>h</small></span>` : '<span class="v pl">予定</span>')
-      : hol ? '<span class="v off">休</span>' : '<span class="v"></span>';
-    html += `<button class="cal-cell ${o ? 'has' : pl ? 'pln' : hol ? 'off' : ''} ${k === today ? 'today' : ''} ${d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''} ${out ? 'out' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}">
+      : offAct ? '<span class="v offa">公休</span>' : hol ? '<span class="v off">休</span>' : '<span class="v"></span>';
+    html += `<button class="cal-cell ${o ? 'has' : pl ? 'pln' : offAct ? 'offa' : hol ? 'off' : ''} ${k === today ? 'today' : ''} ${d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''} ${out ? 'out' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}">
       <span class="d num">${label}</span>${v}</button>`;
   }
   html += '<div class="cal-cell empty"></div>'.repeat((7 - n % 7) % 7);   // 最後の週の残りを埋める
@@ -3584,8 +3588,13 @@ const hmToMin = v => { const [h, m] = (v || '').split(':').map(Number); return h
 const spanH = (a, b) => { if (!a || !b) return null; let d = hmToMin(b) - hmToMin(a); if (d <= 0) d += 1440; return Math.round(d / 60 * 10) / 10; };   // 終了が開始より前なら翌日
 function openPlan(k) {
   const [y, m, d] = k.split('-').map(Number), dt = new Date(y, m - 1, d), p = dayPlan(k);
-  Object.assign(PLN, { k, kind: p ? (p.off ? 'off' : 'work') : fixedHoliday(dt) ? 'off' : 'work', mode: p && p.start ? 'time' : 'hours', hours: p && p.hours != null ? p.hours : dayHoursEff() });
-  $('#planTitle').textContent = `${m}/${d}（${WEEKDAYS[dt.getDay()]}）の予定`;
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  const past = dt < t0;   // 過去の日は「公休（実績）」を記録するだけ
+  Object.assign(PLN, { k, past, kind: past ? 'off' : p ? (p.off ? 'off' : 'work') : fixedHoliday(dt) ? 'off' : 'work', mode: p && p.start ? 'time' : 'hours', hours: p && p.hours != null ? p.hours : dayHoursEff() });
+  $('#planTitle').textContent = `${m}/${d}（${WEEKDAYS[dt.getDay()]}）の${past ? '記録' : '予定'}`;
+  $('#planKind').hidden = past;
+  $('#planSave').textContent = past ? (p && p.off ? '公休のまま' : '公休を記録') : '保存';
+  $('#planReset').textContent = past ? '記録を消す' : '既定に戻す';
   $('#planStart').value = p && p.start || ''; $('#planEnd').value = p && p.end || '';
   $('#planReset').hidden = !p;
   renderPlan();
@@ -3594,14 +3603,15 @@ function openPlan(k) {
 function renderPlan() {
   $$('#planKind [data-pk]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pk === PLN.kind));
   $$('#planMode [data-pm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pm === PLN.mode));
-  $('#planWork').hidden = PLN.kind !== 'work';
+  $('#planWork').hidden = PLN.kind !== 'work' || PLN.past;
   $('#planHoursG').hidden = PLN.mode !== 'hours';
   $('#planTimeG').hidden = PLN.mode !== 'time';
   $('#planHoursV').textContent = `${+PLN.hours.toFixed(1)}時間`;
   const h = spanH($('#planStart').value, $('#planEnd').value);
   $('#planDur').innerHTML = PLN.mode === 'time' ? (h != null ? `予定労働時間<b>${h}時間</b>` : '開始と終了を入れてください') : '';
   const [y, m, d] = PLN.k.split('-').map(Number);
-  $('#planNote').textContent = dayPlan(PLN.k) ? '' : `既定：${fixedHoliday(new Date(y, m - 1, d)) ? '固定休' : `出勤 ${dayHoursEff()}時間`}`;
+  $('#planNote').textContent = PLN.past ? (dayPlan(PLN.k) && dayPlan(PLN.k).off ? 'この日は公休（実績）として記録されています' : '営業の記録がない日です。公休として記録します（実績）')
+    : dayPlan(PLN.k) ? '' : `既定：${fixedHoliday(new Date(y, m - 1, d)) ? '固定休（予定）' : `出勤 ${dayHoursEff()}時間`}`;
 }
 function savePlan() {
   let v;
@@ -3613,8 +3623,8 @@ function savePlan() {
   } else v = { hours: Math.min(24, Math.max(0, PLN.hours)) };
   const dp = S.settings.dayPlans = { ...(S.settings.dayPlans || {}) };
   dp[PLN.k] = v;
-  const old = Date.now() - 90 * 86400e3;   // 90日より前の予定は残さない
-  for (const k of Object.keys(dp)) { const [y, m, d] = k.split('-').map(Number); if (new Date(y, m - 1, d) < old) delete dp[k]; }
+  const old = Date.now() - 90 * 86400e3;   // 90日より前の出勤の予定は残さない（公休は実績として残す）
+  for (const k of Object.keys(dp)) { const [y, m, d] = k.split('-').map(Number); if (!dp[k].off && new Date(y, m - 1, d) < old) delete dp[k]; }
   save(); haptic(); closeSheet($('#planSheet')); renderCal(); renderAll();
 }
 function resetPlan() {
@@ -5974,8 +5984,7 @@ $('#calGrid').addEventListener('click', e => {
   const sh = logShifts().find(x => dayKey(new Date(x.start)) === b.dataset.day);
   if (!sh) {
     const [y, m, d] = b.dataset.day.split('-').map(Number), today = new Date(); today.setHours(0, 0, 0, 0);
-    if (new Date(y, m - 1, d) >= today) { openPlan(b.dataset.day); return; }   // 今日以降：予定（公休・出勤の時間）を入れる
-    CAL.sel = b.dataset.day; renderCal(); toast('この日の営業記録はありません'); return;
+    openPlan(b.dataset.day); return;   // 今日以降：予定（休み・出勤の時間）、過去の日：公休（実績）を入れる
   }
   LOG_SH = sh.id;
   closeSheet($('#calSheet'));
