@@ -3038,7 +3038,7 @@ function placeText(p) { return p ? ((p.place && p.place.name) || shortAddr(p.add
 /* ============================================================
    月間カレンダー（出庫日ごとに売上・乗車数・労働時間を集計）
    ============================================================ */
-// CAL.y / CAL.m は締め月（例：15日締めの10月度＝9/16〜10/15）。sel は 'y-m-d'
+// CAL.y / CAL.m はカレンダーの月（暦月）。売上はその月で締める期間（periodRange）。sel は 'y-m-d'
 const CAL = { y: 0, m: 0, sel: null };
 const dayKey = d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const closingLabel = () => S.settings.closingDay ? S.settings.closingDay + '日締め' : '末日締め';
@@ -3479,7 +3479,7 @@ function calTilesHtml(c) {
   const cap = capMs(), plan = planTotal(c.pdays), est = c.used + plan;
   const cls = cap && est > cap ? 'over' : cap && est >= cap * 0.9 ? 'warn' : '';
   return `<button class="cal-tile hrs num ${cls}" data-pop="hours" aria-haspopup="dialog">
-      <span class="k">${CLOCK_SVG}${S.settings.closingDay ? `${c.hm + 1}月の` : ''}予想労働時間</span>
+      <span class="k">${CLOCK_SVG}予想労働時間</span>
       <span class="v">${(Math.max(0, est) / 3600000).toFixed(1)}<small>h</small></span>
     </button>
     <button class="cal-tile sal num" data-pop="sales" aria-haspopup="dialog">
@@ -3529,32 +3529,28 @@ function capHtml(y, m, used, pdays) {
   </div>`;
 }
 function renderCal() {
+  // カレンダーは1か月（1日〜末日）。労働時間はその月、売上はその月で締める期間（20日締めなら前月21日〜当月20日。トップページ index.html と同じ）
   const { y, m } = CAL;
-  const days = monthData(y, m);
-  const list = Object.values(days);
-  const tot = list.reduce((a, o) => ({ sales: a.sales + o.sales, count: a.count + o.count, ms: a.ms + o.ms, wait: a.wait + o.wait }), { sales: 0, count: 0, ms: 0, wait: 0 });
   const [from, to] = periodRange(y, m);
+  const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
   const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
-  $('#calTitle').innerHTML = `${periodName(CAL)}<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">${md(from)}〜${md(to)}</small>`;
-  // 労働時間はカレンダーに連動して暦月（1日〜末日）で計算：今日を含む期間なら今月、それ以外は期間の月。
-  // その月のうち締め期間の外にある日も薄く並べ、労働時間に入る日がすべて見えるようにする
-  const now = new Date(), cur = now >= from && now < +to + 86400000;
-  const hy = cur ? now.getFullYear() : y, hm = cur ? now.getMonth() : m;
-  const pdays = planDays(hy, hm);
-  const used = monthWorkMs(hy, hm);
-  // 上の2枚（予想労働時間・売上）とポップアップ用。目標は締め期間・固定休を除く
-  CAL.pop = { sales: tot.sales, count: tot.count, days: list.length, from, to, y, m, hy, hm, used, pdays, cur };
-  $('#calTiles').innerHTML = calTilesHtml(CAL.pop);
-  const mFrom = new Date(hy, hm, 1), mTo = new Date(hy, hm + 1, 0);
-  const first = mFrom < from ? mFrom : from, last = mTo > to ? mTo : to;
-  const other = {};   // 期間外の日：その日の記録
+  // 日ごとの営業（表示する月と、売上の期間の両方）
+  const lo = Math.min(+first, +from), hi = Math.max(+last, +to) + 86400000;
+  const days = {};
   for (const sh of S.shifts) {
-    const d0 = new Date(sh.start); d0.setHours(0, 0, 0, 0);
-    if (d0 >= from && d0 <= to || d0 < first || d0 > last) continue;
-    const st = shiftStats(sh), k = dayKey(d0);
-    const o = other[k] || (other[k] = { sales: 0, count: 0, ms: 0 });
+    if (sh.start < lo || sh.start >= hi) continue;
+    const st = shiftStats(sh), k = dayKey(new Date(sh.start));
+    const o = days[k] || (days[k] = { sales: 0, count: 0, ms: 0, t: sh.start });
     o.sales += st.sales; o.count += st.count; o.ms += st.elapsed;
   }
+  const inPeriod = Object.values(days).filter(o => { const d = new Date(o.t); d.setHours(0, 0, 0, 0); return d >= from && d <= to; });
+  const tot = inPeriod.reduce((a, o) => ({ sales: a.sales + o.sales, count: a.count + o.count }), { sales: 0, count: 0 });
+  $('#calTitle').innerHTML = `${y}年${m + 1}月${S.settings.closingDay ? `<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">売上 ${md(from)}〜${md(to)}</small>` : ''}`;
+  const now = new Date(), cur = now >= from && now < +to + 86400000;
+  const pdays = planDays(y, m), used = monthWorkMs(y, m);
+  // 上の2枚（予想労働時間・売上）とポップアップ用。目標は締め期間・固定休を除く
+  CAL.pop = { sales: tot.sales, count: tot.count, days: inPeriod.length, from, to, y, m, hy: y, hm: m, used, pdays, cur };
+  $('#calTiles').innerHTML = calTilesHtml(CAL.pop);
 
   // 表示：時間（労働時間）か売上を1つだけ。実績は緑、予定はオレンジ、固定休は「休」
   const mode = S.settings.calMode === 'hours' ? 'hours' : 'sales';
@@ -3563,15 +3559,13 @@ function renderCal() {
   const today = dayKey(new Date()), today0 = new Date(); today0.setHours(0, 0, 0, 0);
   // アプリで最初に営業した日（それより前の日は公休にしない）
   const firstDay = S.shifts.length ? (() => { const f = new Date(Math.min(...S.shifts.map(x => x.start))); f.setHours(0, 0, 0, 0); return f; })() : null;
-  const plan = new Set(planDays(0, 0, first, last).filter(k => planMsOf(k) > 0));   // 予定の表示は表示中の日すべて（20日締めの翌月分も）
+  const plan = new Set(pdays.filter(k => planMsOf(k) > 0));
   const man = v => v >= 10000 ? (v / 10000).toFixed(1).replace(/\.0$/, '') + '<small>万</small>' : v.toLocaleString();
   let html = '日月火水木金土'.split('').map((w, i) => `<div class="cal-dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
   html += '<div class="cal-cell empty"></div>'.repeat(first.getDay());
   let n = first.getDay();
   for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1), n++) {
-    const out = d < from || d > to, k = dayKey(d), o = out ? other[k] : days[k];
-    // 期間が月をまたぐ時は、各月の初日（と期間の初日）に月を付ける
-    const label = d.getDate() === 1 || +d === +first ? md(d) : d.getDate();
+    const k = dayKey(d), o = days[k], out = false, label = d.getDate();
     const pl = !o && plan.has(k);
     const offAct = !o && d < today0 && firstDay && d >= firstDay;   // 公休（実績）：過去の日で営業の記録がない日は自動で
     const hol = !o && !pl && !offAct && isHoliday(d);                // 固定休・今日以降の公休＝予定
@@ -3632,7 +3626,8 @@ function resetPlan() {
 function openCal(t = Date.now()) {
   // 履歴で見ていた日を枠で示す（今日はオレンジの丸があるので枠は付けない）
   const k0 = dayKey(new Date(t));
-  Object.assign(CAL, { ...periodOf(t), sel: k0 === dayKey(new Date()) ? null : k0 });
+  const d0 = new Date(t);
+  Object.assign(CAL, { y: d0.getFullYear(), m: d0.getMonth(), sel: k0 === dayKey(new Date()) ? null : k0 });   // 暦月
   renderCal();
   $('#calSheet .cal-body').scrollTop = 0;
   openSheet($('#calSheet'));
