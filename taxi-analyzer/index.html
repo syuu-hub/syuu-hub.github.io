@@ -3606,7 +3606,7 @@ function renderCal() {
     const hol = !o && !pl && !offAct && isHoliday(d);                // 固定休・今日以降の公休＝予定
     const v = o ? (mode === 'hours' ? `<span class="v act num">${(o.ms / 3600000).toFixed(1)}<small>h</small></span>` : `<span class="v act num">${man(o.sales)}</span>`)
       : pl ? (mode === 'hours' ? `<span class="v pl num">${+(planMsOf(k) / 3600000).toFixed(1)}<small>h</small></span>` : '<span class="v pl">予定</span>')
-      : offAct ? '<span class="v offa">公休</span>' : hol ? '<span class="v off">休</span>' : '<span class="v"></span>';
+      : offAct ? '<span class="v offa">公休</span>' : hol ? '<span class="v off">公休</span>' : '<span class="v"></span>';
     html += `<button class="cal-cell ${o ? 'has' : pl ? 'pln' : offAct ? 'offa' : hol ? 'off' : ''} ${k === today ? 'today' : ''} ${d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''} ${out ? 'out' : ''}" data-day="${k}" aria-pressed="${CAL.sel === k}">
       <span class="d num">${label}</span>${v}</button>`;
   }
@@ -3638,7 +3638,7 @@ function renderPlan() {
   const h = spanH($('#planStart').value, $('#planEnd').value);
   $('#planDur').innerHTML = PLN.mode === 'time' ? (h != null ? `予定労働時間<b>${h}時間</b>` : '開始と終了を入れてください') : '';
   const [y, m, d] = PLN.k.split('-').map(Number);
-  $('#planNote').textContent = dayPlan(PLN.k) ? '' : `既定：${fixedHoliday(new Date(y, m - 1, d)) ? '固定休（予定）' : `出勤 ${dayHoursEff()}時間`}`;
+  $('#planNote').textContent = dayPlan(PLN.k) ? '' : `既定：${fixedHoliday(new Date(y, m - 1, d)) ? '公休（固定休）' : `出勤 ${dayHoursEff()}時間`}`;
 }
 function savePlan() {
   let v;
