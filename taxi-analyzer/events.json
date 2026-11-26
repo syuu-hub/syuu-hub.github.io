@@ -1,8 +1,8 @@
 {
- "updated": "2026-11-25",
+ "updated": "2026-11-26",
  "status": {
   "world": 19,
-  "kih": 20,
+  "kih": 19,
   "bunka": 37,
   "kcc": 41,
   "vissel": 4,
@@ -12,54 +12,6 @@
   "ships": 18
  },
  "events": [
-  {
-   "date": "2026-11-25",
-   "start": "10:30",
-   "end": "13:00",
-   "venue": "神戸文化ホール 大ホール",
-   "cap": 2000,
-   "title": "神戸市老眼大学",
-   "open": "09:45",
-   "price": "会員",
-   "contact": "神戸市生涯学習支援センター 078-251-4731（担当：照喜名）",
-   "url": "https://www.kobe-spokyo.jp/comista/",
-   "src": "bunka"
-  },
-  {
-   "date": "2026-11-25",
-   "start": "15:00",
-   "end": "17:30",
-   "venue": "神戸国際会館こくさいホール",
-   "cap": 2000,
-   "title": "MAZZEL 2nd Fan Meeting -Play at the MUZEUM Vol.2-",
-   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2221",
-   "performer": "MAZZEL",
-   "contact": "キョードーインフォメーション 0570-200-888 （11:00～18:00/日祝休業）",
-   "src": "kih"
-  },
-  {
-   "date": "2026-11-25",
-   "start": "17:00",
-   "end": "19:30",
-   "venue": "ワールド記念ホール",
-   "cap": 8000,
-   "title": "EIKICHI YAZAWA CONCERT TOUR 2026 「Just keep going ～ロックの軌跡～」",
-   "contact": "ソーゴー大阪 （平日14:00〜16:00＊土日祝休） 06-6344-3326",
-   "url": "https://www.eikichiyazawa.com/feature/justkeepgoing2026",
-   "src": "world"
-  },
-  {
-   "date": "2026-11-25",
-   "start": null,
-   "end": "17:00",
-   "venue": "神戸国際会議場",
-   "cap": 3000,
-   "title": "第4回 日本化粧品技術者会学術大会",
-   "day": true,
-   "contact": "日本化粧品技術者会",
-   "url": "https://conference.wdc-jp.com/sccj/2026/",
-   "src": "kcc"
-  },
   {
    "date": "2026-11-26",
    "start": "14:00",
