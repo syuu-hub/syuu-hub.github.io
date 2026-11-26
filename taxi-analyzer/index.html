@@ -1085,7 +1085,21 @@ svg{display:block}
 .cal-head .close-btn{justify-self:start}
 .cal-headnav{display:flex;align-items:center;gap:14px}
 #calSheet .close-btn{white-space:nowrap}
-@media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0 10px} }
+/* カレンダー画面：マテリアルデザイン（8pxの余白の刻み・形の統一・トーンのあるアイコンボタン）と
+   デザインの原則（近接：関係するものを近く／整列：左右の端をそろえる／反復：同じ形・大きさをくり返す／コントラスト：主と従の差／余白） */
+#calSheet .cal-nav{width:40px;height:40px;border:0;background:var(--surface-2);transition:background .15s}   /* トーンのアイコンボタン（枠線なし） */
+#calSheet .close-btn{height:40px;min-height:40px;padding:0 14px;border-radius:999px;background:var(--surface-2);border:0}   /* 閉じるも同じトーンのボタン */
+#calSheet .cal-nav:active{background:var(--surface-3)}
+#calSheet #calTitle{font-size:18px;font-weight:800}
+#calSheet #calTitle small{margin-top:2px}
+#calSheet .cal-tiles{gap:12px;margin:16px 0 24px}   /* 月の切り替え→2枚：16px、2枚→カレンダー：24px（まとまりごとに余白を広く） */
+#calSheet .cal-ctl{margin:0 0 12px}   /* カレンダーの左右の端にそろえる */
+#calSheet .cal-ctl .t{font-size:14px;font-weight:800;color:var(--text);letter-spacing:.04em}   /* 見出しは本文より強く */
+#calSheet .cal-sw{width:120px;height:40px}   /* 月の切り替えボタンと同じ高さ */
+#calSheet .cal-grid{gap:6px}
+#calSheet .cal-dow{font-size:12px;padding:0 0 4px}
+#calSheet .cal-cell{border-radius:12px}   /* 日のタイルの角丸を1つに */
+@media (max-width:420px){ #calSheet .close-btn{font-size:0;gap:0;padding:0;width:40px;height:40px;min-height:40px;justify-content:center;border-radius:50%;background:var(--surface-2)} }   /* 狭い画面は閉じるも同じ丸いボタン */
 @media (max-width:480px){
   #calTitle{min-width:6.2em;font-size:17px}
   .cal-nav{width:44px;height:44px}
