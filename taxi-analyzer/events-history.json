@@ -26,4 +26,6 @@
 {"date":"2026-11-25","venue":"神戸国際会議場","cap":3000,"title":"第4回 日本化粧品技術者会学術大会"},
 {"date":"2026-11-26","start":"14:00","open":"13:00","venue":"神戸文化ホール 中ホール","cap":900,"title":"令和8年分 年末調整説明会","src":"bunka"},
 {"date":"2026-11-26","start":"19:00","venue":"神戸国際会館こくさいホール","cap":2000,"title":"ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-","src":"kih"},
-{"date":"2026-11-26","venue":"神戸国際会議場","cap":3000,"title":"第4回 日本化粧品技術者会学術大会","src":"kcc"}]}
+{"date":"2026-11-26","venue":"神戸国際会議場","cap":3000,"title":"第4回 日本化粧品技術者会学術大会","src":"kcc"},
+{"date":"2026-11-27","start":"19:00","venue":"神戸国際会館こくさいホール","cap":2000,"title":"ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-","src":"kih"},
+{"date":"2026-11-27","venue":"神戸国際展示場","cap":5000,"title":"ワールドアトリエセール","src":"kcc"}]}

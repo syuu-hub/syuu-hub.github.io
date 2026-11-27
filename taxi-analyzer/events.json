@@ -1,10 +1,10 @@
 {
- "updated": "2026-11-26",
+ "updated": "2026-11-27",
  "status": {
-  "world": 19,
+  "world": 21,
   "kih": 19,
-  "bunka": 37,
-  "kcc": 41,
+  "bunka": "error: fetch failed",
+  "kcc": "error: fetch failed",
   "vissel": 4,
   "storks": 3,
   "glion": 19,
@@ -12,43 +12,6 @@
   "ships": 18
  },
  "events": [
-  {
-   "date": "2026-11-26",
-   "start": "14:00",
-   "end": "16:30",
-   "venue": "神戸文化ホール 中ホール",
-   "cap": 900,
-   "title": "令和8年分 年末調整説明会",
-   "open": "13:00",
-   "price": "無料・自由席",
-   "contact": "公益社団法人 神戸納税協会 078-231-5811",
-   "src": "bunka"
-  },
-  {
-   "date": "2026-11-26",
-   "start": "19:00",
-   "end": "21:30",
-   "venue": "神戸国際会館こくさいホール",
-   "cap": 2000,
-   "title": "ayumi hamasaki JAPAN TOUR 2026 A -Scapegoat-",
-   "url": "https://www.kih.co.jp/kokusaihall/event/detail/2219",
-   "performer": "浜崎あゆみ",
-   "price": "VIP席 ¥28,000 一般指定席 ¥14,000",
-   "contact": "キョードーインフォメーション 0570-200-888 （11:00～18:00/日祝休業）",
-   "src": "kih"
-  },
-  {
-   "date": "2026-11-26",
-   "start": null,
-   "end": "17:00",
-   "venue": "神戸国際会議場",
-   "cap": 3000,
-   "title": "第4回 日本化粧品技術者会学術大会",
-   "day": true,
-   "contact": "日本化粧品技術者会",
-   "url": "https://conference.wdc-jp.com/sccj/2026/",
-   "src": "kcc"
-  },
   {
    "date": "2026-11-27",
    "start": "19:00",
@@ -200,6 +163,19 @@
   {
    "date": "2026-11-29",
    "start": null,
+   "end": null,
+   "venue": "GLION ARENA KOBE",
+   "cap": 10000,
+   "title": "マカロックツアーvol.22 〜いま、きみがすき︕篇〜",
+   "url": "https://www.totteikobe.jp/event/article/25027",
+   "performer": "マカロニえんぴつ",
+   "contact": "清⽔⾳泉 06-6357-3666 (平⽇15:00〜18:00)/ info@shimizuonsen.com",
+   "official": "https://macaroniempitsu.com/news/19561.html",
+   "src": "glion"
+  },
+  {
+   "date": "2026-11-29",
+   "start": null,
    "end": "17:00",
    "venue": "神戸国際会議場",
    "cap": 3000,
@@ -220,19 +196,6 @@
    "contact": "株式会社ワールドストアパートナーズ",
    "url": "https://store.world.co.jp/s/brand/ateliersale/kobe.html",
    "src": "kcc"
-  },
-  {
-   "date": "2026-11-29",
-   "start": null,
-   "end": null,
-   "venue": "GLION ARENA KOBE",
-   "cap": 10000,
-   "title": "マカロックツアーvol.22 〜いま、きみがすき︕篇〜",
-   "url": "https://www.totteikobe.jp/event/article/25027",
-   "performer": "マカロニえんぴつ",
-   "contact": "清⽔⾳泉 06-6357-3666 (平⽇15:00〜18:00)/ info@shimizuonsen.com",
-   "official": "https://macaroniempitsu.com/news/19561.html",
-   "src": "glion"
   },
   {
    "date": "2026-12-01",
@@ -1220,6 +1183,28 @@
    "title": "NEXZ 1ST ASIA TOUR IN JAPAN",
    "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00※土日祝休業） 0570-200-888",
    "url": "https://nexz-official.com/s/n180/page/live_detail?55844",
+   "src": "world"
+  },
+  {
+   "date": "2027-01-23",
+   "start": "12:30",
+   "end": "15:00",
+   "venue": "ワールド記念ホール",
+   "cap": 8000,
+   "title": "IMP.LIVE TOUR 2027 PERIOD.",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://tobe-official.jp/artists/imp/concert/497",
+   "src": "world"
+  },
+  {
+   "date": "2027-01-24",
+   "start": "12:30",
+   "end": "15:00",
+   "venue": "ワールド記念ホール",
+   "cap": 8000,
+   "title": "IMP.LIVE TOUR 2027 PERIOD.",
+   "contact": "ｷｮｰﾄﾞｰｲﾝﾌｫﾒｰｼｮﾝ （12:00〜17:00 土日祝休業） 0570-200-888",
+   "url": "https://tobe-official.jp/artists/imp/concert/497",
    "src": "world"
   }
  ]
