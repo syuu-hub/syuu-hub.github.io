@@ -321,6 +321,12 @@ svg{display:block}
 .ld-body{flex:1;min-width:0;min-height:44px;text-align:center;padding:4px 0;border-radius:var(--r-md)}
 .ld-body:active{background:var(--surface)}
 .ld-date{font-size:18px;font-weight:800;white-space:nowrap}
+/* 日付の切り替え：前後の矢印（丸いトーンのボタン）と日付（角丸の背景）はそれぞれ独立 */
+.log-day{gap:8px}
+.log-day .cal-nav{width:48px;height:48px;border:0;background:var(--surface-2);flex:none}
+.log-day .cal-nav:active{background:var(--surface-3)}
+.log-day .ld-body{min-height:48px;border-radius:999px;background:var(--surface-2);display:grid;place-items:center}
+.log-day .ld-body:active{background:var(--surface-3)}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px;white-space:nowrap}
 .log-total .k b{font-size:15px;color:var(--text);font-weight:800}
@@ -1956,6 +1962,8 @@ const yen = n => '¥' + Math.round(n || 0).toLocaleString('ja-JP');
 const yenHtml = n => '<span class="cur">¥</span>' + Math.round(n || 0).toLocaleString('ja-JP');
 const hhmm = t => { const d = new Date(t); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
 const ymd = t => { const d = new Date(t); return d.getFullYear() + '/' + pad2(d.getMonth() + 1) + '/' + pad2(d.getDate()); };
+// 画面の日付：今年の分は年を省く（11/23）、去年以前は年から（2025/11/23）
+const ymdShow = t => { const d = new Date(t); return d.getFullYear() === new Date().getFullYear() ? (d.getMonth() + 1) + '/' + d.getDate() : ymd(t); };
 const stamp = t => ymd(t) + ' ' + hhmm(t) + ':' + pad2(new Date(t).getSeconds());
 const dur = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return Math.floor(m / 60) + ':' + pad2(m % 60); };
 const durShort = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return s < 3600 ? Math.floor(s / 60) + ':' + pad2(s % 60) : dur(ms); };
@@ -2848,7 +2856,7 @@ function openRide(id, dir = 0) {
       ${addr ? `<div class="sm ad">${addr}</div>` : ''}
     </div>`;
   };
-  $('#rdDate').textContent = ymd(r.ts);
+  $('#rdDate').textContent = ymdShow(r.ts);
   // 上：売上（大きく）と、支払い（印）・乗車種別（文字）→ 料金の内訳 → 乗車・降車 → メモ
   const paid = r.total + (r.toll || 0) + outFee;   // お支払い金額（売上外を含む）
   const kl = kindLabel(r.kind, r.app);
@@ -2962,7 +2970,7 @@ function openReport(id, keep) {
     st.fare.long && row('遠距離割', cnt(r => r.fare.long), st.fare.long, 'disc', '差引済'),
     st.fare.handi && row('障害者割', cnt(r => r.fare.handi), st.fare.handi, 'disc', '差引済'),
   ].filter(Boolean);
-  $('#rpDate').textContent = ymd(sh.start);
+  $('#rpDate').textContent = ymdShow(sh.start);
   const pn = pays.reduce((a, p) => a + p.n, 0), pa = pays.reduce((a, p) => a + p.amt, 0);
   $('#rpBody').innerHTML = `
     <div class="rp-head">
@@ -3634,7 +3642,7 @@ function renderCal() {
   }
   const inPeriod = Object.values(days).filter(o => { const d = new Date(o.t); d.setHours(0, 0, 0, 0); return d >= from && d <= to; });
   const tot = inPeriod.reduce((a, o) => ({ sales: a.sales + o.sales, count: a.count + o.count }), { sales: 0, count: 0 });
-  $('#calTitle').innerHTML = `${y}年${m + 1}月${S.settings.closingDay ? `<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">売上 ${md(from)}〜${md(to)}</small>` : ''}`;
+  $('#calTitle').innerHTML = `${y === new Date().getFullYear() ? '' : y + '年'}${m + 1}月${S.settings.closingDay ? `<small style="display:block;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">売上 ${md(from)}〜${md(to)}</small>` : ''}`;
   const now = new Date(), cur = now >= from && now < +to + 86400000;
   const pdays = planDays(y, m), used = monthWorkMs(y, m);
   // 上の2枚（予想労働時間・売上）とポップアップ用。目標は締め期間・固定休を除く
@@ -3878,7 +3886,7 @@ function renderLog() {
   const list0 = logShifts(), idx = sh ? list0.indexOf(sh) : -1;
   $('#logPrev').disabled = idx <= 0;
   $('#logNext').disabled = idx < 0 || idx >= list0.length - 1;
-  $('#logDate').textContent = sh ? `${ymd(sh.start)}（${WEEKDAYS[new Date(sh.start).getDay()]}）` : '記録なし';
+  $('#logDate').textContent = sh ? `${ymdShow(sh.start)}（${WEEKDAYS[new Date(sh.start).getDay()]}）` : '記録なし';
   $('#logTimes').hidden = !sh;
   if (sh) {
     $('#logOut').textContent = hhmm(sh.start);
