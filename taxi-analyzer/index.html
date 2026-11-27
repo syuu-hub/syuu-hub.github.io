@@ -321,6 +321,12 @@ svg{display:block}
 .ld-body{flex:1;min-width:0;min-height:44px;text-align:center;padding:4px 0;border-radius:var(--r-md)}
 .ld-body:active{background:var(--surface)}
 .ld-date{font-size:18px;font-weight:800;white-space:nowrap}
+/* 日付の切り替え：角丸の背景でひとまとまりに（矢印はその中のトーンのボタン） */
+.log-day{background:var(--surface-2);border-radius:999px;padding:6px;gap:6px}
+.log-day .cal-nav{width:44px;height:44px;border:0;background:var(--surface-3)}
+.log-day .cal-nav:active{background:var(--line-2)}
+.log-day .ld-body{border-radius:999px}
+.log-day .ld-body:active{background:var(--surface-3)}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px;white-space:nowrap}
 .log-total .k b{font-size:15px;color:var(--text);font-weight:800}
