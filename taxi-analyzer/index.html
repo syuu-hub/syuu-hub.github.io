@@ -2489,16 +2489,24 @@ function placeSearch(q, done) {
   clearTimeout(placeTimer);
   placeTimer = setTimeout(async () => {
     placeCache.set(q, null);
+    const list = await onlinePlaces(q);
+    if (!list) {
+      placeCache.delete(q);
+      placeRetryAt = Date.now() + 30000;
+      return done();
+    }
+    placeCache.set(q, list);
+    done();
+  }, 600);
+}
+// OpenStreetMap の施設検索（Photon と Nominatim）。関西の結果の一覧、通信できなければ null
+async function onlinePlaces(q) {
     const bias = geo.pos || { lat: 34.69, lng: 135.19 };
     const [ph, no] = await Promise.allSettled([
       getJson(`${PHOTON}?q=${encodeURIComponent(q)}&limit=12&lang=default&bbox=${KANSAI_BBOX}&lat=${bias.lat}&lon=${bias.lng}`),
       getJson(`${NOMINATIM}?format=jsonv2&q=${encodeURIComponent(q)}&countrycodes=jp&accept-language=ja&addressdetails=1&limit=10&viewbox=${KANSAI_BBOX}&bounded=1`),
     ]);
-    if (ph.status === 'rejected' && no.status === 'rejected') {
-      placeCache.delete(q);
-      placeRetryAt = Date.now() + 30000;
-      return done();
-    }
+    if (ph.status === 'rejected' && no.status === 'rejected') return null;
     const list = [];
     if (no.status === 'fulfilled' && Array.isArray(no.value)) for (const x of no.value) {
       const a = x.address || {};
@@ -2514,9 +2522,53 @@ function placeSearch(q, done) {
     }
     // 兵庫県内を先に
     list.sort((a, b) => (!a.info || !/[都道府県]/.test(a.info) ? 0 : 1) - (!b.info || !/[都道府県]/.test(b.info) ? 0 : 1));
-    placeCache.set(q, list);
-    done();
-  }, 600);
+    return list;
+}
+
+/* ============================================================
+   施設名の自動登録：乗車記録に入れた名前が、住所でもなく場所データにも無い時は、
+   記録した後にその名前でオンライン検索し直し、見つかった施設（位置・住所）を場所データに登録する。
+   見つからなければ名前だけ登録する（次からは候補に出る）。圏外の時は通信できた時に行う
+   ============================================================ */
+// 住所らしい入力（市区町村名から始まる・番地や丁目がある）は施設名として扱わない
+const isAddrLike = v => !!hyogoCity(String(v || '').replace(/\s/g, '')) || /丁目|番地|\d+[-－ー‐]\d+|^\d/.test(String(v || '').normalize('NFKC'));
+function queuePlaceName(name) {
+  name = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!canRegister(name) || isAddrLike(name)) return;
+  const q = S.settings.placeQueue = S.settings.placeQueue || [];
+  if (!q.some(x => normName(x) === normName(name))) q.push(name);
+}
+let placeQBusy = false;
+async function processPlaceQueue() {
+  const q = S.settings.placeQueue || [];
+  if (placeQBusy || !q.length || navigator.onLine === false || Date.now() < placeRetryAt) return;
+  placeQBusy = true;
+  let added = 0;
+  try {
+    while (q.length) {
+      const name = q[0];
+      if (!canRegister(name)) { q.shift(); continue; }   // その間に登録済み
+      const list = await onlinePlaces(name);
+      if (!list) { placeRetryAt = Date.now() + 30000; break; }   // 通信できない → 次の機会に
+      const k = normName(name);
+      // 名前がそのまま同じ → 名前を含む（または名前に含まれる）施設 の順に1件
+      const hit = list.find(x => normName(x.name) === k) || list.find(x => { const n = normName(x.name); return n.length >= 2 && (n.includes(k) || k.includes(n)); });
+      const cfg = { id: uid(), name, alias: [], addr: '' , auto: true };
+      if (hit) {
+        cfg.lat = +hit.lat.toFixed(6); cfg.lng = +hit.lng.toFixed(6);
+        if (normName(hit.name) !== k) cfg.alias = [hit.name];
+        const a = await reverseGeocode({ lat: hit.lat, lng: hit.lng });
+        if (a) cfg.addr = a;
+        cfg.note = '自動登録';
+      } else cfg.note = '自動登録（地図で見つからず）';
+      S.settings.places.push(cfg);
+      q.shift(); added++;
+    }
+  } finally {
+    placeQBusy = false;
+    if (added) { linkPlaces(); save(); renderAll(); renderData(); toast(`場所データに ${added}件 登録しました`); }
+    else save();
+  }
 }
 // 施設の候補（駅＋オンライン検索）。住所補完の候補と合わせて出す
 function placeSuggest(raw, w) {
@@ -2565,7 +2617,7 @@ async function resolvePending() {
     if (changed) { save(); renderAll(); }
   }
 }
-window.addEventListener('online', () => { addrRetryAt = 0; geoRetryAt = 0; queueAddr(); });
+window.addEventListener('online', () => { addrRetryAt = 0; geoRetryAt = 0; placeRetryAt = 0; queueAddr(); processPlaceQueue(); });
 
 // 住所 → 位置（国土地理院の住所検索）。手入力した住所や位置の無い施設を需要マップの正しい場所に置く
 const GSI_SEARCH = 'https://msearch.gsi.go.jp/address-search/AddressSearch';
@@ -5138,12 +5190,14 @@ function commitAddr(w) {
 const withPref = v => { if (PREF_RE.test(v)) return v; const h = hyogoCity(v); return h ? h.c.p + v : v; };
 
 function saveEntry() {
+  setTimeout(processPlaceQueue, 300);   // 記録の後で、名前だけの入力を検索して場所データに登録
   if (entryTotal() <= 0) return;
   const t = entryTimes();
   if (t.start != null && t.start > t.end) { toast('乗車時刻が降車時刻より後になっています'); return; }
   if (t.end > Date.now() + 60000) { toast('降車時刻が現在より後になっています'); return; }
   E.start = t.start; E.ts = t.end;
   commitAddr('from'); commitAddr('to');
+  for (const w of ['from', 'to']) { const o = E[w]; if (o.manual && !o.place && o.addr) queuePlaceName(o.addr); }   // 施設名だけの入力は記録の後で検索して登録
   const bd = entryBreakdown(), total = bd.total;
   if (bd.meter < 0) { toast('合計が迎車料金・手数料・高速代より少ないため記録できません'); return; }
   const fare = { meter: bd.meter, pickup: bd.pickup, appFee: bd.appFee };
@@ -6313,6 +6367,7 @@ setView(S.settings.tab);
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}   // 端末の空き容量が減っても消されにくくする
 if (LOAD_ERR) toast('データを読み込めませんでした。設定の「前の状態に戻す」で戻せます');
 loadPlaces();
+setTimeout(processPlaceQueue, 3000);   // 圏外で記録した施設名の登録待ちがあれば
 startGeo();
 queueAddr();
 // 電池の節約：画面が見えていない間は何もしない。毎秒は経過時間と時計の文字だけ（変わった時だけ書き換え）、
