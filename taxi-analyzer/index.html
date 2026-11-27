@@ -492,6 +492,8 @@ svg{display:block}
 .pl-sort{margin:0 0 6px}
 .pl-sort button{flex:1;height:34px;font-size:12px}
 .prank{list-style:none}
+.rlist li{cursor:default}
+.rlist .nm .ar{font-style:normal;color:var(--accent);margin:0 6px;font-weight:800}
 .prank li{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;column-gap:10px;align-items:start;padding:10px 0}   /* 名前が2行になっても順位・値は1行目にそろえる */
 .prank li + li{border-top:1px solid var(--line)}
 .prank .n{font-size:12px;font-weight:800;color:var(--muted);text-align:center;background:var(--surface-2);border-radius:6px;line-height:20px}
@@ -3945,6 +3947,32 @@ const ridePos = f => f.place && f.place.lat != null ? f.place
   : f.lat != null ? f : null;
 // 同じ場所としてまとめる鍵：施設名、または手入力した住所（GPSの位置がずれていても1本のピンに）
 const placeKey = f => f.place ? 'p:' + normName(f.place.name) : f.manual && f.addr ? 'a:' + normName(f.addr) : null;
+// 定番ルートで使う場所の鍵と名前：施設は施設名、住所は丁目（または町名）まで、GPSだけの時は約200mのます目
+const routeArea = a => shortAddr(a).normalize('NFKC').replace(/^(.+?[市郡])(.+?区)?/, '$2').replace(/(\d+)丁目.*$/, '$1丁目').replace(/[\d\-−‐ー－番号地の]+$/, '');
+function routeEnd(f) {
+  if (!f) return null;
+  if (f.place) return { k: 'p:' + normName(f.place.name), n: f.place.name };
+  if (f.addr) { const a = routeArea(f.addr); if (a) return { k: 'a:' + normName(a), n: a + ' 付近' }; }
+  if (f.lat != null) return { k: `g:${(f.lat / .002).toFixed(0)},${(f.lng / .0025).toFixed(0)}`, n: `${f.lat.toFixed(3)}, ${f.lng.toFixed(3)} 付近` };
+  return null;
+}
+// 2回以上ある「同じ時間帯・同じ乗車地 → 同じ降車地」の乗車（回数の多い順）
+function regularRoutes(rides) {
+  const g = new Map();
+  for (const r of rides) {
+    const a = routeEnd(r.from), b = routeEnd(r.to);
+    if (!a || !b || a.k === b.k) continue;
+    const d = new Date(r.start || r.ts), h = d.getHours(), k = a.k + '>' + b.k + '@' + h;
+    const x = g.get(k) || { from: a.n, to: b.n, h, rides: [] };
+    x.rides.push(r); g.set(k, x);
+  }
+  return [...g.values()].filter(x => x.rides.length >= 2).map(x => {
+    const rs = x.rides.slice().sort((p, q) => q.ts - p.ts), dows = [...new Set(rs.map(r => new Date(r.start || r.ts).getDay()))].sort((p, q) => ((p + 6) % 7) - ((q + 6) % 7));
+    const mins = rs.map(r => { const d = new Date(r.start || r.ts); return d.getHours() * 60 + d.getMinutes(); });
+    return { ...x, rides: rs, n: rs.length, avg: rs.reduce((t, r) => t + r.total, 0) / rs.length, last: rs[0].start || rs[0].ts,
+      dows: dows.map(i => WEEKDAYS[i]).join(''), t0: Math.min(...mins), t1: Math.max(...mins) };
+  }).sort((p, q) => q.n - p.n || q.avg - p.avg);
+}
 function demandPlaces(src = S.rides, hiFrom = Infinity) {   // hiFrom：この金額以上を「高額乗車」として数える
   const list = [], byKey = new Map();
   const items = [];
@@ -4447,6 +4475,16 @@ ${plView === 'map' ? (mapPts.length ? `      <div class="seg map-f" id="mapTime"
         <span class="a num">${ps.fmt(c)}</span>${placeDetail(c, rideOf)}</li>`).join('')}</ol>`
         : `<div class="ana-empty">該当なし</div>`}
 `}`)}
+    ${(() => {   // 定番ルート：同じ時間帯に同じ乗車地から同じ降車地へ
+      const rt = regularRoutes(A.rides).slice(0, 8), hm = v => `${Math.floor(v / 60)}:${pad2(v % 60)}`, md2 = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
+      return fold('route', '定番ルート', rt.length ? `${rt[0].h}時台 ${esc(rt[0].from)} → ${esc(rt[0].to)} ${rt[0].n}回` : '同じ時間帯・同じ区間の乗車はまだありません', rt.length ? `
+      <ol class="prank rlist">${rt.map((x, i) => `<li>
+        <span class="n num">${i + 1}</span>
+        <span class="b"><span class="nm">${esc(x.from)}<i class="ar">→</i>${esc(x.to)}</span>
+          <span class="sb num"><span>${x.t0 === x.t1 ? hm(x.t0) : hm(x.t0) + '〜' + hm(x.t1)}</span>・<span>${x.dows}</span>・<span>平均${kv(Math.round(x.avg))}</span>・<span>最近 ${md2(x.last)}</span></span></span>
+        <span class="a num">${x.n}<small>回</small></span></li>`).join('')}</ol>
+      <div class="ana-note">乗車時刻の1時間ごと・同じ区間が2回以上</div>` : '<div class="ana-empty">同じ時間帯に同じ乗車地から同じ降車地へ向かった乗車は、まだありません</div>');
+    })()}
     ${fold('trend', '売上の推移', trView === 'month' ? monthTake : `${kv(Math.round(K.perDay))}/日 ${delta('perDay')}`, `
       ${months.length < 2 ? '' : `<div class="seg view-sw">${[['day', '日ごと'], ['month', '月ごと']].map(([k, l]) => `<button data-tv="${k}" aria-pressed="${trView === k}">${l}</button>`).join('')}</div>`}
 ${trView === 'month' ? (months.length ? `      <div class="mbars">${months.map(m => `<button class="mb ${m.cur ? 'cur' : ''}" aria-pressed="false" data-tip="${m.label}：売上 ${yen(m.sales)}・${m.days}日・1日あたり ${yen(Math.round(m.perDay))}・1時間あたり ${m.perHour ? yen(Math.round(m.perHour)) : '—'}${m.cur ? '（途中）' : ''}">
