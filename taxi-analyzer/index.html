@@ -1345,6 +1345,10 @@ svg{display:block}
           <button class="btn sm num" id="hoursCapBtn">288時間</button>
         </div>
           <div class="setting">
+          <div class="k">いつもの営業時間<small class="k-sub">ステップ目標の時間帯。未設定なら記録から</small></div>
+          <button class="btn sm num" id="usualBtn">自動</button>
+        </div>
+          <div class="setting">
           <div class="k">1日の予定労働時間<small class="k-sub">ステップ目標に使う。未設定なら記録から推定</small></div>
           <button class="btn sm num" id="dayHoursBtn">未設定</button>
         </div>
@@ -3274,17 +3278,14 @@ function stepLenAt(start) {
     if (t - start >= 3600e3) return (t - start) / 3600e3;
   }
   if (p && !p.off && p.hours) return p.hours;
+  // いつもの営業時間の終わりまで（そこまで1時間を切っている遅い出庫は、出庫から1時間）
   const ue = usualEnd(start);
-  return ue && ue - start >= 2 * 3600e3 ? Math.min(L, (ue - start) / 3600e3) : L;
+  return Math.max(1, (ue - start) / 3600e3);
 }
-// いつもの入庫時刻：過去の入庫時刻（時:分）の中央値（同じ曜日が3日以上ならその曜日）。記録が5日未満なら null
+// いつもの入庫時刻（出庫 start の日の、いつもの営業時間の終わり）
 function usualEnd(start) {
-  const dow = new Date(start).getDay(), all = S.shifts.filter(sh => sh.end && sh.start < start - 3600e3), same = all.filter(sh => new Date(sh.start).getDay() === dow), use = same.length >= 3 ? same : all;
-  if (use.length < 5) return null;
-  // 出庫日の0時からの分（日をまたいだ入庫は24時以降として数える）
-  const mins = use.map(sh => { const d0 = new Date(sh.start); d0.setHours(0, 0, 0, 0); return Math.round((sh.end - d0) / 60000); });
   const d = new Date(start); d.setHours(0, 0, 0, 0);
-  return d.getTime() + Math.round(quant(mins, .5) / 5) * 5 * 60000;
+  return d.getTime() + usualSpan(new Date(start).getDay()).e * 60000;
 }
 let STEPC = { k: '', v: null };
 function stepCurve(dow, L) {
@@ -3422,12 +3423,23 @@ function stepListHtml(sp) {
     </ol>`;
 }
 
-// いつもの出庫時刻：その日 day の、過去の出庫時刻（時:分）の中央値（同じ曜日が3日以上ならその曜日）。記録が無ければ6時
+// いつもの営業時間 {s, e}（出庫日の0時からの分。日をまたぐ入庫は24時以降）：設定 → 過去の出庫・入庫の中央値（同じ曜日が3日以上ならその曜日、記録3日以上）→ 7:00〜7:00＋1日の予定
+const minHM = v => `${Math.floor(v / 60) % 24}:${pad2(Math.round(v % 60))}`;
+function usualSpan(dow) {
+  if (S.settings.usualStart != null && S.settings.usualEnd != null) return { s: S.settings.usualStart, e: S.settings.usualEnd, set: true };
+  const all = S.shifts.filter(sh => sh.end && sh.end - sh.start >= 2 * 3600e3), same = dow == null ? [] : all.filter(sh => new Date(sh.start).getDay() === dow), use = same.length >= 3 ? same : all;
+  if (use.length >= 3) {
+    const r5 = v => Math.round(v / 5) * 5;
+    const st = r5(quant(use.map(sh => { const x = new Date(sh.start); return x.getHours() * 60 + x.getMinutes(); }), .5));
+    const en = r5(quant(use.map(sh => { const d0 = new Date(sh.start); d0.setHours(0, 0, 0, 0); return (sh.end - d0) / 60000; }), .5));
+    if (en - st >= 120) return { s: st, e: en };
+  }
+  return { s: 420, e: 420 + (dayHoursEff() || 10) * 60 };
+}
+// いつもの出庫時刻（その日 day）
 function usualStart(day, dow) {
-  const all = S.shifts.filter(sh => sh.end), same = all.filter(sh => new Date(sh.start).getDay() === dow), use = same.length >= 3 ? same : all;
   const d = new Date(day); d.setHours(0, 0, 0, 0);
-  const m = use.length ? Math.round(quant(use.map(sh => { const x = new Date(sh.start); return x.getHours() * 60 + x.getMinutes(); }), .5) / 5) * 5 : 360;
-  return d.getTime() + m * 60000;
+  return d.getTime() + usualSpan(dow).s * 60000;
 }
 
 /* ============================================================
@@ -4771,6 +4783,7 @@ function renderData() {
   $('#closingBtn').textContent = closingLabel();
   $('#hoursCapBtn').textContent = S.settings.hoursCap ? S.settings.hoursCap + '時間' : '上限なし';
   const est = estWork(), hl = holidayList();
+  { const u = usualSpan(); $('#usualBtn').textContent = (S.settings.usualStart ? '' : '自動 ') + `${minHM(u.s)}〜${minHM(u.e)}`; }
   $('#dayHoursBtn').textContent = S.settings.dayHours ? S.settings.dayHours + '時間' : est.hours ? `自動 ${est.hours}時間` : '自動';
   $('#holidaySeg').innerHTML = WEEKDAYS.split('').map((w, i) => `<button data-hol="${i}" aria-pressed="${hl.includes(i)}">${w}</button>`).join('');
   $('#pickupFeeBtn').textContent = yen(S.settings.pickupFee);
@@ -4820,11 +4833,13 @@ function renderDepart() {
   $('#dClock').textContent = hhmm(d);
   $('#dGoal .k').textContent = dayUnit() ? '本日の目標' : '本日の必要額';
   $('#dGoalVal').textContent = hasGoal() ? (dailyNeed() ? yen(dailyNeed()) : '達成') : goalAuto() ? `あと${autoGoalCalc().need || 0}日の記録で自動` : '未設定';
-  // ステップ目標：いま出庫したら、何時までにいくら（累計）を1時間ごとに
-  const ds = $('#dSteps'), sp = stepPlan(null, Date.now(), dailyNeed());
+  // ステップ目標：いつもの営業時間の中なら「いま出庫したら」、その前後は「いつもの出庫の場合」
+  const us = usualStart(d, d.getDay()), ue = usualEnd(us), now = Date.now();
+  const inHours = now >= us && now <= ue - 3600e3, st0 = inHours ? now : us;
+  const ds = $('#dSteps'), sp = stepPlan(null, st0, dailyNeed(), st0);
   ds.hidden = !sp;
   if (sp) {
-    const html = `<div class="h"><span>ステップ目標</span><small>いま出庫したら${stepCurve(d.getDay(), stepLen()) ? '・記録から' : ''}</small></div>${stepsHtml(sp)}`;
+    const html = `<div class="h"><span>ステップ目標</span><small>${inHours ? 'いま出庫したら' : `いつもの出庫 ${hhmm(us)} の場合`}${stepCurve(d.getDay(), stepLen()) ? '・記録から' : ''}</small></div>${stepsHtml(sp)}`;
     if (ds.dataset.h !== html) { ds.dataset.h = html; ds.innerHTML = html; }
   }
 }
@@ -5780,6 +5795,16 @@ $('#hoursCapBtn').addEventListener('click', () => openNumpad('月の労働時間
   S.settings.hoursCap = Math.min(v, 744);
   save(); renderData();
 }, { unit: '時間', label: '0で上限なし', digits: 3 }));
+$('#usualBtn').addEventListener('click', () => {
+  const u = usualSpan();
+  const v = prompt('いつもの営業時間（例：7:30-16:30）\n空にすると記録から自動', S.settings.usualStart ? `${minHM(u.s)}-${minHM(u.e)}` : '');
+  if (v === null) return;
+  const m = v.normalize('NFKC').match(/(\d{1,2})[:：時]?(\d{2})?\s*[-〜~～]\s*(\d{1,2})[:：時]?(\d{2})?/);
+  if (!v.trim()) { delete S.settings.usualStart; delete S.settings.usualEnd; }
+  else if (!m) { toast('「7:30-16:30」の形で入れてください'); return; }
+  else { const a = +m[1] * 60 + +(m[2] || 0); let e = +m[3] * 60 + +(m[4] || 0); if (e <= a) e += 1440; S.settings.usualStart = a; S.settings.usualEnd = e; }
+  save(); renderData(); renderAll();
+});
 $('#dayHoursBtn').addEventListener('click', () => openNumpad('1日の予定労働時間', S.settings.dayHours, v => {
   S.settings.dayHours = Math.min(v, 24);
   save(); renderData();
