@@ -1,14 +1,15 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=42';
-import { ValhallaClient } from './valhalla.js?v=42';
-import { DemandEngine, CAT_JA, pickupWithin } from './demand.js?v=42';
-import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=42';
-import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=42';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=42';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=42';
-import { profText, manualProf } from './profile.js?v=42';
-import { fitModel, pickupRate } from './model.js?v=42';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=42';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=42';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=43';
+import { ValhallaClient } from './valhalla.js?v=43';
+import { DemandEngine, CAT_JA, pickupWithin } from './demand.js?v=43';
+import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=43';
+import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=43';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=43';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=43';
+import { profText, manualProf } from './profile.js?v=43';
+import { fitModel, pickupRate } from './model.js?v=43';
+import { isDark, sunTimes, mapColors } from './theme.js?v=43';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=43';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=43';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -32,6 +33,7 @@ const cfg = Object.assign(
     pickMode: 'demand', // 行き先の選び方：demand＝需要の高さ優先（初期設定）、nearest＝今いる所から近い需要エリア
     sheetCollapsed: false, // 巡回中の表示エリアをたたんでいるか
     eco: false, // 省電力モード（平面の地図・解像度を下げる・短いアニメーション）
+    theme: 'auto', // 画面の昼・夜：auto＝今いる所の日の入り〜日の出は夜、light＝昼、dark＝夜
     spots: [],
     spotsCenter: null,
     events: [],
@@ -249,6 +251,7 @@ try {
 }
 const empty = { type: 'FeatureCollection', features: [] };
 map.on('load', () => {
+  mapThemed = null; applyTheme(); // 夜なら地図も暗く
   // 地名を日本語優先に
   for (const layer of map.getStyle().layers) {
     if (layer.type !== 'symbol') continue;
@@ -809,6 +812,8 @@ function openSettings() {
   $('set-tour').value = cfg.tourMax;
   $('set-revisit').value = cfg.revisitMin;
   $('set-eco').checked = !!cfg.eco;
+  document.querySelectorAll('input[name=set-theme]').forEach((r) => (r.checked = r.value === (cfg.theme || 'auto')));
+  $('set-theme-info').textContent = themeInfo();
   document.querySelectorAll('input[name=set-pick]').forEach((r) => (r.checked = r.value === (cfg.pickMode === 'nearest' ? 'nearest' : 'demand')));
   $('set-events').checked = !!cfg.eventsOn;
   $('set-event-info').textContent = eventSettingText();
@@ -1131,6 +1136,52 @@ $('set-events').addEventListener('change', async () => {
   if (cfg.eventsOn && (await loadEventFeed(true))) { applyDemandChange(); $('set-event-info').textContent = eventSettingText(); }
 });
 document.querySelectorAll('input[name=set-pick]').forEach((r) => r.addEventListener('change', () => { cfg.pickMode = r.value; save(); nav.s = { ...nav.s, ...settingsForNav() }; }));
+// ===== 画面の昼・夜 =====
+// 夜の運転では明るい画面はまぶしく、暗さに慣れた目を乱すので、日の入り〜日の出は画面も地図も暗くする（ISO 15008）
+var OUR_LAYERS = /^(route|turn|heat|tour|car)/;
+var COLOR_PROPS = ['background-color', 'fill-color', 'fill-outline-color', 'fill-extrusion-color', 'line-color', 'text-color', 'text-halo-color'];
+var mapThemed = null, mapOrig = null; // var：地図の load が先に来ても使えるように
+function themeDark() {
+  if (cfg.theme === 'dark') return true;
+  if (cfg.theme === 'light') return false;
+  const c = (lastFix && lastFix.point) || cfg.lastCenter || DEFAULT_CENTER;
+  return isDark(new Date(), c[1], c[0]);
+}
+function applyTheme() {
+  const dark = themeDark();
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const meta = document.getElementById('meta-theme');
+  if (meta) meta.content = dark ? '#0f1511' : '#f6fbf3';
+  // 地図：背景・道・文字などの色を夜の色に（ルート・需要マップ・矢印などアプリの印はそのまま）
+  if (!map.getStyle || !map.setPaintProperty || mapThemed === dark) return;
+  let style;
+  try { style = map.getStyle(); } catch { return; }
+  if (!style || !style.layers) return;
+  if (!mapOrig) {
+    mapOrig = {};
+    for (const l of style.layers) {
+      if (OUR_LAYERS.test(l.id) || !l.paint) continue;
+      for (const pr of COLOR_PROPS) if (l.paint[pr] != null) (mapOrig[l.id] || (mapOrig[l.id] = {}))[pr] = l.paint[pr];
+    }
+  }
+  for (const [id, props] of Object.entries(mapOrig)) {
+    for (const [pr, v] of Object.entries(props)) {
+      try { map.setPaintProperty(id, pr, dark ? mapColors(v, pr) : v); } catch { /* この地図では使えない */ }
+    }
+  }
+  try { if (map.getLayer('heat')) map.setPaintProperty('heat', 'heatmap-opacity', dark ? 0.75 : 1); } catch { /* noop */ }
+  mapThemed = dark;
+}
+function themeInfo() {
+  const c = (lastFix && lastFix.point) || cfg.lastCenter || DEFAULT_CENTER;
+  const { sunrise, sunset } = sunTimes(new Date(), c[1], c[0]);
+  const hm = (d) => (d ? `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}` : '—');
+  return `自動：今いる所の日の入りから日の出までは、画面と地図を暗くします（夜の運転でまぶしくないように）。今日の日の出 ${hm(sunrise)}・日の入り ${hm(sunset)}`;
+}
+document.querySelectorAll('input[name=set-theme]').forEach((r) => r.addEventListener('change', () => { cfg.theme = r.value; save(); applyTheme(); }));
+applyTheme();
+setInterval(applyTheme, 60e3); // 日の出・日の入りをまたいだら切り替える
+
 $('set-eco').addEventListener('change', () => {
   cfg.eco = $('set-eco').checked; save();
   document.body.classList.toggle('eco', cfg.eco);

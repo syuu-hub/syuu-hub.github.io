@@ -40,6 +40,7 @@
   /* 意味の色（地図と合わせる） */
   --nav-blue: #1a73e8;
   --demand: #e37400;
+  --demand-text: #a85400; /* 文字・小さな印の橙：明るい背景でもコントラスト 4.5:1 以上（--demand は地図の塗り用） */
   --demand-container: #ffdcbd;
   --on-demand-container: #2c1600;
 
@@ -58,9 +59,9 @@
   font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
   color-scheme: light;
 }
-/* カラー（ダーク）：夜の運転でまぶしくないように */
-@media (prefers-color-scheme: dark) {
-  :root {
+/* カラー（ダーク）：夜の運転でまぶしくないように（ISO 15008：車の表示は周りの明るさに合わせて暗く）
+   data-theme="dark" は、今いる所の日の入りから日の出まで（設定で昼・夜に固定もできる）。data-theme が無い時だけスマホの設定に従う */
+:root[data-theme="dark"] {
     --md-primary: #8bd7a2;
     --md-on-primary: #00391c;
     --md-primary-container: #00522c;
@@ -89,6 +90,42 @@
     --md-inverse-surface: #dfe4dc;
     --md-inverse-on-surface: #2c322d;
     --demand: #ffb870;
+    --demand-text: #ffb870;
+    --demand-container: #6a3b00;
+    --on-demand-container: #ffdcbd;
+    color-scheme: dark;
+  }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --md-primary: #8bd7a2;
+    --md-on-primary: #00391c;
+    --md-primary-container: #00522c;
+    --md-on-primary-container: #a6f4bd;
+    --md-secondary: #b5ccb9;
+    --md-on-secondary: #213527;
+    --md-secondary-container: #374b3c;
+    --md-on-secondary-container: #d1e8d4;
+    --md-tertiary: #a3cddc;
+    --md-tertiary-container: #224c58;
+    --md-on-tertiary-container: #bfe9f8;
+    --md-error: #ffb4ab;
+    --md-on-error: #690005;
+    --md-error-container: #93000a;
+    --md-on-error-container: #ffdad6;
+    --md-surface: #0f1511;
+    --md-surface-lowest: #0a0f0c;
+    --md-surface-low: #171d19;
+    --md-surface-container: #1b211d;
+    --md-surface-high: #262b27;
+    --md-surface-highest: #303632;
+    --md-on-surface: #dfe4dc;
+    --md-on-surface-variant: #c1c9bf;
+    --md-outline: #8b938a;
+    --md-outline-variant: #414942;
+    --md-inverse-surface: #dfe4dc;
+    --md-inverse-on-surface: #2c322d;
+    --demand: #ffb870;
+    --demand-text: #ffb870;
     --demand-container: #6a3b00;
     --on-demand-container: #ffdcbd;
     color-scheme: dark;
@@ -146,7 +183,7 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: 0 0 auto; }
 .b-dist { font-size: 36px; line-height: 44px; font-weight: 600; }
 .b-unit { font-size: 0.7em; margin-left: 1px; letter-spacing: 0; }
 .b-street { font-size: 18px; line-height: 24px; font-weight: 500; opacity: .92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.b-then { display: flex; align-items: center; gap: 8px; background: #0a3b24; color: #fff; padding: 8px 20px; font-size: 14px; font-weight: 600; width: max-content; border-radius: 0 0 var(--r-l) var(--r-l); }
+.b-then { display: flex; align-items: center; gap: 8px; background: #0a3b24; color: #fff; padding: 8px 20px; font-size: 16px; font-weight: 600; width: max-content; border-radius: 0 0 var(--r-l) var(--r-l); }
 .b-then-icon { width: 24px; height: 24px; display: inline-block; }
 
 /* スナックバー */
@@ -164,14 +201,14 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: 0 0 auto; }
 .sheet-handle span { display: block; width: 32px; height: 4px; border-radius: var(--r-full); background: var(--md-on-surface-variant); opacity: .4; margin: 0 auto; }
 /* 近接：状態と次の行き先を1行に、補足をすぐ下に、操作は間をあけて下に */
 .sheet-row1 { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.s-mode { flex: 0 0 auto; height: 32px; padding: 0 12px; border-radius: var(--r-s); display: inline-flex; align-items: center; background: var(--md-primary-container); color: var(--md-on-primary-container); font-size: 14px; font-weight: 600; }
+.s-mode { flex: 0 0 auto; height: 32px; padding: 0 12px; border-radius: var(--r-s); display: inline-flex; align-items: center; background: var(--md-primary-container); color: var(--md-on-primary-container); font-size: 16px; font-weight: 600; }
 .s-mode.riding { background: var(--md-error-container); color: var(--md-on-error-container); }
 .s-target { font-size: 16px; line-height: 24px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.sheet-row2 { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--md-on-surface-variant); font-size: 14px; line-height: 20px; margin: 8px 0 20px; }
-.s-level { flex: 0 0 auto; color: var(--demand); font-size: 12px; letter-spacing: 2px; font-weight: 600; }
+.sheet-row2 { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--md-on-surface-variant); font-size: 16px; line-height: 22px; margin: 8px 0 20px; }
+.s-level { flex: 0 0 auto; color: var(--demand-text); font-size: 16px; letter-spacing: 1px; font-weight: 600; }
 /* 操作：アイコン＋ラベル（反復：4つとも同じ形、対比：休止だけ色付き、終了はエラー色） */
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: none; padding: 0; color: var(--md-on-surface-variant); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .5px; overflow: visible; }
+.tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: none; padding: 0; color: var(--md-on-surface-variant); font-size: 14px; line-height: 18px; font-weight: 600; letter-spacing: .5px; overflow: visible; }
 .tile .ti { width: 56px; height: 40px; border-radius: var(--r-l); display: flex; align-items: center; justify-content: center; background: var(--md-surface-highest); color: var(--md-on-surface-variant); transition: background .2s; }
 .tile .ti svg { width: 24px; height: 24px; fill: currentColor; }
 .tile::after { display: none; }
@@ -186,7 +223,7 @@ svg.i { width: 24px; height: 24px; fill: currentColor; flex: 0 0 auto; }
 /* たたんだ時 */
 .sheet.collapsed { padding-bottom: calc(12px + var(--sab)); }
 .sheet.collapsed .sheet-row2, .sheet.collapsed .tiles { display: none; }
-.sheet.collapsed .s-target { font-size: 14px; }
+.sheet.collapsed .s-target { font-size: 16px; }
 body.sheet-collapsed .recenter { bottom: calc(92px + var(--sab)); }
 body.sheet-collapsed .maplibregl-ctrl-bottom-right { bottom: calc(80px + var(--sab)); }
 
@@ -295,7 +332,7 @@ body.eco .target-dot::after, body.eco .tour-dot.next::after { animation: none; d
 .pl-badge.ev { background: var(--demand-container); color: var(--on-demand-container); }
 .pl-badge.past { background: var(--md-surface-highest); color: var(--md-on-surface-variant); }
 .pl-addr { font-size: 14px; line-height: 20px; color: var(--md-on-surface-variant); margin: 2px 0 0; word-break: break-all; }
-.pl-prof { font-size: 12px; line-height: 16px; color: var(--demand); font-weight: 600; margin: 4px 0 0; }
+.pl-prof { font-size: 12px; line-height: 16px; color: var(--demand-text); font-weight: 600; margin: 4px 0 0; }
 .pl-btns { display: flex; gap: 0; justify-content: flex-end; margin-top: 4px; margin-right: -8px; }
 .pl-btns button { position: relative; border: 0; background: transparent; border-radius: var(--r-full); height: 40px; padding: 0 12px; font-size: 14px; font-weight: 600; letter-spacing: .1px; color: var(--md-primary); overflow: hidden; }
 .pl-btns button:active { background: color-mix(in srgb, var(--md-primary) 12%, transparent); }
@@ -319,22 +356,25 @@ body.eco .target-dot::after, body.eco .tour-dot.next::after { animation: none; d
 .cd-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 4px; font-size: 12px; color: var(--md-on-surface-variant); }
 .cd-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .cd-sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
-.cd-sw.ride, .cd-seg.ride { background: var(--demand); }
-.cd-sw.event, .cd-seg.event { background: #b3261e; }
-.cd-sw.spot, .cd-seg.spot, .cd-seg.other { background: var(--md-primary); }
+/* 内訳の色：色覚の多様性に配慮したカラーユニバーサルデザインの色（岡部・伊藤 2008）。橙・青・青緑は、一般・P型・D型のどの色覚でも
+   見分けやすい組み合わせ（CIELAB の色差が最も小さい組でも51。test/visual.test.mjs で確認） */
+.cd-sw.ride, .cd-seg.ride { background: #e69f00; }
+.cd-sw.event, .cd-seg.event { background: #0072b2; }
+.cd-sw.spot, .cd-seg.spot, .cd-seg.other { background: #009e73; }
 .cd-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .cd-item { border: 1px solid var(--md-outline-variant); border-radius: var(--r-m); padding: 12px; background: var(--md-surface-low); }
 .cd-item.now { border: 2px solid var(--md-primary); padding: 11px; }
 .cd-item.off { opacity: .75; }
 .cd-top { display: flex; align-items: baseline; gap: 8px; }
-.cd-rank { flex: 0 0 auto; min-width: 24px; height: 24px; border-radius: var(--r-full); background: var(--demand); color: #fff; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
+.cd-rank { flex: 0 0 auto; min-width: 24px; height: 24px; border-radius: var(--r-full); background: var(--demand-text); color: var(--md-surface-lowest); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
 .cd-item.off .cd-rank { background: var(--md-outline); }
 .cd-name { flex: 1 1 auto; font-size: 16px; font-weight: 600; line-height: 22px; overflow-wrap: anywhere; }
 .cd-score { flex: 0 0 auto; font-size: 12px; color: var(--md-on-surface-variant); white-space: nowrap; }
 .cd-tag { display: inline-block; margin: 6px 6px 0 0; padding: 2px 8px; border-radius: var(--r-s); font-size: 12px; font-weight: 600; background: var(--md-surface-highest); color: var(--md-on-surface-variant); }
 .cd-tag.now { background: var(--md-primary); color: var(--md-on-primary); }
 .cd-tag.skip { background: var(--demand-container); color: #6a3500; }
-.cd-bar { display: flex; height: 8px; border-radius: var(--r-full); overflow: hidden; background: var(--md-surface-highest); margin-top: 8px; }
+.cd-seg + .cd-seg { margin-left: 2px; } /* 区切りのすき間：色だけに頼らず形でも分ける */
+.cd-bar { display: flex; height: 10px; border-radius: var(--r-full); overflow: hidden; background: var(--md-surface-highest); margin-top: 8px; }
 .cd-seg { height: 100%; }
 .cd-why { margin: 6px 0 0; padding: 0; list-style: none; font-size: 13px; line-height: 19px; color: var(--md-on-surface); }
 .cd-why li { margin-top: 2px; padding-left: 14px; position: relative; }

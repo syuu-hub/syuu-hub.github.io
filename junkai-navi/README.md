@@ -132,6 +132,11 @@ iPhone・Androidのブラウザで開き、「ホーム画面に追加」すれ�
 - Gelman, M., Kariv, S., Shapiro, M. D., Silverman, D., & Tadelis, S. (2014). Harnessing naturally occurring data to measure the response of spending to income. *Science*, 345.
 - Kamga, C., Yazici, M. A., & Singhal, A. (2013). Hailing in the rain: Temporal and weather-related variations in taxi ridership and taxi demand-supply equilibrium. *TRB 92nd Annual Meeting*.
 - Farber, H. S. (2015). Why you can't find a taxi in the rain and other labor supply lessons from cab drivers. *Quarterly Journal of Economics*, 130(4).
+- ISO 15008:2017. Road vehicles — Ergonomic aspects of transport information and control systems — Specifications and test procedures for in-vehicle visual presentation.
+- W3C (2018). Web Content Accessibility Guidelines (WCAG) 2.1 — 1.4.3 Contrast (Minimum).
+- 岡部正隆・伊藤啓 (2008). Color Universal Design (CUD) — How to make figures and presentations that are friendly to colorblind people.
+- Viénot, F., Brettel, H., & Mollon, J. D. (1999). Digital video colourmaps for checking the legibility of displays by dichromats. *Color Research & Application*, 24(4).
+- U.S. Naval Observatory (1990). *Almanac for Computers*.（日の出・日の入りの計算）
 - Ross, S. M. (2014). *Introduction to Probability Models* (11th ed.). Academic Press.（再生報酬定理・ポアソン過程）
 - Ballou, R. H., Rahardja, H., & Sakai, N. (2002). Selected country circuity factors for road travel distance estimation. *Transportation Research Part A*, 36(9).
 
@@ -184,6 +189,13 @@ Cloudflare Pages や Netlify でも同じように無料で公開できます。
 - 住所・施設名の検索も、関西圏の結果だけを使います
 - 現在地が関西圏の外の時はお知らせします。範囲は `js/region.js` で変更できます
 
+## 見た目（人間工学・色の研究に基づく）
+- **昼・夜の自動切り替え**：夜の運転では、明るい画面はまぶしく、暗さに慣れた目（暗順応）を乱します。車の表示は周りの明るさに合わせて暗くするのがよいとされます（ISO 15008：車載の表示の見やすさ）。スマホのダークモード設定ではなく、**今いる所の日の出・日の入り**（米国海軍天文台の計算法。神戸で国立天文台の暦と数分以内）で、画面と **地図も** 暗くします。地図は、背景・建物・水を暗く、道を背景より少し明るく、地名を明るい文字に変え、ルート・需要マップ・矢印は見やすい色のままにします（需要マップは夜は少し薄く）。設定 → 案内 → 画面の明るさ（自動・昼・夜）
+- **走行中に読む文字の大きさ**：ISO 15008 では、運転中に読む文字は視角でおおよそ16分以上が目安です。スマホを50〜60cm先に置くと約16px以上になるので、上の案内・下の表示（次のポイント・需要の印・距離・天気）を16px以上にしました（以前は12〜14pxのものがありました）
+- **コントラスト**：文字と背景のコントラストを WCAG 2.x の基準（文字4.5:1以上）で確かめ、昼の明るい背景で2.8:1しかなかった需要の印（●○）と順位の数字を、濃い橙（4.8:1・5.3:1）に変えました。上の案内の白い文字は9.4:1（7:1以上）
+- **色覚の多様性**：日本の男性の約5%は色の見え方が違います（P型・D型）。候補のエリアの画面の内訳の色を、カラーユニバーサルデザインの色（岡部・伊藤 2008）から、一般・P型・D型のどの見え方でも一番見分けやすい組み合わせ（橙・青・青緑）にしました。見え方の計算（Viénot ほか 1999）と CIELAB の色差で、最も近い2色の差は 以前 12（P型）→ 今 51。棒の区切りにすき間も入れ、色だけに頼らないようにしました
+- これらは `test/visual.test.mjs` で確かめています（日の出・日の入り、夜の地図の色のコントラスト、画面の色のコントラスト、文字の大きさ、色覚ごとの色差）
+
 ## 電池の節約
 - 地図は、止まっている・ほとんど動いていない時は動かさず（描き直さない）、動く時も次の位置が来る前に終わる短いアニメーションにして、その間は地図を休ませます
 - 高解像度の画面でも、地図を描く細かさは2倍まで（省電力モードは1.5倍）
@@ -209,6 +221,7 @@ Cloudflare Pages や Netlify でも同じように無料で公開できます。
 - `js/csv.js`：タクシーアナライザの営業ログCSVの読み込み
 - `js/places.js`：登録地点（住所からの位置検索、CSVの書き出し・読み込み）
 - `js/profile.js`：登録地点の時間帯・曜日（営業ログの傾向、自分で指定）
+- `js/theme.js`：昼・夜の切り替え（日の出・日の入り）、夜の地図の色、コントラストの計算
 - `js/calendar.js`：祝日・休日・休みの前の夜・給料日・忘年会などの判定
 - `js/events.js`：イベント情報の会場・時間帯（会場まで乗せた乗車の乗車地を開演前の需要に。乗せる時間帯を営業ログから求める）
 - `js/model.js`：乗車実績の需要モデル（カーネル密度推定・経験ベイズ・交差検証）
@@ -220,5 +233,6 @@ Cloudflare Pages や Netlify でも同じように無料で公開できます。
 - `test/places.test.mjs`：登録地点の住所検索とCSVの検証（`REAL_CSV=営業ログ.csv` を付けると実データでも確認）
 - `test/region.test.mjs`：地図データ・住所検索を関西圏だけにする処理の検証
 - `test/demand.test.mjs`：現在地の印をルートに合わせる処理・祝日・需要モデル（交差検証）・行き先の選び方・イベントの前の需要の検証（`TZ=Asia/Tokyo node test/demand.test.mjs`）
+- `test/visual.test.mjs`：見た目の検証（昼・夜、文字の大きさ、コントラスト、色覚の多様性）（`TZ=Asia/Tokyo node test/visual.test.mjs`）
 - `test/profile.test.mjs`：時間帯・曜日の傾向と需要の検証（`TZ=Asia/Tokyo node test/profile.test.mjs`）
 - `server/docker-compose.yml`：自前のValhallaサーバー

@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#f6fbf3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1511" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" id="meta-theme" content="#f6fbf3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -142,6 +141,13 @@
         <label class="check"><input id="set-voice" type="checkbox">音声案内</label>
         <label class="check"><input id="set-eco" type="checkbox">省電力モード</label>
         <p class="hint">地図を平面（2D）にし、描く細かさとアニメーションを減らして電池を長持ちさせます。案内と音声はそのままです。</p>
+        <label>画面の明るさ（昼・夜）</label>
+        <div class="seg">
+          <label><input type="radio" name="set-theme" value="auto">自動</label>
+          <label><input type="radio" name="set-theme" value="light">昼</label>
+          <label><input type="radio" name="set-theme" value="dark">夜</label>
+        </div>
+        <p class="hint" id="set-theme-info">自動：今いる所の日の入りから日の出までは、画面と地図を暗くします（夜の運転でまぶしくないように）。</p>
         <label>行き先の選び方</label>
         <div class="seg">
           <label><input type="radio" name="set-pick" value="demand">需要の高さ優先</label>
@@ -234,6 +240,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=42"></script>
+<script type="module" src="js/main.js?v=43"></script>
 </body>
 </html>

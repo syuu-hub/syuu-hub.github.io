@@ -1,7 +1,7 @@
 // 同じサイトの他アプリのキャッシュには触れない
 // アプリ本体のみキャッシュ（地図タイル・ルート・需要データは常に最新を取得）
-const CACHE = 'endless-navi-v42';
-const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js?v=42', 'js/navcore.js?v=42', 'js/geo.js?v=42', 'js/valhalla.js?v=42', 'js/demand.js?v=42', 'js/sources.js?v=42', 'js/csv.js?v=42', 'js/places.js?v=42', 'js/profile.js?v=42', 'js/region.js?v=42', 'js/calendar.js?v=42', 'js/model.js?v=42', 'js/events.js?v=42', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'endless-navi-v43';
+const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js?v=43', 'js/navcore.js?v=43', 'js/geo.js?v=43', 'js/valhalla.js?v=43', 'js/demand.js?v=43', 'js/sources.js?v=43', 'js/csv.js?v=43', 'js/places.js?v=43', 'js/profile.js?v=43', 'js/region.js?v=43', 'js/calendar.js?v=43', 'js/model.js?v=43', 'js/events.js?v=43', 'js/theme.js?v=43', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('endless-navi-') && k !== CACHE).map((k) => caches.delete(k)))));
