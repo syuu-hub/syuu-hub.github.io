@@ -1,14 +1,14 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=40';
-import { ValhallaClient } from './valhalla.js?v=40';
-import { DemandEngine, CAT_JA } from './demand.js?v=40';
-import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=40';
-import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=40';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=40';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=40';
-import { profText, manualProf } from './profile.js?v=40';
-import { fitModel, pickupRate } from './model.js?v=40';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=40';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=40';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=41';
+import { ValhallaClient } from './valhalla.js?v=41';
+import { DemandEngine, CAT_JA, pickupWithin } from './demand.js?v=41';
+import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=41';
+import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=41';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=41';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=41';
+import { profText, manualProf } from './profile.js?v=41';
+import { fitModel, pickupRate } from './model.js?v=41';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=41';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=41';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -1010,6 +1010,7 @@ function candItem(e, i, best, maxScore, ctx) {
   const pct = Math.max(4, Math.round((a.score / (maxScore || 1)) * 100));
   const segs = ['ride', 'event', 'spot', 'other'].filter((k) => src[k]).map((k) => `<span class="cd-seg ${k}" style="width:${(pct * src[k]) / tot}%"></span>`).join('') || `<span class="cd-seg ride" style="width:${pct}%"></span>`;
   const lines = whyLines(e).map((t) => `<li>${escH(t)}</li>`);
+  if (ctx.pick === 'demand' && e.searchMin) lines.push(`<li>${escH(`乗せられる確率（ポアソン過程）：このエリアを15分回って 約${Math.round(pickupWithin(e.searchMin, 15) * 100)}%・30分で 約${Math.round(pickupWithin(e.searchMin, 30) * 100)}%`)}</li>`);
   lines.push(`<li class="muted">${escH(`${dirJa(e.diff)} ${e.dist >= 1000 ? (e.dist / 1000).toFixed(1) + 'km' : Math.round(e.dist / 10) * 10 + 'm'}（直線）`)}${
     ctx.pick === 'demand' ? escH(`・移動 約${fmtMin(e.travelMin)}＋乗車まで 約${fmtMin(e.searchMin)}の見込み`) : ''}</li>`);
   const score = best > 0 ? Math.round((e.utility / best) * 100) : 0;
@@ -1039,6 +1040,7 @@ function renderCands() {
     demand.social && (demand.social.pre || demand.social.cal) ? `暮らしのリズム：${[demand.social.pre ? '休みの前の夜（花金）' : '', demand.social.cal || ''].filter(Boolean).join('・')}` : '',
     cfg.demandSource === 'csv' ? `需要の元：タクシーアナライザのCSV${m && m.fitted ? `（営業ログで検証した見方：まわり${m.params.hs}m・前後${m.params.st}分）` : ''}` : '需要の元：任意で設定（駅・ホテル・登録地点など）',
     Object.keys(demand.activeEvents || {}).length ? `イベント前：${Object.keys(demand.activeEvents).map((k) => VENUES[k] ? VENUES[k].name : k).join('・')}` : '',
+    running && ns.pickMode === 'demand' && nav.lastOpt ? `今のルート（${nav.lastOpt.tour.map((a) => a.name || '需要エリア').join('→')}）の見込み：空車1時間あたり 約${(nav.lastOpt.v * 60).toFixed(2)}件${demand.meanFare ? `・約${Math.round((nav.lastOpt.v * 60 * demand.meanFare) / 100) * 100}円` : ''}（再生報酬定理で、通るエリアの組み合わせと順番を一番高いものに）` : '',
     running ? '' : '巡回していないので、最後にいた所から見た候補です',
   ].filter(Boolean).join('。') + '。点数は一番の候補を100とした比べやすい値です。';
   $('cd-list').innerHTML = on.length ? on.slice(0, 20).map((e, i) => candItem(e, i, best, ex.maxScore, ex)).join('') : '<p class="hint">候補のエリアがありません。需要エリアの元のデータ（CSV・需要スポット）を確認してください。</p>';

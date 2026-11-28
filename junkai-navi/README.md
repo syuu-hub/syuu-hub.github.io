@@ -92,6 +92,17 @@ iPhone・Androidのブラウザで開き、「ホーム画面に追加」すれ�
 - これが初期設定です。営業ログでは乗車が見つかるまで平均約41分（流し・アプリ配車）かかり、エリアまで走る数分よりずっと長いため、近さより需要の高さで選ぶ方が有利になる状況でした。設定の「最短距離」は、需要のあるエリアのうち近い順に回る以前の選び方です
   - 行き先までの時間は、上位6か所はルートサーバーの道のりで測り直します
 
+### 数学：通るエリアの組み合わせと順番（`js/demand.js` の tourRate、`js/navcore.js` の optimizeTour）
+- **再生報酬定理**（Ross『確率モデル入門』）：空車で走り始めてから次のお客様を乗せるまでを1サイクルとすると、長い目で見た時間あたりの収入は **E[1サイクルの収入] ÷ E[1サイクルの時間]**。行き先が1か所なら「運賃 ÷（移動＋探す時間）」で、上の期待収入と同じ式です
+- **ポアソン過程**：乗車が1分あたり λ（＝1/探す時間）で起きるとみなすと、エリアを t 分通り抜ける間に乗せる確率は **1 − e^(−λt)**。途中のエリアで乗せられなかった時だけ次へ進み、最後のエリアでは乗せるまで回るとして
+  - E[収入] = Σ_{i<k} S_{i−1} p_i f_i ＋ S_{k−1} f_k、E[時間] = Σ_i S_{i−1} 移動_i ＋ S_{k−1}/λ_k（S＝まだ乗せていない確率、通り抜ける時間は移動に含む）
+  - この式は、20万回のシミュレーション（モンテカルロ）と0.3%以内で一致することをテストで確かめています
+- **組み合わせ最適化**：上位7か所から、長さ1〜（通るエリアの数）のすべての並べ方（4か所で約1100通り）を調べ、時間あたりの期待収入が一番高いものを選びます（以前は1か所目から順に近い所を足していく方法）。1つ先まで2.5km・全体で8km以内、曲がる角度が大きい区間はUターンの分だけ遠い扱い、1か所目までは道のりを測ってあれば道のりで
+  - 遠回りにならない途中のエリアは、乗せられる機会が増えるだけなので通り、大きな遠回りになるエリアは通りません。同じ需要のエリアが並ぶ時は、遠くまで行く得は無いので近い方で止まり、先に需要がずっと高いエリアがあれば、途中を通り抜けてそこへ向かいます
+  - 「複数の候補地を通るのが基本」はそのまま：通るエリアの数が2以上なら、2か所以上の並べ方の中で一番良いものを選びます（通常の制約で2か所目が無ければ制約をゆるめます）
+- 候補のエリアの画面に、**15分・30分のうちに乗せられる確率**（1 − e^(−t/探す時間)）と、巡回中は今のルートの見込み（空車1時間あたりの件数・円）を出します
+- 最短距離モードは、これまでどおり近い順に足していく方法です
+
 ### わかっていないこと（限界）
 - 営業ログには空車で走った道筋（GPSの軌跡）がないため、「よく走った所ほど乗車が多く見える」偏りは取り除けません（研究では軌跡で補正します）
 - 他のタクシーとの取り合い（同じ所に集まると乗せにくくなる）は考えていません
@@ -112,6 +123,7 @@ iPhone・Androidのブラウザで開き、「ホーム画面に追加」すれ�
 - Gelman, M., Kariv, S., Shapiro, M. D., Silverman, D., & Tadelis, S. (2014). Harnessing naturally occurring data to measure the response of spending to income. *Science*, 345.
 - Kamga, C., Yazici, M. A., & Singhal, A. (2013). Hailing in the rain: Temporal and weather-related variations in taxi ridership and taxi demand-supply equilibrium. *TRB 92nd Annual Meeting*.
 - Farber, H. S. (2015). Why you can't find a taxi in the rain and other labor supply lessons from cab drivers. *Quarterly Journal of Economics*, 130(4).
+- Ross, S. M. (2014). *Introduction to Probability Models* (11th ed.). Academic Press.（再生報酬定理・ポアソン過程）
 - Ballou, R. H., Rahardja, H., & Sakai, N. (2002). Selected country circuity factors for road travel distance estimation. *Transportation Research Part A*, 36(9).
 
 ## スマホで使えるようにする（GitHub Pagesで無料公開）

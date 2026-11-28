@@ -5,8 +5,8 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, angleDiff, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=40';
-import { nearestUtility, expectedRevenueRate, CIRCUITY } from './demand.js?v=40';
+import { haversine, bearing, angleDiff, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=41';
+import { nearestUtility, expectedRevenueRate, CIRCUITY, tourRate, travelMinutes } from './demand.js?v=41';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -40,6 +40,7 @@ export function routeBearing(route, along) {
   return haversine(a, b) > 1 ? bearing(a, b) : pointAt(route, along).bearing;
 }
 
+const angleDiffDeg = (a, b) => { const d = Math.abs(((a - b) % 360 + 540) % 360 - 180); return d; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function voiceDistance(m) {
@@ -278,6 +279,51 @@ export class EndlessNavigator {
     return tour;
   }
 
+  // 需要の高さ優先：通るエリアの組み合わせと順番を、時間あたりの期待収入（再生報酬定理。demand.js の tourRate）が
+  // 一番高いものに決める。上位 M か所から、長さ 1〜tourMax のすべての並べ方を調べる（M=7・4か所でも約1100通り）
+  // 制約：1つ先まで hopM 以内・全体で maxM 以内・計画済みのエリアの近くは通らない。曲がる角度が大きい区間は遠い扱い（Uターン）
+  // 1か所目までの移動は、道のりを測ってあれば道のりで（roadRerank の road）
+  // 複数の候補地を通るのが基本（設定の「通るエリアの数」が2以上なら、2か所以上のツアーの中で一番良いもの。
+  // 通常の制約で2か所目が無い時は、制約をゆるめて探す）
+  optimizeTour(start, cands, planned, max = Math.max(1, Math.round(this.s.tourMax || 1)), M = 7, relax = false) {
+    const refDens = this.demand.refDens();
+    const C = cands.slice(0, M).map((x) => ({
+      x, area: x.area, fare: x.area.fare || 1,
+      search: Math.min(600, this.demand.searchMin * (refDens / Math.max(1e-9, x.area.dens || x.area.score * x.area.score))),
+      firstLeg: x.road != null ? x.road / ((20 * 1000) / 60) : travelMinutes(x.effM != null ? x.effM : x.dist),
+    }));
+    const hopM = relax ? Math.max(this.s.tourHopM, 4000) : this.s.tourHopM, maxM = relax ? Math.max(this.s.tourMaxM, 10000) : this.s.tourMaxM;
+    let best = null, bestMulti = null;
+    const seq = [];
+    const rec = (prevPt, prevBrg, legs, totalM) => {
+      if (seq.length) {
+        const stops = seq.map((c, i) => ({ legMin: legs[i], searchMin: c.search, fare: c.fare }));
+        const v = tourRate(stops);
+        const cand = { v, tour: seq.map((c) => c.area), stops };
+        if (!best || v > best.v + 1e-12) best = cand;
+        if (seq.length > 1 && (!bestMulti || v > bestMulti.v + 1e-12)) bestMulti = cand;
+      }
+      if (seq.length >= max) return;
+      for (const c of C) {
+        if (seq.includes(c) || this.nearPlanned(c.area, planned) || seq.some((o) => haversine(o.area.center, c.area.center) < 500)) continue;
+        let leg, d;
+        if (!seq.length) { leg = c.firstLeg; d = c.x.dist; }
+        else {
+          d = haversine(prevPt, c.area.center);
+          if (d > hopM || totalM + d > maxM) continue;
+          const turn = prevBrg != null ? angleDiffDeg(prevBrg, bearing(prevPt, c.area.center)) : 0;
+          leg = travelMinutes(d * (1 + 0.6 * (turn / 180)));
+        }
+        seq.push(c); legs.push(leg);
+        rec(c.area.center, bearing(prevPt, c.area.center), legs, totalM + d);
+        seq.pop(); legs.pop();
+      }
+    };
+    rec(start.point, start.bearing, [], 0);
+    if (max > 1 && !bestMulti && !relax && C.length > 1) return this.optimizeTour(start, cands, planned, max, M, true) || best;
+    return max > 1 && bestMulti ? { ...bestMulti, single: best } : best;
+  }
+
   // 直線で選んだ上位の候補を、道のりの距離（ルートサーバーの距離の行列）で並べ直す。
   // 川・線路・一方通行で直線より遠回りになるエリアを後ろへ。使えない時は直線のまま
   // 需要の高さ優先：行き先までの時間を、直線×迂回係数ではなく実際の道のりで見て、空車の時間あたりの期待収入を計算し直す
@@ -315,10 +361,23 @@ export class EndlessNavigator {
       let fresh = ranked.filter((x) => !this.nearPlanned(x.area, planned));
       if (!fresh.length) fresh = ranked; // 他に無ければ止まらないことを優先
       fresh = await this.roadRerank(start, fresh);
+      this._fresh = fresh;
       firsts = fresh.slice(0, 2).map((x) => x.area);
     }
     if (!firsts.length) return [];
     const plans = [];
+    // 需要の高さ優先：組み合わせと順番を期待収入で最適化（使えない時は、これまでどおり1か所目から順に足す）
+    if (!preferred && this.s.pickMode !== 'nearest' && this._fresh && this._fresh.length) {
+      const opt = this.optimizeTour(start, this._fresh, planned);
+      this._fresh = null;
+      if (opt) {
+        this.lastOpt = opt;
+        if (opt.tour.length > 1) plans.push(opt.tour);
+        const singles = [opt.tour[0], ...firsts.filter((a) => a.key !== opt.tour[0].key)].slice(0, 2);
+        for (const a of singles) plans.push([a]);
+        return plans;
+      }
+    }
     // 外れた時も、元の行き先にこだわらず今いる所から選び直す（元の行き先が今も一番良ければ、それが選ばれる）
     const tour = this.buildTour(start, firsts[0], mode === 'extend' ? old : new Set(), planned);
     if (tour.length > 1) plans.push(tour);

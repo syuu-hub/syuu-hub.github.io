@@ -1,6 +1,6 @@
 // TZ=Asia/Tokyo node test/demand.test.mjs — 現在地の印をルートに合わせる・祝日・乗車実績の重み付け
 import { EndlessNavigator } from '../js/navcore.js';
-import { DemandEngine, expectedRevenueRate } from '../js/demand.js';
+import { DemandEngine, expectedRevenueRate, tourRate, passProb, pickupWithin } from '../js/demand.js';
 import { venueKey, eventWindow, activeVenues, learnWindow, DEFAULT_WIN } from '../js/events.js';
 import { readFileSync, existsSync } from 'node:fs';
 import { importAnalyzerCsv, decodeCsv } from '../js/csv.js';
@@ -230,6 +230,31 @@ const now = new Date('2026-11-24T10:00:00+09:00');
   ds.spots = [{ id: 'n', name: '繁華街', lng: 135.19, lat: 34.695, cat: 'nightlife' }];
   const nl = (when) => { ds.areas = new Map(); ds.update(new Date(when), 1); return [...ds.areas.values()][0].score; };
   ok(nl('2026-11-02T22:00:00+09:00') > nl('2026-11-04T22:00:00+09:00'), '繁華街：祝日の前の夜（11/2）は、ふつうの平日の夜より高い');
+}
+
+// ===== 数学：再生報酬定理 × ポアソン過程 =====
+{
+  const close = (a, b) => Math.abs(a - b) < 1e-12;
+  ok(close(tourRate([{ legMin: 5, searchMin: 40, fare: 1 }]), 1 / 45) && close(tourRate([{ legMin: 5, searchMin: 40, fare: 1.2 }]), expectedRevenueRate({ dens: 1, fare: 1.2 }, 5 * 1000 * 20 / 60 / 1.3, 40, 1)), '1か所なら 運賃÷（移動＋探す時間）＝これまでの期待収入と同じ');
+  ok(close(passProb(40, 1.5), 1 - Math.exp(-1.5 / 40)) && close(pickupWithin(30, 15), 1 - Math.exp(-0.5)), 'ポアソン過程：t分のうちに乗せる確率 1−e^(−t/探す時間)');
+  // 途中で通るエリア：乗せられる機会が増える分だけ得（遠回りが無ければ）
+  const via = tourRate([{ legMin: 5, searchMin: 30 }, { legMin: 4, searchMin: 30 }]), direct = tourRate([{ legMin: 9, searchMin: 30 }]);
+  ok(via > direct, `遠回りなしで途中のエリアを通ると得（${(via * 60).toFixed(3)} > ${(direct * 60).toFixed(3)} 件/時）`);
+  // 遠回りが大きいと損
+  ok(tourRate([{ legMin: 10, searchMin: 30 }, { legMin: 10, searchMin: 30 }]) < tourRate([{ legMin: 9, searchMin: 30 }]), '大きな遠回りで途中のエリアを通ると損');
+  // 期待収入の式を、シミュレーション（モンテカルロ）で確かめる
+  const rnd = ((x) => () => (x = (x * 48271) % 2147483647) / 2147483647)(5);
+  const stops = [{ legMin: 3, searchMin: 20, fare: 1 }, { legMin: 4, searchMin: 15, fare: 1.5 }, { legMin: 2, searchMin: 25, fare: 0.8 }];
+  let R = 0, Tm = 0;
+  for (let k = 0; k < 200000; k++) {
+    for (let i = 0; i < stops.length; i++) {
+      Tm += stops[i].legMin;
+      if (i < stops.length - 1) { if (rnd() < passProb(stops[i].searchMin)) { R += stops[i].fare; break; } }
+      else { Tm += -Math.log(1 - rnd()) * stops[i].searchMin; R += stops[i].fare; }
+    }
+  }
+  const sim = R / Tm, th = tourRate(stops);
+  ok(Math.abs(sim / th - 1) < 0.01, `式とシミュレーションが一致（式 ${(th * 60).toFixed(4)}・シミュレーション ${(sim * 60).toFixed(4)} /時）`);
 }
 
 console.log(fails ? `FAILED ${fails}` : 'ALL PASS');

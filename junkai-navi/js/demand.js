@@ -1,10 +1,10 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=40';
-import { profFactor } from './profile.js?v=40';
-import { isOffDay, isPreOffNight, isNight, serviceDay, socialCalendar } from './calendar.js?v=40';
-import { activeVenues, VENUES } from './events.js?v=40';
-import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo, nightShares, calWeight } from './model.js?v=40';
+import { haversine, bearing, angleDiff } from './geo.js?v=41';
+import { profFactor } from './profile.js?v=41';
+import { isOffDay, isPreOffNight, isNight, serviceDay, socialCalendar } from './calendar.js?v=41';
+import { activeVenues, VENUES } from './events.js?v=41';
+import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo, nightShares, calWeight } from './model.js?v=41';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -68,6 +68,37 @@ export function expectedRevenueRate(a, effM, searchMin, refDens) {
   const search = Math.min(600, searchMin * (refDens / dens));
   return (a.fare || 1) / (travelMinutes(effM) + search);
 }
+// ===== ツアー（1回のルートで通る複数のエリア）の評価：再生報酬定理 × ポアソン過程 =====
+// 空車で走り始めてから次のお客様を乗せるまでを1サイクルとすると、長い目で見た時間あたりの収入は
+//   E[1サイクルの収入] ÷ E[1サイクルの時間]（再生報酬定理。Ross『確率モデル入門』）
+// エリア i を通り抜ける間（dwell 分）に乗車が見つかる確率は、乗車をポアソン過程（1分あたり λ_i = 1/探す時間）とみなすと
+//   p_i = 1 − e^(−λ_i · dwell)
+// 途中のエリアで乗せられなかった時だけ次へ進み、最後のエリアでは乗せるまで回る（平均 1/λ）とすると、S を「まだ乗せていない確率」として
+//   E[収入] = Σ_{i<k} S_{i−1} p_i f_i ＋ S_{k−1} f_k
+//   E[時間] = Σ_i S_{i−1} 移動_i ＋ S_{k−1} / λ_k
+// （通り抜ける時間は移動の中に入っているので、別には足さない）
+// エリアが1つの時は f ÷（移動 ＋ 探す時間）になり、expectedRevenueRate と同じ
+export const PASS_MIN = 1.5; // 1つのエリア（約450m）を通り抜ける時間（分）。市街地 20km/h で約1.4分
+export const passProb = (searchMin, passMin = PASS_MIN) => 1 - Math.exp(-passMin / Math.max(0.1, searchMin));
+// stops：[{ legMin（前の所からの移動の分）, searchMin（そのエリアで乗車が見つかるまでの平均の分）, fare（運賃の比） }]
+export function tourRate(stops, passMin = PASS_MIN) {
+  let S = 1, ER = 0, ET = 0;
+  stops.forEach((s, i) => {
+    ET += S * s.legMin;
+    if (i < stops.length - 1) {
+      const p = passProb(s.searchMin, passMin);
+      ER += S * p * (s.fare || 1);
+      S *= 1 - p;
+    } else {
+      ER += S * (s.fare || 1);
+      ET += S * Math.min(600, s.searchMin);
+    }
+  });
+  return ET > 0 ? ER / ET : 0;
+}
+// 決めた時間（分）のうちに、このエリアで乗せられる確率（ポアソン過程）：1 − e^(−t/探す時間)
+export const pickupWithin = (searchMin, t) => 1 - Math.exp(-t / Math.max(0.1, searchMin));
+
 export const travelMinutes = (effM) => (effM * CIRCUITY) / ((SPEED_KMH * 1000) / 60);
 
 const cellCenter = (key) => {
@@ -88,6 +119,7 @@ export class DemandEngine {
     this.activeEvents = {}; // 今イベントの前の需要がある会場 { key: { w, events } }
     this.eventWin = null; // 会場へ向かうお客様を乗せる時間帯（営業ログから。js/events.js の learnWindow）
     this.searchMin = 30;
+    this.meanFare = 0;
     this.social = null; // 今の暮らしのリズム（休みの前の夜・社会の暦） // 需要が中くらいのエリアで、乗車が見つかるまでの平均の時間（分）。営業ログの空車の時間から
     this.weather = 'clear'; // clear | rain | heavy
     this.railDisruption = false;
@@ -146,6 +178,7 @@ export class DemandEngine {
       });
       const fares = P.filter((r) => r.fare > 0).map((r) => r.fare);
       const meanFare = fares.length ? fares.reduce((x, y) => x + y, 0) / fares.length : 0;
+      this.meanFare = meanFare; // 運賃の平均（円）。候補のエリアの画面で、期待収入を円で見せる
       const hs = prm.hs, lim = (4 * hs) ** 2;
       for (const [k, c] of cells) {
         const cx = c.x / c.sw, cy = c.y / c.sw;

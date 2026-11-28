@@ -169,14 +169,14 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   assert(n1.route && n1.tour.length === 1, '通るエリアの数を1にすると1か所ずつ');
 }
 
-// 一直線に並んだ3つの需要エリア：3つとも通るルートになり、順に通過する
+// 一直線に並んだ3つの需要エリア：3つとも通るルートになり、順に通過する（最短距離：近い順に足していく）
 {
   const d2 = new DemandEngine();
   const o = [135.19, 34.69];
   [800, 1800, 2800].forEach((m, i) => { const p = destination(o, 90, m); d2.spots.push({ id: i, name: `A${i}`, lng: p[0], lat: p[1], cat: 'custom' }); });
   d2.update(new Date(clock), 1);
   const ps = [];
-  const n3 = new EndlessNavigator({ router: fakeRouter, demand: d2, now, emit: (t, d) => { if (t === 'pass') ps.push(d.name); } });
+  const n3 = new EndlessNavigator({ router: fakeRouter, demand: d2, now, settings: { pickMode: 'nearest' }, emit: (t, d) => { if (t === 'pass') ps.push(d.name); } });
   n3.update({ point: o, speed: 0, heading: 90, t: clock });
   for (let i = 0; i < 20 && !n3.route; i++) await sleep();
   assert(n3.tour.map((x) => x.area.name).join('>') === 'A0>A1>A2', `近い順に3エリアを通る: ${n3.tour.map((x) => x.area.name).join('>')}`);
@@ -190,6 +190,33 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   }
   assert(ps.join('>') === 'A0>A1', `途中のエリアを順に通過: ${ps.join('>')}`);
   assert(n3.target && n3.target.name === 'A2', `通過後は次のエリアを案内: ${n3.target && n3.target.name}`);
+}
+
+// ===== 需要の高さ優先：通るエリアの組み合わせと順番を、時間あたりの期待収入で決める（再生報酬定理） =====
+{
+  const o = [135.19, 34.69];
+  const mk = (list) => { const d = new DemandEngine(); list.forEach(([name, b, m, n]) => { const p = destination(o, b, m); for (let k = 0; k < n; k++) d.spots.push({ id: `${name}${k}`, name, lng: p[0], lat: p[1], cat: 'custom' }); }); d.update(new Date(clock), 1); return d; };
+  const plan = async (dm, settings = {}) => {
+    const n = new EndlessNavigator({ router: fakeRouter, demand: dm, now, settings: { pickMode: 'demand', ...settings }, emit: () => {} });
+    n.update({ point: o, speed: 0, heading: 90, t: clock });
+    for (let i = 0; i < 30 && !n.route; i++) await sleep();
+    return n;
+  };
+  const names = (n) => n.tour.map((x) => x.area.name).join('>');
+  // 同じ需要が一直線に3つ：遠くの同じ需要まで行く得は無いので、近い2つを通る（2か所以上が基本）
+  const a = await plan(mk([['A0', 90, 800, 3], ['A1', 90, 1800, 3], ['A2', 90, 2800, 3]]));
+  assert(names(a) === 'A0>A1', `同じ需要なら、近い2つを順に（${names(a)}）`);
+  // 先に需要がずっと高いエリアがあれば、途中を通り抜けてそこへ（途中は乗せられる機会が増えるだけで、ほぼ遠回りにならない）
+  const b = await plan(mk([['A0', 90, 800, 3], ['A1', 90, 1800, 3], ['駅', 90, 2800, 40]]));
+  assert(b.tour.length >= 2 && b.tour[b.tour.length - 1].area.name === '駅' && b.tour[0].area.name === 'A0', `需要の高いエリアを最後に、途中を通り抜けて（${names(b)}）`);
+  // 横に大きく外れたエリア（同じ需要）は、遠回りになるので通らない
+  const c = await plan(mk([['A0', 90, 800, 3], ['A1', 90, 1800, 3], ['横', 0, 2400, 3]]));
+  assert(!c.tour.some((x) => x.area.name === '横'), `遠回りになるエリアは通らない（${names(c)}）`);
+  // 計算したツアーの期待収入
+  assert(b.lastOpt && b.lastOpt.v > 0, 'ツアーの期待収入を計算している');
+  // 通るエリアの数が1なら1か所
+  const d = await plan(mk([['A0', 90, 800, 3], ['A1', 90, 1800, 3]]), { tourMax: 1 });
+  assert(d.tour.length === 1, '通るエリアの数を1にすると1か所');
 }
 
 // ===== 実際の走行で起きること =====
