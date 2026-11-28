@@ -1,14 +1,14 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=41';
-import { ValhallaClient } from './valhalla.js?v=41';
-import { DemandEngine, CAT_JA, pickupWithin } from './demand.js?v=41';
-import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=41';
-import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=41';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=41';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=41';
-import { profText, manualProf } from './profile.js?v=41';
-import { fitModel, pickupRate } from './model.js?v=41';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=41';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=41';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=42';
+import { ValhallaClient } from './valhalla.js?v=42';
+import { DemandEngine, CAT_JA, pickupWithin } from './demand.js?v=42';
+import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=42';
+import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=42';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=42';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=42';
+import { profText, manualProf } from './profile.js?v=42';
+import { fitModel, pickupRate } from './model.js?v=42';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=42';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=42';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -1041,6 +1041,7 @@ function renderCands() {
     cfg.demandSource === 'csv' ? `需要の元：タクシーアナライザのCSV${m && m.fitted ? `（営業ログで検証した見方：まわり${m.params.hs}m・前後${m.params.st}分）` : ''}` : '需要の元：任意で設定（駅・ホテル・登録地点など）',
     Object.keys(demand.activeEvents || {}).length ? `イベント前：${Object.keys(demand.activeEvents).map((k) => VENUES[k] ? VENUES[k].name : k).join('・')}` : '',
     running && ns.pickMode === 'demand' && nav.lastOpt ? `今のルート（${nav.lastOpt.tour.map((a) => a.name || '需要エリア').join('→')}）の見込み：空車1時間あたり 約${(nav.lastOpt.v * 60).toFixed(2)}件${demand.meanFare ? `・約${Math.round((nav.lastOpt.v * 60 * demand.meanFare) / 100) * 100}円` : ''}（再生報酬定理で、通るエリアの組み合わせと順番を一番高いものに）` : '',
+    running && nav.lastRouteValue ? `今のルートの選び方：ルートサーバーの案のうち、途中の需要も含めた期待収入が一番高い案（このルートを走る間に乗せる確率 約${Math.round(nav.lastRouteValue.pEnRoute * 100)}%）` : '',
     running ? '' : '巡回していないので、最後にいた所から見た候補です',
   ].filter(Boolean).join('。') + '。点数は一番の候補を100とした比べやすい値です。';
   $('cd-list').innerHTML = on.length ? on.slice(0, 20).map((e, i) => candItem(e, i, best, ex.maxScore, ex)).join('') : '<p class="hint">候補のエリアがありません。需要エリアの元のデータ（CSV・需要スポット）を確認してください。</p>';

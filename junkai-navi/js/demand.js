@@ -1,10 +1,10 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=41';
-import { profFactor } from './profile.js?v=41';
-import { isOffDay, isPreOffNight, isNight, serviceDay, socialCalendar } from './calendar.js?v=41';
-import { activeVenues, VENUES } from './events.js?v=41';
-import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo, nightShares, calWeight } from './model.js?v=41';
+import { haversine, bearing, angleDiff } from './geo.js?v=42';
+import { profFactor } from './profile.js?v=42';
+import { isOffDay, isPreOffNight, isNight, serviceDay, socialCalendar } from './calendar.js?v=42';
+import { activeVenues, VENUES } from './events.js?v=42';
+import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo, nightShares, calWeight } from './model.js?v=42';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -78,6 +78,7 @@ export function expectedRevenueRate(a, effM, searchMin, refDens) {
 //   E[時間] = Σ_i S_{i−1} 移動_i ＋ S_{k−1} / λ_k
 // （通り抜ける時間は移動の中に入っているので、別には足さない）
 // エリアが1つの時は f ÷（移動 ＋ 探す時間）になり、expectedRevenueRate と同じ
+export const BG_SHARE = 0.2;
 export const PASS_MIN = 1.5; // 1つのエリア（約450m）を通り抜ける時間（分）。市街地 20km/h で約1.4分
 export const passProb = (searchMin, passMin = PASS_MIN) => 1 - Math.exp(-passMin / Math.max(0.1, searchMin));
 // stops：[{ legMin（前の所からの移動の分）, searchMin（そのエリアで乗車が見つかるまでの平均の分）, fare（運賃の比） }]
@@ -249,6 +250,15 @@ export class DemandEngine {
     this._rc = { rides: this.csvRides, n: this.csvRides.length, hs, P, origin, nLoc: localCounts(P, hs), nShare: nightShares(P, hs) };
     return this._rc;
   }
+
+  // その地点を走っている時の、1分あたりの乗車の起きやすさ λ（ポアソン過程）。需要が中くらいのエリアで 1/searchMin
+  // 需要エリアの無い所も、たまたま手を挙げる人はいるので、中くらいのエリアの BG_SHARE（2割）とみなす（仮の値）
+  rateAt(p, refDens = this.refDens()) {
+    const a = this.areas.get(cellKey(p));
+    const dens = a ? a.dens || a.score * a.score : 0;
+    return Math.max(dens, BG_SHARE * refDens) / Math.max(1e-9, refDens) / Math.max(0.1, this.searchMin);
+  }
+  fareAt(p) { const a = this.areas.get(cellKey(p)); return (a && a.fare) || 1; }
 
   // 需要が中くらいのエリアの密度（乗車が見つかるまでの時間の目盛り）
   refDens() {

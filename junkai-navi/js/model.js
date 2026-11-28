@@ -10,7 +10,7 @@
 // ■ 設定（hs, st, K, dayPen）は決め打ちせず、営業ログで「1日ずつ抜いて、その日の乗車場所を他の日から当てる」
 //   交差検証をして、対数予測スコア（正しい確率予報ほど高くなる、厳密に適正なスコア。Gneiting & Raftery 2007）が
 //   一番高い組み合わせを選ぶ
-import { isOffDay, isPreOffNight, serviceDay, isNight, socialCalendar } from './calendar.js?v=41';
+import { isOffDay, isPreOffNight, serviceDay, isNight, socialCalendar } from './calendar.js?v=42';
 
 // 人の暮らしのリズムの要素（営業ログで確かめる。確かめられない時はこの初期値＝理論からの値）
 //   dowPen：同じ曜日でない乗車を弱める（人の動きは1週間の周期でくり返す。González ほか 2008、Song ほか 2010）
