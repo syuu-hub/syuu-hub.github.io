@@ -324,16 +324,16 @@ svg{display:block}
 .ld-date span{display:inline-block}   /* 見えている文字を中央にずらす（centerInk） */
 /* 日付の切り替え：前後の矢印（丸いトーンのボタン）と日付（角丸の背景）はそれぞれ独立 */
 .log-day{gap:8px}
-.log-day .cal-nav{width:48px;height:48px;border:0;background:var(--surface-2);flex:none}
+.log-day .cal-nav{width:48px;height:48px;border:1px solid var(--line-2);background:var(--surface-2);flex:none}
 .log-day .cal-nav:active{background:var(--surface-3)}
-.log-day .ld-body{min-height:48px;border-radius:999px;background:var(--surface-2);display:grid;place-items:center}
+.log-day .ld-body{min-height:48px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2);display:grid;place-items:center}
 .log-day .ld-body:active{background:var(--surface-3)}
 .log-total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
 .log-total .k{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px;white-space:nowrap}
 .log-total .k b{font-size:15px;color:var(--text);font-weight:800}
 .log-total .k b:empty{display:none}
 .log-total .v{font-size:clamp(30px,9vw,38px);font-weight:800;line-height:1.1}
-.log-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
+.log-card{background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:12px}
 .log-card .log-total{margin-bottom:0}
 .log-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin-top:12px}
 .log-acts .btn{font-size:14px}
@@ -806,7 +806,7 @@ svg{display:block}
 /* 日報（入庫後の振り返り） */
 .rp-inner{max-width:720px}
 .rp-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
-.rp-head{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
+.rp-head{background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
 .rp-times{display:flex;align-items:baseline;gap:10px;font-size:22px;font-weight:800;white-space:nowrap;padding-bottom:10px;border-bottom:1px solid var(--line-2)}
 .rp-times small{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:2px}
 .rp-times i{font-style:normal;color:var(--faint);font-size:16px;font-weight:400}
@@ -905,7 +905,7 @@ svg{display:block}
 .rd-foot .rd-nav:disabled{opacity:.3}
 .rd-foot .rd-pos{flex:none;min-width:44px;text-align:center;font-size:14px;color:var(--muted);font-weight:700}
 .rd-foot #rdEdit{flex:1}
-.rd-amt{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
+.rd-amt{background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:16px}
 .rd-amt .top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px 12px;flex-wrap:wrap}
 .rd-amt .k{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
 .rd-amt .v{font-size:clamp(34px,10vw,46px);font-weight:800;line-height:1.05;color:var(--accent);letter-spacing:-.01em}
@@ -1028,7 +1028,7 @@ svg{display:block}
 #planSheet .ps-dur b{color:var(--accent)}
 .plan-note{font-size:12px;color:var(--faint);text-align:center;margin:12px 0 2px;min-height:1em}
 /* ポップアップの中身 */
-.pop-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:10px}   /* ほかの画面のカードと同じ */
+.pop-card{background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:10px}   /* ほかの画面のカードと同じ */
 .pop-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;white-space:nowrap}
 .pop-row + .pop-row{border-top:1px solid var(--line)}
 .pop-row .k{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--muted)}
@@ -1047,7 +1047,7 @@ svg{display:block}
 .pop-row.sum.first + .pop-row{border-top:0}
 .pop-card .cal-cap{background:none;border-radius:0;padding:12px 0 2px;margin:4px 0 0;border-top:1px solid var(--line)}   /* 上限とのバーは同じカードの中に */
 .cap-body{overflow-y:auto;min-height:0}
-.inc-card{background:var(--surface-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:10px}
+.inc-card{background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-md);padding:var(--card-pad);margin-bottom:10px}
 .inc-card .row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;white-space:nowrap;font-size:13px;color:var(--muted)}
 .inc-card .row1 b{font-size:clamp(24px,7.4vw,32px);font-weight:800;color:var(--text)}   /* 推定手取りと同じ大きさ */
 .inc-card .row2{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2);white-space:nowrap}
@@ -1096,8 +1096,8 @@ svg{display:block}
 #calSheet .close-btn{white-space:nowrap}
 /* カレンダー画面：マテリアルデザイン（8pxの余白の刻み・形の統一・トーンのあるアイコンボタン）と
    デザインの原則（近接：関係するものを近く／整列：左右の端をそろえる／反復：同じ形・大きさをくり返す／コントラスト：主と従の差／余白） */
-#calSheet .cal-nav{width:40px;height:40px;border:0;background:var(--surface-2);transition:background .15s}   /* トーンのアイコンボタン（枠線なし） */
-#calSheet .close-btn{height:40px;min-height:40px;padding:0 14px;border-radius:999px;background:var(--surface-2);border:0}   /* 閉じるも同じトーンのボタン */
+#calSheet .cal-nav{width:40px;height:40px;border:1px solid var(--line-2);background:var(--surface-2);transition:background .15s}   /* トーンのアイコンボタン（背景と見分けられるよう細い枠） */
+#calSheet .close-btn{height:40px;min-height:40px;padding:0 14px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2)}   /* 閉じるも同じトーンのボタン */
 #calSheet .cal-nav:active{background:var(--surface-3)}
 #calSheet #calTitle{font-size:18px;font-weight:800}
 #calSheet #calTitle small{margin-top:2px}
