@@ -3265,6 +3265,27 @@ function calcNeed(t, g) {
    ・過ぎた段は、1つ前の段の時点で逆算した目標に届いたかで判定する
    ============================================================ */
 const stepLen = () => dayHoursEff() || 10;
+// その日の段の長さ（時間）：その日の予定の終了時刻 → いつもの入庫時刻（それより遅くまで段を作らない） → 出庫＋いつもの営業時間
+function stepLenAt(start) {
+  const L = stepLen(), p = dayPlan(dayKey(new Date(start)));
+  if (p && !p.off && p.end) {   // その日の予定（開始〜終了）があれば終了まで
+    const [h, m] = p.end.split(':').map(Number), e = new Date(start); e.setHours(h, m, 0, 0);
+    let t = e.getTime(); if (t <= start) t += 86400e3;
+    if (t - start >= 3600e3) return (t - start) / 3600e3;
+  }
+  if (p && !p.off && p.hours) return p.hours;
+  const ue = usualEnd(start);
+  return ue && ue - start >= 2 * 3600e3 ? Math.min(L, (ue - start) / 3600e3) : L;
+}
+// いつもの入庫時刻：過去の入庫時刻（時:分）の中央値（同じ曜日が3日以上ならその曜日）。記録が5日未満なら null
+function usualEnd(start) {
+  const dow = new Date(start).getDay(), all = S.shifts.filter(sh => sh.end && sh.start < start - 3600e3), same = all.filter(sh => new Date(sh.start).getDay() === dow), use = same.length >= 3 ? same : all;
+  if (use.length < 5) return null;
+  // 出庫日の0時からの分（日をまたいだ入庫は24時以降として数える）
+  const mins = use.map(sh => { const d0 = new Date(sh.start); d0.setHours(0, 0, 0, 0); return Math.round((sh.end - d0) / 60000); });
+  const d = new Date(start); d.setHours(0, 0, 0, 0);
+  return d.getTime() + Math.round(quant(mins, .5) / 5) * 5 * 60000;
+}
 let STEPC = { k: '', v: null };
 function stepCurve(dow, L) {
   const now = Date.now(), tk = dayKey(new Date());
@@ -3335,7 +3356,7 @@ function stepHistCum(dow, L) {
 }
 function stepPlan(sh, now = Date.now(), goal = sh ? dailyNeed(sh.start) : 0, start = sh ? sh.start : now) {
   if (!goal) return null;
-  const L = stepLen(), curve = stepCurve(new Date(start).getDay(), L), F = t => stepFrac(curve, L, (t - start) / 3600e3);
+  const L = stepLenAt(start), curve = stepCurve(new Date(start).getDay(), L), F = t => stepFrac(curve, L, (t - start) / 3600e3);   // 段はいつもの入庫時刻（その日の予定）まで
   const rides = sh ? ridesOf(sh.id) : [];
   const salesAt = t => rides.reduce((a, r) => a + (r.ts <= t ? r.total : 0), 0);
   // 自動の目標：段は過去の累計（中央値）を1日の目標の高さまで引き上げた金額で固定。
