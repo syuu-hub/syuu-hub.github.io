@@ -5,8 +5,8 @@
 // ・需要の小さな変化では切り替えない（ヒステリシス＋最小間隔）
 // ・候補のエリアが複数あるときは、近くの需要エリアをつないで「通り抜ける」ルートにする（巡回ツアー）
 // ・ゴールは作らない：ルートの先が短くなる前に、今のルートの終わりから次のポイントを計算して後ろにつなぎ続ける
-import { haversine, bearing, angleDiff, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=38';
-import { nearestUtility, expectedRevenueRate, CIRCUITY } from './demand.js?v=38';
+import { haversine, bearing, angleDiff, cumulative, snapToRoute, pointAt, sliceRoute, sampleLine } from './geo.js?v=42';
+import { nearestUtility, expectedRevenueRate, CIRCUITY, tourRate, travelMinutes } from './demand.js?v=42';
 
 export const DEFAULTS = {
   commitSec: 30, // 確定区間（秒）
@@ -40,6 +40,8 @@ export function routeBearing(route, along) {
   return haversine(a, b) > 1 ? bearing(a, b) : pointAt(route, along).bearing;
 }
 
+const REFILL_MIN = 10; // 通った道に、新しく手を挙げる人がまた現れるまでの時間の目安（分）。仮の値
+const angleDiffDeg = (a, b) => { const d = Math.abs(((a - b) % 360 + 540) % 360 - 180); return d; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function voiceDistance(m) {
@@ -278,6 +280,51 @@ export class EndlessNavigator {
     return tour;
   }
 
+  // 需要の高さ優先：通るエリアの組み合わせと順番を、時間あたりの期待収入（再生報酬定理。demand.js の tourRate）が
+  // 一番高いものに決める。上位 M か所から、長さ 1〜tourMax のすべての並べ方を調べる（M=7・4か所でも約1100通り）
+  // 制約：1つ先まで hopM 以内・全体で maxM 以内・計画済みのエリアの近くは通らない。曲がる角度が大きい区間は遠い扱い（Uターン）
+  // 1か所目までの移動は、道のりを測ってあれば道のりで（roadRerank の road）
+  // 複数の候補地を通るのが基本（設定の「通るエリアの数」が2以上なら、2か所以上のツアーの中で一番良いもの。
+  // 通常の制約で2か所目が無い時は、制約をゆるめて探す）
+  optimizeTour(start, cands, planned, max = Math.max(1, Math.round(this.s.tourMax || 1)), M = 7, relax = false) {
+    const refDens = this.demand.refDens();
+    const C = cands.slice(0, M).map((x) => ({
+      x, area: x.area, fare: x.area.fare || 1,
+      search: Math.min(600, this.demand.searchMin * (refDens / Math.max(1e-9, x.area.dens || x.area.score * x.area.score))),
+      firstLeg: x.road != null ? x.road / ((20 * 1000) / 60) : travelMinutes(x.effM != null ? x.effM : x.dist),
+    }));
+    const hopM = relax ? Math.max(this.s.tourHopM, 4000) : this.s.tourHopM, maxM = relax ? Math.max(this.s.tourMaxM, 10000) : this.s.tourMaxM;
+    let best = null, bestMulti = null;
+    const seq = [];
+    const rec = (prevPt, prevBrg, legs, totalM) => {
+      if (seq.length) {
+        const stops = seq.map((c, i) => ({ legMin: legs[i], searchMin: c.search, fare: c.fare }));
+        const v = tourRate(stops);
+        const cand = { v, tour: seq.map((c) => c.area), stops };
+        if (!best || v > best.v + 1e-12) best = cand;
+        if (seq.length > 1 && (!bestMulti || v > bestMulti.v + 1e-12)) bestMulti = cand;
+      }
+      if (seq.length >= max) return;
+      for (const c of C) {
+        if (seq.includes(c) || this.nearPlanned(c.area, planned) || seq.some((o) => haversine(o.area.center, c.area.center) < 500)) continue;
+        let leg, d;
+        if (!seq.length) { leg = c.firstLeg; d = c.x.dist; }
+        else {
+          d = haversine(prevPt, c.area.center);
+          if (d > hopM || totalM + d > maxM) continue;
+          const turn = prevBrg != null ? angleDiffDeg(prevBrg, bearing(prevPt, c.area.center)) : 0;
+          leg = travelMinutes(d * (1 + 0.6 * (turn / 180)));
+        }
+        seq.push(c); legs.push(leg);
+        rec(c.area.center, bearing(prevPt, c.area.center), legs, totalM + d);
+        seq.pop(); legs.pop();
+      }
+    };
+    rec(start.point, start.bearing, [], 0);
+    if (max > 1 && !bestMulti && !relax && C.length > 1) return this.optimizeTour(start, cands, planned, max, M, true) || best;
+    return max > 1 && bestMulti ? { ...bestMulti, single: best } : best;
+  }
+
   // 直線で選んだ上位の候補を、道のりの距離（ルートサーバーの距離の行列）で並べ直す。
   // 川・線路・一方通行で直線より遠回りになるエリアを後ろへ。使えない時は直線のまま
   // 需要の高さ優先：行き先までの時間を、直線×迂回係数ではなく実際の道のりで見て、空車の時間あたりの期待収入を計算し直す
@@ -315,10 +362,23 @@ export class EndlessNavigator {
       let fresh = ranked.filter((x) => !this.nearPlanned(x.area, planned));
       if (!fresh.length) fresh = ranked; // 他に無ければ止まらないことを優先
       fresh = await this.roadRerank(start, fresh);
+      this._fresh = fresh;
       firsts = fresh.slice(0, 2).map((x) => x.area);
     }
     if (!firsts.length) return [];
     const plans = [];
+    // 需要の高さ優先：組み合わせと順番を期待収入で最適化（使えない時は、これまでどおり1か所目から順に足す）
+    if (!preferred && this.s.pickMode !== 'nearest' && this._fresh && this._fresh.length) {
+      const opt = this.optimizeTour(start, this._fresh, planned);
+      this._fresh = null;
+      if (opt) {
+        this.lastOpt = opt;
+        if (opt.tour.length > 1) plans.push(opt.tour);
+        const singles = [opt.tour[0], ...firsts.filter((a) => a.key !== opt.tour[0].key)].slice(0, 2);
+        for (const a of singles) plans.push([a]);
+        return plans;
+      }
+    }
     // 外れた時も、元の行き先にこだわらず今いる所から選び直す（元の行き先が今も一番良ければ、それが選ばれる）
     const tour = this.buildTour(start, firsts[0], mode === 'extend' ? old : new Set(), planned);
     if (tour.length > 1) plans.push(tour);
@@ -403,28 +463,72 @@ export class EndlessNavigator {
   }
 
   // 慌ただしい操作にならない候補を選ぶ
+  // ===== ルート案の選び方 =====
+  // ルートサーバーが出した案（最大3つ）から、空車の時間あたりの期待収入が一番高いものを選ぶ（再生報酬定理。demand.js の tourRate と同じ考え方）
+  //   ・走っている途中でも乗車は起きる：ルートに沿って50mごとに、その地点の乗車の起きやすさ λ（需要マップ）× 通る時間 を足し、
+  //     途中で乗せる確率 1 − e^(−Σλt)（ポアソン過程）を出す。需要の多い道を通る案ほど高い（Ge ほか 2010、Yuan ほか 2011、Qu ほか 2014）
+  //   ・少し前に通った道は、そこで待っていた人はもういないので、乗車の起きやすさを 1 − e^(−経過分/10) に下げる
+  //     （新しく手を挙げる人が少しずつ現れる。これから走る予定の道も同じく0とみなす）
+  //   ・運転のしやすさ・安全：曲がる回数（1回15秒）、右折（さらに20秒。交差点の事故は右折時に多い）、Uターン（400秒）、
+  //     100m以内の連続した右左折（60秒。曲がり損ねやすい）を、時間に足して比べる
   pickBest(routes, relaxed) {
     const v = Math.max(this.speed, 5);
     const minGap = Math.max(this.s.minFirstTurnM, v * this.s.minFirstTurnSec);
-    const trackSet = this.trackGrid();
+    const refDens = this.demand.refDens();
+    const seen = this.trackTimes();
     let best = null;
     for (const r of routes) {
       const acts = r.maneuvers.filter((m) => m.action);
       if (!relaxed && acts.length && acts[0].at < minGap) continue;
-      let cost = r.time;
-      cost += acts.length * 15;
-      cost += acts.filter((m) => m.right).length * 20; // 左側通行：右折は重め
-      cost += acts.filter((m) => m.uturn).length * 400;
-      for (let i = 1; i < acts.length; i++) if (acts[i].at - acts[i - 1].at < 100) cost += 60; // 連続右左折
-      // 直近20分に走った道との重なり
-      const samples = sampleLine(r.coords, 50);
-      let hit = 0;
-      for (const p of samples) if (trackSet.has(gridKey(p))) hit++;
-      cost += (hit / Math.max(1, samples.length)) * 600;
-      if (!best || cost < best.cost) best = { route: r, cost };
+      const value = this.routeValue(r, refDens, seen);
+      if (!best || value.rate > best.rate) best = { route: r, ...value };
     }
+    if (best) this.lastRouteValue = best;
     return best && best.route;
   }
+
+  // 運転のしやすさ・安全の手間（秒）
+  routeEffortSec(r) {
+    const acts = r.maneuvers.filter((m) => m.action);
+    let sec = acts.length * 15 + acts.filter((m) => m.right).length * 20 + acts.filter((m) => m.uturn).length * 400;
+    for (let i = 1; i < acts.length; i++) if (acts[i].at - acts[i - 1].at < 100) sec += 60;
+    return sec;
+  }
+
+  // 走った道（約40m四方）ごとの、最後に通った時刻。これから走る予定の道（先へつなぐ時）は「今」とみなす
+  trackTimes() {
+    const m = new Map();
+    for (const { p, t } of this.track) m.set(gridKey(p), t);
+    if (this.route && this.planMode === 'extend') { const now = this.now(); for (const p of sampleLine(sliceRoute(this.route, this.along, this.route.length - 50), 25)) m.set(gridKey(p), now); }
+    return m;
+  }
+
+  // ルート案の期待収入：{ rate（運賃の比/分）, pEnRoute（途中で乗せる確率）, minutes（走る時間）, effortSec, overlap }
+  routeValue(r, refDens = this.demand.refDens(), seen = this.trackTimes()) {
+    const now = this.now();
+    const total = Math.max(1, r.length), minutes = (r.time || r.length / ((20 * 1000) / 60) * 60) / 60;
+    const pts = sampleLine(r.coords, 50);
+    let S = 1, ER = 0, ET = 0, hit = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const seg = haversine(pts[i - 1], pts[i]), dt = (minutes * seg) / total;
+      const k = gridKey(pts[i]), last = seen.get(k);
+      if (last != null) hit++;
+      const avail = last == null ? 1 : 1 - Math.exp(-Math.max(0, now - last) / 60e3 / REFILL_MIN);
+      const lam = this.demand.rateAt(pts[i], refDens) * avail;
+      const p = 1 - Math.exp(-lam * dt);
+      ER += S * p * this.demand.fareAt(pts[i]);
+      ET += S * dt;
+      S *= 1 - p;
+    }
+    // 行き先に着いても乗せていなければ、そこで乗せるまで回る（平均 1/λ）
+    const dest = r.coords[r.coords.length - 1];
+    ER += S * this.demand.fareAt(dest);
+    ET += S * Math.min(600, 1 / Math.max(1e-6, this.demand.rateAt(dest, refDens)));
+    const effortSec = this.routeEffortSec(r);
+    ET += effortSec / 60;
+    return { rate: ER / ET, pEnRoute: 1 - S, minutes, effortSec, overlap: hit / Math.max(1, pts.length - 1) };
+  }
+
 
   // 最近走った道と、これから走る予定の道（同じ交差点・同じ道を2回通るルートを避ける）
   trackGrid() {

@@ -1,7 +1,7 @@
 // node test/navcore.test.mjs — 確定区間・案内ロック・エンドレス性の検証
 import { EndlessNavigator } from '../js/navcore.js';
 import { DemandEngine } from '../js/demand.js';
-import { destination, bearing, haversine, cumulative, pointAt, angleDiff } from '../js/geo.js';
+import { destination, bearing, haversine, cumulative, pointAt, angleDiff, sampleLine } from '../js/geo.js';
 
 let clock = Date.parse('2026-11-20T08:00:00+09:00');
 const now = () => clock;
@@ -169,14 +169,14 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   assert(n1.route && n1.tour.length === 1, '通るエリアの数を1にすると1か所ずつ');
 }
 
-// 一直線に並んだ3つの需要エリア：3つとも通るルートになり、順に通過する
+// 一直線に並んだ3つの需要エリア：3つとも通るルートになり、順に通過する（最短距離：近い順に足していく）
 {
   const d2 = new DemandEngine();
   const o = [135.19, 34.69];
   [800, 1800, 2800].forEach((m, i) => { const p = destination(o, 90, m); d2.spots.push({ id: i, name: `A${i}`, lng: p[0], lat: p[1], cat: 'custom' }); });
   d2.update(new Date(clock), 1);
   const ps = [];
-  const n3 = new EndlessNavigator({ router: fakeRouter, demand: d2, now, emit: (t, d) => { if (t === 'pass') ps.push(d.name); } });
+  const n3 = new EndlessNavigator({ router: fakeRouter, demand: d2, now, settings: { pickMode: 'nearest' }, emit: (t, d) => { if (t === 'pass') ps.push(d.name); } });
   n3.update({ point: o, speed: 0, heading: 90, t: clock });
   for (let i = 0; i < 20 && !n3.route; i++) await sleep();
   assert(n3.tour.map((x) => x.area.name).join('>') === 'A0>A1>A2', `近い順に3エリアを通る: ${n3.tour.map((x) => x.area.name).join('>')}`);
@@ -190,6 +190,75 @@ console.log(`ツアー：作成 ${tourSizes.length} 回・平均 ${(tourSizes.re
   }
   assert(ps.join('>') === 'A0>A1', `途中のエリアを順に通過: ${ps.join('>')}`);
   assert(n3.target && n3.target.name === 'A2', `通過後は次のエリアを案内: ${n3.target && n3.target.name}`);
+}
+
+// ===== 需要の高さ優先：通るエリアの組み合わせと順番を、時間あたりの期待収入で決める（再生報酬定理） =====
+{
+  const o = [135.19, 34.69];
+  const mk = (list) => { const d = new DemandEngine(); list.forEach(([name, b, m, n]) => { const p = destination(o, b, m); for (let k = 0; k < n; k++) d.spots.push({ id: `${name}${k}`, name, lng: p[0], lat: p[1], cat: 'custom' }); }); d.update(new Date(clock), 1); return d; };
+  const plan = async (dm, settings = {}) => {
+    const n = new EndlessNavigator({ router: fakeRouter, demand: dm, now, settings: { pickMode: 'demand', ...settings }, emit: () => {} });
+    n.update({ point: o, speed: 0, heading: 90, t: clock });
+    for (let i = 0; i < 30 && !n.route; i++) await sleep();
+    return n;
+  };
+  const names = (n) => n.tour.map((x) => x.area.name).join('>');
+  // 同じ需要が一直線に3つ：遠くの同じ需要まで行く得は無いので、近い2つを通る（2か所以上が基本）
+  const a = await plan(mk([['A0', 90, 800, 3], ['A1', 90, 1800, 3], ['A2', 90, 2800, 3]]));
+  assert(names(a) === 'A0>A1', `同じ需要なら、近い2つを順に（${names(a)}）`);
+  // 先に需要がずっと高いエリアがあれば、途中を通り抜けてそこへ（途中は乗せられる機会が増えるだけで、ほぼ遠回りにならない）
+  const b = await plan(mk([['A0', 90, 800, 3], ['A1', 90, 1800, 3], ['駅', 90, 2800, 40]]));
+  assert(b.tour.length >= 2 && b.tour[b.tour.length - 1].area.name === '駅' && b.tour[0].area.name === 'A0', `需要の高いエリアを最後に、途中を通り抜けて（${names(b)}）`);
+  // 横に大きく外れたエリア（同じ需要）は、遠回りになるので通らない
+  const c = await plan(mk([['A0', 90, 800, 3], ['A1', 90, 1800, 3], ['横', 0, 2400, 3]]));
+  assert(!c.tour.some((x) => x.area.name === '横'), `遠回りになるエリアは通らない（${names(c)}）`);
+  // 計算したツアーの期待収入
+  assert(b.lastOpt && b.lastOpt.v > 0, 'ツアーの期待収入を計算している');
+  // 通るエリアの数が1なら1か所
+  const d = await plan(mk([['A0', 90, 800, 3], ['A1', 90, 1800, 3]]), { tourMax: 1 });
+  assert(d.tour.length === 1, '通るエリアの数を1にすると1か所');
+}
+
+// ===== ルート案の選び方：途中の需要・少し前に通った道・運転のしやすさ =====
+{
+  const o = [135.19, 34.69];
+  const mkRoute = (pts, sec, turns = []) => {
+    const coords = [];
+    for (let i = 0; i < pts.length - 1; i++) { const n = Math.max(1, Math.round(haversine(pts[i], pts[i + 1]) / 25)); for (let k = 0; k < n; k++) coords.push([pts[i][0] + ((pts[i + 1][0] - pts[i][0]) * k) / n, pts[i][1] + ((pts[i + 1][1] - pts[i][1]) * k) / n]); }
+    coords.push(pts[pts.length - 1]);
+    const cum = cumulative(coords);
+    return { coords, cum, length: cum[cum.length - 1], time: sec, maneuvers: turns.map((t) => ({ at: t.at, action: true, right: !!t.right, uturn: !!t.uturn, kind: t.right ? 'right' : 'left' })) };
+  };
+  const dest = destination(o, 90, 2000);
+  const north = destination(destination(o, 90, 1000), 0, 600), south = destination(destination(o, 90, 1000), 180, 600);
+  const dm = new DemandEngine();
+  for (let k = 0; k < 12; k++) dm.spots.push({ id: 'h' + k, name: '北の繁華街', lng: north[0], lat: north[1], cat: 'custom' });
+  for (let k = 0; k < 2; k++) dm.spots.push({ id: 'd' + k, name: '行き先', lng: dest[0], lat: dest[1], cat: 'custom' });
+  dm.update(new Date(clock), 1);
+  dm.searchMin = 30;
+  const n = new EndlessNavigator({ router: fakeRouter, demand: dm, now, emit: () => {} });
+  n.speed = 0;
+  const viaN = mkRoute([o, north, dest], 420, [{ at: 400 }, { at: 1300 }]);
+  const viaS = mkRoute([o, south, dest], 420, [{ at: 400 }, { at: 1300 }]);
+  assert(n.pickBest([viaS, viaN], true) === viaN, `同じ時間なら、需要の多い道を通る案（途中で乗せる確率 北 ${(n.routeValue(viaN).pEnRoute * 100).toFixed(1)}%・南 ${(n.routeValue(viaS).pEnRoute * 100).toFixed(1)}%）`);
+  // 北の繁華街を2分前に通ったばかりなら、待っていた人はもういないので南の案
+  const throughN = viaN.coords.filter((p) => haversine(p, north) < 400); // 北の繁華街の中を通る部分
+  for (const p of throughN) n.track.push({ p, t: clock - 2 * 60e3 });
+  assert(n.pickBest([viaN, viaS], true) === viaS, '少し前に通った道は乗車が起きにくいので、別の案');
+  n.track = [];
+  // 1時間前に通った道なら、また人が現れている
+  for (const p of throughN) n.track.push({ p, t: clock - 60 * 60e3 });
+  assert(n.pickBest([viaS, viaN], true) === viaN, '1時間前に通った道なら、また需要の多い道を通る');
+  n.track = [];
+  // 需要が同じ道なら、右折やUターンの少ない案
+  const lefty = mkRoute([o, dest], 400, [{ at: 500 }, { at: 1200 }]);
+  const righty = mkRoute([o, dest], 400, [{ at: 500, right: true }, { at: 1200, right: true }]);
+  const uturn = mkRoute([o, dest], 380, [{ at: 500, uturn: true }]);
+  assert(n.pickBest([righty, uturn, lefty], true) === lefty, '右折・Uターンの少ない案');
+  // 大きな遠回りで需要の多い道を通るより、近い案
+  const farN = mkRoute([o, destination(north, 0, 2500), dest], 1500, []);
+  const direct = mkRoute([o, dest], 400, []);
+  assert(n.pickBest([farN, direct], true) === direct, '大きな遠回りになるなら、需要の多い道でも通らない');
 }
 
 // ===== 実際の走行で起きること =====
