@@ -1,10 +1,10 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=39';
-import { profFactor } from './profile.js?v=39';
-import { isOffDay } from './calendar.js?v=39';
-import { activeVenues, VENUES } from './events.js?v=39';
-import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=39';
+import { haversine, bearing, angleDiff } from './geo.js?v=40';
+import { profFactor } from './profile.js?v=40';
+import { isOffDay, isPreOffNight, isNight, serviceDay, socialCalendar } from './calendar.js?v=40';
+import { activeVenues, VENUES } from './events.js?v=40';
+import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo, nightShares, calWeight } from './model.js?v=40';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -23,7 +23,13 @@ function timeFactor(cat, date, spot = null) {
   const weekend = isOffDay(date); // 祝日・年末年始も休日の傾向
   let f = (P[cat] || P.station)[h];
   if (cat === 'hospital' && weekend) f *= 0.3;
-  if (cat === 'nightlife' && (dow === 5 || dow === 6) && (h >= 20 || h <= 3)) f *= 1.3; // 金土の夜
+  // 繁華街：次の日が休みの夜（金曜・土曜・祝日の前の夜）は高く。給料日のあと・忘年会・新年会の夜も（社会の暦。js/calendar.js）
+  if (cat === 'nightlife' && isNight(date)) {
+    const s = serviceDay(date);
+    if (isOffDay(new Date(s.getFullYear(), s.getMonth(), s.getDate() + 1))) f *= 1.3;
+    const c = socialCalendar(date);
+    if (c) f *= c.mult;
+  }
   if (cat === 'station' && weekend && (h === 7 || h === 8)) f *= 0.6; // 休日は朝ラッシュなし
   // 登録地点：営業ログの乗車時刻・曜日、または自分で指定した時間帯・曜日（指定がなければ一日中同じ）
   if (cat === 'custom') f = spot && spot.prof ? profFactor(spot.prof, date) : 1;
@@ -81,7 +87,8 @@ export class DemandEngine {
     this.eventFeed = []; // イベント情報（taxi-analyzer/events.json の events）
     this.activeEvents = {}; // 今イベントの前の需要がある会場 { key: { w, events } }
     this.eventWin = null; // 会場へ向かうお客様を乗せる時間帯（営業ログから。js/events.js の learnWindow）
-    this.searchMin = 30; // 需要が中くらいのエリアで、乗車が見つかるまでの平均の時間（分）。営業ログの空車の時間から
+    this.searchMin = 30;
+    this.social = null; // 今の暮らしのリズム（休みの前の夜・社会の暦） // 需要が中くらいのエリアで、乗車が見つかるまでの平均の時間（分）。営業ログの空車の時間から
     this.weather = 'clear'; // clear | rain | heavy
     this.railDisruption = false;
     this.areas = new Map(); // key -> {key, center, name, score, raw}
@@ -91,6 +98,9 @@ export class DemandEngine {
   // 需要エリアを再計算（EMA で平滑化して急変を防ぐ）
   update(now = new Date(), alpha = 0.35) {
     const raw = new Map();
+    // 今の暮らしのリズム（候補のエリアの画面で見せる。乗車実績がある時は下で、営業ログで確かめた設定に合わせて上書き）
+    const sc = socialCalendar(now);
+    this.social = { pre: isPreOffNight(now), cal: sc ? sc.label : null, dow: false };
     // why：なぜ需要があるか（候補のエリアの画面で見せる）。src は出どころごとの需要の合計
     const add = (p, v, name, w, src = 'other') => {
       const k = cellKey(p);
@@ -117,15 +127,19 @@ export class DemandEngine {
     // その場所の需要は、まわり（幅 hs）の乗車も含めた密度で見る
     if (this.csvRides.length) {
       const prm = (this.model && this.model.params) || DEFAULT_PARAMS;
-      const { P, nLoc, origin } = this.rideCache(prm.hs);
+      const { P, nLoc, nShare, origin } = this.rideCache(prm.hs);
       const nw = nowInfo(now);
-      const w = P.map((r, i) => timeWeight(r, nw, prm.st, nLoc[i] / (nLoc[i] + prm.K), prm.dayPen) * Math.exp(-Math.max(0, (now - this.csvRides[i].t) / 864e5) / 200));
+      const calOn = prm.cal ?? DEFAULT_PARAMS.cal;
+      const w = P.map((r, i) => timeWeight(r, nw, prm.st, nLoc[i] / (nLoc[i] + prm.K), prm.dayPen, prm.dowPen ?? DEFAULT_PARAMS.dowPen, prm.pre ?? DEFAULT_PARAMS.pre)
+        * calWeight(nShare[i], nw.cal, calOn) * Math.exp(-Math.max(0, (now - this.csvRides[i].t) / 864e5) / 200));
+      // 今の暮らしのリズム（候補のエリアの画面で見せる）
+      this.social = { pre: (prm.pre ?? DEFAULT_PARAMS.pre) && nw.type3 === 'pre', cal: calOn && nw.cal ? nw.cal.label : null, dow: (prm.dowPen ?? DEFAULT_PARAMS.dowPen) > 0 };
       const cells = new Map();
       this.csvRides.forEach((p, i) => {
         const k = cellKey([p.lng, p.lat]);
         let c = cells.get(k);
-        if (!c) { c = { x: 0, y: 0, sw: 0, name: null, nameW: -1, n: 0 }; cells.set(k, c); }
-        c.n++;
+        if (!c) { c = { x: 0, y: 0, sw: 0, name: null, nameW: -1, n: 0, night: 0 }; cells.set(k, c); }
+        c.n++; c.night += nShare[i];
         const v = w[i] + 1e-6;
         c.x += P[i].x * v; c.y += P[i].y * v; c.sw += v;
         if (p.name && v > c.nameW) { c.name = p.name; c.nameW = v; }
@@ -146,7 +160,7 @@ export class DemandEngine {
         }
         const center = [origin[0] + cx / (111320 * Math.cos((origin[1] * Math.PI) / 180)), origin[1] + cy / 110540];
         const ra = add(center, dens, c.name || '乗車実績', c.name ? 0.5 + dens : 0.005, 'ride');
-        ra.why.rides = { n: c.n, near, hs, timeX: flat > 0 ? dens / flat : 1 };
+        ra.why.rides = { n: c.n, near, hs, timeX: flat > 0 ? dens / flat : 1, night: c.night / c.n, cal: calOn && nw.cal ? calWeight(c.night / c.n, nw.cal, 1) : 1 };
         // 期待運賃：件数が少ない所は全体の平均に寄せる（乗車2件分）
         if (meanFare > 0) ra.fare = (fs + 2 * meanFare) / (fw + 2) / meanFare;
       }
@@ -199,7 +213,7 @@ export class DemandEngine {
     if (c && c.rides === this.csvRides && c.n === this.csvRides.length && c.hs === hs) return c;
     const origin = [this.csvRides[0].lng, this.csvRides[0].lat];
     const P = prep(this.csvRides, origin);
-    this._rc = { rides: this.csvRides, n: this.csvRides.length, hs, P, origin, nLoc: localCounts(P, hs) };
+    this._rc = { rides: this.csvRides, n: this.csvRides.length, hs, P, origin, nLoc: localCounts(P, hs), nShare: nightShares(P, hs) };
     return this._rc;
   }
 

@@ -64,8 +64,23 @@ iPhone・Androidのブラウザで開き、「ホーム画面に追加」すれ�
 - **経験ベイズの縮小推定**：近くの乗車が少ない場所では、偶然の時刻に引っぱられないよう「時刻を問わない平均」に寄せ、乗車が多い場所ほど時刻の傾向を使います（Efron & Morris 1975 と同じ考え方）
 - **設定は自分の営業ログで決めます**：場所の幅・時刻の幅・縮小の強さ・平日／休日の差を、「1日ずつ抜いて、その日に乗せた場所を他の日から当てる」交差検証で選びます。比べる物差しは **対数予測スコア**（確率の予報の良さを正しく測れる、厳密に適正なスコア。Gneiting & Raftery 2007）。検証の結果（時刻を使うと当たる確率が何倍か）は設定画面に出します
   - 実際の営業ログ（2026年10〜11月、流し33件・全乗車213件、町名単位）で検証すると、以前の1時間ごとの強い重み付けは、時刻を使わない見方より当たりにくく（対数スコア −4.58 対 −4.05）、件数に合わせて時刻の傾向を弱めると改善しました。データが少ないうちは場所の傾向が中心になり、日数が増えると自動で時刻の傾向を使います
-- 平日／休日は **祝日・振替休日・年末年始も休日**（`js/calendar.js`。祝日法の規則から計算）
+- 平日／休日は **祝日・振替休日・年末年始も休日**（`js/calendar.js`。祝日法の規則から計算）。休みの前の夜・給料日・忘年会などは下の「暮らしのリズム」
 - 古い乗車は少しずつ軽く（200日で約4割）。期間が1か月では推定できないので、これは仮の値です
+
+### 暮らしのリズム（行動・社会の周期）
+タクシーに乗るかどうかは、人の暮らしの周期に左右されます。研究で知られている次の要素を、**営業ログで確かめたうえで** 使います（交差検証の2段目で1つずつ。営業ログで良し悪しが決められない時だけ、研究からの初期値）。
+| 要素 | 考え方（根拠） | 使い方 |
+|---|---|---|
+| 1週間の周期 | 人の動きは1週間の周期でくり返し、かなり予測できる（González ほか 2008、Song ほか 2010） | 同じ曜日の乗車を重く見る |
+| 休みの前の夜（花金） | 次の日が休みだと、遅くまで外で過ごす。日々の活動は仕事などの制約の中で組まれる（Hägerstrand 1970 の時間地理学） | 金曜・祝日の前の夜（18時〜翌3時）を、ふつうの平日の夜と別の種類の日として見る。任意で設定の時は繁華街を1.3倍（以前の「金土の夜」を、祝日の前の夜にも広げた） |
+| 給料日のあと | 収入が入ると外食・娯楽の支出が増える（Stephens 2003、Gelman ほか 2014）。日本では25日（土日祝なら前の平日）が一般的 | 給料日から3日間の夜、夜に乗せることが多いエリアを最大1.15倍 |
+| 忘年会・新年会 | 年末年始の宴会の慣習 | 12/1〜12/28の夜は最大1.2倍、1/6〜1/25の夜は最大1.1倍（夜に乗せることが多いエリアほど） |
+| 祝日・年末年始 | 休日の過ごし方は土日と同じ | 平日／休日の区別に祝日・振替休日・年末年始を入れる |
+| 雨・大雨 | 雨の日はタクシーの需要が増える（Kamga ほか 2013、Farber 2015） | 任意で設定の時、駅を1.6〜2倍、ほかを1.4〜1.7倍 |
+- 「夜に乗せることが多いエリア」は、そのまわりの乗車のうち夜（18時〜翌3時）の乗車の割合で決めます（繁華街かどうかを、名前ではなく自分の営業ログから見る）
+- 営業ログで確かめた結果は設定画面に出します（使う／使わない／研究からの初期値）。その時期の乗車が10件未満の要素は、偶然の差を拾わないよう良し悪しを決めません
+- 実際の営業ログ（2026年10〜11月、町名単位で検証）では：同じ曜日を重く見るのは、1か月では同じ曜日が4日ほどしかなく当たりにくくなったので使わない（流し・アプリ配車）。休みの前の夜は3〜8件、給料日のあとは4〜5件と少ないので研究からの初期値（これらを使っても当たりやすさの差は0.3%以内）。営業ログが増えると、自動で確かめ直します
+- 倍率（1.15・1.2など）は、研究で支出や外出が増えることは示されていても、タクシーの需要がどれだけ増えるかの数字は無いので、控えめな仮の値です
 
 ### 行き先の選び方：需要の高さ優先（`js/demand.js`）
 - タクシーの巡回先の推薦の研究（Ge ほか KDD 2010、Yuan ほか UbiComp 2011「T-Finder」、Powell ほか SSTD 2011、Qu ほか KDD 2014）にならい、**空車の時間あたりの期待収入** が一番高いエリアを選びます
@@ -90,6 +105,13 @@ iPhone・Androidのブラウザで開き、「ホーム画面に追加」すれ�
 - Yuan, J., Zheng, Y., Zhang, L., Xie, X., & Sun, G. (2011). Where to find my next passenger? *UbiComp 2011*.
 - Powell, J. W., Huang, Y., Bastani, F., & Ji, M. (2011). Towards reducing taxicab cruising time using spatio-temporal profitability maps. *SSTD 2011*.
 - Qu, M., Zhu, H., Liu, J., Liu, G., & Xiong, H. (2014). A cost-effective recommender system for taxi drivers. *KDD 2014*.
+- Hägerstrand, T. (1970). What about people in regional science? *Papers of the Regional Science Association*, 24.
+- González, M. C., Hidalgo, C. A., & Barabási, A.-L. (2008). Understanding individual human mobility patterns. *Nature*, 453.
+- Song, C., Qu, Z., Blumm, N., & Barabási, A.-L. (2010). Limits of predictability in human mobility. *Science*, 327.
+- Stephens, M. (2003). "3rd of tha month": Do Social Security recipients smooth consumption between checks? *American Economic Review*, 93(1).
+- Gelman, M., Kariv, S., Shapiro, M. D., Silverman, D., & Tadelis, S. (2014). Harnessing naturally occurring data to measure the response of spending to income. *Science*, 345.
+- Kamga, C., Yazici, M. A., & Singhal, A. (2013). Hailing in the rain: Temporal and weather-related variations in taxi ridership and taxi demand-supply equilibrium. *TRB 92nd Annual Meeting*.
+- Farber, H. S. (2015). Why you can't find a taxi in the rain and other labor supply lessons from cab drivers. *Quarterly Journal of Economics*, 130(4).
 - Ballou, R. H., Rahardja, H., & Sakai, N. (2002). Selected country circuity factors for road travel distance estimation. *Transportation Research Part A*, 36(9).
 
 ## スマホで使えるようにする（GitHub Pagesで無料公開）
@@ -166,7 +188,7 @@ Cloudflare Pages や Netlify でも同じように無料で公開できます。
 - `js/csv.js`：タクシーアナライザの営業ログCSVの読み込み
 - `js/places.js`：登録地点（住所からの位置検索、CSVの書き出し・読み込み）
 - `js/profile.js`：登録地点の時間帯・曜日（営業ログの傾向、自分で指定）
-- `js/calendar.js`：祝日・休日の判定
+- `js/calendar.js`：祝日・休日・休みの前の夜・給料日・忘年会などの判定
 - `js/events.js`：イベント情報の会場・時間帯（会場まで乗せた乗車の乗車地を開演前の需要に。乗せる時間帯を営業ログから求める）
 - `js/model.js`：乗車実績の需要モデル（カーネル密度推定・経験ベイズ・交差検証）
 - `js/region.js`：対象地域（関西圏）の範囲、地図データを範囲内だけにするスタイルの書き換え

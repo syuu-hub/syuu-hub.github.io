@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { importAnalyzerCsv, decodeCsv } from '../js/csv.js';
 import { rideType } from '../js/csv.js';
 import { fitModel, timeWeight, nowInfo, prep, pickupRate } from '../js/model.js';
-import { isHoliday, isOffDay } from '../js/calendar.js';
+import { isHoliday, isOffDay, isPreOffNight, socialCalendar, payday } from '../js/calendar.js';
 import { cumulative, destination, haversine, snapToRoute } from '../js/geo.js';
 
 let fails = 0;
@@ -190,6 +190,46 @@ const now = new Date('2026-11-24T10:00:00+09:00');
   ok(vis.lastMin === 10, `回ってからの時間：${vis.lastMin}分`);
   const east = ex.list.find((e) => e.area.name === '東');
   ok(east.travelMin > 0 && east.searchMin > 0 && east.area.why && east.area.why.cats.custom === 3, '移動・乗車までの時間と、需要の内訳（登録地点3件）');
+}
+
+// ===== 暮らしのリズム（行動・社会の周期）=====
+{
+  const J = (x) => new Date(`${x}+09:00`);
+  ok(isPreOffNight(J('2026-11-27T21:00:00')) && isPreOffNight(J('2026-11-28T01:30:00')) && isPreOffNight(J('2026-11-02T21:00:00')), '休みの前の夜：金曜の夜・その深夜・祝日（11/3）の前の夜');
+  ok(!isPreOffNight(J('2026-11-27T14:00:00')) && !isPreOffNight(J('2026-11-24T21:00:00')), '金曜の昼・ふつうの平日の夜は違う');
+  ok(payday(2026, 9).getDate() === 23 && payday(2026, 10).getDate() === 25, '給料日：25日が日曜なら前の金曜（2026年10月は23日）');
+  ok(socialCalendar(J('2026-12-10T22:00:00')).key === 'bonen' && socialCalendar(J('2026-11-25T20:00:00')).key === 'payday' && socialCalendar(J('2026-12-10T12:00:00')) == null && socialCalendar(J('2026-11-12T21:00:00')) == null, '社会の暦：忘年会・給料日のあとの夜だけ（昼・ふつうの夜は無し）');
+
+  // 交差検証：金曜の夜は繁華街N、ほかの平日の夜はオフィス街O で乗せたデータ → 「休みの前の夜を別の日に」は効く
+  const rnd = ((x) => () => (x = (x * 16807) % 2147483647) / 2147483647)(11);
+  const N = [135.19, 34.695], O = [135.215, 34.68];
+  const jit = (p) => ({ lng: p[0] + (rnd() - 0.5) * 0.001, lat: p[1] + (rnd() - 0.5) * 0.001 });
+  const rides = [];
+  for (let k = 0; k < 9; k++) {
+    for (let w = 0; w < 5; w++) {
+      const d = new Date(2026, 8, 7 + k * 7 + w, 21, Math.floor(rnd() * 50)); // 月〜金の21時台
+      if (isOffDay(d)) continue;
+      rides.push({ ...jit(isPreOffNight(d) ? N : O), t: d.getTime() });
+    }
+  }
+  const m = fitModel(rides);
+  ok(m.fitted && m.social.pre.verdict === 'better' && m.params.pre === 1, `休みの前の夜の違いがあるデータ：使う（${m.social.pre.verdict}・当たる確率 ${m.social.pre.gain.toFixed(2)}倍、${m.social.pre.n}件）`);
+  ok(m.social.cal.verdict === 'few' && m.params.cal === 1, `給料日・忘年会の時期の乗車が少ない：研究からの初期値（${m.social.cal.n}件）`);
+  // 需要：給料日のあとの夜は、夜に乗せることが多いエリアを高く
+  const dm = new DemandEngine();
+  const night = [135.19, 34.695], day = [135.23, 34.70];
+  for (let k = 0; k < 6; k++) { dm.csvRides.push({ ...jit(night), t: T(`2026-11-0${k + 2}T21:00:00+09:00`), name: '夜の街' }); dm.csvRides.push({ ...jit(day), t: T(`2026-11-0${k + 2}T21:10:00+09:00`), name: '昼の街' }); }
+  for (let k = 0; k < 6; k++) dm.csvRides.push({ ...jit(day), t: T(`2026-11-1${k}T10:00:00+09:00`), name: '昼の街' });
+  const sc = (when) => { dm.areas = new Map(); dm.update(new Date(when), 1); const o = {}; for (const a of dm.areas.values()) o[a.name] = a; return o; };
+  const plain = sc('2026-11-17T21:00:00+09:00'), pay = sc('2026-11-25T21:00:00+09:00');
+  ok(pay['夜の街'].why.rides.cal > 1.1 && pay['昼の街'].why.rides.cal < pay['夜の街'].why.rides.cal, `給料日のあとの夜：夜の街 ×${pay['夜の街'].why.rides.cal.toFixed(2)}・昼の街 ×${pay['昼の街'].why.rides.cal.toFixed(2)}`);
+  ok(pay['夜の街'].score / pay['昼の街'].score > plain['夜の街'].score / plain['昼の街'].score, '給料日のあとの夜は、夜の街の需要の割合が上がる');
+  ok(dm.social && dm.social.cal === '給料日のあとの夜', `画面に出す今の暦：${dm.social && dm.social.cal}`);
+  // 駅・ホテルなど（任意で設定）：繁華街は休みの前の夜に高く
+  const ds = new DemandEngine();
+  ds.spots = [{ id: 'n', name: '繁華街', lng: 135.19, lat: 34.695, cat: 'nightlife' }];
+  const nl = (when) => { ds.areas = new Map(); ds.update(new Date(when), 1); return [...ds.areas.values()][0].score; };
+  ok(nl('2026-11-02T22:00:00+09:00') > nl('2026-11-04T22:00:00+09:00'), '繁華街：祝日の前の夜（11/2）は、ふつうの平日の夜より高い');
 }
 
 console.log(fails ? `FAILED ${fails}` : 'ALL PASS');

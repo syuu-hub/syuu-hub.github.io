@@ -1,14 +1,14 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=39';
-import { ValhallaClient } from './valhalla.js?v=39';
-import { DemandEngine, CAT_JA } from './demand.js?v=39';
-import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=39';
-import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=39';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=39';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=39';
-import { profText, manualProf } from './profile.js?v=39';
-import { fitModel, pickupRate } from './model.js?v=39';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=39';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=39';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=40';
+import { ValhallaClient } from './valhalla.js?v=40';
+import { DemandEngine, CAT_JA } from './demand.js?v=40';
+import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=40';
+import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=40';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=40';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=40';
+import { profText, manualProf } from './profile.js?v=40';
+import { fitModel, pickupRate } from './model.js?v=40';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=40';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=40';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -990,6 +990,8 @@ function whyLines(e) {
     if (cats.length) out.push(`${cats.join('・')}（${new Date(demandTime()).getHours()}時台の傾向・天気${weatherJa() ? '：' + weatherJa() : ''}）`);
   }
   if (w.places && w.places.size) out.push(`登録地点：${[...w.places].slice(0, 3).join('・')}${w.places.size > 3 ? ` ほか${w.places.size - 3}` : ''}`);
+  if (w.rides && w.rides.cal > 1.01) out.push(`${demand.social && demand.social.cal}：夜に乗せることが多いエリア（夜の乗車 ${Math.round(w.rides.night * 100)}%）なので ×${w.rides.cal.toFixed(2)}`);
+  if (w.rides && demand.social && demand.social.pre) out.push('休みの前の夜：金曜・祝前日の夜に乗せた乗車を重く見ています');
   if (a.fare && Math.abs(a.fare - 1) >= 0.1) out.push(`運賃：このあたりで乗せた時は平均の${a.fare.toFixed(1)}倍`);
   if (!out.length) out.push('少し前まで需要があったエリア（需要は急に変えず、少しずつ下げています）');
   return out;
@@ -1034,6 +1036,7 @@ function renderCands() {
     `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}ごろ（${DEMAND_LEAD_MIN}分後に着くころ）の需要`,
     `行き先の選び方：${ns.pickMode === 'demand' ? `需要の高さ優先（空車の時間あたりの期待収入。乗車まで 中くらいのエリアで約${fmtMin(demand.searchMin)}）` : '最短距離（需要のあるエリアのうち近い順）'}`,
     `天気：${weatherJa() || '—'}`,
+    demand.social && (demand.social.pre || demand.social.cal) ? `暮らしのリズム：${[demand.social.pre ? '休みの前の夜（花金）' : '', demand.social.cal || ''].filter(Boolean).join('・')}` : '',
     cfg.demandSource === 'csv' ? `需要の元：タクシーアナライザのCSV${m && m.fitted ? `（営業ログで検証した見方：まわり${m.params.hs}m・前後${m.params.st}分）` : ''}` : '需要の元：任意で設定（駅・ホテル・登録地点など）',
     Object.keys(demand.activeEvents || {}).length ? `イベント前：${Object.keys(demand.activeEvents).map((k) => VENUES[k] ? VENUES[k].name : k).join('・')}` : '',
     running ? '' : '巡回していないので、最後にいた所から見た候補です',
@@ -1154,7 +1157,15 @@ function modelText() {
   const r = rate ? `空車1時間あたりの乗車 ${rate.toFixed(2)} 件（乗車まで平均 約${Math.round(60 / rate)}分）。` : '';
   if (!m || !m.fitted) return `${r}乗車の日数が少ないので、需要の見方は初期の設定です（4日分・12件以上で、営業ログに合わせて選びます）`;
   const t = m.gainTime >= 1.05 ? `時刻・曜日の傾向を使うと、実際に乗せた場所に付く確率が ${m.gainTime.toFixed(2)} 倍` : '時刻・曜日の傾向ははっきりせず、場所の傾向を中心に見ます';
-  return `${r}営業ログ ${m.days} 日分で検証：${t}。乗車のまわり ${m.params.hs}m・時刻の前後 ${m.params.st}分で見ます`;
+  return `${r}営業ログ ${m.days} 日分で検証：${t}。乗車のまわり ${m.params.hs}m・時刻の前後 ${m.params.st}分で見ます。${socialText(m)}`;
+}
+// 暮らしのリズムの要素（曜日の周期・休みの前の夜・社会の暦）を営業ログで確かめた結果
+const SOCIAL_JA = { dowPen: '同じ曜日の乗車を重く見る（1週間の周期）', pre: '休みの前の夜（金曜・祝前日の夜）を別の日として見る', cal: '給料日のあと・忘年会・新年会の夜に、夜に乗せることが多いエリアを高く見る' };
+function socialText(m) {
+  if (!m || !m.social) return '';
+  return '暮らしのリズム：' + Object.entries(m.social).map(([k, v]) => `${SOCIAL_JA[k]} → ${
+    v.verdict === 'better' ? `使う（営業ログで当たる確率 ${v.gain.toFixed(2)}倍）` : v.verdict === 'worse' ? '使わない（営業ログでは当たりにくくなった）'
+      : v.verdict === 'few' ? `${v.use ? '使う' : '使わない'}（その時の乗車が${v.n}件と少ないので、研究からの初期値）` : `${v.use ? '使う' : '使わない'}（営業ログでは差が出ないので、研究からの初期値）`}`).join('、');
 }
 function applyDemandChange() {
   save(); syncDemand(); demand.areas = new Map(); demand.update(demandTime(), 1); refreshHeat(); renderStart();

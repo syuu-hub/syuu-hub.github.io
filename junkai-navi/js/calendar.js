@@ -41,3 +41,40 @@ export function isOffDay(date) {
   if ((m === 12 && d >= 30) || (m === 1 && d <= 3)) return true;
   return isHoliday(date);
 }
+
+// ===== 人の暮らしのリズム（社会の暦）=====
+// 夜の需要は「営業日」でまとめる：0〜4時台は前の日の夜の続き
+export const serviceDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getHours() < 5 ? 1 : 0));
+export const isNight = (d) => d.getHours() >= 18 || d.getHours() < 3;
+const nextDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+
+// 休みの前の夜（金曜の夜・祝日の前の夜。いわゆる花金）：今日は平日で、次の日が休日の 18時〜翌3時
+// 翌日を気にせず遅くまで出かけるので、飲食・繁華街の夜の需要が増える
+export function isPreOffNight(d) {
+  const s = serviceDay(d);
+  return isNight(d) && !isOffDay(s) && isOffDay(nextDay(s));
+}
+
+// 給料日：25日（土日祝なら前の平日）。日本で一般的な支給日
+export function payday(y, m) {
+  let d = new Date(y, m, 25);
+  while (isOffDay(d)) d = new Date(y, m, d.getDate() - 1);
+  return d;
+}
+
+// 社会の暦で夜の需要が増える時期（夜だけ）。mult は、夜に乗せることが多いエリアへの倍率（理論からの初期値）
+//   給料日から3日間の夜：収入が入ると支出（外食・娯楽）が増える（Stephens 2003、Gelman ほか 2014）
+//   忘年会（12/1〜12/28の夜）・新年会（1/6〜1/25の夜）：年末年始の宴会の慣習
+export function socialCalendar(d) {
+  if (!isNight(d)) return null;
+  const s = serviceDay(d), m = s.getMonth() + 1, day = s.getDate();
+  const out = [];
+  if (m === 12 && day <= 28) out.push({ key: 'bonen', label: '忘年会シーズンの夜', mult: 1.2 });
+  if (m === 1 && day >= 6 && day <= 25) out.push({ key: 'shinnen', label: '新年会シーズンの夜', mult: 1.1 });
+  const pd = payday(s.getFullYear(), s.getMonth());
+  const diff = Math.round((s - pd) / 864e5);
+  if (diff >= 0 && diff <= 3) out.push({ key: 'payday', label: '給料日のあとの夜', mult: 1.15 });
+  if (!out.length) return null;
+  out.sort((a, b) => b.mult - a.mult);
+  return { key: out.map((x) => x.key).join('+'), label: out.map((x) => x.label).join('・'), mult: out[0] ? Math.min(1.35, out.reduce((p, x) => p * x.mult, 1)) : 1 };
+}
