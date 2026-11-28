@@ -78,6 +78,7 @@
     <div class="modal-body">
       <section class="group">
         <h3>需要エリア</h3>
+        <div class="row"><button id="btn-cands" class="btn ghost"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/></svg>今の候補のエリアと理由を見る</button></div>
         <p class="hint">需要エリアの元にするデータを選びます。</p>
         <div class="seg">
           <label><input type="radio" name="set-source" value="manual">任意で設定</label>
@@ -201,6 +202,20 @@
   </div>
 </div>
 
+<!-- 候補のエリア（今どのエリアが行き先の候補か、なぜか） -->
+<div id="cands" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head"><h2>候補のエリア <small id="cd-count" class="pl-count"></small></h2><button class="close" data-close="cands" aria-label="閉じる"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
+    <div class="modal-body">
+      <p class="hint" id="cd-context"></p>
+      <div class="cd-legend"><span><i class="cd-sw ride"></i>乗車実績</span><span><i class="cd-sw event"></i>イベント前</span><span><i class="cd-sw spot"></i>駅・ホテル・登録地点など</span></div>
+      <div id="cd-list" class="cd-list"></div>
+      <details class="more"><summary>候補にしていないエリア <span id="cd-skip-count"></span></summary><div id="cd-skip" class="cd-list"></div></details>
+      <div class="row"><button id="cd-refresh" class="btn ghost"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z"/></svg>今の位置・時刻で計算し直す</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- 地点追加 -->
 <div id="addpoint" class="modal hidden">
   <div class="modal-card small">
@@ -219,6 +234,6 @@ window.addEventListener('error', function (e) { var b = document.getElementById(
 window.addEventListener('unhandledrejection', function (e) { var b = document.getElementById('toast'); if (b) { b.textContent = 'エラー: ' + (e.reason && e.reason.message || e.reason); b.classList.remove('hidden'); } });
 </script>
 <!-- 画面やプログラムを変えたら ?v= の番号を全ファイル（index.html・sw.js・js/*.js・diag.html）でそろえて上げる。古いJSが残ると起動時にエラーになる -->
-<script type="module" src="js/main.js?v=38"></script>
+<script type="module" src="js/main.js?v=39"></script>
 </body>
 </html>

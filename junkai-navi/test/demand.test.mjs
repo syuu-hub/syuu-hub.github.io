@@ -171,5 +171,26 @@ const now = new Date('2026-11-24T10:00:00+09:00');
   }
 }
 
+// ===== 候補のエリアの画面（explain）は、行き先の選び方（rank）と同じ判定 =====
+{
+  const dm = new DemandEngine();
+  const o = [135.19, 34.69];
+  const P = (b, m, name, n = 3) => { const p = destination(o, b, m); for (let k = 0; k < n; k++) dm.spots.push({ id: name + k, name, lng: p[0], lat: p[1], cat: 'custom' }); return p; };
+  P(90, 1500, '東'); P(0, 2500, '北', 6); P(180, 300, '近い'); P(270, 9000, '遠い'); const v = P(45, 2000, '回った');
+  dm.update(new Date(T('2026-11-24T10:00:00+09:00')), 1);
+  const now = T('2026-11-24T10:00:00+09:00');
+  dm.markVisited([...dm.areas.values()].find((a) => a.name === '回った').key, now - 10 * 60e3, v);
+  const opts = { center: o, radiusM: 6000, now, revisitMin: 60, pick: 'demand' };
+  const r = dm.rank(o, 90, opts), ex = dm.explain(o, 90, opts);
+  const on = ex.list.filter((e) => !e.skip);
+  ok(on.map((e) => e.area.key).join() === r.map((e) => e.area.key).join(), `候補と順番が行き先の選び方と同じ（${on.map((e) => e.area.name).join('→')}）`);
+  const why = Object.fromEntries(ex.list.filter((e) => e.skip).map((e) => [e.area.name, e.skip]));
+  ok(why['近い'] === 'near' && why['遠い'] === 'outside' && why['回った'] === 'visited', `候補にしない理由：${JSON.stringify(why)}`);
+  const vis = ex.list.find((e) => e.area.name === '回った');
+  ok(vis.lastMin === 10, `回ってからの時間：${vis.lastMin}分`);
+  const east = ex.list.find((e) => e.area.name === '東');
+  ok(east.travelMin > 0 && east.searchMin > 0 && east.area.why && east.area.why.cats.custom === 3, '移動・乗車までの時間と、需要の内訳（登録地点3件）');
+}
+
 console.log(fails ? `FAILED ${fails}` : 'ALL PASS');
 process.exit(fails ? 1 : 0);

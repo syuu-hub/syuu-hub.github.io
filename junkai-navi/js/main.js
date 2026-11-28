@@ -1,14 +1,14 @@
-import { EndlessNavigator, routeBearing } from './navcore.js?v=38';
-import { ValhallaClient } from './valhalla.js?v=38';
-import { DemandEngine, CAT_JA } from './demand.js?v=38';
-import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=38';
-import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=38';
-import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=38';
-import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=38';
-import { profText, manualProf } from './profile.js?v=38';
-import { fitModel, pickupRate } from './model.js?v=38';
-import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=38';
-import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=38';
+import { EndlessNavigator, routeBearing } from './navcore.js?v=39';
+import { ValhallaClient } from './valhalla.js?v=39';
+import { DemandEngine, CAT_JA } from './demand.js?v=39';
+import { fetchSpots, fetchWeather, fetchRailDisruption, fetchT } from './sources.js?v=39';
+import { venueKey, VENUES, learnWindow, DEFAULT_WIN } from './events.js?v=39';
+import { sliceRoute, pointAt, haversine, snapToRoute } from './geo.js?v=39';
+import { decodeCsv, importAnalyzerCsv, placeKey, rideType, rideFilter, kindsLabel, DEFAULT_KINDS } from './csv.js?v=39';
+import { profText, manualProf } from './profile.js?v=39';
+import { fitModel, pickupRate } from './model.js?v=39';
+import { REGION_NAME, REGION_CENTER, VIEW_BOUNDS, MIN_ZOOM, inRegion, regionStyle } from './region.js?v=39';
+import { geocode, geocodeAny, queryCandidates, centerOf, placesToCsv, csvToPlaces, mergePlaces, fmtStamp } from './places.js?v=39';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'endless-navi-v1';
@@ -963,6 +963,98 @@ $('pl-form').addEventListener('submit', async (e) => {
 $('pl-cancel').onclick = closePlaceForm;
 $('pl-add').onclick = () => openPlaceForm(null);
 $('btn-places').onclick = openPlaces;
+
+// ===== 候補のエリア：今どのエリアが行き先の候補か、なぜ候補なのか（なぜ候補でないのか） =====
+const escH = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const SKIP_JA = {
+  small: () => '需要が小さい（一番高いエリアの4分の1未満。最短距離の時）',
+  excluded: () => 'ルートを計算できなかったので、しばらく外しています',
+  near: () => '今いる所から700m以内（近すぎる）',
+  outside: () => `営業エリア（巡回を始めた所から${cfg.radiusKm}km）の外`,
+  visited: (e) => `${e.lastMin}分前に通った（${settingsForNav().revisitMin}分は戻らない）`,
+};
+const fmtMin = (m) => (m >= 90 ? `${(m / 60).toFixed(1).replace('.0', '')}時間` : `${Math.max(1, Math.round(m))}分`);
+const dirJa = (diff) => (diff < 50 ? '前方' : diff < 130 ? '横' : '後方');
+function whyLines(e) {
+  const a = e.area, w = a.why || {}, out = [];
+  if (w.rides) {
+    const r = w.rides;
+    let t = `乗車実績：このエリアで ${r.n}件（まわり約${Math.round(r.hs * 2)}m以内 ${r.near}件）`;
+    if (r.timeX >= 1.15) t += `・今の時間帯・曜日は普段の${r.timeX.toFixed(1)}倍乗せている`;
+    else if (r.timeX <= 0.85) t += `・今の時間帯・曜日は普段の${r.timeX.toFixed(1)}倍（少なめ）`;
+    out.push(t);
+  }
+  if (w.event) out.push(`イベント前：${[...w.event.venues].join('・')}${w.event.titles.size ? `（${[...w.event.titles].slice(0, 2).map((x) => x.slice(0, 24)).join('／')}）` : ''}・会場まで乗せた乗車 ${w.event.rides}件の乗車地`);
+  if (w.cats) {
+    const cats = Object.entries(w.cats).filter(([k]) => k !== 'custom').map(([k, c]) => `${CAT_JA[k]} ${c}`);
+    if (cats.length) out.push(`${cats.join('・')}（${new Date(demandTime()).getHours()}時台の傾向・天気${weatherJa() ? '：' + weatherJa() : ''}）`);
+  }
+  if (w.places && w.places.size) out.push(`登録地点：${[...w.places].slice(0, 3).join('・')}${w.places.size > 3 ? ` ほか${w.places.size - 3}` : ''}`);
+  if (a.fare && Math.abs(a.fare - 1) >= 0.1) out.push(`運賃：このあたりで乗せた時は平均の${a.fare.toFixed(1)}倍`);
+  if (!out.length) out.push('少し前まで需要があったエリア（需要は急に変えず、少しずつ下げています）');
+  return out;
+}
+function candItem(e, i, best, maxScore, ctx) {
+  const a = e.area;
+  const tour = (nav.tour || []).filter((x) => !x.passed).map((x) => x.area.key);
+  const isNow = nav.target && nav.target.key === a.key;
+  const tags = [];
+  if (isNow) tags.push('<span class="cd-tag now">今の行き先</span>');
+  else if (tour.includes(a.key)) tags.push('<span class="cd-tag now">今のルートで通る</span>');
+  if (a.event) tags.push(`<span class="cd-tag">${escH(a.event)}のイベント前</span>`);
+  if (e.skip) tags.push(`<span class="cd-tag skip">${escH(SKIP_JA[e.skip](e))}</span>`);
+  const src = (a.why && a.why.src) || {};
+  const tot = Object.values(src).reduce((x, y) => x + y, 0) || 1;
+  const pct = Math.max(4, Math.round((a.score / (maxScore || 1)) * 100));
+  const segs = ['ride', 'event', 'spot', 'other'].filter((k) => src[k]).map((k) => `<span class="cd-seg ${k}" style="width:${(pct * src[k]) / tot}%"></span>`).join('') || `<span class="cd-seg ride" style="width:${pct}%"></span>`;
+  const lines = whyLines(e).map((t) => `<li>${escH(t)}</li>`);
+  lines.push(`<li class="muted">${escH(`${dirJa(e.diff)} ${e.dist >= 1000 ? (e.dist / 1000).toFixed(1) + 'km' : Math.round(e.dist / 10) * 10 + 'm'}（直線）`)}${
+    ctx.pick === 'demand' ? escH(`・移動 約${fmtMin(e.travelMin)}＋乗車まで 約${fmtMin(e.searchMin)}の見込み`) : ''}</li>`);
+  const score = best > 0 ? Math.round((e.utility / best) * 100) : 0;
+  return `<div class="cd-item${isNow ? ' now' : ''}${e.skip ? ' off' : ''}">
+    <div class="cd-top"><span class="cd-rank">${e.skip ? '−' : i + 1}</span><span class="cd-name">${escH(demand.areaName(a).replace(/（.*のイベント前）$/, ''))}</span>${e.skip ? '' : `<span class="cd-score">${ctx.pick === 'demand' ? '期待収入' : '近さ'} ${score}</span>`}</div>
+    <div>${tags.join('')}</div>
+    <div class="cd-bar" title="需要の大きさと内訳">${segs}</div>
+    <ul class="cd-why">${lines.join('')}</ul>
+    <button class="btn text cd-map" data-lng="${a.center[0]}" data-lat="${a.center[1]}">地図で見る</button>
+  </div>`;
+}
+function renderCands() {
+  if (!running) { syncDemand(); demand.update(demandTime()); }
+  const from = (lastFix && lastFix.point) || cfg.lastCenter || DEFAULT_CENTER;
+  const ns = settingsForNav();
+  const opts = { center: nav.serviceCenter || from, radiusM: ns.radiusM, exclude: nav.rankOpts().exclude, now: Date.now(), revisitMin: ns.revisitMin, pick: ns.pickMode };
+  const ex = demand.explain(from, nav.heading, opts);
+  const on = ex.list.filter((e) => !e.skip), off = ex.list.filter((e) => e.skip);
+  const best = on.length ? on[0].utility : 0;
+  const t = new Date(demandTime());
+  const m = demand.model;
+  $('cd-count').textContent = `候補 ${on.length}か所`;
+  $('cd-context').textContent = [
+    `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}ごろ（${DEMAND_LEAD_MIN}分後に着くころ）の需要`,
+    `行き先の選び方：${ns.pickMode === 'demand' ? `需要の高さ優先（空車の時間あたりの期待収入。乗車まで 中くらいのエリアで約${fmtMin(demand.searchMin)}）` : '最短距離（需要のあるエリアのうち近い順）'}`,
+    `天気：${weatherJa() || '—'}`,
+    cfg.demandSource === 'csv' ? `需要の元：タクシーアナライザのCSV${m && m.fitted ? `（営業ログで検証した見方：まわり${m.params.hs}m・前後${m.params.st}分）` : ''}` : '需要の元：任意で設定（駅・ホテル・登録地点など）',
+    Object.keys(demand.activeEvents || {}).length ? `イベント前：${Object.keys(demand.activeEvents).map((k) => VENUES[k] ? VENUES[k].name : k).join('・')}` : '',
+    running ? '' : '巡回していないので、最後にいた所から見た候補です',
+  ].filter(Boolean).join('。') + '。点数は一番の候補を100とした比べやすい値です。';
+  $('cd-list').innerHTML = on.length ? on.slice(0, 20).map((e, i) => candItem(e, i, best, ex.maxScore, ex)).join('') : '<p class="hint">候補のエリアがありません。需要エリアの元のデータ（CSV・需要スポット）を確認してください。</p>';
+  $('cd-skip-count').textContent = `（${off.length}か所）`;
+  $('cd-skip').innerHTML = off.slice(0, 30).map((e, i) => candItem(e, i, best, ex.maxScore, ex)).join('');
+}
+function openCands() {
+  renderCands();
+  $('cands').classList.remove('hidden');
+}
+$('btn-cands').onclick = openCands;
+$('cd-refresh').onclick = renderCands;
+$('cands').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.cd-map');
+  if (!b) return;
+  $('cands').classList.add('hidden'); $('settings').classList.add('hidden');
+  if (running) setFollow(false);
+  map.easeTo({ center: [+b.dataset.lng, +b.dataset.lat], zoom: 15.5, duration: 600 });
+});
 $('pl-export').onclick = () => {
   if (!cfg.events.length) { toast('登録地点がありません'); return; }
   const d = new Date();

@@ -1,10 +1,10 @@
 // 需要エンジン：時間帯・曜日・天気・鉄道・登録地点・タクシーアナライザの乗車実績から需要エリアを算出（イベントは使わない）
 // （乗車の記録はタクシーアナライザで行い、このアプリは記録したデータに基づいて案内するだけ）
-import { haversine, bearing, angleDiff } from './geo.js?v=38';
-import { profFactor } from './profile.js?v=38';
-import { isOffDay } from './calendar.js?v=38';
-import { activeVenues, VENUES } from './events.js?v=38';
-import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=38';
+import { haversine, bearing, angleDiff } from './geo.js?v=39';
+import { profFactor } from './profile.js?v=39';
+import { isOffDay } from './calendar.js?v=39';
+import { activeVenues, VENUES } from './events.js?v=39';
+import { DEFAULT_PARAMS, prep, localCounts, timeWeight, nowInfo } from './model.js?v=39';
 
 // 時間帯プロファイル（0〜23時、0〜1）
 const P = {
@@ -91,21 +91,26 @@ export class DemandEngine {
   // 需要エリアを再計算（EMA で平滑化して急変を防ぐ）
   update(now = new Date(), alpha = 0.35) {
     const raw = new Map();
-    const add = (p, v, name, w) => {
+    // why：なぜ需要があるか（候補のエリアの画面で見せる）。src は出どころごとの需要の合計
+    const add = (p, v, name, w, src = 'other') => {
       const k = cellKey(p);
       let a = raw.get(k);
-      if (!a) { a = { score: 0, name: null, nameW: -1, pts: [] }; raw.set(k, a); }
+      if (!a) { a = { score: 0, name: null, nameW: -1, pts: [], why: { src: {} } }; raw.set(k, a); }
       a.score += v;
       a.pts.push([p, v]);
+      a.why.src[src] = (a.why.src[src] || 0) + v;
       if (name && w > a.nameW) { a.name = name; a.nameW = w; }
+      return a;
     };
     for (const s of this.spots) {
       let v = (BASE[s.cat] || 0.3) * timeFactor(s.cat, now, s) * weatherFactor(s.cat, this.weather);
       if (s.cat === 'station' && this.railDisruption) v *= 1.8;
       // タクシーアナライザから取り込んだ地点は、乗車が多いほど重く（1回=1倍、4回=1.5倍、上限3倍）
       if (s.rides > 1) v *= Math.min(3, 0.5 + 0.5 * Math.sqrt(s.rides));
-      if (s.name) add([s.lng, s.lat], v, s.name, BASE[s.cat] || 0.3);
-      else add([s.lng, s.lat], v, s.cat === 'nightlife' ? '繁華街' : CAT_JA[s.cat], 0.01);
+      const a = s.name ? add([s.lng, s.lat], v, s.name, BASE[s.cat] || 0.3, 'spot') : add([s.lng, s.lat], v, s.cat === 'nightlife' ? '繁華街' : CAT_JA[s.cat], 0.01, 'spot');
+      const cats = a.why.cats || (a.why.cats = {});
+      cats[s.cat] = (cats[s.cat] || 0) + 1;
+      if (s.cat === 'custom') (a.why.places || (a.why.places = new Set())).add(s.name || '登録地点');
     }
     // タクシーアナライザの乗車実績：カーネル密度推定（場所・時刻、経験ベイズの縮小つき。js/model.js）
     // 設定は営業ログの交差検証で選んだもの（読み込んでいなければ初期値）。乗車のあった場所だけを行き先の候補にし、
@@ -119,7 +124,8 @@ export class DemandEngine {
       this.csvRides.forEach((p, i) => {
         const k = cellKey([p.lng, p.lat]);
         let c = cells.get(k);
-        if (!c) { c = { x: 0, y: 0, sw: 0, name: null, nameW: -1 }; cells.set(k, c); }
+        if (!c) { c = { x: 0, y: 0, sw: 0, name: null, nameW: -1, n: 0 }; cells.set(k, c); }
+        c.n++;
         const v = w[i] + 1e-6;
         c.x += P[i].x * v; c.y += P[i].y * v; c.sw += v;
         if (p.name && v > c.nameW) { c.name = p.name; c.nameW = v; }
@@ -129,19 +135,20 @@ export class DemandEngine {
       const hs = prm.hs, lim = (4 * hs) ** 2;
       for (const [k, c] of cells) {
         const cx = c.x / c.sw, cy = c.y / c.sw;
-        let dens = 0, fw = 0, fs = 0;
+        let dens = 0, fw = 0, fs = 0, flat = 0, near = 0;
         for (let j = 0; j < P.length; j++) {
           const dx = cx - P[j].x, dy = cy - P[j].y, d2 = dx * dx + dy * dy;
           if (d2 >= lim) continue;
-          const kw = w[j] * Math.exp(-d2 / (2 * hs * hs));
-          dens += kw;
+          const kk = Math.exp(-d2 / (2 * hs * hs)), kw = w[j] * kk;
+          dens += kw; flat += kk; // flat：時刻・曜日を問わない密度（今の時間帯が普段の何倍かを見る）
+          if (d2 <= hs * hs * 4) near++;
           if (P[j].fare > 0) { fw += kw; fs += kw * P[j].fare; }
         }
         const center = [origin[0] + cx / (111320 * Math.cos((origin[1] * Math.PI) / 180)), origin[1] + cy / 110540];
-        add(center, dens, c.name || '乗車実績', c.name ? 0.5 + dens : 0.005);
+        const ra = add(center, dens, c.name || '乗車実績', c.name ? 0.5 + dens : 0.005, 'ride');
+        ra.why.rides = { n: c.n, near, hs, timeX: flat > 0 ? dens / flat : 1 };
         // 期待運賃：件数が少ない所は全体の平均に寄せる（乗車2件分）
-        const ra = raw.get(k) || raw.get(cellKey(center));
-        if (ra && meanFare > 0) ra.fare = (fs + 2 * meanFare) / (fw + 2) / meanFare;
+        if (meanFare > 0) ra.fare = (fs + 2 * meanFare) / (fw + 2) / meanFare;
       }
     }
 
@@ -154,10 +161,13 @@ export class DemandEngine {
         let v = 0;
         for (const k of keys) v = Math.max(v, this.activeEvents[k].w * (r.venue === k ? 1 : 0.3));
         if (v <= 0) continue;
-        add([r.lng, r.lat], EVENT_W * v, r.name || 'イベント前の乗車地', 1 + v);
-        const a = raw.get(cellKey([r.lng, r.lat]));
-        if (a && r.venue in this.activeEvents) a.event = VENUE_NAME(r.venue);
-        else if (a && !a.event) a.event = VENUE_NAME(keys[0]);
+        const a = add([r.lng, r.lat], EVENT_W * v, r.name || 'イベント前の乗車地', 1 + v, 'event');
+        if (r.venue in this.activeEvents) a.event = VENUE_NAME(r.venue);
+        else if (!a.event) a.event = VENUE_NAME(keys[0]);
+        const ev = a.why.event || (a.why.event = { rides: 0, venues: new Set(), titles: new Set() });
+        ev.rides++;
+        ev.venues.add(VENUE_NAME(r.venue));
+        for (const k of keys) if (r.venue === k) this.activeEvents[k].events.forEach((t) => ev.titles.add(t));
       }
     }
 
@@ -177,7 +187,7 @@ export class DemandEngine {
         if (sw > 0) center = [x / sw, y / sw];
       }
       const dens = r ? r.score : prev && prev.dens ? prev.dens * (1 - alpha) : score * score;
-      next.set(k, { key: k, center, score, dens, event: r && r.event ? r.event : null, fare: (r && r.fare) || (prev && prev.fare) || 1, name: (r && r.name) || (prev && prev.name) || null });
+      next.set(k, { key: k, center, score, dens, why: r ? r.why : null, event: r && r.event ? r.event : null, fare: (r && r.fare) || (prev && prev.fare) || 1, name: (r && r.name) || (prev && prev.name) || null });
     }
     this.areas = next;
     return next;
@@ -221,38 +231,61 @@ export class DemandEngine {
   //         false なら候補には残し、点数を大きく下げるだけ（他に行き先が無い時の予備）
   // pick：'nearest'＝需要のあるエリア（一番高いエリアの minShare 以上）のうち、近い順（後ろのエリアは遠い扱い）
   //       'demand' ＝需要の高さと距離のかね合い（需要が高ければ少し遠くても選ぶ）
-  rank(from, heading, { center, radiusM = 6000, exclude = new Set(), now = Date.now(), minDistM = 700, revisitMin = 60, nearM = 500, strict = true, pick = 'demand', minShare = 0.25 } = {}) {
-    const list = [];
-    const recent = this.recentVisited(now, revisitMin);
+  // 1つのエリアを行き先の候補として評価する（rank と、候補のエリアの画面の explain で同じ判定を使う）
+  // skip：候補にしない理由（small＝需要が小さい、excluded＝ルートを計算できなかった、near＝近すぎる、outside＝営業エリアの外、visited＝回ったばかり）
+  evalArea(a, from, heading, ctx) {
+    const { center, radiusM, exclude, now, minDistM, revisitMin, nearM, strict, pick, minShare, maxScore, refDens, recent } = ctx;
+    const d = haversine(from, a.center);
+    const diff = heading != null ? angleDiff(heading, bearing(from, a.center)) : 0;
+    const effM = d * (1 + 0.6 * (diff / 180)); // 後ろの行き先はUターン・回り込みの分だけ遠い扱い
+    const out = { area: a, dist: d, diff, effM, skip: null, lastMin: null };
+    if (pick === 'nearest' && a.score < maxScore * minShare) out.skip = 'small'; // 需要が小さいエリアは行き先にしない
+    else if (exclude.has(a.key)) out.skip = 'excluded';
+    else if (d < minDistM) out.skip = 'near';
+    else if (center && haversine(center, a.center) > radiusM) out.skip = 'outside';
+    if (pick === 'nearest') {
+      // 走る距離が短いほど良い。需要は同じくらいの近さの時の決め手に少しだけ
+      out.utility = nearestUtility(effM, a.score / (maxScore || 1));
+    } else {
+      // 空車の時間あたりの期待収入（上の「行き先の選び方の根拠」）
+      out.utility = expectedRevenueRate(a, effM, this.searchMin, refDens);
+      out.travelMin = travelMinutes(effM);
+      out.searchMin = Math.min(600, this.searchMin * (refDens / Math.max(1e-9, a.dens || a.score * a.score)));
+    }
+    // 直近に回ったエリア（そのものか、すぐ近く）
+    let last = null;
+    for (const r of recent) if (r.key === a.key || (r.c && haversine(r.c, a.center) < nearM)) if (!last || r.t > last) last = r.t;
+    if (last != null) {
+      out.lastMin = Math.round((now - last) / 60e3);
+      if (strict) out.skip = out.skip || 'visited';
+      else out.utility *= 0.05 + 0.95 * ((now - last) / 60e3 / revisitMin) ** 2;
+    }
+    return out;
+  }
+
+  rankCtx({ center, radiusM = 6000, exclude = new Set(), now = Date.now(), minDistM = 700, revisitMin = 60, nearM = 500, strict = true, pick = 'demand', minShare = 0.25 } = {}) {
     let maxScore = 0;
     for (const a of this.areas.values()) maxScore = Math.max(maxScore, a.score);
-    const refDens = this.refDens();
+    return { center, radiusM, exclude, now, minDistM, revisitMin, nearM, strict, pick, minShare, maxScore, refDens: this.refDens(), recent: this.recentVisited(now, revisitMin) };
+  }
+
+  rank(from, heading, opts = {}) {
+    const ctx = this.rankCtx(opts);
+    const list = [];
     for (const a of this.areas.values()) {
-      if (pick === 'nearest' && a.score < maxScore * minShare) continue; // 需要が小さいエリアは行き先にしない
-      if (exclude.has(a.key)) continue;
-      const d = haversine(from, a.center);
-      if (d < minDistM) continue;
-      if (center && haversine(center, a.center) > radiusM) continue;
-      const diff = heading != null ? angleDiff(heading, bearing(from, a.center)) : 0;
-      let u;
-      if (pick === 'nearest') {
-        // 走る距離が短いほど良い。後ろのエリアはUターン・回り込みが要るので遠い扱い。需要は同じくらいの近さの時の決め手に少しだけ
-        u = nearestUtility(d * (1 + 0.6 * (diff / 180)), a.score / (maxScore || 1));
-      } else {
-        // 空車の時間あたりの期待収入（上の「行き先の選び方の根拠」）。後ろの行き先はUターン・回り込みの分だけ遠い扱い
-        u = expectedRevenueRate(a, d * (1 + 0.6 * (diff / 180)), this.searchMin, refDens);
-      }
-      // 直近に回ったエリア（そのものか、すぐ近く）
-      let last = null;
-      for (const r of recent) if (r.key === a.key || (r.c && haversine(r.c, a.center) < nearM)) if (!last || r.t > last) last = r.t;
-      if (last != null) {
-        if (strict) continue;
-        u *= 0.05 + 0.95 * ((now - last) / 60e3 / revisitMin) ** 2;
-      }
-      list.push({ area: a, utility: u, dist: d, diff });
+      const e = this.evalArea(a, from, heading, ctx);
+      if (!e.skip) list.push(e);
     }
     list.sort((x, y) => y.utility - x.utility);
     return list;
+  }
+
+  // 候補のエリアの画面用：すべてのエリアを、候補になっているか・なっていない理由・点数つきで返す（点数の高い順）
+  explain(from, heading, opts = {}) {
+    const ctx = this.rankCtx(opts);
+    const list = [...this.areas.values()].map((a) => this.evalArea(a, from, heading, ctx));
+    list.sort((x, y) => (!!x.skip - !!y.skip) || y.utility - x.utility);
+    return { list, maxScore: ctx.maxScore, refDens: ctx.refDens, pick: ctx.pick };
   }
 
   utilityOf(key, from, heading, opts) {
